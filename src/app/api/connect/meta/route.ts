@@ -1,0 +1,36 @@
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+
+export async function GET(request: Request) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  const appId = process.env.META_APP_ID;
+  const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/connect/meta/callback`;
+  const state = user.id;
+
+  // UPDATED SCOPES: Added Pages & Instagram permissions
+  const scopes = [
+    "ads_management",
+    "ads_read",
+    "business_management",
+    "public_profile",
+    "email",
+    // Essential for finding the Page:
+    "pages_show_list",
+    "pages_read_engagement",
+    // Essential for finding the Instagram Account & Posts:
+    "instagram_basic",
+    "instagram_manage_insights",
+  ].join(",");
+
+  const url = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&state=${state}&scope=${scopes}`;
+
+  return redirect(url);
+}
