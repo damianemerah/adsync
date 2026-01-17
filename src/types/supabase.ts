@@ -171,6 +171,7 @@ export type Database = {
           carousel_data: Json | null
           created_at: string | null
           creative_id: string | null
+          creative_snapshot: Json | null
           destination_type: string | null
           destination_url: string | null
           headline: string | null
@@ -189,6 +190,7 @@ export type Database = {
           carousel_data?: Json | null
           created_at?: string | null
           creative_id?: string | null
+          creative_snapshot?: Json | null
           destination_type?: string | null
           destination_url?: string | null
           headline?: string | null
@@ -207,6 +209,7 @@ export type Database = {
           carousel_data?: Json | null
           created_at?: string | null
           creative_id?: string | null
+          creative_snapshot?: Json | null
           destination_type?: string | null
           destination_url?: string | null
           headline?: string | null
@@ -334,10 +337,13 @@ export type Database = {
       campaigns: {
         Row: {
           ad_account_id: string | null
+          clicks: number | null
           created_at: string | null
+          ctr: number | null
           daily_budget_cents: number
           error_log: string | null
           id: string
+          impressions: number | null
           name: string
           objective: string | null
           organization_id: string | null
@@ -345,16 +351,20 @@ export type Database = {
           platform: string | null
           platform_campaign_id: string | null
           promotion_id: string | null
+          spend_cents: number | null
           status: string | null
           targeting_profile_id: string | null
           updated_at: string | null
         }
         Insert: {
           ad_account_id?: string | null
+          clicks?: number | null
           created_at?: string | null
+          ctr?: number | null
           daily_budget_cents: number
           error_log?: string | null
           id?: string
+          impressions?: number | null
           name: string
           objective?: string | null
           organization_id?: string | null
@@ -362,16 +372,20 @@ export type Database = {
           platform?: string | null
           platform_campaign_id?: string | null
           promotion_id?: string | null
+          spend_cents?: number | null
           status?: string | null
           targeting_profile_id?: string | null
           updated_at?: string | null
         }
         Update: {
           ad_account_id?: string | null
+          clicks?: number | null
           created_at?: string | null
+          ctr?: number | null
           daily_budget_cents?: number
           error_log?: string | null
           id?: string
+          impressions?: number | null
           name?: string
           objective?: string | null
           organization_id?: string | null
@@ -379,6 +393,7 @@ export type Database = {
           platform?: string | null
           platform_campaign_id?: string | null
           promotion_id?: string | null
+          spend_cents?: number | null
           status?: string | null
           targeting_profile_id?: string | null
           updated_at?: string | null

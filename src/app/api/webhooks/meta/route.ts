@@ -87,7 +87,7 @@ async function processMetaEvent(change: any, accountIdRaw: string) {
         autoRefreshToken: false,
         persistSession: false,
       },
-    }
+    },
   );
 
   // --- 1. Find the Owner of this Ad Account ---
@@ -138,7 +138,7 @@ async function processMetaEvent(change: any, accountIdRaw: string) {
           actionUrl: "/campaigns",
           actionLabel: "View Campaigns",
         },
-        supabase // Pass the admin client instance
+        supabase, // Pass the admin client instance
       );
     }
   }
@@ -166,7 +166,7 @@ async function processMetaEvent(change: any, accountIdRaw: string) {
           actionUrl: "/ad-accounts",
           actionLabel: "Fix Account",
         },
-        supabase
+        supabase,
       );
 
       // Update DB Status
@@ -176,6 +176,63 @@ async function processMetaEvent(change: any, accountIdRaw: string) {
           health_status: status === 2 ? "disabled" : "payment_issue",
         })
         .eq("platform_account_id", platformAccountId);
+    }
+  }
+
+  // --- 4. Handle Campaign Status Changes ---
+  if (field === "campaigns") {
+    // Value typically contains: { id: "...", effective_status: "ACTIVE", configured_status: "ACTIVE", name: "..." }
+    const status = value.effective_status || value.configured_status;
+    const campaignId = value.id;
+
+    if (
+      status &&
+      ["ACTIVE", "PAUSED", "ARCHIVED", "IN_PROCESS", "WITH_ISSUES"].includes(
+        status,
+      )
+    ) {
+      // Find the campaign in DB to get its name (and verify ownership implicitly via ad account)
+      const { data: campaign } = await supabase
+        .from("campaigns")
+        .select("name, id")
+        .eq("platform_campaign_id", campaignId)
+        .single();
+
+      if (campaign) {
+        let msg = `Campaign "${campaign.name}" is now ${status}.`;
+        let type: "info" | "success" | "warning" | "critical" = "info";
+
+        if (status === "ACTIVE") {
+          msg = `🚀 Great news! Campaign "${campaign.name}" is now ACTIVE and running.`;
+          type = "success";
+        } else if (status === "WITH_ISSUES") {
+          msg = `⚠️ Attention: Campaign "${campaign.name}" has issues.`;
+          type = "critical";
+        } else if (status === "ARCHIVED") {
+          msg = `Campaign "${campaign.name}" has been archived.`;
+          type = "info";
+        }
+
+        await sendNotification(
+          {
+            userId: owner.user_id,
+            organizationId: account.organization_id,
+            title: `Campaign Update: ${status}`,
+            message: msg,
+            type: type,
+            category: "campaign",
+            actionUrl: `/campaigns/${campaign.id}`,
+            actionLabel: "View Campaign",
+          },
+          supabase,
+        );
+
+        // Optional: Update DB status immediately for fresher UI
+        await supabase
+          .from("campaigns")
+          .update({ status: status.toLowerCase() }) // Map to our enum if needed, or keep raw
+          .eq("id", campaign.id);
+      }
     }
   }
 }

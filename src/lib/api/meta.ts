@@ -182,4 +182,88 @@ export const MetaService = {
       token
     );
   },
+
+  /**
+   * Get time-series insights for a specific campaign
+   * Returns daily breakdown of performance metrics
+   */
+  getCampaignInsights: async (token: string, campaignId: string) => {
+    // time_increment=1 gives us daily breakdown
+    // date_preset=last_30d covers the standard view
+    return MetaService.request(
+      `/${campaignId}/insights?fields=spend,impressions,clicks,cpc,ctr,reach&time_increment=1&date_preset=last_30d`,
+      "GET",
+      token
+    );
+  },
+
+  // Fetch Breakdown (Age/Gender/Location)
+  getCampaignDemographics: async (token: string, campaignId: string) => {
+    return MetaService.request(
+      `/${campaignId}/insights?fields=reach,impressions,spend&breakdowns=age,gender&date_preset=maximum`,
+      "GET",
+      token
+    );
+  },
+
+  // Fetch specific Ad Account Balance
+  getAdAccountBalance: async (token: string, adAccountId: string) => {
+    // Note: The correct endpoint for account details is /act_<ID>, but here we use the ID passed which likely is act_<ID> or just <ID>.
+    // Usually adAccountId passed here is the stored "act_..." ID or just the number.
+    // Current usage in createCampaign uses `act_${adAccountId}`.
+    // The instructions say: getAdAccountBalance: async (token: string, adAccountId: string) => MetaService.request(`/${adAccountId}?fields=balance,currency,spend_cap`, ...)
+    // If adAccountId is just the number, we need to prepend act_?
+    // Wait, the user instruction used: `/${adAccountId}?fields=balance...`.
+    // And in step 3 (Server Fetcher), it calls it with `data.ad_accounts.platform_account_id`.
+    // Let's assume the ID passed is the correct one to query the object directly.
+    // Actually, `act_<ID>` is the object ID for ad account.
+    // Usually `platform_account_id` in DB is just the number.
+    // Let's look at `createCampaign`: `/act_${adAccountId}/campaigns`.
+    // The instructions show using `/${adAccountId}` directly.
+    // However, usually you need `act_` prefix.
+    // Let's follow the user's snippet exactly first, but chances are it expects `act_` to be part of the ID or handled by caller?
+    // In `getCampaignById` implementation plan: `const accId = data.ad_accounts.platform_account_id;` which is usually "12345".
+    // Does `/12345` work? No, it should be `/act_12345`.
+    // But wait, `MetaService.request` just appends endpoint.
+    // Use `act_${adAccountId}` if the input is just number.
+    // The user instruction snippet: `/${adAccountId}?fields=balance,currency,spend_cap`.
+    // I will verify assuming adAccountId provided by caller might NOT have act_.
+    // But looking at line 180: `/act_${adAccountId}/insights`.
+    // I will follow the pattern `act_${adAccountId}` to be safe, BUT the user instruction explicitly wrote `/${adAccountId}`.
+    // I will stick to `act_${adAccountId}` because I know Meta API requires it for ad account nodes.
+    // EXCEPT if the ID passed IS `act_12345`.
+    // Let's check `getCampaignById`. It passes `data.ad_accounts.platform_account_id`.
+    // DB usually stores "123456789".
+    // So I need to use `/act_${adAccountId}`.
+    // BUT the user provided code snippet says `/${adAccountId}`.
+    // Maybe they passed `act_`? No `data.ad_accounts.platform_account_id` usually is just digits.
+    // I will correct it to `/act_${adAccountId}` and add a comment or just assume the user meant the ID of the object `act_...`.
+    // ACTUALLY, checking the user snippet again:
+    // `const accId = data.ad_accounts.platform_account_id;`
+    // `MetaService.getAdAccountBalance(token, accId)`
+    // And in logic: `/${adAccountId}?fields...`
+    // If I use `act_${adAccountId}` it will work. I will do that to ensure it works.
+
+    // Correction: I should check if `adAccountId` starts with `act_`.
+    // But for now, keeping consistent with other methods (createCampaign) which take `adAccountId` (digits) and prepend `act_`.
+    // Wait, other methods take `adAccountId` and do `/act_${adAccountId}`.
+    // So I should do the same.
+    const id = adAccountId.startsWith("act_")
+      ? adAccountId
+      : `act_${adAccountId}`;
+    return MetaService.request(
+      `/${id}?fields=balance,currency,spend_cap`,
+      "GET",
+      token
+    );
+  },
+
+  // Fetch Ads inside a Campaign
+  getCampaignAds: async (token: string, campaignId: string) => {
+    return MetaService.request(
+      `/${campaignId}/ads?fields=id,name,status,creative{thumbnail_url,image_url,title,body},insights{clicks,spend,ctr}`,
+      "GET",
+      token
+    );
+  },
 };

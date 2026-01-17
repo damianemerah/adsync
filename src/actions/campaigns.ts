@@ -47,7 +47,7 @@ export async function launchCampaign(config: LaunchConfig) {
   // 🛑 GATEKEEPER: Check Subscription
   if (subStatus !== "active" && subStatus !== "trialing") {
     throw new Error(
-      "Your subscription has expired. Please renew to launch campaigns."
+      "Your subscription has expired. Please renew to launch campaigns.",
     );
   }
 
@@ -101,7 +101,7 @@ export async function launchCampaign(config: LaunchConfig) {
     const pages = await MetaService.request(
       "/me/accounts?fields=id,name",
       "GET",
-      accessToken
+      accessToken,
     );
     if (!pages.data?.length)
       throw new Error("No Facebook Page found. Please create one on Facebook.");
@@ -133,7 +133,7 @@ export async function launchCampaign(config: LaunchConfig) {
       accessToken,
       adAccountId,
       config.name,
-      config.objective
+      config.objective,
     );
 
     console.log("Campaign Created:", campaignRes);
@@ -152,7 +152,7 @@ export async function launchCampaign(config: LaunchConfig) {
           age_min: 18,
           age_max: 65,
         },
-      }
+      },
     );
 
     console.log("Ad Set Created:", adSetRes);
@@ -162,7 +162,7 @@ export async function launchCampaign(config: LaunchConfig) {
     const imageRes = await MetaService.createAdImage(
       accessToken,
       adAccountId,
-      config.creatives[0]
+      config.creatives[0],
     );
 
     console.log("Image Created:", imageRes);
@@ -182,7 +182,7 @@ export async function launchCampaign(config: LaunchConfig) {
         primaryText: config.adCopy.primary,
         headline: config.adCopy.headline,
         destinationUrl: finalUrl, // The processed WhatsApp or Website link
-      }
+      },
     );
 
     console.log("Ad Created:", adRes);
@@ -220,5 +220,62 @@ export async function launchCampaign(config: LaunchConfig) {
       success: false,
       error: error.message || "Failed to launch campaign",
     };
+  }
+}
+
+// Add this new Action
+export async function updateCampaignStatus(
+  campaignId: string,
+  action: "PAUSED" | "ACTIVE" | "ARCHIVED",
+) {
+  const supabase = await createClient();
+
+  // 1. Get Campaign & Token
+  const { data: campaign } = await supabase
+    .from("campaigns")
+    .select(
+      `
+      *,
+      ad_accounts (
+        platform_account_id,
+        access_token
+      )
+    `,
+    )
+    .eq("id", campaignId)
+    .single();
+
+  if (!campaign || !campaign.ad_accounts) throw new Error("Campaign not found");
+
+  try {
+    const token = decrypt(campaign.ad_accounts.access_token);
+    const metaId = campaign.platform_campaign_id;
+
+    // 2. Call Meta API
+    // DELETE for Archive, POST for Status Update
+    if (action === "ARCHIVED") {
+      await MetaService.request(`/${metaId}`, "DELETE", token);
+
+      // DB: Delete row (or soft delete if you prefer)
+      await supabase.from("campaigns").delete().eq("id", campaignId);
+    } else {
+      await MetaService.request(`/${metaId}`, "POST", token, {
+        status: action,
+      });
+
+      // DB: Update Status
+      await supabase
+        .from("campaigns")
+        .update({
+          status: action.toLowerCase(),
+        })
+        .eq("id", campaignId);
+    }
+
+    revalidatePath("/campaigns");
+    return { success: true };
+  } catch (error: any) {
+    console.error("Campaign Update Error:", error);
+    return { success: false, error: error.message };
   }
 }

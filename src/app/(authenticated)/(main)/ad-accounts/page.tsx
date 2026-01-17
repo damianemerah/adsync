@@ -98,7 +98,7 @@ export default function AdAccountsPage() {
     return (
       <div className="flex h-screen bg-slate-50">
         <Sidebar />
-        <div className="ml-64 flex flex-1 p-8">
+        <div className="flex flex-1 p-8">
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Error Loading Accounts</AlertTitle>
