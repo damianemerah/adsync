@@ -2,9 +2,6 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client"; // Update path if needed
-import { Database } from "@/types/supabase";
-
-type CreativeInsert = Database["public"]["Tables"]["creatives"]["Insert"];
 
 export function useCreatives() {
   const queryClient = useQueryClient();
@@ -67,7 +64,7 @@ export function useCreatives() {
       } = supabase.storage.from("creatives").getPublicUrl(fileName);
 
       // D. Insert into DB
-      const creativeData: CreativeInsert = {
+      const creativeData = {
         organization_id: member.organization_id,
         name: file.name,
         media_type: file.type.startsWith("video") ? "video" : "image",
@@ -98,5 +95,27 @@ export function useCreatives() {
     isLoading: query.isLoading,
     uploadCreative: uploadMutation.mutateAsync,
     isUploading: uploadMutation.isPending,
+  };
+}
+
+// [NEW] Hook for Creative History
+import { getCreativeHistory } from "@/actions/ai-images";
+
+export function useCreativeHistory(creativeId: string | null) {
+  const query = useQuery({
+    queryKey: ["creative-history", creativeId],
+    queryFn: async () => {
+      if (!creativeId) return null;
+      console.log("🪝 useCreativeHistory: Fetching for", creativeId);
+      return getCreativeHistory(creativeId);
+    },
+    enabled: !!creativeId,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
+  return {
+    data: query.data,
+    isLoading: query.isLoading,
+    error: query.error,
   };
 }

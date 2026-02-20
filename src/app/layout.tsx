@@ -6,20 +6,8 @@ import "./globals.css";
 import QueryProvider from "@/components/providers/query-provider";
 import { ThemeProvider } from "../components/theme-provider";
 
-import { Montserrat, Montserrat_Alternates } from "next/font/google";
 import { AuthProvider } from "@/components/providers/auth-provider";
-
-const montserrat = Montserrat({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-sans",
-});
-
-const montserratAlternates = Montserrat_Alternates({
-  subsets: ["latin"],
-  weight: ["700"],
-  variable: "--font-heading",
-});
+import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
   title: "AdSync - AI-Powered Social Ad Manager for Meta & TikTok",
@@ -52,14 +40,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${montserrat.variable} ${montserratAlternates.variable} font-sans antialiased`}
-      >
+      <body className="font-sans antialiased">
         <QueryProvider>
           <ThemeProvider defaultTheme="system" storageKey="adsync-theme">
             <AuthProvider>{children}</AuthProvider>
           </ThemeProvider>
           <Analytics />
+          <Toaster />
         </QueryProvider>
       </body>
     </html>

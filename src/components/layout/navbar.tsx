@@ -1,29 +1,29 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Sparkles } from "lucide-react";
+import { Sparks } from "iconoir-react";
 
 export function Navbar() {
   return (
-    <nav className="sticky top-0 z-50 w-full border-b border-border/40 bg-white/80 backdrop-blur-md">
+    <nav className="w-full bg-foreground">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
+        <div className="flex h-20 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-600/20">
-              <Sparkles className="h-5 w-5 fill-current" />
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-soft transition-transform group-hover:scale-105">
+              <Sparks className="h-5 w-5 fill-current" />
             </div>
-            <span className="font-heading text-xl font-bold tracking-tight text-slate-900">
+            <span className="font-heading text-2xl font-bold tracking-tight text-white">
               AdSync
             </span>
           </Link>
 
           {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-8">
+          <div className="hidden md:flex items-center gap-10">
             {["Features", "Pricing", "Resources"].map((item) => (
               <Link
                 key={item}
                 href={`#${item.toLowerCase()}`}
-                className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors"
+                className="text-sm font-semibold text-gray-300 hover:text-primary transition-colors"
               >
                 {item}
               </Link>
@@ -31,14 +31,17 @@ export function Navbar() {
           </div>
 
           {/* CTA Buttons */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <Link href="/login">
-              <Button variant="ghost" className="text-slate-600 font-semibold hover:text-blue-600 hover:bg-blue-50">
+              <Button
+                variant="ghost"
+                className="text-gray-300 font-semibold hover:text-primary hover:bg-white/10 rounded-3xl"
+              >
                 Log in
               </Button>
             </Link>
             <Link href="/signup">
-              <Button className="rounded-xl bg-blue-600 hover:bg-blue-700 font-bold shadow-lg shadow-blue-600/20">
+              <Button className="rounded-3xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold px-6 h-11 shadow-soft transition-all hover:-translate-y-0.5">
                 Start Free Trial
               </Button>
             </Link>

@@ -4,13 +4,13 @@ import { useEffect } from "react";
 import { useCampaignStore } from "@/stores/campaign-store";
 
 export function StoreHydrator({ userId }: { userId: string }) {
-  const hydrate = useCampaignStore((state) => state.hydrateForUser);
+  const update = useCampaignStore((state) => state.updateDraft);
 
   useEffect(() => {
     if (userId) {
-      hydrate(userId);
+      update({ userId });
     }
-  }, [userId, hydrate]);
+  }, [userId, update]);
 
   return null;
 }

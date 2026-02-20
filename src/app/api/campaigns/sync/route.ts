@@ -29,10 +29,12 @@ export async function POST(request: Request) {
 
     // ✅ ARCHITECTURAL CHANGE: Added 'insights' to fields
     // We use .date_preset(maximum) to get LIFETIME stats for the dashboard list
+    // v24.0: Added promoted_object and spend_cap for completeness
     const fields = `
-      id,name,status,objective,daily_budget,lifetime_budget,
+      id,name,status,objective,daily_budget,lifetime_budget,spend_cap,
       insights.date_preset(maximum){spend,clicks,impressions,ctr},
-      adsets{id,name,status,daily_budget,targeting},
+      promoted_object{id,name},
+      adsets{id,name,status,daily_budget,targeting{geo_locations,behaviors,interests}},
       ads{id,name,status,creative{id,title,body,image_url,thumbnail_url}}
     `;
 

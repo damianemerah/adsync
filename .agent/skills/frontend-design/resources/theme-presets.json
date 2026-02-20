@@ -1,0 +1,28 @@
+{
+  "theme_name": "Wask-Emerald-Clean",
+  "tokens": {
+    "colors": {
+      "primary": "#12E193",
+      "primary_foreground": "#030018",
+      "background": "#FFFFFF",
+      "foreground": "#030018",
+      "muted": "#F9FAFB",
+      "muted_foreground": "#98A2B3",
+      "accent": "#F4FBF9",
+      "accent_foreground": "#12E193",
+      "border": "#F2F4F7",
+      "sidebar": "#FFFFFF",
+      "sidebar_border": "#F2F4F7",
+      "sidebar_foreground": "#445469"
+    },
+    "layout": {
+      "radius": "1.5rem",
+      "card_shadow": "0 4px 20px -2px rgba(3, 0, 24, 0.05)",
+      "sidebar_width": "260px"
+    },
+    "typography": {
+      "sans": "Montserrat",
+      "heading": "Montserrat Alternates"
+    }
+  }
+}

@@ -1,7 +1,44 @@
 const API_VERSION = "v24.0";
 const BASE_URL = `https://graph.facebook.com/${API_VERSION}`;
 
-import { META_OBJECTIVE_MAP, AdSyncObjective } from "@/lib/constants";
+import {
+  META_OBJECTIVE_MAP,
+  AdSyncObjective,
+  META_PLACEMENTS,
+  MetaPlacement,
+} from "@/lib/constants";
+
+const getPlacementSpec = (
+  placementId: MetaPlacement,
+  metaSubPlacements?: Record<string, string[]>,
+) => {
+  const config = META_PLACEMENTS.find((p) => p.id === placementId);
+  if (!config || config.id === "automatic") return {}; // Advantage+
+
+  const spec: any = { publisher_platforms: config.publisherPlatforms };
+
+  // If sub-placements are provided (i.e. manual granular selection), inject them dynamically
+  if (metaSubPlacements && placementId === "instagram") {
+    spec.instagram_positions = metaSubPlacements.instagram;
+  } else if (metaSubPlacements && placementId === "facebook") {
+    spec.facebook_positions = metaSubPlacements.facebook;
+  } else {
+    // Fallback to the default configuration
+    Object.assign(spec, config.positions);
+  }
+
+  return spec;
+};
+
+// Maps AdSync objectives to the correct Meta optimization_goal for the Ad Set.
+// Using the wrong optimization_goal causes Meta to deliver the ad to the wrong audience.
+// e.g. Using LINK_CLICKS for an Awareness campaign wastes budget on clickers, not reach.
+const META_OPTIMIZATION_GOAL_MAP: Record<AdSyncObjective, string> = {
+  whatsapp: "CONVERSATIONS", // Optimize for messaging conversations started
+  traffic: "LINK_CLICKS", // Standard link click optimisation
+  awareness: "REACH", // Maximise unique people who see the ad
+  engagement: "POST_ENGAGEMENT", // Maximise likes, comments, shares
+};
 
 export const MetaService = {
   // Generic Request Wrapper
@@ -9,7 +46,7 @@ export const MetaService = {
     endpoint: string,
     method: string,
     accessToken: string,
-    body?: any
+    body?: any,
   ) {
     const res = await fetch(`${BASE_URL}${endpoint}`, {
       method,
@@ -32,27 +69,52 @@ export const MetaService = {
   searchInterests: async (token: string, query: string) => {
     // Searches for interests like "Fashion" to get ID "600312329"
     const data = await MetaService.request(
-      `/search?type=adinterest&q=${encodeURIComponent(query)}&limit=1`,
+      `/search?type=adinterest&q=${encodeURIComponent(query)}&limit=10`,
       "GET",
-      token
+      token,
     );
-    return data.data?.[0] || null; // Return first match or null
+    return data.data || [];
+  },
+
+  searchBehaviors: async (
+    token: string,
+    adAccountId: string,
+    query: string,
+  ) => {
+    // Browse all behaviors or search within category (query optional)
+    const params = new URLSearchParams({
+      type: "adTargetingCategory",
+      class: "behaviors",
+      q: query, // Filter by name
+      limit: "10",
+    });
+
+    const id = adAccountId.startsWith("act_")
+      ? adAccountId
+      : `act_${adAccountId}`;
+
+    const data = await MetaService.request(
+      `/${id}/targetingsearch?${params.toString()}`,
+      "GET",
+      token,
+    );
+    return data.data || [];
   },
 
   searchLocation: async (
     token: string,
     query: string,
-    type: "city" | "region" | "country" = "region"
+    type: "city" | "region" | "country" = "city",
   ) => {
     // Searches for "Lagos" to get ID
     const data = await MetaService.request(
       `/search?type=adgeolocation&q=${encodeURIComponent(
-        query
-      )}&location_types=['${type}']&limit=1`,
+        query,
+      )}&location_types=['${type}']&limit=10`,
       "GET",
-      token
+      token,
     );
-    return data.data?.[0] || null;
+    return data.data || [];
   },
 
   // 1. Create Campaign (The Container)
@@ -60,14 +122,18 @@ export const MetaService = {
     token: string,
     adAccountId: string,
     name: string,
-    objective: string
+    objective: string,
   ) => {
     // Use the Constant Map
     // Cast strict type or fallback to Traffic
     const metaObjective =
       META_OBJECTIVE_MAP[objective as AdSyncObjective] || "OUTCOME_TRAFFIC";
 
-    return MetaService.request(`/act_${adAccountId}/campaigns`, "POST", token, {
+    const id = adAccountId.startsWith("act_")
+      ? adAccountId
+      : `act_${adAccountId}`;
+
+    return MetaService.request(`/${id}/campaigns`, "POST", token, {
       name,
       objective: metaObjective,
       status: "PAUSED", // Always create paused for safety
@@ -76,29 +142,90 @@ export const MetaService = {
     });
   },
 
+  // 1.5 Get Campaigns (Sync)
+  getCampaigns: async (
+    token: string,
+    adAccountId: string,
+    limit: number = 50,
+  ) => {
+    // Fetch campaigns for the ad account
+    // Fields: id, name, status, objective, start_time, promoted_object
+    const id = adAccountId.startsWith("act_")
+      ? adAccountId
+      : `act_${adAccountId}`;
+    const data = await MetaService.request(
+      `/${id}/campaigns?fields=id,name,status,objective,start_time,daily_budget,lifetime_budget,spend_cap&limit=${limit}&sort=start_time_descending`,
+      "GET",
+      token,
+    );
+    return data.data || [];
+  },
+
   // 2. Create Ad Set (Budget & Targeting)
+  // NOTE: `objective` param must be passed so we can pick the correct optimization_goal.
+  // Hardcoding LINK_CLICKS for all objectives was causing Meta to misdeliver awareness/engagement campaigns.
   createAdSet: async (
     token: string,
     adAccountId: string,
     campaignId: string,
-    params: any
+    params: any,
+    objective: AdSyncObjective = "traffic", // Default to traffic if not provided
+    placement: MetaPlacement = "automatic", // Meta surfaces
   ) => {
-    return MetaService.request(`/act_${adAccountId}/adsets`, "POST", token, {
+    // Resolve correct optimization goal from objective
+    const optimizationGoal =
+      META_OPTIMIZATION_GOAL_MAP[objective] || "LINK_CLICKS";
+
+    // billing_event must be compatible with optimization_goal:
+    // LINK_CLICKS + IMPRESSIONS = valid
+    // REACH + IMPRESSIONS = valid
+    // POST_ENGAGEMENT + IMPRESSIONS = valid
+    // CONVERSATIONS + IMPRESSIONS = valid
+    const billingEvent = "IMPRESSIONS";
+
+    // Construct the targeting object
+    const targetingPayload = {
+      geo_locations: params.targeting.geo_locations,
+      interests: params.targeting.interests,
+      behaviors: params.targeting.behaviors,
+      age_min: params.targeting.age_min,
+      age_max: params.targeting.age_max,
+      // Meta API for Gender: 1=Male, 2=Female. Omit for All.
+      ...(params.targeting.gender === "male" && { genders: [1] }),
+      ...(params.targeting.gender === "female" && { genders: [2] }),
+      exclusions: params.targeting.exclusions,
+      ...getPlacementSpec(placement, params.metaSubPlacements),
+    };
+
+    // For App Messaging and Engagement, we must specify the promoted object (Page ID)
+    const needsPromotedObject =
+      objective === "engagement" || objective === "whatsapp";
+    const promotedObject =
+      needsPromotedObject && params.pageId
+        ? { page_id: params.pageId }
+        : undefined;
+
+    const id = adAccountId.startsWith("act_")
+      ? adAccountId
+      : `act_${adAccountId}`;
+
+    return MetaService.request(`/${id}/adsets`, "POST", token, {
       name: `${params.name} - Ad Set`,
       campaign_id: campaignId,
-      daily_budget: params.dailyBudget, // Cents
-      billing_event: "IMPRESSIONS",
-      optimization_goal: "LINK_CLICKS",
+      daily_budget: params.dailyBudget,
+      billing_event: billingEvent,
+      optimization_goal: optimizationGoal,
       bid_strategy: "LOWEST_COST_WITHOUT_CAP",
       status: "PAUSED",
-      targeting: params.targeting, // Prepared targeting object
-      start_time: new Date(Date.now() + 10 * 60000).toISOString(), // Start in 10 mins
+      targeting: targetingPayload,
+      start_time: new Date(Date.now() + 10 * 60000).toISOString(),
+      ...(promotedObject && { promoted_object: promotedObject }),
     });
   },
   createAdImage: async (
     token: string,
     adAccountId: string,
-    imageUrl: string
+    imageUrl: string,
   ) => {
     try {
       // 1. Download the image from Supabase (Server-side)
@@ -114,8 +241,12 @@ export const MetaService = {
       // 'filename' is required by Meta to detect file type
       formData.append("filename", imageBlob, "creative.jpg");
 
+      const id = adAccountId.startsWith("act_")
+        ? adAccountId
+        : `act_${adAccountId}`;
+
       // 3. Post to Meta (Note: No Content-Type header; fetch handles boundary automatically)
-      const res = await fetch(`${BASE_URL}/act_${adAccountId}/adimages`, {
+      const res = await fetch(`${BASE_URL}/${id}/adimages`, {
         method: "POST",
         body: formData,
       });
@@ -141,11 +272,16 @@ export const MetaService = {
     adAccountId: string,
     adSetId: string,
     creativeHash: string,
-    copy: any
+    copy: any,
+    ctaCode: string = "SHOP_NOW", // Added ctaCode with default
   ) => {
+    const id = adAccountId.startsWith("act_")
+      ? adAccountId
+      : `act_${adAccountId}`;
+
     // First, create the Ad Creative Object
     const creativeRes = await MetaService.request(
-      `/act_${adAccountId}/adcreatives`,
+      `/${id}/adcreatives`,
       "POST",
       token,
       {
@@ -158,15 +294,15 @@ export const MetaService = {
             message: copy.primaryText,
             name: copy.headline,
             call_to_action: {
-              type: "SHOP_NOW",
+              type: ctaCode, // Use dynamic CTA code
             },
           },
         },
-      }
+      },
     );
 
     // Then connect it to the Ad Set
-    return MetaService.request(`/act_${adAccountId}/ads`, "POST", token, {
+    return MetaService.request(`/${id}/ads`, "POST", token, {
       name: "AdSync Ad 1",
       adset_id: adSetId,
       creative: { creative_id: creativeRes.id },
@@ -176,10 +312,13 @@ export const MetaService = {
 
   getAccountInsights: async (token: string, adAccountId: string) => {
     // Fetch Last 30 Days by default
+    const id = adAccountId.startsWith("act_")
+      ? adAccountId
+      : `act_${adAccountId}`;
     return MetaService.request(
-      `/act_${adAccountId}/insights?date_preset=last_30d&level=account&fields=spend,impressions,clicks,cpc,ctr,cpm,reach`,
+      `/${id}/insights?date_preset=last_30d&level=account&fields=spend,impressions,clicks,cpc,ctr,cpm,reach`,
       "GET",
-      token
+      token,
     );
   },
 
@@ -193,7 +332,7 @@ export const MetaService = {
     return MetaService.request(
       `/${campaignId}/insights?fields=spend,impressions,clicks,cpc,ctr,reach&time_increment=1&date_preset=last_30d`,
       "GET",
-      token
+      token,
     );
   },
 
@@ -202,59 +341,28 @@ export const MetaService = {
     return MetaService.request(
       `/${campaignId}/insights?fields=reach,impressions,spend&breakdowns=age,gender&date_preset=maximum`,
       "GET",
-      token
+      token,
+    );
+  },
+
+  // [NEW] Fetch Breakdown specifically for Sub-Placements (Reels vs Feed etc)
+  getPlacementInsights: async (token: string, campaignId: string) => {
+    return MetaService.request(
+      `/${campaignId}/insights?fields=reach,impressions,spend,clicks,cpc,ctr,actions,action_values&breakdowns=publisher_platform,platform_position&date_preset=maximum`,
+      "GET",
+      token,
     );
   },
 
   // Fetch specific Ad Account Balance
   getAdAccountBalance: async (token: string, adAccountId: string) => {
-    // Note: The correct endpoint for account details is /act_<ID>, but here we use the ID passed which likely is act_<ID> or just <ID>.
-    // Usually adAccountId passed here is the stored "act_..." ID or just the number.
-    // Current usage in createCampaign uses `act_${adAccountId}`.
-    // The instructions say: getAdAccountBalance: async (token: string, adAccountId: string) => MetaService.request(`/${adAccountId}?fields=balance,currency,spend_cap`, ...)
-    // If adAccountId is just the number, we need to prepend act_?
-    // Wait, the user instruction used: `/${adAccountId}?fields=balance...`.
-    // And in step 3 (Server Fetcher), it calls it with `data.ad_accounts.platform_account_id`.
-    // Let's assume the ID passed is the correct one to query the object directly.
-    // Actually, `act_<ID>` is the object ID for ad account.
-    // Usually `platform_account_id` in DB is just the number.
-    // Let's look at `createCampaign`: `/act_${adAccountId}/campaigns`.
-    // The instructions show using `/${adAccountId}` directly.
-    // However, usually you need `act_` prefix.
-    // Let's follow the user's snippet exactly first, but chances are it expects `act_` to be part of the ID or handled by caller?
-    // In `getCampaignById` implementation plan: `const accId = data.ad_accounts.platform_account_id;` which is usually "12345".
-    // Does `/12345` work? No, it should be `/act_12345`.
-    // But wait, `MetaService.request` just appends endpoint.
-    // Use `act_${adAccountId}` if the input is just number.
-    // The user instruction snippet: `/${adAccountId}?fields=balance,currency,spend_cap`.
-    // I will verify assuming adAccountId provided by caller might NOT have act_.
-    // But looking at line 180: `/act_${adAccountId}/insights`.
-    // I will follow the pattern `act_${adAccountId}` to be safe, BUT the user instruction explicitly wrote `/${adAccountId}`.
-    // I will stick to `act_${adAccountId}` because I know Meta API requires it for ad account nodes.
-    // EXCEPT if the ID passed IS `act_12345`.
-    // Let's check `getCampaignById`. It passes `data.ad_accounts.platform_account_id`.
-    // DB usually stores "123456789".
-    // So I need to use `/act_${adAccountId}`.
-    // BUT the user provided code snippet says `/${adAccountId}`.
-    // Maybe they passed `act_`? No `data.ad_accounts.platform_account_id` usually is just digits.
-    // I will correct it to `/act_${adAccountId}` and add a comment or just assume the user meant the ID of the object `act_...`.
-    // ACTUALLY, checking the user snippet again:
-    // `const accId = data.ad_accounts.platform_account_id;`
-    // `MetaService.getAdAccountBalance(token, accId)`
-    // And in logic: `/${adAccountId}?fields...`
-    // If I use `act_${adAccountId}` it will work. I will do that to ensure it works.
-
-    // Correction: I should check if `adAccountId` starts with `act_`.
-    // But for now, keeping consistent with other methods (createCampaign) which take `adAccountId` (digits) and prepend `act_`.
-    // Wait, other methods take `adAccountId` and do `/act_${adAccountId}`.
-    // So I should do the same.
     const id = adAccountId.startsWith("act_")
       ? adAccountId
       : `act_${adAccountId}`;
     return MetaService.request(
       `/${id}?fields=balance,currency,spend_cap`,
       "GET",
-      token
+      token,
     );
   },
 
@@ -263,7 +371,7 @@ export const MetaService = {
     return MetaService.request(
       `/${campaignId}/ads?fields=id,name,status,creative{thumbnail_url,image_url,title,body},insights{clicks,spend,ctr}`,
       "GET",
-      token
+      token,
     );
   },
 };

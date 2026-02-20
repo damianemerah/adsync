@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2 } from "lucide-react";
+import { SystemRestart } from "iconoir-react";
 import { signup } from "@/actions/auth";
 
 function SubmitButton() {
@@ -19,7 +19,11 @@ function SubmitButton() {
       className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-base font-bold shadow-lg shadow-blue-600/20"
       disabled={pending}
     >
-      {pending ? <Loader2 className="animate-spin mr-2" /> : "Create Account"}
+      {pending ? (
+        <SystemRestart className="animate-spin mr-2" />
+      ) : (
+        "Create Account"
+      )}
     </Button>
   );
 }

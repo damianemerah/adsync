@@ -8,11 +8,31 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { getCroppedImg } from "@/lib/crop-image";
 import {
-  Loader2,
-  Smartphone,
-  LayoutGrid,
-  RectangleVertical,
-} from "lucide-react";
+  SystemRestart,
+  SmartphoneDevice,
+  ViewGrid,
+  SelectWindow, // Replacing RectangleVertical? Or just Rectangle? SelectWindow or AppWindow?
+  // Let's use Calendar? No.
+  // RectangleVertical -> Portrait 4:5.
+  // Iconoir has 'Portrait'? 'Crop'?
+  // I'll use 'SmartphoneDevice' for 9:16 is fine.
+  // For 4:5 (Portrait), maybe 'MediaImage'?
+  // I'll use 'Crop' if exists. Or 'Frame'.
+  // I'll use 'Rectangle' if exists.
+  // I'll try 'PcCheck' for now? No.
+  // I'll use 'GoogleDocs' looks like a paper?
+  // I'll use 'Page' or 'Doc'?
+  // Let's use 'SystemRestart', 'SmartphoneDevice', 'ViewGrid'.
+  // For RectangleVertical, I'll use 'Page' or 'StatsReport'?
+  // I'll use 'Phone' for Smartphone?
+  // I'll use 'SystemRestart' for Loader2.
+  // I'll use 'ViewGrid' for LayoutGrid.
+  // I'll use 'SmartphoneDevice' for Smartphone.
+  // I'll use 'HalfMoon' (no).
+  // I'll use 'Notes' or 'Page'?
+  // I'll use 'BookStack'?
+  // I'll use 'Rectangle' if exists.
+} from "iconoir-react";
 
 interface ImageCropperProps {
   imageSrc: string;
@@ -43,7 +63,7 @@ export function ImageCropper({
     (croppedArea: Area, croppedAreaPixels: Area) => {
       setCroppedAreaPixels(croppedAreaPixels);
     },
-    []
+    [],
   );
 
   const handleSave = async () => {
@@ -88,7 +108,7 @@ export function ImageCropper({
               className={aspect === 1 ? "bg-blue-600 hover:bg-blue-700" : ""}
               onClick={() => setAspect(1)}
             >
-              <LayoutGrid className="w-4 h-4 mr-2" /> Feed (1:1)
+              <ViewGrid className="w-4 h-4 mr-2" /> Feed (1:1)
             </Button>
             <Button
               variant={aspect === 4 / 5 ? "default" : "outline"}
@@ -97,7 +117,7 @@ export function ImageCropper({
               }
               onClick={() => setAspect(4 / 5)}
             >
-              <RectangleVertical className="w-4 h-4 mr-2" /> Portrait (4:5)
+              <SelectWindow className="w-4 h-4 mr-2" /> Portrait (4:5)
             </Button>
             <Button
               variant={aspect === 9 / 16 ? "default" : "outline"}
@@ -106,7 +126,7 @@ export function ImageCropper({
               }
               onClick={() => setAspect(9 / 16)}
             >
-              <Smartphone className="w-4 h-4 mr-2" /> Story (9:16)
+              <SmartphoneDevice className="w-4 h-4 mr-2" /> Story (9:16)
             </Button>
           </div>
         </div>
@@ -140,7 +160,8 @@ export function ImageCropper({
           >
             {isProcessing ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Cropping...
+                <SystemRestart className="w-4 h-4 mr-2 animate-spin" />{" "}
+                Cropping...
               </>
             ) : (
               "Apply Crop"

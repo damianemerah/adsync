@@ -7,7 +7,7 @@ import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2 } from "lucide-react";
+import { SystemRestart } from "iconoir-react";
 import { login } from "@/actions/auth";
 
 function SubmitButton() {
@@ -19,7 +19,7 @@ function SubmitButton() {
       className="w-full h-12 bg-slate-900 hover:bg-slate-800 text-base font-bold"
       disabled={pending}
     >
-      {pending ? <Loader2 className="animate-spin mr-2" /> : "Sign in"}
+      {pending ? <SystemRestart className="animate-spin mr-2" /> : "Sign in"}
     </Button>
   );
 }

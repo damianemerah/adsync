@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, X, Mail } from "lucide-react";
+import { WarningTriangle, Xmark, Mail } from "iconoir-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/providers/auth-provider";
 import { toast } from "sonner";
@@ -54,7 +54,7 @@ export function VerificationBanner() {
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 rounded-full bg-yellow-100 flex items-center justify-center shrink-0">
-            <AlertTriangle className="h-4 w-4 text-yellow-700" />
+            <WarningTriangle className="h-4 w-4 text-yellow-700" />
           </div>
           <div>
             <p className="text-sm font-semibold text-yellow-900">
@@ -84,7 +84,7 @@ export function VerificationBanner() {
             className="h-8 w-8 text-yellow-700 hover:bg-yellow-100"
             onClick={() => setIsVisible(false)}
           >
-            <X className="w-4 h-4" />
+            <Xmark className="w-4 h-4" />
           </Button>
         </div>
       </div>

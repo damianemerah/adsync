@@ -24,3 +24,20 @@ export function generateWhatsAppLink(phone: string, text?: string) {
 
   return `https://wa.me/${cleanNumber}?text=${encodedText}`;
 }
+
+export function formatDate(dateString: string | null) {
+  if (!dateString) return "N/A";
+  return new Date(dateString).toLocaleDateString("en-NG", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+export function formatCurrency(amount: number) {
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    minimumFractionDigits: 0,
+  }).format(amount / 100); // Paystack uses kobo
+}

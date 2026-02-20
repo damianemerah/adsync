@@ -1,12 +1,14 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getInsights, getRecentCampaigns } from "@/lib/api/insights";
-import { DashboardView } from "@/components/dashboard/dashboard-view";
+import { getDashboardData } from "@/lib/api/insights";
+import { getCampaigns } from "@/lib/api/campaigns";
+import { UnifiedDashboard } from "@/components/dashboard/unified-dashboard";
 import { DashboardEmptyState } from "@/components/dashboard/empty-state";
 import { Sidebar } from "@/components/layout/sidebar";
+import { HelpCenterSheet } from "@/components/layout/help-center-sheet";
 
 export default async function DashboardPage() {
-  // 1. Create Supabase client and check auth
+  // 1. Auth check
   const supabase = await createClient();
 
   const {
@@ -17,60 +19,119 @@ export default async function DashboardPage() {
     redirect("/login?next=/dashboard");
   }
 
-  // 2. Check if user has ad accounts
+  // 2. Get the user's org membership
   const { data: member } = await supabase
     .from("organization_members")
     .select("organization_id")
     .eq("user_id", user.id)
     .single();
 
-  let hasAccounts = false;
-  if (member) {
-    const { data: accounts } = await supabase
-      .from("ad_accounts")
-      .select("id")
-      .eq("organization_id", member.organization_id as string)
-      .limit(1);
+  // 3. Determine real onboarding completion states in parallel
+  const [accountsRes, whatsappRes, campaignsRes] = await Promise.all([
+    // Has at least one connected ad account?
+    member
+      ? supabase
+          .from("ad_accounts")
+          .select("id")
+          .eq("organization_id", member.organization_id as string)
+          .limit(1)
+      : Promise.resolve({ data: [] }),
 
-    hasAccounts = !!accounts && accounts.length > 0;
-  }
+    // Has verified WhatsApp?
+    supabase
+      .from("notification_settings")
+      .select("verified")
+      .eq("user_id", user.id)
+      .eq("verified", true)
+      .limit(1),
 
-  // 3. Show empty state if no accounts
-  if (!hasAccounts) {
+    // Has at least one launched (non-draft) campaign?
+    member
+      ? supabase
+          .from("campaigns")
+          .select("id")
+          .eq("organization_id", member.organization_id as string)
+          .in("status", ["active", "paused", "completed"])
+          .limit(1)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const hasAdAccount = !!(accountsRes.data && accountsRes.data.length > 0);
+  const hasVerifiedWhatsApp = !!(
+    whatsappRes.data && whatsappRes.data.length > 0
+  );
+  const hasFirstCampaign = !!(
+    campaignsRes.data && campaignsRes.data.length > 0
+  );
+
+  // 4. Show empty/onboarding state if no ad accounts connected
+  if (!hasAdAccount) {
+    // Resolve display name from user metadata
+    const userName =
+      (user.user_metadata?.full_name as string | undefined)?.split(" ")[0] ||
+      user.email?.split("@")[0] ||
+      "there";
+
     return (
-      <div className="flex min-h-screen bg-slate-50 font-sans">
+      <div className="flex min-h-screen bg-muted/30 font-sans">
         <Sidebar />
         <div className="flex flex-1 flex-col min-w-0">
-          <header className="sticky top-0 z-30 w-full border-b border-slate-200 bg-white/80 backdrop-blur-md">
-            <div className="flex h-16 items-center justify-between px-8">
-              <h1 className="text-xl font-heading font-bold text-slate-900">
+          <header className="w-full border-b border-border bg-background/80 backdrop-blur-md">
+            <div className="container max-w-7xl mx-auto flex h-16 items-center justify-between px-2 sm:px-4 lg:px-6">
+              <h1 className="text-xl font-heading font-bold text-foreground tracking-tight">
                 Overview
               </h1>
+              <HelpCenterSheet />
             </div>
           </header>
           <main className="flex-1 p-8 overflow-y-auto">
-            <DashboardEmptyState />
+            <DashboardEmptyState
+              userName={userName}
+              hasAdAccount={hasAdAccount}
+              hasVerifiedWhatsApp={hasVerifiedWhatsApp}
+              hasFirstCampaign={hasFirstCampaign}
+            />
           </main>
         </div>
       </div>
     );
   }
 
-  // 4. Fetch data on server
-  const [insights, campaigns] = await Promise.all([
-    getInsights(supabase, user.id),
-    getRecentCampaigns(supabase, 5),
+  // 5. Fetch dashboard data + campaigns in parallel
+  const [dashboardData, campaigns] = await Promise.all([
+    getDashboardData(supabase, user.id, { campaignId: "all" }),
+    getCampaigns(supabase),
   ]);
 
-  // 5. Render with server-fetched data
+  const safeData = dashboardData ?? {
+    summary: {
+      spend: "0",
+      impressions: "0",
+      clicks: "0",
+      cpc: "0",
+      ctr: "0",
+      reach: "0",
+    },
+    performance: [],
+    demographics: { age: [], gender: [], region: [] },
+  };
+
+  // 6. Render full dashboard
   return (
-    <div className="flex min-h-screen bg-slate-50 font-sans">
-      <Sidebar />
-      <div className=" flex flex-1 flex-col min-w-0">
-        <DashboardView
-          insights={insights}
+    <div className="flex min-h-screen bg-muted/30 font-sans">
+      <div className="flex flex-1 flex-col min-w-0 w-full">
+        <header className="w-full border-b border-border bg-background/80 backdrop-blur-md">
+          <div className="container max-w-7xl mx-auto flex h-16 items-center justify-between px-2 sm:px-4 lg:px-6">
+            <h1 className="text-xl font-heading font-bold text-foreground tracking-tight">
+              Performance
+            </h1>
+            <HelpCenterSheet />
+          </div>
+        </header>
+        <UnifiedDashboard
+          initialData={safeData}
           campaigns={campaigns}
-          hasAccounts={hasAccounts}
+          userId={user.id}
         />
       </div>
     </div>

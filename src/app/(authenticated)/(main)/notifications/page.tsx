@@ -7,16 +7,16 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Bell,
-  CheckCheck,
-  AlertCircle,
-  AlertTriangle,
-  Info,
-  CheckCircle2,
-  Trash2,
+  DoubleCheck,
+  WarningCircle,
+  WarningTriangle,
+  InfoCircle,
+  CheckCircle,
+  Trash,
   CreditCard,
-  Target,
-  Loader2,
-} from "lucide-react";
+  Megaphone,
+  SystemRestart,
+} from "iconoir-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
@@ -34,7 +34,7 @@ export default function NotificationsPage() {
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center ml-64">
-        <Loader2 className="animate-spin text-blue-600" />
+        <SystemRestart className="animate-spin text-blue-600" />
       </div>
     );
   }
@@ -62,7 +62,7 @@ export default function NotificationsPage() {
               disabled={unreadCount === 0}
               className="text-slate-600"
             >
-              <CheckCheck className="h-4 w-4 mr-2" /> Mark all read
+              <DoubleCheck className="h-4 w-4 mr-2" /> Mark all read
             </Button>
           </div>
         </div>
@@ -128,11 +128,11 @@ function NotificationItem({
   // Icon Logic
   const getIcon = (type: string, category: string) => {
     if (category === "budget") return <CreditCard className="h-5 w-5" />;
-    if (category === "campaign") return <Target className="h-5 w-5" />;
-    if (type === "critical") return <AlertCircle className="h-5 w-5" />;
-    if (type === "warning") return <AlertTriangle className="h-5 w-5" />;
-    if (type === "success") return <CheckCircle2 className="h-5 w-5" />;
-    return <Info className="h-5 w-5" />;
+    if (category === "campaign") return <Megaphone className="h-5 w-5" />;
+    if (type === "critical") return <WarningCircle className="h-5 w-5" />;
+    if (type === "warning") return <WarningTriangle className="h-5 w-5" />;
+    if (type === "success") return <CheckCircle className="h-5 w-5" />;
+    return <InfoCircle className="h-5 w-5" />;
   };
 
   // Color Logic
@@ -162,14 +162,14 @@ function NotificationItem({
         "group flex items-start gap-4 p-4 rounded-xl border transition-all hover:shadow-sm bg-white relative",
         notification.is_read
           ? "border-slate-200"
-          : "border-l-4 border-l-blue-600 border-y-slate-200 border-r-slate-200 bg-blue-50/10"
+          : "border-l-4 border-l-blue-600 border-y-slate-200 border-r-slate-200 bg-blue-50/10",
       )}
     >
       {/* Icon */}
       <div
         className={cn(
           "h-10 w-10 rounded-full flex items-center justify-center shrink-0 border",
-          colors
+          colors,
         )}
       >
         {getIcon(type, category)}
@@ -181,7 +181,7 @@ function NotificationItem({
           <h3
             className={cn(
               "text-sm font-bold",
-              notification.is_read ? "text-slate-700" : "text-slate-900"
+              notification.is_read ? "text-slate-700" : "text-slate-900",
             )}
           >
             {notification.title}
@@ -228,7 +228,7 @@ function NotificationItem({
         }}
         className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-red-500 group-hover:bg-red-50 rounded-full transition-all absolute top-2 right-2"
       >
-        <Trash2 className="h-4 w-4" />
+        <Trash className="h-4 w-4" />
       </button>
     </div>
   );

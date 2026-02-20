@@ -1,0 +1,157 @@
+"use server";
+
+import { createClient } from "@/lib/supabase/server";
+import { CampaignState } from "@/stores/campaign-store";
+import { Database } from "@/types/supabase";
+
+type CampaignRow = Database["public"]["Tables"]["campaigns"]["Row"];
+
+// Helper to map Store State -> DB Columns
+function mapStateToDb(state: Partial<CampaignState>) {
+  const {
+    campaignName,
+    budget,
+    targetInterests,
+    targetBehaviors,
+    locations,
+    ageRange,
+    gender,
+    adCopy,
+    selectedCreatives,
+    objective,
+    platform,
+    aiPrompt,
+    latestAiSummary,
+    pendingGeneratedImage,
+  } = state;
+
+  return {
+    name: campaignName || "Untitled Campaign",
+    daily_budget_cents: budget ? budget * 100 : null,
+    // Store targeting in snapshot
+    targeting_snapshot: {
+      interests: targetInterests || [],
+      behaviors: targetBehaviors || [],
+      locations: locations || [],
+      age_range: ageRange || { min: 18, max: 65 },
+      gender: gender || "all",
+    } as any,
+    // Store creative in snapshot
+    // pendingGeneratedImage is included so draft loads restore the generated image
+    // in the chat bubble exactly where the user left off.
+    creative_snapshot: {
+      ad_copy: adCopy || { primary: "", headline: "", cta: null },
+      selected_creatives: selectedCreatives || [],
+      pending_generated_image: pendingGeneratedImage ?? null,
+    } as any,
+    // Store AI chat snapshot
+    ai_chat_snapshot: {
+      prompt: aiPrompt || "",
+      summary: latestAiSummary || null,
+    } as any,
+    objective,
+    platform,
+    status: "draft",
+  };
+}
+
+// Helper to map DB Columns -> Store State
+function mapDbToState(campaign: CampaignRow): Partial<CampaignState> {
+  const targeting = (campaign.targeting_snapshot as any) || {};
+  const creative = (campaign.creative_snapshot as any) || {};
+  const chat = (campaign.ai_chat_snapshot as any) || {};
+
+  return {
+    campaignName: campaign.name,
+    budget: campaign.daily_budget_cents
+      ? campaign.daily_budget_cents / 100
+      : 5000,
+    targetInterests: targeting.interests || [],
+    targetBehaviors: targeting.behaviors || [],
+    locations: targeting.locations || [],
+    ageRange: targeting.age_range || { min: 18, max: 65 },
+    gender: targeting.gender || "all",
+    adCopy: creative.ad_copy || {
+      primary: "",
+      headline: "",
+      cta: {
+        intent: "buy_now",
+        platformCode: "SHOP_NOW",
+        displayLabel: "Shop now",
+      },
+    },
+    selectedCreatives: creative.selected_creatives || [],
+    // Restore pending image so the chat bubble re-renders it on draft load
+    pendingGeneratedImage: creative.pending_generated_image ?? null,
+    objective: campaign.objective as CampaignState["objective"],
+    platform: campaign.platform as CampaignState["platform"],
+    // Restore Chat State
+    aiPrompt: chat.prompt || "",
+    latestAiSummary: chat.summary || null,
+  };
+}
+
+// Helper to get organization
+async function getOrganization(userId: string) {
+  const supabase = await createClient();
+  const { data: member } = await supabase
+    .from("organization_members")
+    .select("organization_id")
+    .eq("user_id", userId)
+    .single();
+  return member?.organization_id;
+}
+
+export async function saveDraft(
+  state: Partial<CampaignState>,
+  campaignId?: string,
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("Unauthorized");
+
+  const orgId = await getOrganization(user.id);
+  if (!orgId) throw new Error("No organization found");
+
+  const payload = {
+    ...mapStateToDb(state),
+    organization_id: orgId,
+    status: "draft",
+  };
+
+  if (campaignId) {
+    // Update existing
+    const { error } = await supabase
+      .from("campaigns")
+      .update(payload)
+      .eq("id", campaignId);
+
+    if (error) throw new Error(error.message);
+    return campaignId;
+  } else {
+    // Create new
+    const { data, error } = await supabase
+      .from("campaigns")
+      .insert(payload)
+      .select("id")
+      .single();
+
+    if (error) throw new Error(error.message);
+    return data.id;
+  }
+}
+
+export async function getDraft(campaignId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("campaigns")
+    .select("*")
+    .eq("id", campaignId)
+    .single();
+
+  if (error) return null;
+  return mapDbToState(data);
+}

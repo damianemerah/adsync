@@ -38,6 +38,9 @@ export async function getCampaignById(supabase: SupabaseClient, id: string) {
     ctr: 0,
     cpc: 0,
     reach: 0,
+    revenue: 0,
+    sales: 0,
+    roas: 0,
   };
   let accountBalance = null;
 
@@ -166,6 +169,20 @@ export async function getCampaignById(supabase: SupabaseClient, id: string) {
     }
   }
 
+  // Fetch pixel token for website attribution links (if any)
+  let pixelToken: string | null = null;
+  const { data: websiteLink } = await supabase
+    .from("attribution_links")
+    .select("pixel_token")
+    .eq("campaign_id", id)
+    .eq("destination_type", "website")
+    .not("pixel_token", "is", null)
+    .limit(1)
+    .maybeSingle();
+  if (websiteLink?.pixel_token) {
+    pixelToken = websiteLink.pixel_token;
+  }
+
   return {
     id: data.id,
     name: data.name,
@@ -196,6 +213,13 @@ export async function getCampaignById(supabase: SupabaseClient, id: string) {
     // ... existing fields
     performance: performanceData,
     summary,
+    // Attribution
+    pixelToken,
+    salesCount: data.sales_count || 0,
+    revenueNgn: data.revenue_ngn || 0,
+    whatsappClicks: data.whatsapp_clicks || 0,
+    websiteClicks: data.website_clicks || 0,
+    whatsappClickRate: data.whatsapp_click_rate || 0,
   };
 }
 
@@ -254,8 +278,14 @@ export async function getCampaigns(supabase: SupabaseClient) {
     spend: (campaign.spend_cents || 0) / 100, // Convert cents to main currency
     ctr: Number(campaign.ctr || 0),
     objective: campaign.objective,
+    revenueNgn: campaign.revenue_ngn || 0,
+    salesCount: campaign.sales_count || 0,
+    whatsappClicks: campaign.whatsapp_clicks || 0,
+    websiteClicks: campaign.website_clicks || 0,
+    whatsappClickRate: campaign.whatsapp_click_rate || 0,
 
     // Handle Relations safely
+    ad_account_id: campaign.ad_account_id,
     adAccount: campaign.ad_accounts
       ? {
           platform: campaign.ad_accounts.platform,

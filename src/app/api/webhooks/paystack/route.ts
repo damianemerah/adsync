@@ -1,135 +1,182 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
-import { PLAN_PRICES } from "@/lib/constants";
-import { sendNotification } from "@/lib/notifications";
+import { Database } from "@/types/supabase";
 
-export async function POST(request: Request) {
+const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+// Plan -> monthly credit quota (mirrors plan_definitions table)
+const PLAN_CREDITS: Record<string, number> = {
+  starter: 150,
+  growth:  400,
+  agency:  1200,
+};
+
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
+export async function POST(req: NextRequest) {
+  if (!PAYSTACK_SECRET_KEY) {
+    console.error("Missing PAYSTACK_SECRET_KEY");
+    return NextResponse.json({ error: "Server config error" }, { status: 500 });
+  }
+  if (!SUPABASE_SERVICE_ROLE_KEY) {
+    console.error("Missing SUPABASE_SERVICE_ROLE_KEY");
+    return NextResponse.json({ error: "Server config error" }, { status: 500 });
+  }
+
+  const body = await req.text();
+  const signature = req.headers.get("x-paystack-signature");
+
+  if (!signature) {
+    return NextResponse.json({ error: "No signature" }, { status: 400 });
+  }
+
+  const hash = crypto
+    .createHmac("sha512", PAYSTACK_SECRET_KEY)
+    .update(body)
+    .digest("hex");
+
+  if (hash !== signature) {
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+  }
+
+  const event = JSON.parse(body);
+  const { data } = event;
+
+  console.log("Paystack Webhook:", event.event, data.reference);
+
+  const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
   try {
-    console.log("Paystack Webhook Received⭐⭐");
-    const secret = process.env.PAYSTACK_SECRET_KEY!;
-    const body = await request.text(); // Get raw body
-    const hash = crypto.createHmac("sha512", secret).update(body).digest("hex");
+    const eventType: string = event.event;
+    const orgId: string | undefined = data.metadata?.org_id;
 
-    // 1. Verify Signature (Security)
-    if (hash !== request.headers.get("x-paystack-signature")) {
-      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+    if (!orgId) {
+      console.warn("Missing org_id in Paystack metadata", data.metadata);
+      return NextResponse.json({ status: "ignored: no org_id" });
     }
 
-    const event = JSON.parse(body);
+    switch (eventType) {
 
-    // 2. Handle Charge Success
-    if (event.event === "charge.success") {
-      const { reference, metadata } = event.data;
-      const orgId = metadata?.organization_id;
-      const planId = metadata?.plan_id;
+      // ──────────────────────────────────────────────────────────────────────
+      // Payment confirmed — branches into subscription vs credit pack
+      // ──────────────────────────────────────────────────────────────────────
+      case "charge.success": {
+        const txType: string = data.metadata?.tx_type || "subscription";
 
-      if (orgId) {
-        // USE SERVICE ROLE KEY TO BYPASS RLS
-        const supabase = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.SUPABASE_SERVICE_ROLE_KEY!,
-          {
-            auth: {
-              autoRefreshToken: false,
-              persistSession: false,
-            },
-          }
-        );
+        if (txType === "credit_pack") {
+          // ── Credit Pack Top-Up ─────────────────────────────────────────────
+          const packCredits: number = data.metadata?.credits ?? 0;
+          const packName: string   = data.metadata?.pack_name ?? "Credit Pack";
 
-        // A. Fetch Current Subscription State
-        const { data: currentOrg } = await supabase
-          .from("organizations")
-          .select(
-            "subscription_tier, subscription_expires_at, subscription_status"
-          )
-          .eq("id", orgId)
-          .single();
+          await supabase.from("transactions").upsert({
+            organization_id:    orgId,
+            amount_cents:       data.amount,
+            currency:           data.currency ?? "NGN",
+            type:               "credit_pack_purchase",
+            description:        `${packName} - ${packCredits} credits`,
+            payment_provider:   "paystack",
+            provider_reference: data.reference,
+            status:             "success",
+          }, { onConflict: "provider_reference" });
 
-        let newExpiry = new Date();
-        const now = new Date();
-        const currentExpiry = currentOrg?.subscription_expires_at
-          ? new Date(currentOrg.subscription_expires_at)
-          : null;
+          const { error: creditError } = await supabase.rpc("add_credits", {
+            p_org_id:    orgId,
+            p_credits:   packCredits,
+            p_reason:    `credit_pack:${packName.toLowerCase().replace(/ /g, "_")}`,
+            p_reference: undefined,
+          });
 
-        // --- PRORATION LOGIC START ---
-        let unusedValue = 0;
-        const paymentAmountNaira = (event.data.amount || 0) / 100;
+          if (creditError) console.error("Failed to add pack credits:", creditError);
+          console.log(`Credit pack: +${packCredits} credits for org ${orgId}`);
 
-        // Only calculate unused value if they are active and expiry is in future
-        if (
-          currentOrg?.subscription_status === "active" &&
-          currentExpiry &&
-          currentExpiry > now
-        ) {
-          // 1. Calculate Unused Days
-          const msPerDay = 1000 * 60 * 60 * 24;
-          const daysLeft = (currentExpiry.getTime() - now.getTime()) / msPerDay;
+        } else {
+          // ── Subscription Payment ───────────────────────────────────────────
+          const planId: string       = data.metadata?.plan_id || "starter";
+          const planInterval: string = data.metadata?.plan_interval || "monthly";
+          const creditsToGrant       = PLAN_CREDITS[planId] ?? 150;
+          const expiresAt            = new Date(Date.now() + THIRTY_DAYS_MS).toISOString();
 
-          // 2. Calculate Unused Value based on OLD plan price
-          const oldPlanPrice = PLAN_PRICES[currentOrg.subscription_tier] || 0;
-          const oldDailyRate = oldPlanPrice / 30;
+          const { error: orgError } = await supabase
+            .from("organizations")
+            .update({
+              subscription_status:     "active",
+              subscription_tier:       planId as "starter" | "growth" | "agency",
+              subscription_expires_at: expiresAt,
+              plan_interval:           planInterval,
+              plan_credits_quota:      creditsToGrant,
+              paystack_customer_code:  data.customer?.customer_code ?? undefined,
+              updated_at:              new Date().toISOString(),
+            })
+            .eq("id", orgId);
 
-          if (daysLeft > 0) {
-            unusedValue = daysLeft * oldDailyRate;
-          }
+          if (orgError) console.error("Failed to activate org:", orgError);
+
+          await supabase.from("transactions").upsert({
+            organization_id:    orgId,
+            amount_cents:       data.amount,
+            currency:           data.currency ?? "NGN",
+            type:               "subscription_payment",
+            description:        `${planId} plan - ${planInterval}`,
+            payment_provider:   "paystack",
+            provider_reference: data.reference,
+            status:             "success",
+          }, { onConflict: "provider_reference" });
+
+          const { error: creditError } = await supabase.rpc("add_credits", {
+            p_org_id:    orgId,
+            p_credits:   creditsToGrant,
+            p_reason:    `plan_renewal:${planId}`,
+            p_reference: undefined,
+          });
+
+          if (creditError) console.error("Failed to grant credits:", creditError);
+          console.log(`Activated ${planId} for org ${orgId}, granted ${creditsToGrant} credits`);
         }
+        break;
+      }
 
-        // 3. Calculate New Duration
-        const totalCredit = paymentAmountNaira + unusedValue;
-        const newPlanPrice = PLAN_PRICES[planId] || paymentAmountNaira; // Fallback to paid amount
-        const newDailyRate = newPlanPrice / 30;
-
-        const daysToAdd = newDailyRate > 0 ? totalCredit / newDailyRate : 30; // Fallback to 30 days if rate is 0
-
-        // 4. Set New Expiry
-        newExpiry = new Date(now.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
-        // --- PRORATION LOGIC END ---
-
-        // B. Update Database
+      // ──────────────────────────────────────────────────────────────────────
+      // Paystack subscription object created
+      // ──────────────────────────────────────────────────────────────────────
+      case "subscription.create": {
         await supabase
-          .from("transactions")
-          .update({ status: "success" })
-          .eq("provider_reference", reference);
-
-        const { error } = await supabase
           .from("organizations")
           .update({
+            paystack_sub_code:    data.subscription_code,
             subscription_status: "active",
-            subscription_tier: planId || "growth",
-            subscription_expires_at: newExpiry.toISOString(),
           })
           .eq("id", orgId);
-
-        if (error) console.error("Failed to update org subscription:", error);
-
-        // C. Send Notification to Owner
-        const { data: owner } = await supabase
-          .from("organization_members")
-          .select("user_id")
-          .eq("organization_id", orgId)
-          .eq("role", "owner")
-          .single();
-
-        if (owner) {
-          await sendNotification({
-            userId: owner.user_id,
-            organizationId: orgId,
-            title: "Subscription Active",
-            message:
-              "Your payment was successful. You now have full access to AdSync.",
-            type: "success",
-            category: "budget",
-            actionUrl: "/billing",
-            actionLabel: "View Receipt",
-          });
-        }
+        break;
       }
-    }
 
-    return NextResponse.json({ received: true });
-  } catch (err) {
-    console.error("Webhook Error:", err);
-    return NextResponse.json({ error: "Webhook failed" }, { status: 500 });
+      // ──────────────────────────────────────────────────────────────────────
+      // Subscription cancelled / not renewing
+      // ──────────────────────────────────────────────────────────────────────
+      case "subscription.disable":
+      case "subscription.not_renew":
+        await supabase
+          .from("organizations")
+          .update({ subscription_status: "canceled" })
+          .eq("id", orgId);
+        break;
+
+      // ──────────────────────────────────────────────────────────────────────
+      // Payment failed
+      // ──────────────────────────────────────────────────────────────────────
+      case "invoice.payment_failed":
+        await supabase
+          .from("organizations")
+          .update({ subscription_status: "past_due" })
+          .eq("id", orgId);
+        break;
+    }
+  } catch (error) {
+    console.error("Webhook processing error:", error);
+    return NextResponse.json({ error: "Processing failed" }, { status: 500 });
   }
+
+  return NextResponse.json({ status: "success" });
 }

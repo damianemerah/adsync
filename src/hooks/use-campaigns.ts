@@ -4,12 +4,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { launchCampaign, updateCampaignStatus } from "@/actions/campaigns";
 
 export function useCampaigns() {
   const supabase = createClient();
   const queryClient = useQueryClient();
   const router = useRouter();
 
+  // 1. Fetch Campaigns
   const query = useQuery({
     queryKey: ["campaigns"],
     queryFn: async () => {
@@ -38,6 +40,9 @@ export function useCampaigns() {
         clicks: c.clicks || 0,
         spend_cents: c.spend_cents || 0,
         ctr: c.ctr || 0,
+        ad_account_id: c.ad_account_id,
+        objective: c.objective,
+        created_at: c.created_at,
       }));
     },
   });
@@ -76,9 +81,59 @@ export function useCampaigns() {
     },
   });
 
+  // 3. Launch Mutation
+  const launchMutation = useMutation({
+    mutationFn: launchCampaign,
+    onSuccess: (data) => {
+      if (data.success) {
+        queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+        toast.success("Campaign launched successfully!");
+        router.push("/campaigns");
+      } else {
+        toast.error("Failed to launch campaign", {
+          description: data.error,
+        });
+      }
+    },
+    onError: (error) => {
+      toast.error("An error occurred", { description: error.message });
+    },
+  });
+
+  // 4. Update Status Mutation
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({
+      id,
+      action,
+    }: {
+      id: string;
+      action: "PAUSED" | "ACTIVE" | "ARCHIVED";
+    }) => {
+      const result = await updateCampaignStatus(id, action);
+      if (!result.success) throw new Error(result.error);
+      return result;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["campaign", variables.id] });
+      toast.success(`Campaign ${variables.action.toLowerCase()} successfully`);
+      router.refresh();
+    },
+    onError: (error) => {
+      toast.error("Failed to update status", { description: error.message });
+    },
+  });
+
   return {
     ...query,
+    // Sync
     syncCampaigns: syncMutation.mutate,
     isSyncing: syncMutation.isPending,
+    // Launch
+    launchCampaign: launchMutation.mutate,
+    isLaunching: launchMutation.isPending,
+    // Update
+    updateStatus: updateStatusMutation.mutate,
+    isUpdating: updateStatusMutation.isPending,
   };
 }

@@ -1,10 +1,5 @@
-import {
-  Badge,
-  CheckCircle2,
-  Heart,
-  Instagram,
-  MessageCircle,
-} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { CheckCircle, Heart, Instagram, ChatBubble } from "iconoir-react";
 import Image from "next/image";
 
 export function SocialPostCard({
@@ -21,10 +16,8 @@ export function SocialPostCard({
   return (
     <div
       onClick={onSelect}
-      className={`group relative bg-white rounded-2xl border shadow-sm cursor-pointer hover:shadow-xl transition-all ${
-        selected
-          ? "ring-2 ring-purple-600 border-purple-600"
-          : "border-slate-200"
+      className={`group relative bg-white rounded-3xl border shadow-soft cursor-pointer hover:shadow-lg transition-all ${
+        selected ? "ring-2 ring-primary border-primary" : "border-border"
       }`}
     >
       <div className="p-3 flex items-center gap-2 border-b border-slate-50">
@@ -56,14 +49,14 @@ export function SocialPostCard({
               <Heart className="w-3.5 h-3.5 fill-white" /> {post.likes}
             </span>
             <span className="flex items-center gap-1 text-xs font-medium">
-              <MessageCircle className="w-3.5 h-3.5" /> {post.comments}
+              <ChatBubble className="w-3.5 h-3.5" /> {post.comments}
             </span>
           </div>
         </div>
         {selected && (
-          <div className="absolute inset-0 bg-purple-600/20 flex items-center justify-center backdrop-blur-[1px]">
+          <div className="absolute inset-0 bg-primary/20 flex items-center justify-center backdrop-blur-[1px]">
             <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center shadow-lg">
-              <CheckCircle2 className="w-6 h-6 text-purple-600" />
+              <CheckCircle className="w-6 h-6 text-primary" />
             </div>
           </div>
         )}
@@ -73,7 +66,7 @@ export function SocialPostCard({
           {post.caption}
         </p>
         {post.status === "active_ad" && (
-          <Badge className="mt-2 bg-blue-50 text-blue-600 hover:bg-blue-50 border-blue-100 border text-[10px] px-2 h-5">
+          <Badge className="mt-2 bg-primary/10 text-primary hover:bg-primary/20 border-primary/20 border text-[10px] px-2 h-5 shadow-none">
             Running
           </Badge>
         )}

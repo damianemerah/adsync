@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { decrypt } from "@/lib/crypto";
 import { sendNotification } from "@/lib/notifications";
+import { evaluatePostLaunchRules } from "@/lib/intelligence";
+import type { CampaignMetrics } from "@/lib/intelligence/post-launch-rules";
 
 // Vercel Cron config
 export const maxDuration = 60; // Allow it to run for up to 60 seconds
@@ -30,7 +32,7 @@ export async function GET(request: Request) {
           autoRefreshToken: false,
           persistSession: false,
         },
-      }
+      },
     );
 
     // 3. Fetch All Connected Accounts
@@ -66,7 +68,7 @@ export async function GET(request: Request) {
           if (metaData.error) {
             console.error(
               `Meta Error [${account.id}]:`,
-              metaData.error.message
+              metaData.error.message,
             );
             // If invalid token, mark as expired in DB so we stop checking it
             if (metaData.error.code === 190) {
@@ -123,7 +125,7 @@ export async function GET(request: Request) {
                   actionUrl: "/ad-accounts",
                   actionLabel: "View Account",
                 },
-                supabase
+                supabase,
               );
               return { id: account.id, status: "alert_sent" };
             }
@@ -134,12 +136,139 @@ export async function GET(request: Request) {
           console.error(`Processing error [${account.id}]:`, err.message);
           throw err;
         }
-      })
+      }),
     );
+
+    // ── E. Post-Launch Rule Evaluation ──────────────────────────────────────
+    // Fetch live campaigns that launched at least 2 days ago
+    const twoDaysAgo = new Date();
+    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+
+    const { data: liveCampaigns } = await supabase
+      .from("campaigns")
+      .select(
+        `
+        id,
+        name,
+        created_at,
+        organization_id,
+        campaign_insights (
+          impressions,
+          reach,
+          clicks,
+          ctr,
+          cpc,
+          spend,
+          conversions
+        )
+      `,
+      )
+      .eq("status", "active")
+      .lt("created_at", twoDaysAgo.toISOString())
+      .limit(50); // Process up to 50 campaigns per cron run
+
+    const postLaunchResults: Array<{
+      campaignId: string;
+      triggeredRules: number;
+    }> = [];
+
+    if (liveCampaigns && liveCampaigns.length > 0) {
+      console.log(
+        `[Cron] Evaluating post-launch rules for ${liveCampaigns.length} campaigns...`,
+      );
+
+      for (const campaign of liveCampaigns) {
+        try {
+          const insight = (campaign.campaign_insights as any[])?.[0];
+          if (!insight) continue;
+
+          const createdAt = new Date(campaign.created_at);
+          const now = new Date();
+          const ageHours =
+            (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+          const ageDays = ageHours / 24;
+
+          // Build metrics object for rule evaluation
+          const metrics: CampaignMetrics = {
+            campaignId: campaign.id,
+            campaignName: campaign.name,
+            ageHours,
+            ageDays,
+            impressions: insight.impressions ?? 0,
+            reach: insight.reach ?? 0,
+            clicks: insight.clicks ?? 0,
+            ctr: insight.ctr ?? 0,
+            cpcNgn: insight.cpc ?? 0,
+            spendNgn: insight.spend ?? 0,
+            conversions: insight.conversions ?? 0,
+          };
+
+          const triggeredRules = evaluatePostLaunchRules(metrics);
+
+          if (triggeredRules.length > 0) {
+            console.log(
+              `[PostLaunch] ${triggeredRules.length} rule(s) triggered for campaign ${campaign.id}`,
+            );
+
+            // Fetch organization owner to notify
+            const { data: owner } = await supabase
+              .from("organization_members")
+              .select("user_id")
+              .eq("organization_id", campaign.organization_id)
+              .eq("role", "owner")
+              .single();
+
+            if (owner) {
+              // Send one notification per triggered rule (most severe first)
+              const sorted = triggeredRules.sort((a, b) => {
+                const order = { critical: 0, warning: 1, info: 2, success: 3 };
+                return order[a.severity] - order[b.severity];
+              });
+
+              // Only send the most actionable rule to avoid notification spam
+              const topRule = sorted[0];
+              await sendNotification(
+                {
+                  userId: owner.user_id,
+                  organizationId: campaign.organization_id,
+                  title:
+                    topRule.severity === "critical"
+                      ? "⚠️ Campaign Needs Attention"
+                      : topRule.severity === "warning"
+                        ? "Campaign Alert"
+                        : topRule.severity === "success"
+                          ? "🚀 Scale Opportunity"
+                          : "Campaign Update",
+                  message: topRule.message,
+                  type:
+                    topRule.severity === "success" ? "info" : topRule.severity,
+                  category: "campaign",
+                  actionUrl: `/campaigns/${campaign.id}`,
+                  actionLabel: "View Campaign",
+                },
+                supabase,
+              );
+            }
+
+            postLaunchResults.push({
+              campaignId: campaign.id,
+              triggeredRules: triggeredRules.length,
+            });
+          }
+        } catch (ruleErr: any) {
+          console.error(
+            `[PostLaunch] Error evaluating campaign ${campaign.id}:`,
+            ruleErr.message,
+          );
+        }
+      }
+    }
 
     return NextResponse.json({
       success: true,
       summary: results.map((r) => r.status),
+      postLaunchEvaluated: liveCampaigns?.length ?? 0,
+      postLaunchTriggered: postLaunchResults.length,
     });
   } catch (error: any) {
     console.error("Cron Job Failed:", error);

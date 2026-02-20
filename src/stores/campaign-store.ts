@@ -1,43 +1,87 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { AdSyncObjective } from "@/lib/constants";
+import { AdSyncObjective, MetaPlacement } from "@/lib/constants";
+import type { CTAData } from "@/types/cta-types";
+
+// NEW: Meta Targeting Types
+export interface LocationOption {
+  id: string; // Meta key
+  name: string; // "Lagos"
+  type: string; // city | region | country
+  country: string; // Nigeria
+}
+
+export interface TargetingOption {
+  id: string;
+  name: string;
+}
 
 interface SavedAudience {
   id: string;
   prompt: string;
   timestamp: number;
-  interests: string[];
-  locations: string[];
+  interests: TargetingOption[];
+  locations: LocationOption[];
 }
 
-interface CampaignState {
+export interface CampaignState {
   // Wizard Data
   currentStep: number;
   platform: "meta" | "tiktok" | null;
   objective: AdSyncObjective | null;
+  metaPlacement: MetaPlacement; // Which Meta surfaces to show the ad on
+  metaSubPlacements: Record<string, string[]>; // e.g. { instagram: ["feed", "story"] }
 
   // NEW: Store Name & Interests here to survive refresh
   campaignName: string;
-  targetInterests: string[];
+  targetInterests: TargetingOption[];
+  targetBehaviors: TargetingOption[]; // NEW
+  ageRange: { min: number; max: number }; // NEW
+  gender: "all" | "male" | "female"; // NEW
   destinationValue: string;
 
   // AI & Targeting
   aiPrompt: string;
-  locations: string[];
+  latestAiSummary: string | null; // NEW: Persist the "I found X interests" text
+  lastGeneratedObjective: AdSyncObjective | null; // NEW: Track consistency
+  locations: LocationOption[];
   locationInput: string;
   customInterest: string;
 
   // Creative & Budget
   budget: number;
   selectedCreatives: string[];
-  adCopy: { primary: string; headline: string; cta: string };
+  adCopy: {
+    primary: string;
+    headline: string;
+    cta: CTAData;
+  };
+
+  // NEW: Template & ROAS Prediction
+  selectedTemplate: string | null; // "nollywood" | "bet9ja" | "afrobeat" | "jumia"
+  predictedROAS: { value: number; confidence: number } | null;
+  roasHistory: Array<{ timestamp: number; value: number }>; // Track changes over time
+
+  /**
+   * Image generated in the chat bubble that hasn't been accepted yet.
+   * Stored with a permanent Supabase URL (not ephemeral fal.ai CDN) so it
+   * survives step navigation and page reloads.
+   * Cleared when the user clicks "Use This" or dismisses explicitly.
+   */
+  pendingGeneratedImage: {
+    url: string; // permanent Supabase Storage URL
+    prompt: string; // prompt used to generate it
+    aspectRatio: string; // "1:1" | "4:5" | "9:16" | "16:9"
+    savedAt: number; // unix ms — for staleness checks
+  } | null;
 
   // History
+  // Phase 2: savedAudiences will power a "Saved Audiences" panel in the audience step UI.
+  // Currently populated by saveAudience() but not yet displayed anywhere.
   savedAudiences: SavedAudience[];
 
   // User Scoping
   userId: string | null;
-  hydrateForUser: (userId: string) => void;
 
   // Actions
   setStep: (step: number) => void;
@@ -45,6 +89,9 @@ interface CampaignState {
   setDestinationValue: (val: string) => void;
   resetDraft: () => void;
   saveAudience: (audience: Omit<SavedAudience, "id" | "timestamp">) => void;
+  hydrate: (data: Partial<CampaignState>) => void;
+  applyTemplate: (templateId: string) => void; // NEW
+  updateROAS: (prediction: { value: number; confidence: number }) => void; // NEW
 }
 
 export const useCampaignStore = create<CampaignState>()(
@@ -55,56 +102,153 @@ export const useCampaignStore = create<CampaignState>()(
       platform: null,
       objective: null,
 
+      metaPlacement: "automatic" as MetaPlacement,
+      metaSubPlacements: {
+        instagram: ["feed", "story", "reels", "instagram_explore", "shop"],
+        facebook: ["feed", "video_feeds", "instream_video"],
+      },
       campaignName: "", // Default empty, we will auto-set or let user type
       targetInterests: [], // Important!
+      targetBehaviors: [],
+      ageRange: { min: 18, max: 65 },
+      gender: "all",
       destinationValue: "",
 
       aiPrompt: "",
-      locations: ["Lagos, Nigeria"],
+      latestAiSummary: null, // NEW
+      lastGeneratedObjective: null, // NEW
+      locations: [], // Start empty, force user/AI to add valid objects
       locationInput: "",
       customInterest: "",
-      budget: 5000,
+      budget: 7000, // Matches "Grow" recommended tier in budget-launch-step
       selectedCreatives: [],
-      adCopy: { primary: "", headline: "", cta: "Shop Now" },
+      adCopy: {
+        primary: "",
+        headline: "",
+        cta: {
+          intent: "buy_now",
+          platformCode: "SHOP_NOW",
+          displayLabel: "Shop now",
+        },
+      },
+      selectedTemplate: null,
+      predictedROAS: null,
+      roasHistory: [],
+      pendingGeneratedImage: null,
       savedAudiences: [],
       userId: null,
 
       // Actions
       setStep: (step) => set({ currentStep: step }),
 
-      hydrateForUser: (userId) => {
-        const state = get();
-        if (state.userId !== userId) {
-          console.log("🧹 New user detected. Wiping campaign draft.");
-          state.resetDraft();
-          set({ userId });
-        }
-      },
+      updateDraft: (data) =>
+        set((state) => {
+          const next = { ...state, ...data };
 
-      updateDraft: (data) => set((state) => ({ ...state, ...data })),
+          // Reactive CTA defaults: when objective changes, auto-set the most logical CTA.
+          // This prevents e.g. a WhatsApp campaign launching with a SHOP_NOW button,
+          // or an Awareness campaign with a SEND_MESSAGE button.
+          if (data.objective && data.objective !== state.objective) {
+            const ctaDefaults: Record<
+              string,
+              { intent: string; platformCode: string; displayLabel: string }
+            > = {
+              whatsapp: {
+                intent: "start_whatsapp_chat",
+                platformCode: "SEND_MESSAGE",
+                displayLabel: "Send message",
+              },
+              traffic: {
+                intent: "buy_now",
+                platformCode: "SHOP_NOW",
+                displayLabel: "Shop now",
+              },
+              awareness: {
+                intent: "learn_more",
+                platformCode: "LEARN_MORE",
+                displayLabel: "Learn more",
+              },
+              engagement: {
+                intent: "learn_more",
+                platformCode: "LEARN_MORE",
+                displayLabel: "Learn more",
+              },
+            };
+
+            const defaultCTA = ctaDefaults[data.objective];
+            if (defaultCTA) {
+              next.adCopy = {
+                ...next.adCopy,
+                cta: defaultCTA as typeof state.adCopy.cta,
+              };
+            }
+          }
+
+          return next;
+        }),
       setDestinationValue: (val) => set({ destinationValue: val }),
+
+      hydrate: (data) => set((state) => ({ ...state, ...data })),
 
       resetDraft: () =>
         set({
           currentStep: 1,
           platform: null,
           objective: null,
+          metaPlacement: "automatic" as MetaPlacement,
+          metaSubPlacements: {
+            instagram: ["feed", "story", "reels", "instagram_explore", "shop"],
+            facebook: ["feed", "video_feeds", "instream_video"],
+          },
           campaignName: "",
           targetInterests: [],
+          targetBehaviors: [],
+          ageRange: { min: 18, max: 65 },
+          gender: "all",
           destinationValue: "",
           aiPrompt: "",
-          locations: ["Lagos, Nigeria"],
+          latestAiSummary: null,
+          lastGeneratedObjective: null,
+          locations: [],
           locationInput: "",
           customInterest: "",
-          budget: 5000,
+          budget: 7000, // Matches "Grow" recommended tier
           selectedCreatives: [],
-          adCopy: { primary: "", headline: "", cta: "Shop Now" },
+          adCopy: {
+            primary: "",
+            headline: "",
+            cta: {
+              intent: "buy_now",
+              platformCode: "SHOP_NOW",
+              displayLabel: "Shop now",
+            },
+          },
+          selectedTemplate: null,
+          predictedROAS: null,
+          roasHistory: [],
+          pendingGeneratedImage: null,
         }),
+
+      applyTemplate: (templateId: string) => {
+        // Phase 2: Applying a template will pre-fill adCopy, targeting interests,
+        // and budget based on industry vertical (e.g. fashion, food, beauty).
+        // For now, just persists the selection so it can be read when templates ship.
+        set({ selectedTemplate: templateId });
+      },
+
+      updateROAS: (prediction: { value: number; confidence: number }) =>
+        set((state) => ({
+          predictedROAS: prediction,
+          roasHistory: [
+            ...state.roasHistory,
+            { timestamp: Date.now(), value: prediction.value },
+          ].slice(-10), // Keep last 10 predictions
+        })),
 
       saveAudience: (audience) =>
         set((state) => {
           const exists = state.savedAudiences.find(
-            (a) => a.prompt === audience.prompt
+            (a) => a.prompt === audience.prompt,
           );
           if (exists) return state;
 
@@ -129,7 +273,119 @@ export const useCampaignStore = create<CampaignState>()(
     }),
     {
       name: "adsync-campaign-draft",
+      version: 6, // Bumped for metaSubPlacements field
+      migrate: (persistedState: any, version) => {
+        if (version < 2) {
+          return {
+            currentStep: 1,
+            targetInterests: [],
+            targetBehaviors: [],
+            locations: [],
+            // Reset other critical fields to safe defaults
+            platform: null,
+            objective: null,
+            campaignName: "",
+            ageRange: { min: 18, max: 65 },
+            gender: "all",
+            destinationValue: "",
+            aiPrompt: "",
+            locationInput: "",
+            customInterest: "",
+            budget: 5000,
+            selectedCreatives: [],
+            adCopy: { primary: "", headline: "", cta: "Shop Now" },
+            savedAudiences: [],
+            userId: null,
+          } as unknown as CampaignState;
+        }
+
+        // Version 3 migration: Convert old string CTA to CTAData object
+        if (version < 3) {
+          const state = persistedState as any;
+
+          // Check if adCopy.cta is a string (old format)
+          if (state.adCopy && typeof state.adCopy.cta === "string") {
+            const oldCTA = state.adCopy.cta;
+
+            // Map common old CTA strings to new structure
+            let newCTA: CTAData;
+
+            if (
+              oldCTA.toLowerCase().includes("message") ||
+              oldCTA.toLowerCase().includes("whatsapp")
+            ) {
+              newCTA = {
+                intent: "start_whatsapp_chat",
+                platformCode: "SEND_MESSAGE",
+                displayLabel: "Send message",
+              };
+            } else if (oldCTA.toLowerCase().includes("shop")) {
+              newCTA = {
+                intent: "buy_now",
+                platformCode: "SHOP_NOW",
+                displayLabel: "Shop now",
+              };
+            } else if (oldCTA.toLowerCase().includes("learn")) {
+              newCTA = {
+                intent: "learn_more",
+                platformCode: "LEARN_MORE",
+                displayLabel: "Learn more",
+              };
+            } else {
+              // Default fallback
+              newCTA = {
+                intent: "buy_now",
+                platformCode: "SHOP_NOW",
+                displayLabel: "Shop now",
+              };
+            }
+
+            return {
+              ...state,
+              adCopy: {
+                ...state.adCopy,
+                cta: newCTA,
+              },
+            } as CampaignState;
+          }
+        }
+
+        // Version 4 migration: Add metaPlacement field
+        if (version < 4) {
+          return {
+            ...(persistedState as any),
+            metaPlacement: "automatic" as MetaPlacement,
+          } as CampaignState;
+        }
+
+        // Version 5 migration: Add pendingGeneratedImage field
+        if (version < 5) {
+          return {
+            ...(persistedState as any),
+            pendingGeneratedImage: null,
+          } as CampaignState;
+        }
+
+        // Version 6 migration: Add metaSubPlacements field
+        if (version < 6) {
+          return {
+            ...(persistedState as any),
+            metaSubPlacements: {
+              instagram: [
+                "feed",
+                "story",
+                "reels",
+                "instagram_explore",
+                "shop",
+              ],
+              facebook: ["feed", "video_feeds", "instream_video"],
+            },
+          } as CampaignState;
+        }
+
+        return persistedState as CampaignState;
+      },
       partialize: (state) => ({ ...state }),
-    }
-  )
+    },
+  ),
 );

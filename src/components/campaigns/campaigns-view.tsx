@@ -1,252 +1,294 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { useCampaigns } from "@/hooks/use-campaigns";
-import { updateCampaignStatus } from "@/actions/campaigns";
-import { toast } from "sonner";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardFooter,
-} from "@/components/ui/card";
+import { useState, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Facebook,
+  MoreVert,
+  GraphUp,
+  SystemRestart,
+  Edit,
+  Eye,
+} from "iconoir-react";
+import { DataTable, Column } from "@/components/ui/data-table";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Plus,
-  Search,
-  Filter,
-  Facebook,
-  MoreVertical,
-  AlertCircle,
-  Eye,
-  Edit,
-  Copy,
-  Pause,
-  Trash,
-  X,
-  CheckCircle2,
-  TrendingUp,
-} from "lucide-react";
-import { Column, DataTable } from "@/components/ui/data-table";
-import type { CampaignListItem } from "@/lib/api/campaigns";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Sparkline } from "@/components/dashboard/sparkline";
+import Link from "next/link";
+
+import { CampaignMetrics } from "@/lib/utils/campaign-metrics";
 
 interface CampaignsViewProps {
-  campaigns: CampaignListItem[];
+  campaigns: any[];
+  onRowClick?: (id: string) => void;
+  isLoading?: boolean;
+  /** Rows per page. Defaults to 10. Pass 0 to disable pagination. */
+  pageSize?: number;
+  /** If true, renders the search + status filter bar above the table */
+  showFilters?: boolean;
 }
 
-interface Campaign {
-  id: string;
-  name: string;
-  platform: "meta" | "tiktok" | null;
-  status: "active" | "paused" | "draft" | "completed";
-  budget: number;
-  currency: string;
-  createdAt: string;
-  clicks: number;
-  spend: number;
-  ctr: number;
-}
+export function CampaignsView({
+  campaigns,
+  onRowClick,
+  isLoading,
+  pageSize = 10,
+  showFilters = true,
+}: CampaignsViewProps) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
-export function CampaignsView({ campaigns: rawCampaigns }: CampaignsViewProps) {
-  const { syncCampaigns, isSyncing } = useCampaigns();
-  const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
-  const router = useRouter();
+  /** Relative time helper */
+  function getRelativeTime(date: Date | string): string {
+    if (!date) return "";
+    const d = typeof date === "string" ? new Date(date) : date;
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return "Today";
+    if (diffDays === 1) return "Yesterday";
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    return d.toLocaleDateString();
+  }
 
-  const handleAction = async (
-    id: string,
-    action: "PAUSED" | "ACTIVE" | "ARCHIVED",
-  ) => {
-    toast.promise(updateCampaignStatus(id, action), {
-      loading: "Updating campaign...",
-      success: () => {
-        router.refresh();
-        return "Campaign updated";
-      },
-      error: "Failed to update campaign",
+  /** Normalise campaign fields */
+  const displayCampaigns = useMemo(() => {
+    return campaigns
+      .map((campaign) => {
+        const currency =
+          campaign.currency || campaign.adAccount?.currency || "NGN";
+        const currencySymbol = currency === "NGN" ? "₦" : "$";
+
+        const budgetVal =
+          campaign.budget ||
+          (campaign.dailyBudgetCents ? campaign.dailyBudgetCents / 100 : 0);
+        const spendVal =
+          campaign.spend ||
+          (campaign.spend_cents ? campaign.spend_cents / 100 : 0);
+
+        const impressionsVal = campaign.impressions || 0;
+        const clicksVal = campaign.clicks || 0;
+        const ctrVal = campaign.ctr || 0;
+
+        // Build a mini sparkline from campaign-level metrics if available,
+        // otherwise leave empty (chart handles empty gracefully)
+        const trendData: number[] = campaign.metricsHistory
+          ? campaign.metricsHistory.map((m: any) => m.clicks || 0)
+          : [];
+
+        const trendColor =
+          campaign.status === "active"
+            ? "#10b981" // emerald-500
+            : "#94a3b8"; // slate-400
+
+        return {
+          ...campaign,
+          createdAtStr: getRelativeTime(campaign.createdAt),
+          spendFormatted: `${currencySymbol}${spendVal.toLocaleString(
+            undefined,
+            {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            },
+          )}`,
+          budgetFormatted: `${currencySymbol}${budgetVal.toLocaleString()}`,
+          impressionsDisplay: Number(impressionsVal).toLocaleString(),
+          clicksDisplay: Number(clicksVal).toLocaleString(),
+          ctrDisplay: `${Number(ctrVal).toFixed(2)}%`,
+          trendData,
+          trendColor,
+          // Revenue formatting
+          revenueVal: campaign.revenueNgn || 0,
+          revenueFormatted: `₦${(campaign.revenueNgn || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          roasVal: CampaignMetrics.calculateROAS(
+            campaign.revenueNgn || 0,
+            spendVal,
+          ),
+          roasFormatted: `${CampaignMetrics.calculateROAS(campaign.revenueNgn || 0, spendVal).toFixed(2)}x`,
+          salesVal: campaign.salesCount || 0,
+          conversionRateVal: CampaignMetrics.calculateConversionRate(
+            campaign.salesCount || 0,
+            clicksVal,
+          ),
+          conversionRateFormatted: `${CampaignMetrics.calculateConversionRate(campaign.salesCount || 0, clicksVal).toFixed(2)}%`,
+        };
+      })
+      .sort((a, b) => b.revenueVal - a.revenueVal); // Default sort by Revenue Desc
+  }, [campaigns]);
+
+  /** Client-side filtering */
+  const filteredCampaigns = useMemo(() => {
+    return displayCampaigns.filter((c) => {
+      const matchesSearch =
+        !searchTerm || c.name?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === "all" || c.status === statusFilter;
+      return matchesSearch && matchesStatus;
     });
-  };
+  }, [displayCampaigns, searchTerm, statusFilter]);
 
-  // Transform server data to display format
-  const campaigns: Campaign[] = rawCampaigns.map((c) => ({
-    id: c.id,
-    name: c.name,
-    platform: c.platform,
-    status: c.status,
-    budget: c.dailyBudgetCents / 100,
-    currency: c.adAccount?.currency || "₦",
-    createdAt: getRelativeTime(c.createdAt),
-    clicks: c.clicks || 0,
-    spend: c.spend || 0,
-    ctr: c.ctr ? Number(c.ctr) : 0,
-  }));
-
-  // Handle Selection
-  const toggleSelection = (id: string) => {
-    setSelectedCampaigns((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
-    );
-  };
-
-  const columns: Column<Campaign>[] = [
+  // Import at top if not present, or use inline
+  // We need to add columns for Revenue, ROAS, Sales
+  const columns: Column<any>[] = [
     {
-      key: "select",
-      title: (
-        <Checkbox
-          checked={selectedCampaigns.length === campaigns.length}
-          onCheckedChange={() => {
-            if (selectedCampaigns.length === campaigns.length) {
-              setSelectedCampaigns([]);
-            } else {
-              setSelectedCampaigns(campaigns.map((c) => c.id));
-            }
-          }}
-        />
-      ),
-      className: "w-12",
-      render: (campaign) => (
-        <Checkbox
-          checked={selectedCampaigns.includes(campaign.id)}
-          onCheckedChange={() => toggleSelection(campaign.id)}
-          onClick={(e) => e.stopPropagation()}
-        />
-      ),
-    },
-    {
-      key: "campaign",
-      title: "Campaign",
+      key: "name",
+      title: "Name",
+      className: "font-semibold text-slate-900 pl-6",
+      headerClassName: "pl-6",
       render: (campaign) => (
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg overflow-hidden bg-slate-200 relative shrink-0 flex items-center justify-center text-slate-500 text-xs font-medium uppercase">
-            {campaign.name.substring(0, 2)}
-          </div>
-          <div>
-            <Link
-              href={`/campaigns/${campaign.id}`}
-              className="font-bold text-slate-900 hover:text-blue-600"
-            >
-              {campaign.name}
-            </Link>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <Badge
-                variant="secondary"
-                className="px-1 py-0 text-[10px] h-4 uppercase"
-              >
-                {campaign.platform || "meta"}
-              </Badge>
+          <div
+            className={`h-2.5 w-2.5 rounded-full shrink-0 ${
+              campaign.status === "active"
+                ? "bg-emerald-500 animate-pulse"
+                : "bg-slate-300"
+            }`}
+          />
+          {campaign.platform === "meta" && (
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100/50 text-blue-600 border border-blue-100">
+              <Facebook className="h-4 w-4" />
             </div>
-          </div>
+          )}
+          {campaign.platform === "tiktok" && (
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-black text-white border border-slate-800">
+              <span className="font-bold text-[10px]">Tk</span>
+            </div>
+          )}
+          <span>{campaign.name}</span>
         </div>
       ),
     },
     {
       key: "status",
       title: "Status",
-      render: (campaign) => (
-        <Badge
-          variant={campaign.status === "active" ? "default" : "secondary"}
-          className={
-            campaign.status === "active"
-              ? "bg-green-100 text-green-700 hover:bg-green-100"
-              : "bg-yellow-50 text-yellow-700"
-          }
-        >
-          {campaign.status}
-        </Badge>
-      ),
+      render: (campaign) => {
+        const statusStyles: Record<string, string> = {
+          active: "bg-emerald-100 text-emerald-700 hover:bg-emerald-200",
+          paused: "bg-amber-100 text-amber-700 hover:bg-amber-200",
+          draft: "bg-slate-100 text-slate-600 hover:bg-slate-200",
+          completed: "bg-blue-100 text-blue-700 hover:bg-blue-200",
+          failed: "bg-red-100 text-red-700 hover:bg-red-200",
+        };
+        return (
+          <Badge
+            variant="secondary"
+            className={`rounded-full px-3 py-1 font-semibold border-0 capitalize ${
+              statusStyles[campaign.status] ?? statusStyles.draft
+            }`}
+          >
+            {campaign.status}
+          </Badge>
+        );
+      },
     },
     {
-      key: "dailyBudget",
-      title: "Budget/Day",
-      render: (campaign) => (
-        <span className="font-medium text-slate-600">
-          {campaign.currency}
-          {campaign.budget.toLocaleString()}
-        </span>
-      ),
-    },
-    {
-      key: "spend",
+      key: "amountSpent",
       title: "Spend",
+      className: "font-mono font-medium text-slate-700",
+      render: (campaign) => campaign.spendFormatted,
+    },
+    {
+      key: "revenue",
+      title: "Revenue",
+      className: "font-mono font-bold text-emerald-700",
+      render: (campaign) => campaign.revenueFormatted,
+    },
+    {
+      key: "roas",
+      title: "ROAS",
+      className: "font-mono font-medium",
       render: (campaign) => (
-        <span className="font-bold text-slate-900">
-          {campaign.currency}
-          {campaign.spend.toLocaleString()}
+        <span
+          className={`px-2 py-1 rounded-md text-xs font-bold ${
+            campaign.roasVal >= 1.5
+              ? "bg-emerald-100 text-emerald-700"
+              : campaign.roasVal >= 1.0
+                ? "bg-amber-100 text-amber-700"
+                : "bg-red-100 text-red-700"
+          }`}
+        >
+          {campaign.roasFormatted}
         </span>
       ),
     },
     {
-      key: "results",
-      title: "Results",
+      key: "sales",
+      title: "Sales",
+      className: "font-mono font-medium text-slate-700",
+      render: (campaign) => campaign.salesVal,
+    },
+    {
+      key: "impressions",
+      title: "Impressions",
+      className: "font-mono font-medium text-slate-700",
+      render: (campaign) => campaign.impressionsDisplay,
+    },
+    {
+      key: "ctr",
+      title: "CTR",
+      className: "w-[160px]",
       render: (campaign) => (
-        <div className="flex flex-col">
-          <span className="font-bold text-slate-900">
-            {(campaign.clicks || 0).toLocaleString()} Clicks
+        <div className="flex items-center gap-2">
+          <span className="font-mono font-medium text-slate-700">
+            {campaign.ctrDisplay}
           </span>
-          <span className="text-xs text-slate-500">{campaign.ctr}% CTR</span>
+          {campaign.trendData.length > 1 && (
+            <Sparkline
+              data={campaign.trendData}
+              width={80}
+              height={30}
+              color={campaign.trendColor}
+            />
+          )}
         </div>
       ),
     },
     {
+      key: "clicks",
+      title: "Clicks",
+      className: "font-mono font-medium text-slate-700",
+      render: (campaign) => campaign.clicksDisplay,
+    },
+    {
       key: "action",
-      title: "Action",
-      className: "pr-6",
+      title: "",
+      className: "pr-6 w-12",
       render: (campaign) => (
         <div onClick={(e) => e.stopPropagation()}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-slate-400 hover:text-slate-900 hover:bg-slate-200"
-              >
-                <MoreVertical className="h-4 w-4" />
-              </Button>
+              <button className="p-1 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors">
+                <MoreVert className="h-5 w-5" />
+              </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem className="gap-2" asChild>
-                <Link href={`/campaigns/${campaign.id}`}>
-                  <Eye className="h-4 w-4" /> View Details
-                </Link>
-              </DropdownMenuItem>
-
-              {/* Dynamic Actions based on status */}
-              {campaign.status === "active" ? (
+            <DropdownMenuContent align="end" className="w-48">
+              {campaign.status === "draft" ? (
                 <DropdownMenuItem
-                  onClick={() => handleAction(campaign.id, "PAUSED")}
-                  className="text-yellow-600 gap-2"
+                  onClick={() =>
+                    (window.location.href = `/campaigns/new?draftId=${campaign.id}`)
+                  }
+                  className="cursor-pointer font-medium"
                 >
-                  <Pause className="h-4 w-4" /> Pause
+                  <Edit className="h-4 w-4 mr-2" /> Resume Draft
                 </DropdownMenuItem>
               ) : (
-                <DropdownMenuItem
-                  onClick={() => handleAction(campaign.id, "ACTIVE")}
-                  className="text-green-600 gap-2"
-                >
-                  <TrendingUp className="h-4 w-4" /> Resume
+                <DropdownMenuItem asChild className="cursor-pointer">
+                  <Link href={`/campaigns/${campaign.id}`}>
+                    <Eye className="h-4 w-4 mr-2" /> View Details
+                  </Link>
                 </DropdownMenuItem>
               )}
-
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="gap-2 text-red-600"
-                onClick={() => handleAction(campaign.id, "ARCHIVED")}
-              >
-                <Trash className="h-4 w-4" /> Delete
-              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -254,320 +296,69 @@ export function CampaignsView({ campaigns: rawCampaigns }: CampaignsViewProps) {
     },
   ];
 
-  const renderCampaignCard = (campaign: Campaign) => (
-    <Card
-      key={campaign.id}
-      className={`group relative overflow-hidden border transition-all hover:shadow-xl hover:-translate-y-1 duration-300 cursor-pointer ${
-        campaign.status === "active"
-          ? "border-t-4 border-t-green-500"
-          : "border-t-4 border-t-slate-300"
-      }`}
-      onClick={() => (window.location.href = `/campaigns/${campaign.id}`)}
-    >
-      <div className="absolute top-3 left-3 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-        <Checkbox
-          checked={selectedCampaigns.includes(campaign.id)}
-          onCheckedChange={() => toggleSelection(campaign.id)}
-        />
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <SystemRestart className="w-8 h-8 animate-spin text-primary" />
       </div>
-
-      <CardHeader className="pb-4">
-        <div className="flex items-start justify-between">
-          <div className="min-w-0 flex-1 pl-6">
-            <h3 className="font-bold text-lg text-slate-900 truncate">
-              {campaign.name}
-            </h3>
-            <div className="mt-2 flex items-center gap-2">
-              {campaign.platform === "meta" && (
-                <div className="rounded-full bg-blue-50 p-1 ring-2 ring-white">
-                  <Facebook className="h-3 w-3 text-blue-600 fill-current" />
-                </div>
-              )}
-              <Badge
-                variant="secondary"
-                className="px-2 py-0 text-[10px] h-4 uppercase"
-              >
-                {campaign.platform || "meta"}
-              </Badge>
-            </div>
-          </div>
-
-          <div onClick={(e) => e.stopPropagation()}>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-slate-400 hover:text-slate-700"
-                >
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem>Edit Campaign</DropdownMenuItem>
-                <DropdownMenuItem className="text-red-600">
-                  Stop Campaign
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-5 pb-6">
-        <div>
-          <div className="flex items-center justify-between text-xs font-medium mb-1.5">
-            <span className="text-slate-500">Daily Budget</span>
-            <span className="text-slate-900">
-              {campaign.currency}
-              {campaign.budget.toLocaleString()}
-            </span>
-          </div>
-          <Progress
-            value={(campaign.spend / campaign.budget) * 100}
-            className="h-1.5 bg-slate-100"
-          />
-        </div>
-        <div className="grid grid-cols-3 gap-2 py-2 border-t border-b border-slate-50">
-          <div className="text-center">
-            <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
-              Spend
-            </p>
-            <p className="text-lg font-bold text-slate-900">
-              {campaign.currency}
-              {campaign.spend}
-            </p>
-          </div>
-          <div className="text-center border-l border-slate-100">
-            <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
-              Clicks
-            </p>
-            <p className="text-lg font-bold text-slate-900">
-              {campaign.clicks}
-            </p>
-          </div>
-          <div className="text-center border-l border-slate-100">
-            <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
-              CTR
-            </p>
-            <p className="text-lg font-bold text-slate-900">{campaign.ctr}%</p>
-          </div>
-        </div>
-      </CardContent>
-      <CardFooter className="bg-slate-50 p-3 flex justify-between items-center text-xs text-slate-500 font-medium">
-        <span className="flex items-center gap-1.5">
-          <div
-            className={`h-2 w-2 rounded-full ${
-              campaign.status === "active"
-                ? "bg-green-500 animate-pulse"
-                : "bg-yellow-500"
-            }`}
-          />
-          {campaign.status === "active" ? "Running" : "Paused"}
-        </span>
-        <span>Started {campaign.createdAt}</span>
-      </CardFooter>
-    </Card>
-  );
-
-  // Filter campaigns for tab counts
-  const activeCampaigns = campaigns.filter((c) => c.status === "active").length;
-  const pausedCampaigns = campaigns.filter((c) => c.status === "paused").length;
+    );
+  }
 
   return (
-    <div>
-      {/* Header */}
-      <header className="sticky top-0 z-30 w-full border-b border-slate-200 bg-white/80 backdrop-blur-md">
-        <div className="flex h-16 items-center justify-between px-8">
-          <h1 className="text-xl font-heading font-bold text-slate-900">
-            Campaigns
-          </h1>
-        </div>
-      </header>
-
-      {/* Toolbar */}
-      <div className="sticky top-16 z-20 border-b border-slate-200 bg-white/95 backdrop-blur-xl px-8 py-4 shadow-sm">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex flex-1 w-full items-center gap-3">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input
-                placeholder="Search by name, ID or tag..."
-                className="pl-10 bg-slate-50 border-slate-200 focus:bg-white transition-colors"
-              />
-            </div>
-            <Button
-              variant="outline"
-              className="border-slate-200 text-slate-600"
-            >
-              <Filter className="h-4 w-4 mr-2" />
-              Filter
-            </Button>
-
-            <Button
-              variant="outline"
-              className="border-slate-200 text-slate-600 bg-white hover:text-blue-600 hover:border-blue-200"
-              onClick={() => syncCampaigns()}
-              disabled={isSyncing}
-            >
-              <div className={`mr-2 ${isSyncing ? "animate-spin" : ""}`}>
-                <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
-              </div>
-              {isSyncing ? "Syncing..." : "Sync"}
-            </Button>
+    <div className="space-y-4">
+      {/* Search + Status Filter Bar */}
+      {showFilters && (
+        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+          {/* Search */}
+          <div className="relative flex-1 max-w-sm">
+            <input
+              type="text"
+              placeholder="Search campaigns..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full h-10 pl-10 pr-4 rounded-xl border border-border bg-background text-sm font-medium outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring transition-all placeholder:text-muted-foreground"
+            />
+            <GraphUp className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           </div>
 
-          <div className="flex items-center gap-3">
-            <Link href="/campaigns/new">
-              <Button
-                size="lg"
-                className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20 font-bold"
-              >
-                <Plus className="h-5 w-5 mr-2" />
-                New Campaign
-              </Button>
-            </Link>
-          </div>
+          {/* Status Dropdown */}
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[160px] h-10 border-border bg-card rounded-xl font-medium text-foreground shadow-sm hover:border-primary/50 transition-colors">
+              <SelectValue placeholder="All Statuses" />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl border-border shadow-soft">
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="paused">Paused</SelectItem>
+              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="failed">Failed</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Row count */}
+          <span className="text-xs text-muted-foreground ml-auto hidden sm:block">
+            {filteredCampaigns.length} of {displayCampaigns.length} campaign
+            {displayCampaigns.length !== 1 ? "s" : ""}
+          </span>
         </div>
-      </div>
+      )}
 
-      {/* Workspace */}
-      <main className="flex-1 p-8">
-        <Tabs defaultValue="all" className="space-y-6">
-          <TabsList className="bg-slate-100 p-1 rounded-xl h-11 inline-flex">
-            <TabsTrigger value="all" className="rounded-lg px-4 h-9">
-              All{" "}
-              <Badge
-                variant="secondary"
-                className="ml-2 bg-slate-200 text-slate-600"
-              >
-                {campaigns.length}
-              </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="active" className="rounded-lg px-4 h-9">
-              Active{" "}
-              <Badge
-                variant="secondary"
-                className="ml-2 bg-green-100 text-green-700"
-              >
-                {activeCampaigns}
-              </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="paused" className="rounded-lg px-4 h-9">
-              Paused{" "}
-              <Badge
-                variant="secondary"
-                className="ml-2 bg-yellow-100 text-yellow-700"
-              >
-                {pausedCampaigns}
-              </Badge>
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="all" className="mt-0 space-y-6">
-            {campaigns.length > 0 ? (
-              <DataTable
-                columns={columns}
-                data={campaigns}
-                renderCard={renderCampaignCard}
-                enableViewToggle={true}
-                onRowClick={(row) =>
-                  (window.location.href = `/campaigns/${row.id}`)
-                }
-                searchable={true}
-                searchPlaceholder="Search campaigns..."
-                onSearch={(term) => console.log("Search term:", term)}
-              />
+      <DataTable
+        columns={columns}
+        data={filteredCampaigns}
+        onRowClick={(row) => onRowClick?.(row.id)}
+        pageSize={pageSize}
+        emptyState={
+          <div className="text-center py-12 text-slate-500">
+            {searchTerm || statusFilter !== "all" ? (
+              <p>No campaigns match your filters.</p>
             ) : (
-              <div className="text-center py-20 bg-slate-50 rounded-xl border border-dashed">
-                <AlertCircle className="h-12 w-12 text-slate-400 mb-4 mx-auto" />
-                <h3 className="font-bold text-slate-700">No campaigns yet</h3>
-                <p className="text-slate-500 mb-4">
-                  Launch your first ad in minutes.
-                </p>
-                <Link href="/campaigns/new">
-                  <Button className="bg-blue-600">Create Campaign</Button>
-                </Link>
-              </div>
+              <p>No campaigns yet. Create your first campaign!</p>
             )}
-          </TabsContent>
-
-          <TabsContent value="active" className="mt-0 space-y-6">
-            <DataTable
-              columns={columns}
-              data={campaigns.filter((c) => c.status === "active")}
-              renderCard={renderCampaignCard}
-              enableViewToggle={true}
-              onRowClick={(row) =>
-                (window.location.href = `/campaigns/${row.id}`)
-              }
-              searchable={true}
-              searchPlaceholder="Search active campaigns..."
-            />
-          </TabsContent>
-
-          <TabsContent value="paused" className="mt-0 space-y-6">
-            <DataTable
-              columns={columns}
-              data={campaigns.filter((c) => c.status === "paused")}
-              renderCard={renderCampaignCard}
-              enableViewToggle={true}
-              onRowClick={(row) =>
-                (window.location.href = `/campaigns/${row.id}`)
-              }
-              searchable={true}
-              searchPlaceholder="Search paused campaigns..."
-            />
-          </TabsContent>
-        </Tabs>
-
-        {/* Floating Action Bar */}
-        {selectedCampaigns.length > 0 && (
-          <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-6 animate-in slide-in-from-bottom-6 z-40">
-            <span className="font-medium text-sm flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-green-400" />
-              {selectedCampaigns.length} selected
-            </span>
-            <div className="h-4 w-px bg-slate-700" />
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-slate-300 hover:text-white hover:bg-slate-800"
-              >
-                <Pause className="w-4 h-4 mr-2" /> Pause
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-red-400 hover:text-red-300 hover:bg-slate-800"
-              >
-                <Trash className="w-4 h-4 mr-2" /> Delete
-              </Button>
-            </div>
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={() => setSelectedCampaigns([])}
-              className="ml-2 h-6 w-6 rounded-full hover:bg-slate-800"
-            >
-              <X className="w-3 h-3" />
-            </Button>
           </div>
-        )}
-      </main>
+        }
+      />
     </div>
   );
-}
-
-// Helper function for relative time
-function getRelativeTime(date: Date): string {
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffDays === 0) return "today";
-  if (diffDays === 1) return "yesterday";
-  if (diffDays < 7) return `${diffDays} days ago`;
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-  return date.toLocaleDateString();
 }

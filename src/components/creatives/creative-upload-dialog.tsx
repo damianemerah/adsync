@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { useCreatives } from "@/hooks/use-creatives";
 import { ImageCropper } from "@/components/creatives/image-cropper";
@@ -14,15 +14,18 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { CloudUpload } from "lucide-react";
+import { CloudUpload, Check, WarningTriangle, Xmark } from "iconoir-react";
 import { Creative } from "@/types";
+import { cn } from "@/lib/utils";
 
 interface UploadQueueItem {
   id: string;
+  file: File;
   name: string;
-  status: "uploading" | "done" | "error" | "queued";
+  status: "pending_crop" | "uploading" | "done" | "error" | "queued";
   progress: number;
-  url: string;
+  previewUrl: string; // blob URL for display only
+  errorMessage?: string;
 }
 
 interface CreativeUploadDialogProps {
@@ -38,96 +41,175 @@ export function CreativeUploadDialog({
 }: CreativeUploadDialogProps) {
   const { uploadCreative } = useCreatives();
 
-  // Local State
-  const [selectedFile, setSelectedFile] = useState<string | null>(null);
-  const [cropModalOpen, setCropModalOpen] = useState(false);
   const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
 
-  // --- HANDLERS ---
+  // Crop state — processes one image at a time from the queue
+  const [cropItem, setCropItem] = useState<UploadQueueItem | null>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
 
-  const handleUploadProcess = async (
-    file: File,
-    dimensions: { width: number; height: number }
-  ) => {
-    const queueId = Math.random().toString(36).substring(7);
+  // Derived state
+  const hasUploading = uploadQueue.some((i) => i.status === "uploading");
+  const allDone =
+    uploadQueue.length > 0 &&
+    uploadQueue.every((i) => i.status === "done" || i.status === "error");
+  const pendingCrop = uploadQueue.find((i) => i.status === "pending_crop");
 
-    // 1. Add to Queue
-    setUploadQueue((prev) => [
-      ...prev,
-      {
-        id: queueId,
-        name: file.name,
-        status: "uploading",
-        progress: 0,
-        url: URL.createObjectURL(file),
-      },
-    ]);
+  // ----- OPEN CROPPER for the next pending image -----
+  useEffect(() => {
+    if (!cropItem && pendingCrop) {
+      // Read the file as a data URL for the cropper
+      const reader = new FileReader();
+      reader.addEventListener("load", () => {
+        setCropSrc(reader.result?.toString() || null);
+        setCropItem(pendingCrop);
+      });
+      reader.readAsDataURL(pendingCrop.file);
+    }
+  }, [pendingCrop, cropItem]);
 
-    try {
-      // 2. Perform Real Upload
-      const newCreative = await uploadCreative({ file, dimensions });
-
-      // 3. Update UI to Done
+  // ----- ACTUAL UPLOAD -----
+  const handleUploadProcess = useCallback(
+    async (
+      queueId: string,
+      file: File,
+      dimensions: { width: number; height: number },
+    ) => {
       setUploadQueue((prev) =>
         prev.map((item) =>
           item.id === queueId
-            ? { ...item, status: "done", progress: 100 }
-            : item
-        )
+            ? { ...item, status: "uploading", progress: 0 }
+            : item,
+        ),
       );
 
-      // 4. Callback
-      if (onUploadComplete && newCreative) {
-        onUploadComplete(newCreative as unknown as Creative);
+      try {
+        const newCreative = await uploadCreative({ file, dimensions });
+
+        setUploadQueue((prev) =>
+          prev.map((item) =>
+            item.id === queueId
+              ? { ...item, status: "done", progress: 100 }
+              : item,
+          ),
+        );
+
+        if (onUploadComplete && newCreative) {
+          onUploadComplete(newCreative as unknown as Creative);
+        }
+      } catch (error: any) {
+        setUploadQueue((prev) =>
+          prev.map((item) =>
+            item.id === queueId
+              ? {
+                  ...item,
+                  status: "error",
+                  progress: 0,
+                  errorMessage: error?.message || "Upload failed",
+                }
+              : item,
+          ),
+        );
       }
-    } catch (error) {
-      console.error(error);
-      setUploadQueue((prev) =>
-        prev.map((item) =>
-          item.id === queueId ? { ...item, status: "error", progress: 0 } : item
-        )
-      );
-    }
-  };
+    },
+    [uploadCreative, onUploadComplete],
+  );
 
+  // ----- CROP SAVE: user approved a crop -----
   const handleCropSave = async (croppedFile: File) => {
-    // Get dimensions
+    if (!cropItem) return;
+
     const img = new (window as any).Image();
     img.src = URL.createObjectURL(croppedFile);
     await new Promise((r) => (img.onload = r));
 
-    // Close Crop Modal
-    setCropModalOpen(false);
-    setSelectedFile(null);
+    const queueId = cropItem.id;
 
-    // Trigger Upload
-    await handleUploadProcess(croppedFile, {
+    // Swap the original file for the cropped one in the queue entry
+    setUploadQueue((prev) =>
+      prev.map((item) =>
+        item.id === queueId
+          ? {
+              ...item,
+              file: croppedFile,
+              previewUrl: URL.createObjectURL(croppedFile),
+              status: "queued",
+            }
+          : item,
+      ),
+    );
+
+    // Reset crop state so the next pending_crop can open
+    setCropItem(null);
+    setCropSrc(null);
+
+    // Kick off upload
+    await handleUploadProcess(queueId, croppedFile, {
       width: img.width,
       height: img.height,
     });
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const file = e.target.files[0];
+  // ----- CROP SKIP: user cancelled crop, upload as-is -----
+  const handleCropSkip = async () => {
+    if (!cropItem) return;
 
-      // Video: Upload Direct (No Crop)
-      if (file.type.startsWith("video")) {
-        handleUploadProcess(file, { width: 0, height: 0 });
-        return;
-      }
+    const file = cropItem.file;
+    const queueId = cropItem.id;
 
-      // Image: Open Cropper (Do NOT upload yet)
-      const reader = new FileReader();
-      reader.addEventListener("load", () => {
-        setSelectedFile(reader.result?.toString() || null);
-        setCropModalOpen(true);
-      });
-      reader.readAsDataURL(file);
-    }
+    const img = new (window as any).Image();
+    img.src = URL.createObjectURL(file);
+    await new Promise((r) => (img.onload = r));
+
+    setUploadQueue((prev) =>
+      prev.map((item) =>
+        item.id === queueId ? { ...item, status: "queued" } : item,
+      ),
+    );
+
+    setCropItem(null);
+    setCropSrc(null);
+
+    await handleUploadProcess(queueId, file, {
+      width: img.width,
+      height: img.height,
+    });
   };
 
-  // Simulate Progress for Visual Feedback
+  // ----- FILE SELECTION: handles multiple files -----
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+
+    const files = Array.from(e.target.files);
+
+    const newItems: UploadQueueItem[] = files.map((file) => ({
+      id: Math.random().toString(36).substring(7),
+      file,
+      name: file.name,
+      // Videos skip cropping; images go to pending_crop
+      status: file.type.startsWith("video") ? "queued" : "pending_crop",
+      progress: 0,
+      previewUrl: URL.createObjectURL(file),
+    }));
+
+    setUploadQueue((prev) => [...prev, ...newItems]);
+
+    // Immediately kick off video uploads (no crop needed)
+    newItems
+      .filter((item) => item.file.type.startsWith("video"))
+      .forEach((item) => {
+        handleUploadProcess(item.id, item.file, { width: 0, height: 0 });
+      });
+
+    // Reset input so the same files can be re-selected if needed
+    e.target.value = "";
+  };
+
+  // ----- REMOVE item from queue -----
+  const handleRemove = (id: string) => {
+    setUploadQueue((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  // ----- Progress simulation -----
   useEffect(() => {
     if (uploadQueue.some((i) => i.status === "uploading" && i.progress < 90)) {
       const interval = setInterval(() => {
@@ -137,105 +219,212 @@ export function CreativeUploadDialog({
               return { ...item, progress: item.progress + 10 };
             }
             return item;
-          })
+          }),
         );
       }, 300);
       return () => clearInterval(interval);
     }
   }, [uploadQueue]);
 
-  // Pass through close handler to clear queue if needed, or keep history
   const handleClose = () => {
+    // Clean up blob URLs to avoid memory leaks
+    uploadQueue.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+    setUploadQueue([]);
+    setCropItem(null);
+    setCropSrc(null);
     onOpenChange(false);
-    // Optional: setUploadQueue([]); // Clear queue on close? Maybe keep it.
+  };
+
+  const statusLabel = (item: UploadQueueItem) => {
+    switch (item.status) {
+      case "pending_crop":
+        return "Waiting to crop";
+      case "queued":
+        return "Queued";
+      case "uploading":
+        return "Uploading...";
+      case "done":
+        return "Done";
+      case "error":
+        return item.errorMessage || "Error";
+    }
   };
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl text-slate-900">
+      {/* ---- MAIN UPLOAD DIALOG ---- */}
+      <Dialog open={open && !cropItem} onOpenChange={(o) => !o && handleClose()}>
+        <DialogContent className="max-w-2xl text-foreground">
           <DialogHeader>
             <DialogTitle>Upload Assets</DialogTitle>
             <DialogDescription>
-              Supported: JPG, PNG, MP4. Max 50MB.
+              Supported: JPG, PNG, MP4. Max 50MB. You can select multiple files.
             </DialogDescription>
           </DialogHeader>
+
           <div className="space-y-4 py-4">
-            <div className="relative border-2 border-dashed border-slate-200 rounded-2xl p-10 flex flex-col items-center justify-center text-center hover:bg-slate-50 hover:border-blue-400 transition-all cursor-pointer group bg-slate-50/50">
+            {/* Drop Zone */}
+            <label className="relative border-2 border-dashed border-border rounded-2xl p-10 flex flex-col items-center justify-center text-center hover:bg-muted/50 hover:border-primary transition-all cursor-pointer group bg-muted/20 block">
               <input
                 type="file"
                 multiple
-                className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full"
+                accept="image/png,image/jpeg,image/jpg,image/webp,video/mp4"
                 onChange={handleFileSelect}
               />
-              <div className="h-16 w-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <div className="h-16 w-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 <CloudUpload className="w-8 h-8" />
               </div>
-              <h3 className="font-bold text-lg text-slate-900">
+              <h3 className="font-bold text-lg text-foreground">
                 Drag & Drop files
               </h3>
-              <p className="text-slate-500 text-sm">or click to browse</p>
-            </div>
+              <p className="text-muted-foreground text-sm">
+                or click to browse — multiple files supported
+              </p>
+            </label>
 
+            {/* Upload Queue */}
             {uploadQueue.length > 0 && (
-              <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
-                {uploadQueue.map((file) => (
+              <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                {uploadQueue.map((item) => (
                   <div
-                    key={file.id}
-                    className="flex items-center gap-3 p-3 border rounded-xl bg-white"
+                    key={item.id}
+                    className={cn(
+                      "flex items-center gap-3 p-3 border rounded-xl bg-card transition-colors",
+                      item.status === "error"
+                        ? "border-destructive/40 bg-destructive/5"
+                        : item.status === "done"
+                          ? "border-primary/30 bg-primary/5"
+                          : "border-border",
+                    )}
                   >
-                    <div className="h-10 w-10 bg-slate-100 rounded-lg overflow-hidden shrink-0 relative">
+                    {/* Thumbnail */}
+                    <div className="h-10 w-10 bg-muted/50 rounded-lg overflow-hidden shrink-0 relative">
                       <Image
-                        src={file.url}
+                        src={item.previewUrl}
                         alt="preview"
                         fill
                         className="object-cover"
                       />
                     </div>
+
+                    {/* Info + Progress */}
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between text-sm mb-1.5">
-                        <span className="font-medium truncate pr-4">
-                          {file.name || "N/A"}
+                        <span className="font-medium truncate pr-4 text-foreground">
+                          {item.name}
                         </span>
-                        <span className="text-xs text-slate-500 capitalize">
-                          {file.status}
+                        <span
+                          className={cn(
+                            "text-xs capitalize shrink-0",
+                            item.status === "done"
+                              ? "text-primary font-semibold"
+                              : item.status === "error"
+                                ? "text-destructive font-semibold"
+                                : "text-muted-foreground",
+                          )}
+                        >
+                          {statusLabel(item)}
                         </span>
                       </div>
-                      <Progress
-                        value={file.progress}
-                        className="h-1.5 bg-slate-100"
-                      />
+                      {item.status === "uploading" ? (
+                        <Progress
+                          value={item.progress}
+                          className="h-1.5 bg-muted"
+                        />
+                      ) : (
+                        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className={cn(
+                              "h-full rounded-full transition-all",
+                              item.status === "done"
+                                ? "bg-primary w-full"
+                                : item.status === "error"
+                                  ? "bg-destructive w-full"
+                                  : "bg-muted-foreground/30 w-0",
+                            )}
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Status icon / Remove */}
+                    <div className="shrink-0">
+                      {item.status === "done" ? (
+                        <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center">
+                          <Check className="w-3.5 h-3.5 text-primary" />
+                        </div>
+                      ) : item.status === "error" ? (
+                        <div className="h-6 w-6 rounded-full bg-destructive/10 flex items-center justify-center">
+                          <WarningTriangle className="w-3.5 h-3.5 text-destructive" />
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleRemove(item.id)}
+                          className="h-6 w-6 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <Xmark className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={handleClose}>
-              Close
+              {allDone ? "Close" : "Cancel"}
             </Button>
-            <Button
-              disabled={uploadQueue.length === 0}
-              onClick={handleClose}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold"
-            >
-              Done
-            </Button>
+            {!allDone && !hasUploading && uploadQueue.length > 0 && (
+              <Button
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-soft"
+                onClick={handleClose}
+              >
+                Done
+              </Button>
+            )}
+            {allDone && (
+              <Button
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-soft"
+                onClick={handleClose}
+              >
+                ✓ All Uploaded — Close
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Internal Crop Modal */}
-      <Dialog open={cropModalOpen} onOpenChange={setCropModalOpen}>
-        <DialogContent className="max-w-xl text-slate-900">
+      {/* ---- CROP DIALOG: one at a time, auto-advances through queue ---- */}
+      <Dialog
+        open={!!cropItem && !!cropSrc}
+        onOpenChange={(o) => {
+          if (!o) handleCropSkip();
+        }}
+      >
+        <DialogContent className="max-w-xl text-foreground">
           <DialogHeader>
-            <DialogTitle>Edit Image</DialogTitle>
+            <DialogTitle>
+              Crop Image
+              {uploadQueue.filter((i) => i.status === "pending_crop").length >
+                1 && (
+                <span className="ml-2 text-sm font-normal text-muted-foreground">
+                  (
+                  {uploadQueue.findIndex((i) => i.id === cropItem?.id) + 1} of{" "}
+                  {uploadQueue.length})
+                </span>
+              )}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Crop to a standard ad ratio, or skip to upload as-is.
+            </DialogDescription>
           </DialogHeader>
-          {selectedFile && (
+          {cropSrc && (
             <ImageCropper
-              imageSrc={selectedFile}
-              onCancel={() => setCropModalOpen(false)}
+              imageSrc={cropSrc}
+              onCancel={handleCropSkip}
               onCropComplete={handleCropSave}
             />
           )}

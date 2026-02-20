@@ -4,6 +4,24 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { VerificationBanner } from "@/components/dashboard/verification-banner";
 import { SubscriptionGate } from "@/components/dashboard/subscription-gate";
 import { StoreHydrator } from "@/components/dashboard/store-hydrator";
+import {
+  SidebarProvider,
+  useSidebar,
+} from "@/components/providers/sidebar-provider";
+import { ContentWrapper } from "./content-wrapper";
+
+function MainContent({ children }: { children: React.ReactNode }) {
+  // Since this component is client-side (via useSidebar), we need to extract it or make this file client.
+  // But wait, layout.tsx is server component. We can't use hooks here directly.
+  // We need a wrapper component for the client-side margin logic.
+
+  return (
+    <div className="flex min-h-screen bg-slate-50 font-sans">
+      <Sidebar />
+      <ContentWrapper>{children}</ContentWrapper>
+    </div>
+  );
+}
 
 export default async function MainLayout({
   children,
@@ -29,6 +47,7 @@ export default async function MainLayout({
 
   // 🔴 LOCK: If no organization, force them to onboarding
   if (!membership) {
+    console.log("No membership found2");
     redirect("/onboarding");
   }
 
@@ -37,16 +56,18 @@ export default async function MainLayout({
 
   // 🟢 PASS: Render the dashboard with the Gate wrapper
   return (
-    <div className="flex min-h-screen bg-slate-50 font-sans">
-      <Sidebar />
-      <div className="ml-64 flex flex-1 flex-col min-w-0">
-        {/* Banner sits here */}
-        <VerificationBanner />
-        <StoreHydrator userId={user.id} />
+    <SidebarProvider>
+      <div className="flex min-h-screen bg-slate-50 font-sans">
+        <Sidebar />
+        <ContentWrapper>
+          {/* Banner sits here */}
+          <VerificationBanner />
+          <StoreHydrator userId={user.id} />
 
-        {/* The Gate handles the blocking logic */}
-        <SubscriptionGate status={subStatus}>{children}</SubscriptionGate>
+          {/* The Gate handles the blocking logic */}
+          <SubscriptionGate status={subStatus}>{children}</SubscriptionGate>
+        </ContentWrapper>
       </div>
-    </div>
+    </SidebarProvider>
   );
 }

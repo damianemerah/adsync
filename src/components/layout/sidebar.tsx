@@ -1,57 +1,69 @@
 "use client";
 
-import { Sparkles } from "lucide-react";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
-  Target,
-  ImageIcon,
-  Briefcase,
-  Users,
-  Settings,
-  Zap,
-  Wallet,
+  Compass,
+  GraphUp,
+  ShareAndroid,
+  MagicWand,
+  Gift,
+  Leaf,
+  NavArrowDown,
+  NavArrowRight,
+  LayoutLeft,
+  StatsReport,
+  List,
+  Server,
+  MediaImage,
+  MoreVert,
+  SidebarCollapse,
+  SidebarExpand,
+  Cloud,
+  User,
   LogOut,
   HelpCircle,
-  Bell,
-  User,
-  ChevronUp,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+  CreditCard,
+  NetworkReverse,
+  Check,
+  Plus,
+} from "iconoir-react";
+
+import { useSidebar } from "@/components/providers/sidebar-provider";
+import { useAuth } from "@/components/providers/auth-provider";
+import { useSubscription } from "@/hooks/use-subscription";
+import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { useAuth } from "@/components/providers/auth-provider"; // 1. Import Auth Hook
+import { Button } from "@/components/ui/button";
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { user, signOut } = useAuth(); // 2. Get User & SignOut function
+  const { user, signOut } = useAuth();
+  const { data: subscription } = useSubscription();
+  const { isOpen, toggle } = useSidebar(); // Use context
+  const [openSections, setOpenSections] = useState<string[]>([
+    "Analyze",
+    "Campaigns",
+    "Optimize",
+    "AI Creative",
+  ]);
 
-  const navItems = [
-    { icon: LayoutDashboard, label: "Overview", href: "/dashboard" },
-    { icon: Target, label: "Campaigns", href: "/campaigns", badge: "3" },
-    { icon: ImageIcon, label: "Creatives", href: "/creatives" },
-    { icon: Briefcase, label: "Ad Accounts", href: "/ad-accounts" },
-    { icon: Wallet, label: "Billing", href: "/billing" },
-  ];
+  const toggleSection = (label: string) => {
+    if (!isOpen) return; // Prevent toggling when collapsed
+    setOpenSections((prev) =>
+      prev.includes(label) ? prev.filter((l) => l !== label) : [...prev, label],
+    );
+  };
 
-  const secondaryItems = [
-    { icon: Users, label: "Team", href: "/team" },
-    { icon: Bell, label: "Notifications", href: "/notifications", badge: "2" },
-    { icon: Settings, label: "Settings", href: "/settings" },
-  ];
-
-  // Helper to get initials from email or name
   const getInitials = () => {
     if (user?.user_metadata?.full_name) {
       return user.user_metadata.full_name
@@ -64,190 +76,354 @@ export function Sidebar() {
     return user?.email?.substring(0, 2).toUpperCase() || "U";
   };
 
+  const navGroups = [
+    {
+      label: "Analyze",
+      icon: GraphUp,
+      items: [
+        { label: "Performance", icon: StatsReport, href: "/dashboard" },
+        { label: "Creative", icon: MediaImage, href: "/creatives" },
+      ],
+    },
+    {
+      label: "AI Creative",
+      icon: MagicWand,
+      variant: "ai",
+      iconColor: "text-ai", // [UPDATED] Semantic token
+      labelColor: "text-ai", // [UPDATED] Semantic token
+      items: [
+        { label: "Create", icon: MagicWand, href: "/creations/studio" },
+        // { label: "Improve", icon: GraphUp, href: "#" },
+        { label: "My Creations", icon: LayoutLeft, href: "/creations" },
+      ],
+    },
+    {
+      label: "Campaigns",
+      icon: NetworkReverse,
+      items: [
+        { label: "All Campaigns", icon: List, href: "/campaigns" },
+        { label: "Create New", icon: Plus, href: "/campaigns/new" },
+      ],
+    },
+    // {
+    //   label: "Optimize",
+    //   icon: LayoutLeft,
+    //   items: [
+    //     { label: "Create Flow", icon: ShareAndroid, href: "#" },
+    //     { label: "Templates", icon: LayoutLeft, href: "#" },
+    //   ],
+    // },
+  ];
+
   return (
-    <aside className="fixed left-0 top-0 z-50 h-screen w-64 flex flex-col border-r border-slate-800 bg-[#0F172A] text-slate-300 shadow-2xl">
-      {/* Logo */}
-      <div className="flex h-16 items-center gap-3 px-6 border-b border-slate-800 shrink-0">
-        <Link href="/dashboard" className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white shadow-lg shadow-blue-900/20">
-            <Zap className="h-5 w-5 fill-current" />
+    <aside
+      className={cn(
+        "fixed left-0 top-0 z-50 h-screen flex flex-col bg-card border-r border-border text-subtle-foreground transition-all duration-300 font-sans shadow-soft", // [UPDATED] bg-card, shadow-soft
+        isOpen ? "w-65" : "w-20",
+      )}
+    >
+      {/* 1. Header (Org Switcher) */}
+      <div
+        className={cn(
+          "shrink-0 m-3.5 mb-3.5 flex items-center justify-between gap-2 cursor-pointer",
+          !isOpen && "flex-col gap-4",
+        )}
+      >
+        {isOpen && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild className="p-1.5">
+              <button className="flex items-center gap-2 p-2 rounded-xl hover:bg-muted hover:text-foreground transition-colors text-left group flex-1 border border-border shadow-soft bg-background">
+                {" "}
+                {/* [UPDATED] shadow-soft, bg-background */}
+                <div className="flex h-5 w-5 items-center justify-center rounded-lg bg-primary/20 text-primary font-medium text-lg shrink-0">
+                  {(subscription?.org?.name?.[0] || "A").toUpperCase()}
+                </div>
+                <span className="text-sm font-medium truncate flex-1 text-foreground">
+                  {subscription?.org?.name || "AdSync"}
+                </span>
+                <NavArrowDown className="h-4 w-4 text-muted-foreground" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="start"
+              className="bg-popover rounded-xl shadow-soft border-border w-56 p-2" // [UPDATED] bg-popover
+            >
+              <DropdownMenuItem className="flex items-center gap-3 p-2 focus:bg-muted/50 rounded-lg cursor-pointer mb-2">
+                <div className="flex h-5 w-5 items-center justify-center rounded-lg bg-primary/20 text-primary font-medium text-lg shrink-0">
+                  {(subscription?.org?.name?.[0] || "A").toUpperCase()}
+                </div>
+                <span className="text-sm font-medium text-foreground truncate flex-1">
+                  {subscription?.org?.name || "AdSync"}
+                </span>
+                <Check className="h-4 w-4 text-primary" />
+              </DropdownMenuItem>
+
+              <div className="px-1">
+                <Link href="/settings/business" className="w-full block">
+                  <Button
+                    variant="outline"
+                    className="w-full justify-center gap-2 h-10 hover:text-foreground border-dashed border-border text-muted-foreground hover:bg-muted"
+                  >
+                    <Plus className="h-4 w-4" /> Add Businesses
+                  </Button>
+                </Link>
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
+        {/* Collapsed Logo View */}
+        {!isOpen && (
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold text-xl mb-2 border border-border">
+            {(subscription?.org?.name?.[0] || "A").toUpperCase()}
           </div>
-          <span className="font-heading text-xl font-bold text-white tracking-tight">
-            AdSync
-          </span>
-        </Link>
+        )}
+
+        <button
+          onClick={toggle}
+          className="hover:text-foreground text-muted-foreground p-2 rounded-lg hover:bg-muted transition-colors"
+        >
+          {isOpen ? (
+            <SidebarCollapse className="h-5 w-5" />
+          ) : (
+            <SidebarExpand className="h-5 w-5" />
+          )}
+        </button>
       </div>
 
-      {/* Scrollable Nav Area */}
-      <div className="flex-1 overflow-y-auto py-6 px-3 space-y-6">
-        {/* Main Nav */}
-        <nav className="space-y-1">
-          {navItems.map((item) => {
-            const isActive =
-              pathname === item.href || pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
-                  isActive
-                    ? "bg-blue-600 text-white shadow-md shadow-blue-900/20"
-                    : "text-slate-400 hover:text-white hover:bg-white/5"
-                }`}
-              >
-                <item.icon
-                  className={`h-5 w-5 ${
-                    isActive ? "text-white" : "text-slate-400"
-                  }`}
-                />
-                <span>{item.label}</span>
-                {item.badge && (
-                  <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-blue-500 text-[10px] font-bold text-white">
-                    {item.badge}
-                  </span>
+      {/* 2. Scrollable Navigation */}
+      <div className="flex-1 overflow-y-auto px-4 py-2 no-scrollbar">
+        {/* Top Level: Explore */}
+        {/* <div className="mb-2">
+          <Link
+            href="/dashboard"
+            className={cn(
+              "side-menu-item hover:bg-muted text-subtle-foreground hover:text-foreground", // [UPDATED] colors
+              !isOpen && "justify-center px-0",
+              pathname === "/dashboard" &&
+                "bg-primary/10 text-primary font-medium",
+            )}
+          >
+            <Compass className="h-5 w-5" />
+            {isOpen && <span>Explore</span>}
+          </Link>
+        </div> */}
+
+        {/* Collapsible Groups */}
+        <div>
+          {navGroups.map((group) => (
+            <div key={group.label} className="mb-2">
+              <button
+                onClick={() => (isOpen ? toggleSection(group.label) : null)}
+                className={cn(
+                  "side-menu-item justify-between w-full hover:bg-muted text-subtle-foreground hover:text-foreground", // [UPDATED]
+                  !isOpen && "justify-center px-0 cursor-default", // Disable click when collapsed or show grouping visual
                 )}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <Separator className="bg-slate-800" />
-
-        {/* Secondary Nav */}
-        <nav className="space-y-1">
-          {secondaryItems.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
-                  isActive
-                    ? "bg-slate-800 text-white"
-                    : "text-slate-400 hover:text-white hover:bg-white/5"
-                }`}
               >
-                <item.icon className="h-5 w-5" />
-                <span>{item.label}</span>
-                {item.badge && (
-                  <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white border-2 border-[#0F172A]">
-                    {item.badge}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
-        </nav>
+                <div
+                  className={cn(
+                    "flex items-center gap-3",
+                    !isOpen && "justify-center",
+                  )}
+                >
+                  <group.icon
+                    className={cn(
+                      "h-5 w-5",
+                      group.iconColor ||
+                        "text-subtle-foreground group-hover:text-foreground", // [UPDATED]
+                    )}
+                  />
+                  {isOpen && (
+                    <span
+                      className={cn(
+                        "font-medium",
+                        (group as any).labelColor || "text-foreground",
+                      )}
+                    >
+                      {group.label}
+                    </span>
+                  )}
+                </div>
+                {isOpen &&
+                  (openSections.includes(group.label) ? (
+                    <NavArrowDown className="h-4 w-4 " />
+                  ) : (
+                    <NavArrowRight className="h-4 w-4 " />
+                  ))}
+              </button>
 
-        {/* GLOBAL AI TRIGGER */}
-        <div className="px-3 pb-4">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold shadow-lg border-0">
-                <Sparkles className="mr-2 h-4 w-4" /> Ask AdSync AI
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-[400px] sm:w-[540px]">
-              {/* AI Chat Interface Component Goes Here */}
-              <div className="h-full flex flex-col justify-center items-center text-slate-500">
-                <Sparkles className="h-12 w-12 mb-4 text-purple-200" />
-                <p>AI Assistant is ready to help.</p>
-              </div>
-            </SheetContent>
-          </Sheet>
-        </div>
+              {/* Items - Always show if open, or show flattened if sidebar collapsed (optional, but requested behavior usually implies hiding subs or showing them on hover/popover. For MVP "Collapse", avoiding subs is easiest, OR we show them if we can.
+                  However, standard Wask behavior: if collapsed, you just see icons.
+                  If we hide specific sub-items when collapsed, user loses access.
+                  BETTER APPROACH: When collapsed, render sub-items as just icons below the group icon?
+                  OR: Keep it simple: When collapsed, maybe don't show sub-items?
+                  Wait, if I hide sub-items, user can't navigate.
+                  Let's render sub-items below logic only if isOpen is true OR treat them as flat list?
 
-        {/* Usage Card */}
-        <div className="px-1 pt-4">
-          <Card className="border-0 bg-gradient-to-br from-blue-600 to-purple-600 text-white shadow-lg relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-10 -mt-10 blur-xl"></div>
-            <CardContent className="p-4 relative z-10">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-white/90">
-                  Starter Plan
-                </span>
-                <span className="text-[10px] font-medium bg-white/20 px-1.5 py-0.5 rounded text-white">
-                  Free
-                </span>
-              </div>
-              <div className="h-1.5 w-full bg-black/20 rounded-full overflow-hidden">
-                <div className="h-full bg-white/90 w-[70%]" />
-              </div>
-              <p className="mt-2 text-[10px] text-white/80 font-medium">
-                7 of 10 AI requests used
-              </p>
-              <Button
-                size="sm"
-                variant="secondary"
-                className="w-full mt-3 h-7 text-xs font-bold text-blue-700 bg-white hover:bg-blue-50"
-              >
-                Upgrade to Pro
-              </Button>
-            </CardContent>
-          </Card>
+                  Let's look at navGroups.
+                  Analyze -> Performance, Creative.
+                  If collapsed, how do I access "Performance"?
+                  If I assume "Sidebar Toggling" just hides text:
+                  Then sub-items should still be visible?
+                  But if Group is collapsed, sub-items are hidden.
+
+                  DECISION: When Sidebar is collapsed, we force-expand all groups visually (but cleaner) OR we expect user to hover.
+                  Actually, simplest for now: If !isOpen, show NOTHING for groups? No that's bad.
+
+                  Let's assume for this task: When collapsed, we just show top-level icons.
+                  But wait, "Analyze" is a Category. "Performance" is the link.
+                  So if I collapse, I see "Analyze" icon. Clicking it does nothing?
+
+                  Correction: Ideally, when collapsed, we shouldn't show category headers as clickable if they aren't links.
+                  Let's change logic:
+                  If !isOpen, we render the ITEMS directly?
+                  Or we simply keep the list expanded?
+
+                  Refined Plan for Collapsed State:
+                  - Render Group Icon as non-interactive header?
+                  - Render Items as icons below it.
+                  - Force "expanded" visually?
+
+                  Let's try: When collapsed, everything is expanded.
+              */}
+              {(isOpen ? openSections.includes(group.label) : true) && (
+                <div
+                  className={cn(
+                    "ml-4 border-l-2 border-border pl-2 my-1 space-y-1",
+                    !isOpen &&
+                      "ml-0 border-l-0 pl-0 flex flex-col items-center gap-2 mt-2",
+                  )}
+                >
+                  {group.items.map((item) => {
+                    const isActive = pathname === item.href;
+                    const isAi = (group as any).variant === "ai";
+                    return (
+                      <Link
+                        key={item.label}
+                        href={item.href}
+                        className={cn(
+                          "side-menu-sub-item transition-all duration-150 ease-in-out relative",
+                          isActive
+                            ? isAi
+                              ? "bg-ai/10 text-ai font-semibold"
+                              : "bg-primary/10 text-primary font-semibold"
+                            : "hover:text-foreground hover:bg-muted/50 text-subtle-foreground",
+                          !isOpen && "justify-center px-2 py-2 h-10 w-10",
+                        )}
+                        title={item.label} // Tooltip fallback
+                      >
+                        {isActive && isOpen && (
+                          <div
+                            className={cn(
+                              "absolute left-[-10px] top-1/2 -translate-y-1/2 h-4 w-1 rounded-r-full",
+                              isAi ? "bg-ai" : "bg-primary",
+                            )}
+                          />
+                        )}
+                        <item.icon
+                          className={cn(
+                            "h-5 w-5 shrink-0",
+                            isActive
+                              ? isAi
+                                ? "text-ai"
+                                : "text-primary"
+                              : "text-subtle-foreground group-hover:text-foreground", // [UPDATED]
+                          )}
+                        />
+                        {isOpen && <span>{item.label}</span>}
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* User Profile Section (Fixed Bottom) */}
-      <div className="p-4 border-t border-slate-800 bg-[#0F172A]">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-3 w-full p-2 rounded-xl hover:bg-white/5 transition-colors text-left group">
-              <Avatar className="h-9 w-9 border border-slate-700 bg-blue-900 text-white">
-                <AvatarImage src={user?.user_metadata?.avatar_url} />
-                <AvatarFallback className="bg-blue-600 text-white font-bold">
-                  {getInitials()}
-                </AvatarFallback>
-              </Avatar>
+      {/* 3. Footer */}
+      <div
+        className={cn(
+          "p-4 space-y-3 bg-card border-t border-border", // [UPDATED] bg-card
+          !isOpen && "p-2 space-y-2 items-center flex flex-col",
+        )}
+      >
+        {/* Credits Pill */}
+        {isOpen ? (
+          <div className="bg-muted/50 rounded-xl px-4 py-3 flex items-center gap-2 border border-border text-muted-foreground">
+            <Cloud className="h-5 w-5 text-primary" />
+            <span className="text-sm font-medium text-foreground">
+              0 Credits
+            </span>
+          </div>
+        ) : (
+          <div
+            className="bg-muted/50 rounded-xl p-2 flex items-center justify-center border border-border"
+            title="0 Credits"
+          >
+            <Cloud className="h-5 w-5 text-primary" />
+          </div>
+        )}
+
+        {/* User Profile Card */}
+        <div
+          className={cn(
+            "bg-background rounded-2xl p-3 border border-border flex items-center gap-3 shadow-soft", // [UPDATED] shadow-soft
+            !isOpen && "p-1 border-0 shadow-none justify-center bg-transparent",
+          )}
+        >
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <div className="cursor-pointer">
+                <Avatar className="h-10 w-10 border border-border cursor-pointer">
+                  <AvatarImage src={user?.user_metadata?.avatar_url} />
+                  <AvatarFallback className="bg-primary/20 text-primary font-medium">
+                    {getInitials()}
+                  </AvatarFallback>
+                </Avatar>
+              </div>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              side={isOpen ? "top" : "right"}
+              className="w-56 p-2 rounded-xl shadow-soft border-border bg-popover" // [UPDATED] bg-popover
+            >
+              <div className="px-2 py-1.5 text-sm font-semibold border-b border-border mb-1 text-foreground">
+                {user?.user_metadata?.full_name || "User"}
+              </div>
+              {["Account Settings", "Help Center"].map((item) => (
+                <DropdownMenuItem
+                  key={item}
+                  className="cursor-pointer text-muted-foreground focus:text-foreground focus:bg-muted/50 rounded-lg px-3 py-2"
+                >
+                  {item}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuItem
+                onClick={() => signOut()}
+                className="cursor-pointer text-muted-foreground focus:text-foreground focus:bg-muted/50 rounded-lg px-3 py-2"
+              >
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {isOpen && (
+            <>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-white truncate">
+                <p className="text-sm font-medium text-foreground truncate">
                   {user?.user_metadata?.full_name || "User"}
                 </p>
-                <p className="text-[10px] text-slate-400 truncate">
-                  {user?.email}
+                <p className="text-[11px] text-muted-foreground truncate font-medium">
+                  {subscription?.org?.tier || "Basic Plan"}
                 </p>
               </div>
-              <ChevronUp className="h-4 w-4 text-slate-500 group-hover:text-white transition-colors" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="start"
-            side="right"
-            className="w-56 mb-2 ml-2"
-          >
-            <div className="px-2 py-1.5">
-              <p className="text-sm font-bold truncate">
-                {user?.user_metadata?.full_name || "AdSync User"}
-              </p>
-              <p className="text-xs text-slate-500 truncate">{user?.email}</p>
-            </div>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <Link href="/settings" className="flex items-center w-full">
-                <User className="mr-2 h-4 w-4" /> Profile
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Link href="/billing" className="flex items-center w-full">
-                <Briefcase className="mr-2 h-4 w-4" /> Billing
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Link href="#" className="flex items-center w-full">
-                <HelpCircle className="mr-2 h-4 w-4" /> Support
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-
-            {/* 3. LOGOUT BUTTON */}
-            <DropdownMenuItem
-              className="text-red-600 focus:text-red-600 cursor-pointer focus:bg-red-50"
-              onClick={() => signOut()} // Triggers auth provider logout
-            >
-              <LogOut className="mr-2 h-4 w-4" /> Log out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              <button className="hover:text-foreground text-muted-foreground p-1">
+                <MoreVert className="h-5 w-5" />
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </aside>
   );

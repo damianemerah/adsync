@@ -12,10 +12,14 @@ export async function createOrganization(formData: FormData) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
   if (!user) redirect("/login");
 
   const orgName = formData.get("orgName") as string;
   const industry = formData.get("industry") as string;
+  const sellingMethod = formData.get("sellingMethod") as string;
+  const priceTier = formData.get("priceTier") as string;
+  const customerGender = formData.get("customerGender") as string;
   const selectedPlan = (formData.get("plan") as string) || PLAN_IDS.GROWTH;
 
   // Generate a simple slug (e.g. "Lagos Fashion" -> "lagos-fashion")
@@ -24,16 +28,22 @@ export async function createOrganization(formData: FormData) {
     "-" +
     Math.floor(Math.random() * 1000);
 
+  const userRole = formData.get("userRole") as string;
+
   // 2. Create Organization
   const { data: org, error: orgError } = await supabase
     .from("organizations")
     .insert({
       name: orgName,
       slug: slug,
+      industry, // Now captured
+      selling_method: sellingMethod,
+      price_tier: priceTier,
+      customer_gender: customerGender,
       subscription_tier: selectedPlan,
       subscription_status: SUBSCRIPTION_STATUS.TRIALING,
       subscription_expires_at: new Date(
-        Date.now() + 14 * 24 * 60 * 60 * 1000
+        Date.now() + 14 * 24 * 60 * 60 * 1000,
       ).toISOString(), // 14 Days Free
     })
     .select()
@@ -56,6 +66,13 @@ export async function createOrganization(formData: FormData) {
   if (memberError) {
     console.error("Member Link Error:", memberError);
     return { error: "Failed to join organization" };
+  }
+
+  // 4. Update User Metadata (Job Role)
+  if (userRole) {
+    await supabase.auth.updateUser({
+      data: { job_role: userRole },
+    });
   }
 
   // 4. Update User Metadata (Optional but helpful)

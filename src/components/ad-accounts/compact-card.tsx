@@ -1,10 +1,10 @@
 import {
   Facebook,
-  MoreVertical,
+  MoreVert,
   Star,
   CreditCard,
-  AlertCircle,
-} from "lucide-react";
+  WarningCircle,
+} from "iconoir-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -42,7 +42,9 @@ export function StatusBadge({
       {status === "active" && (
         <span className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1.5 animate-pulse" />
       )}
-      {status === "payment_failed" && <AlertCircle className="w-3 h-3 mr-1" />}
+      {status === "payment_failed" && (
+        <WarningCircle className="w-3 h-3 mr-1" />
+      )}
       {label}
     </Badge>
   );
@@ -65,7 +67,7 @@ export function CompactAccountCard({
     <Card
       className={cn(
         `group hover:shadow-lg transition-all duration-300`,
-        account.isDefault ? "ring-1 ring-blue-600 border-blue-600/50" : ""
+        account.isDefault ? "ring-1 ring-blue-600 border-blue-600/50" : "",
       )}
     >
       <CardContent className="p-5">
@@ -75,7 +77,7 @@ export function CompactAccountCard({
             <div
               className={cn(
                 `h-10 w-10 rounded-lg flex items-center justify-center text-white shadow-sm`,
-                isMeta ? "bg-blue-600" : "bg-black"
+                isMeta ? "bg-blue-600" : "bg-black",
               )}
             >
               {isMeta ? (
@@ -109,7 +111,7 @@ export function CompactAccountCard({
                 size="icon"
                 className="h-8 w-8 -mr-2 text-slate-400 hover:text-slate-700"
               >
-                <MoreVertical className="h-4 w-4" />
+                <MoreVert className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">

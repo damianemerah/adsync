@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { Button } from "@/components/ui/button";
-import { Zap } from "lucide-react";
+import { Flash } from "iconoir-react";
 import { SocialButtons } from "@/components/auth/social-buttons";
 import { LoginForm } from "./login-form";
 
@@ -13,7 +13,7 @@ export default function LoginPage() {
         <div className="w-full max-w-sm mx-auto space-y-8">
           <div className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center text-white">
-              <Zap className="h-5 w-5 fill-current" />
+              <Flash className="h-5 w-5 fill-current" />
             </div>
             <span className="font-heading font-bold text-xl text-slate-900">
               AdSync

@@ -169,57 +169,69 @@ export type Database = {
           ad_set_id: string | null
           call_to_action: string | null
           carousel_data: Json | null
+          clicks: number | null
           created_at: string | null
           creative_id: string | null
           creative_snapshot: Json | null
+          ctr: number | null
           destination_type: string | null
           destination_url: string | null
           headline: string | null
           id: string
+          impressions: number | null
           is_existing_post: boolean | null
           name: string
           platform_ad_id: string | null
           primary_text: string | null
           rejection_reason: string | null
           source_post_id: string | null
+          spend_cents: number | null
           status: string | null
         }
         Insert: {
           ad_set_id?: string | null
           call_to_action?: string | null
           carousel_data?: Json | null
+          clicks?: number | null
           created_at?: string | null
           creative_id?: string | null
           creative_snapshot?: Json | null
+          ctr?: number | null
           destination_type?: string | null
           destination_url?: string | null
           headline?: string | null
           id?: string
+          impressions?: number | null
           is_existing_post?: boolean | null
           name: string
           platform_ad_id?: string | null
           primary_text?: string | null
           rejection_reason?: string | null
           source_post_id?: string | null
+          spend_cents?: number | null
           status?: string | null
         }
         Update: {
           ad_set_id?: string | null
           call_to_action?: string | null
           carousel_data?: Json | null
+          clicks?: number | null
           created_at?: string | null
           creative_id?: string | null
           creative_snapshot?: Json | null
+          ctr?: number | null
           destination_type?: string | null
           destination_url?: string | null
           headline?: string | null
           id?: string
+          impressions?: number | null
           is_existing_post?: boolean | null
           name?: string
           platform_ad_id?: string | null
           primary_text?: string | null
           rejection_reason?: string | null
           source_post_id?: string | null
+          spend_cents?: number | null
           status?: string | null
         }
         Relationships: [
@@ -239,9 +251,66 @@ export type Database = {
           },
         ]
       }
-      ai_requests: {
+      ai_chat_history: {
         Row: {
           created_at: string | null
+          creative_id: string | null
+          fal_cost_estimate: number | null
+          id: string
+          messages: Json
+          openai_tokens: number | null
+          organization_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          creative_id?: string | null
+          fal_cost_estimate?: number | null
+          id?: string
+          messages?: Json
+          openai_tokens?: number | null
+          organization_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          creative_id?: string | null
+          fal_cost_estimate?: number | null
+          id?: string
+          messages?: Json
+          openai_tokens?: number | null
+          organization_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_chat_history_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "creatives"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_chat_history_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_chat_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_requests: {
+        Row: {
+          context_source: string | null
+          created_at: string | null
+          creative_id: string | null
           id: string
           input_json: Json
           organization_id: string | null
@@ -249,10 +318,13 @@ export type Database = {
           request_type: string | null
           result_json: Json | null
           tokens_used: number | null
+          used_context: boolean | null
           user_id: string | null
         }
         Insert: {
+          context_source?: string | null
           created_at?: string | null
+          creative_id?: string | null
           id?: string
           input_json: Json
           organization_id?: string | null
@@ -260,10 +332,13 @@ export type Database = {
           request_type?: string | null
           result_json?: Json | null
           tokens_used?: number | null
+          used_context?: boolean | null
           user_id?: string | null
         }
         Update: {
+          context_source?: string | null
           created_at?: string | null
+          creative_id?: string | null
           id?: string
           input_json?: Json
           organization_id?: string | null
@@ -271,9 +346,17 @@ export type Database = {
           request_type?: string | null
           result_json?: Json | null
           tokens_used?: number | null
+          used_context?: boolean | null
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "ai_requests_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "creatives"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "ai_requests_organization_id_fkey"
             columns: ["organization_id"]
@@ -286,6 +369,67 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attribution_links: {
+        Row: {
+          ad_id: string | null
+          campaign_id: string | null
+          created_at: string | null
+          destination_type: string
+          destination_url: string
+          expires_at: string | null
+          id: string
+          organization_id: string
+          pixel_token: string | null
+          token: string
+        }
+        Insert: {
+          ad_id?: string | null
+          campaign_id?: string | null
+          created_at?: string | null
+          destination_type?: string
+          destination_url: string
+          expires_at?: string | null
+          id?: string
+          organization_id: string
+          pixel_token?: string | null
+          token: string
+        }
+        Update: {
+          ad_id?: string | null
+          campaign_id?: string | null
+          created_at?: string | null
+          destination_type?: string
+          destination_url?: string
+          expires_at?: string | null
+          id?: string
+          organization_id?: string
+          pixel_token?: string | null
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attribution_links_ad_id_fkey"
+            columns: ["ad_id"]
+            isOneToOne: false
+            referencedRelation: "ads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attribution_links_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attribution_links_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -337,13 +481,17 @@ export type Database = {
       campaigns: {
         Row: {
           ad_account_id: string | null
+          ai_chat_snapshot: Json | null
+          ai_context: Json | null
           clicks: number | null
           created_at: string | null
+          creative_snapshot: Json | null
           ctr: number | null
-          daily_budget_cents: number
+          daily_budget_cents: number | null
           error_log: string | null
           id: string
           impressions: number | null
+          last_click_at: string | null
           name: string
           objective: string | null
           organization_id: string | null
@@ -351,20 +499,31 @@ export type Database = {
           platform: string | null
           platform_campaign_id: string | null
           promotion_id: string | null
+          revenue_ngn: number | null
+          sales_count: number | null
           spend_cents: number | null
           status: string | null
           targeting_profile_id: string | null
+          targeting_snapshot: Json | null
+          total_link_clicks: number | null
           updated_at: string | null
+          website_clicks: number | null
+          whatsapp_click_rate: number | null
+          whatsapp_clicks: number | null
         }
         Insert: {
           ad_account_id?: string | null
+          ai_chat_snapshot?: Json | null
+          ai_context?: Json | null
           clicks?: number | null
           created_at?: string | null
+          creative_snapshot?: Json | null
           ctr?: number | null
-          daily_budget_cents: number
+          daily_budget_cents?: number | null
           error_log?: string | null
           id?: string
           impressions?: number | null
+          last_click_at?: string | null
           name: string
           objective?: string | null
           organization_id?: string | null
@@ -372,20 +531,31 @@ export type Database = {
           platform?: string | null
           platform_campaign_id?: string | null
           promotion_id?: string | null
+          revenue_ngn?: number | null
+          sales_count?: number | null
           spend_cents?: number | null
           status?: string | null
           targeting_profile_id?: string | null
+          targeting_snapshot?: Json | null
+          total_link_clicks?: number | null
           updated_at?: string | null
+          website_clicks?: number | null
+          whatsapp_click_rate?: number | null
+          whatsapp_clicks?: number | null
         }
         Update: {
           ad_account_id?: string | null
+          ai_chat_snapshot?: Json | null
+          ai_context?: Json | null
           clicks?: number | null
           created_at?: string | null
+          creative_snapshot?: Json | null
           ctr?: number | null
-          daily_budget_cents?: number
+          daily_budget_cents?: number | null
           error_log?: string | null
           id?: string
           impressions?: number | null
+          last_click_at?: string | null
           name?: string
           objective?: string | null
           organization_id?: string | null
@@ -393,10 +563,17 @@ export type Database = {
           platform?: string | null
           platform_campaign_id?: string | null
           promotion_id?: string | null
+          revenue_ngn?: number | null
+          sales_count?: number | null
           spend_cents?: number | null
           status?: string | null
           targeting_profile_id?: string | null
+          targeting_snapshot?: Json | null
+          total_link_clicks?: number | null
           updated_at?: string | null
+          website_clicks?: number | null
+          whatsapp_click_rate?: number | null
+          whatsapp_clicks?: number | null
         }
         Relationships: [
           {
@@ -429,47 +606,123 @@ export type Database = {
           },
         ]
       }
+      creative_templates: {
+        Row: {
+          aspect_ratio: string | null
+          category: string
+          created_at: string | null
+          description: string | null
+          id: string
+          is_premium: boolean | null
+          negative_prompt: string | null
+          prompt_template: string
+          thumbnail_url: string | null
+          title: string
+          variables: Json | null
+        }
+        Insert: {
+          aspect_ratio?: string | null
+          category: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_premium?: boolean | null
+          negative_prompt?: string | null
+          prompt_template: string
+          thumbnail_url?: string | null
+          title: string
+          variables?: Json | null
+        }
+        Update: {
+          aspect_ratio?: string | null
+          category?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_premium?: boolean | null
+          negative_prompt?: string | null
+          prompt_template?: string
+          thumbnail_url?: string | null
+          title?: string
+          variables?: Json | null
+        }
+        Relationships: []
+      }
       creatives: {
         Row: {
+          campaign_id: string | null
           created_at: string | null
           file_size_bytes: number | null
+          generation_context: Json | null
+          generation_prompt: string | null
           height: number | null
           id: string
+          is_favorite: boolean | null
+          last_used_at: string | null
           media_type: string | null
           name: string | null
           organization_id: string | null
           original_url: string
+          parent_id: string | null
           platform_media_hash: string | null
+          tags: string[] | null
+          thumbnail_url: string | null
           uploaded_by: string | null
+          usage_count: number | null
           width: number | null
         }
         Insert: {
+          campaign_id?: string | null
           created_at?: string | null
           file_size_bytes?: number | null
+          generation_context?: Json | null
+          generation_prompt?: string | null
           height?: number | null
           id?: string
+          is_favorite?: boolean | null
+          last_used_at?: string | null
           media_type?: string | null
           name?: string | null
           organization_id?: string | null
           original_url: string
+          parent_id?: string | null
           platform_media_hash?: string | null
+          tags?: string[] | null
+          thumbnail_url?: string | null
           uploaded_by?: string | null
+          usage_count?: number | null
           width?: number | null
         }
         Update: {
+          campaign_id?: string | null
           created_at?: string | null
           file_size_bytes?: number | null
+          generation_context?: Json | null
+          generation_prompt?: string | null
           height?: number | null
           id?: string
+          is_favorite?: boolean | null
+          last_used_at?: string | null
           media_type?: string | null
           name?: string | null
           organization_id?: string | null
           original_url?: string
+          parent_id?: string | null
           platform_media_hash?: string | null
+          tags?: string[] | null
+          thumbnail_url?: string | null
           uploaded_by?: string | null
+          usage_count?: number | null
           width?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "creatives_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "creatives_organization_id_fkey"
             columns: ["organization_id"]
@@ -478,8 +731,126 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "creatives_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "creatives"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "creatives_uploaded_by_fkey"
             columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_costs: {
+        Row: {
+          action_key: string
+          created_at: string
+          credits: number
+          display_name: string
+          is_active: boolean
+          model_id: string
+          notes: string | null
+        }
+        Insert: {
+          action_key: string
+          created_at?: string
+          credits: number
+          display_name: string
+          is_active?: boolean
+          model_id: string
+          notes?: string | null
+        }
+        Update: {
+          action_key?: string
+          created_at?: string
+          credits?: number
+          display_name?: string
+          is_active?: boolean
+          model_id?: string
+          notes?: string | null
+        }
+        Relationships: []
+      }
+      credit_packs: {
+        Row: {
+          created_at: string
+          credits: number
+          id: string
+          is_active: boolean
+          name: string
+          price_ngn: number
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          credits: number
+          id?: string
+          is_active?: boolean
+          name: string
+          price_ngn: number
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          credits?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          price_ngn?: number
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      credit_transactions: {
+        Row: {
+          balance_after: number
+          created_at: string
+          delta: number
+          id: string
+          model_used: string | null
+          organization_id: string
+          reason: string
+          reference_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          balance_after: number
+          created_at?: string
+          delta: number
+          id?: string
+          model_used?: string | null
+          organization_id: string
+          reason: string
+          reference_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          balance_after?: number
+          created_at?: string
+          delta?: number
+          id?: string
+          model_used?: string | null
+          organization_id?: string
+          reason?: string
+          reference_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_transactions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_transactions_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -530,6 +901,70 @@ export type Database = {
           },
           {
             foreignKeyName: "invitations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      link_clicks: {
+        Row: {
+          campaign_id: string | null
+          clicked_at: string | null
+          country: string | null
+          destination_type: string | null
+          device_type: string | null
+          event_type: string | null
+          event_value_ngn: number | null
+          id: string
+          link_id: string
+          organization_id: string
+          referrer: string | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          clicked_at?: string | null
+          country?: string | null
+          destination_type?: string | null
+          device_type?: string | null
+          event_type?: string | null
+          event_value_ngn?: number | null
+          id?: string
+          link_id: string
+          organization_id: string
+          referrer?: string | null
+        }
+        Update: {
+          campaign_id?: string | null
+          clicked_at?: string | null
+          country?: string | null
+          destination_type?: string | null
+          device_type?: string | null
+          event_type?: string | null
+          event_value_ngn?: number | null
+          id?: string
+          link_id?: string
+          organization_id?: string
+          referrer?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "link_clicks_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "link_clicks_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "attribution_links"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "link_clicks_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -602,6 +1037,8 @@ export type Database = {
           user_id: string | null
           verified: boolean | null
           whatsapp_number: string | null
+          whatsapp_otp_code: string | null
+          whatsapp_otp_expires_at: string | null
         }
         Insert: {
           alert_ad_rejected?: boolean | null
@@ -613,6 +1050,8 @@ export type Database = {
           user_id?: string | null
           verified?: boolean | null
           whatsapp_number?: string | null
+          whatsapp_otp_code?: string | null
+          whatsapp_otp_expires_at?: string | null
         }
         Update: {
           alert_ad_rejected?: boolean | null
@@ -624,6 +1063,8 @@ export type Database = {
           user_id?: string | null
           verified?: boolean | null
           whatsapp_number?: string | null
+          whatsapp_otp_code?: string | null
+          whatsapp_otp_expires_at?: string | null
         }
         Relationships: [
           {
@@ -734,12 +1175,21 @@ export type Database = {
       organizations: {
         Row: {
           created_at: string | null
+          credits_balance: number
+          credits_reset_at: string | null
+          customer_gender: string | null
           deleted_at: string | null
           id: string
+          industry: string | null
           max_ad_accounts: number | null
           max_team_members: number | null
           name: string
           paystack_customer_code: string | null
+          paystack_sub_code: string | null
+          plan_credits_quota: number
+          plan_interval: string | null
+          price_tier: string | null
+          selling_method: string | null
           slug: string
           subscription_expires_at: string | null
           subscription_status: string | null
@@ -748,12 +1198,21 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          credits_balance?: number
+          credits_reset_at?: string | null
+          customer_gender?: string | null
           deleted_at?: string | null
           id?: string
+          industry?: string | null
           max_ad_accounts?: number | null
           max_team_members?: number | null
           name: string
           paystack_customer_code?: string | null
+          paystack_sub_code?: string | null
+          plan_credits_quota?: number
+          plan_interval?: string | null
+          price_tier?: string | null
+          selling_method?: string | null
           slug: string
           subscription_expires_at?: string | null
           subscription_status?: string | null
@@ -762,17 +1221,68 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          credits_balance?: number
+          credits_reset_at?: string | null
+          customer_gender?: string | null
           deleted_at?: string | null
           id?: string
+          industry?: string | null
           max_ad_accounts?: number | null
           max_team_members?: number | null
           name?: string
           paystack_customer_code?: string | null
+          paystack_sub_code?: string | null
+          plan_credits_quota?: number
+          plan_interval?: string | null
+          price_tier?: string | null
+          selling_method?: string | null
           slug?: string
           subscription_expires_at?: string | null
           subscription_status?: string | null
           subscription_tier?: string | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      plan_definitions: {
+        Row: {
+          created_at: string
+          credits_monthly: number
+          credits_trial: number
+          display_name: string
+          is_active: boolean
+          max_ad_accounts: number
+          max_team_members: number
+          plan_id: string
+          price_ngn: number
+          rollover_enabled: boolean
+          rollover_max: number
+        }
+        Insert: {
+          created_at?: string
+          credits_monthly: number
+          credits_trial?: number
+          display_name: string
+          is_active?: boolean
+          max_ad_accounts?: number
+          max_team_members?: number
+          plan_id: string
+          price_ngn: number
+          rollover_enabled?: boolean
+          rollover_max?: number
+        }
+        Update: {
+          created_at?: string
+          credits_monthly?: number
+          credits_trial?: number
+          display_name?: string
+          is_active?: boolean
+          max_ad_accounts?: number
+          max_team_members?: number
+          plan_id?: string
+          price_ngn?: number
+          rollover_enabled?: boolean
+          rollover_max?: number
         }
         Relationships: []
       }
@@ -934,6 +1444,8 @@ export type Database = {
           ad_accounts_limit: number | null
           ai_requests_limit: number | null
           ai_requests_used: number | null
+          credits_limit: number
+          credits_used: number
           id: string
           organization_id: string | null
           period_end: string
@@ -947,6 +1459,8 @@ export type Database = {
           ad_accounts_limit?: number | null
           ai_requests_limit?: number | null
           ai_requests_used?: number | null
+          credits_limit?: number
+          credits_used?: number
           id?: string
           organization_id?: string | null
           period_end: string
@@ -960,6 +1474,8 @@ export type Database = {
           ad_accounts_limit?: number | null
           ai_requests_limit?: number | null
           ai_requests_used?: number | null
+          credits_limit?: number
+          credits_used?: number
           id?: string
           organization_id?: string | null
           period_end?: string
@@ -1005,15 +1521,121 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_sales: {
+        Row: {
+          amount_ngn: number
+          campaign_id: string | null
+          id: string
+          note: string | null
+          organization_id: string
+          recorded_at: string | null
+          recorded_by: string | null
+        }
+        Insert: {
+          amount_ngn: number
+          campaign_id?: string | null
+          id?: string
+          note?: string | null
+          organization_id: string
+          recorded_at?: string | null
+          recorded_by?: string | null
+        }
+        Update: {
+          amount_ngn?: number
+          campaign_id?: string | null
+          id?: string
+          note?: string | null
+          organization_id?: string
+          recorded_at?: string | null
+          recorded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_sales_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_sales_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_sales_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      ai_generation_analytics: {
+        Row: {
+          context_enhanced_count: number | null
+          context_source: string | null
+          date: string | null
+          enhancement_rate: number | null
+          organization_id: string | null
+          success_rate: number | null
+          total_generations: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
-      [_ in never]: never
+      add_credits: {
+        Args: {
+          p_credits: number
+          p_org_id: string
+          p_reason: string
+          p_reference?: string
+        }
+        Returns: Json
+      }
+      deduct_credits: {
+        Args: {
+          p_credits: number
+          p_model?: string
+          p_org_id: string
+          p_reason: string
+          p_reference?: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      get_campaign_context: { Args: { p_campaign_id: string }; Returns: Json }
+      increment_campaign_clicks:
+        | { Args: { p_campaign_id: string }; Returns: undefined }
+        | {
+            Args: { p_campaign_id: string; p_destination_type?: string }
+            Returns: undefined
+          }
+      update_campaign_sales_summary: {
+        Args: { p_amount_ngn: number; p_campaign_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
-      [_ in never]: never
+      payment_status_enum:
+        | "active"
+        | "trialing"
+        | "past_due"
+        | "canceled"
+        | "incomplete"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1140,6 +1762,14 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      payment_status_enum: [
+        "active",
+        "trialing",
+        "past_due",
+        "canceled",
+        "incomplete",
+      ],
+    },
   },
 } as const

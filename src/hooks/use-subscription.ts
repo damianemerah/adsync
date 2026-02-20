@@ -17,53 +17,80 @@ export function useSubscription() {
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // 1. Get Organization Details
+      // 1. Get Organisation + credit balance
       const { data: member, error: memberError } = await supabase
         .from("organization_members")
         .select(
           `
             organization_id,
             organizations (
-                id,
-                name,
-                subscription_status,
-                subscription_tier,
-                subscription_expires_at
+              id,
+              name,
+              subscription_status,
+              subscription_tier,
+              subscription_expires_at,
+              credits_balance,
+              plan_credits_quota
             )
-        `
+          `,
         )
         .eq("user_id", user.id)
         .single();
 
       if (memberError || !member) throw new Error("No organization found");
 
-      const org = member.organizations;
+      // @ts-ignore – nested join typing is loose in generated types
+      const org = member.organizations as {
+        id: string;
+        name: string;
+        subscription_status: string;
+        subscription_tier: string;
+        subscription_expires_at: string | null;
+        credits_balance: number;
+        plan_credits_quota: number;
+      };
 
       // 2. Get Transaction History
       const { data: transactions, error: txnError } = await supabase
         .from("transactions")
         .select("*")
         .eq("organization_id", member.organization_id as string)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(50);
 
       if (txnError) throw new Error("Failed to fetch transactions");
 
-      // 3. Format Data for UI
       return {
         org: {
-          id: org?.id, // Access property safely
-          // @ts-ignore - Supabase types join can be tricky, safe to ignore if schema matches
+          id: org?.id,
+          name: org?.name || "My Business",
           status: org?.subscription_status || "expired",
-          // @ts-ignore
           tier: org?.subscription_tier || "starter",
-          // @ts-ignore
           expiresAt: org?.subscription_expires_at
-            ? // @ts-ignore
-              new Date(org.subscription_expires_at)
-            : new Date(), // Default to now if null
+            ? new Date(org.subscription_expires_at)
+            : new Date(),
+          creditsBalance: org?.credits_balance ?? 0,
+          creditQuota: org?.plan_credits_quota ?? 0,
         },
         transactions: (transactions as Transaction[]) || [],
       };
     },
   });
+}
+
+// Lightweight hook for quick credit balance checks (e.g. in the AI button)
+export function useCreditBalance() {
+  const { data } = useSubscription();
+  return {
+    balance: data?.org?.creditsBalance ?? 0,
+    quota: data?.org?.creditQuota ?? 0,
+    percentUsed:
+      data?.org?.creditQuota && data.org.creditQuota > 0
+        ? Math.round(
+            ((data.org.creditQuota - data.org.creditsBalance) /
+              data.org.creditQuota) *
+              100,
+          )
+        : 0,
+  };
 }

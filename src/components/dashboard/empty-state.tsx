@@ -5,13 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  CheckCircle2,
-  Circle,
+  CheckCircle,
   ArrowRight,
   Facebook,
-  Smartphone,
+  SmartphoneDevice,
   Rocket,
-} from "lucide-react";
+} from "iconoir-react";
 import { cn } from "@/lib/utils";
 
 interface SetupStepProps {
@@ -37,7 +36,7 @@ function SetupStep({
         "flex items-center justify-between p-4 rounded-xl border transition-all",
         isCompleted
           ? "bg-green-50 border-green-100 opacity-70"
-          : "bg-white border-slate-200 shadow-sm hover:border-blue-300 hover:shadow-md"
+          : "bg-white border-slate-200 shadow-sm hover:border-blue-300 hover:shadow-soft",
       )}
     >
       <div className="flex items-center gap-4">
@@ -46,11 +45,11 @@ function SetupStep({
             "h-12 w-12 rounded-full flex items-center justify-center shrink-0",
             isCompleted
               ? "bg-green-100 text-green-600"
-              : "bg-blue-50 text-blue-600"
+              : "bg-blue-50 text-blue-600",
           )}
         >
           {isCompleted ? (
-            <CheckCircle2 className="h-6 w-6" />
+            <CheckCircle className="h-6 w-6" />
           ) : (
             <Icon className="h-6 w-6" />
           )}
@@ -59,7 +58,7 @@ function SetupStep({
           <h3
             className={cn(
               "font-bold text-base",
-              isCompleted ? "text-green-800" : "text-slate-900"
+              isCompleted ? "text-green-800" : "text-slate-900",
             )}
           >
             {title}
@@ -91,20 +90,25 @@ function SetupStep({
   );
 }
 
-export function DashboardEmptyState({
-  userName = "User",
-}: {
+export interface DashboardEmptyStateProps {
   userName?: string;
-}) {
-  // In a real app, these booleans would come from your database
-  const hasAdAccount = false;
-  const hasVerifiedWhatsApp = false;
-  const hasFirstCampaign = false;
+  /** Whether the user's org has at least one connected ad account */
+  hasAdAccount?: boolean;
+  /** Whether the user has verified their WhatsApp number */
+  hasVerifiedWhatsApp?: boolean;
+  /** Whether the org has at least one non-draft campaign */
+  hasFirstCampaign?: boolean;
+}
 
-  const progress = [hasAdAccount, hasVerifiedWhatsApp, hasFirstCampaign].filter(
-    Boolean
-  ).length;
-  const total = 3;
+export function DashboardEmptyState({
+  userName = "there",
+  hasAdAccount = false,
+  hasVerifiedWhatsApp = false,
+  hasFirstCampaign = false,
+}: DashboardEmptyStateProps) {
+  const steps = [hasAdAccount, hasVerifiedWhatsApp, hasFirstCampaign];
+  const progress = steps.filter(Boolean).length;
+  const total = steps.length;
 
   return (
     <div className="max-w-4xl mx-auto py-10 space-y-8">
@@ -117,8 +121,9 @@ export function DashboardEmptyState({
           Welcome to AdSync, {userName}!
         </h1>
         <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-          You are 3 steps away from launching AI-powered campaigns. Let's get
-          your workspace ready.
+          You are {total - progress} step{total - progress !== 1 ? "s" : ""}{" "}
+          away from launching AI-powered campaigns. Let&apos;s get your
+          workspace ready.
         </p>
       </div>
 
@@ -139,15 +144,15 @@ export function DashboardEmptyState({
           title="Connect Ad Account"
           description="Link your Meta or TikTok account to import data."
           icon={Facebook}
-          href="/ad-accounts"
+          href="/settings"
           ctaText="Connect Account"
           isCompleted={hasAdAccount}
         />
 
         <SetupStep
           title="Verify WhatsApp"
-          description="Enable critical alerts for payment failures."
-          icon={Smartphone}
+          description="Enable critical alerts for payment failures and campaign updates."
+          icon={SmartphoneDevice}
           href="/settings"
           ctaText="Verify Number"
           isCompleted={hasVerifiedWhatsApp}
@@ -165,7 +170,7 @@ export function DashboardEmptyState({
 
       {/* Support Box */}
       <Card className="bg-slate-900 text-white border-slate-800 max-w-2xl mx-auto mt-8">
-        <CardContent className="p-6 flex items-center justify-between">
+        <CardContent className="p-6 flex items-center justify-between gap-4">
           <div>
             <p className="font-bold text-lg">Need help setting up?</p>
             <p className="text-slate-400 text-sm">
@@ -174,7 +179,7 @@ export function DashboardEmptyState({
           </div>
           <Button
             variant="outline"
-            className="border-slate-600 text-slate-800 hover:bg-slate-800 hover:text-white"
+            className="border-slate-600 text-slate-800 hover:bg-slate-800 hover:text-white shrink-0"
           >
             Watch Tutorial
           </Button>

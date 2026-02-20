@@ -8,6 +8,7 @@ export interface Creative {
   height: number | null;
   file_size_bytes: number | null;
   created_at: string | null;
+  generation_prompt?: string | null;
   // Local UI state (not from DB)
   usageCount?: number;
   isLive?: boolean;

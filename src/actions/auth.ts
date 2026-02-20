@@ -18,7 +18,7 @@ export type AuthState =
 
 export async function login(
   prevState: AuthState,
-  formData: FormData
+  formData: FormData,
 ): Promise<AuthState> {
   // 1. Convert FormData to Object
   const rawData = Object.fromEntries(formData.entries());
@@ -52,7 +52,7 @@ export async function login(
 
 export async function signup(
   prevState: AuthState,
-  formData: FormData
+  formData: FormData,
 ): Promise<AuthState> {
   // 1. Convert FormData to Object
   const rawData = Object.fromEntries(formData.entries());
@@ -87,4 +87,22 @@ export async function signup(
   }
 
   revalidatePath("/", "layout");
+  redirect(`/verify-email?email=${encodeURIComponent(email)}`);
+}
+
+export async function resendVerificationEmail(email: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email,
+    options: {
+      emailRedirectTo: "http://localhost:3000/onboarding",
+    },
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  return { success: true };
 }

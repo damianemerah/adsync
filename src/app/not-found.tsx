@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { SearchX, ArrowLeft, Home } from "lucide-react";
+import { Search, ArrowLeft, Home } from "iconoir-react";
 import Link from "next/link";
 
 export default function NotFound() {
@@ -9,7 +9,7 @@ export default function NotFound() {
       <Card className="w-full max-w-lg shadow-2xl rounded-2xl p-12 bg-white/80 backdrop-blur text-center">
         {/* Icon */}
         <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-red-100 mb-6">
-          <SearchX className="w-12 h-12 text-red-600" />
+          <Search className="w-12 h-12 text-red-600" />
         </div>
 
         {/* Content */}

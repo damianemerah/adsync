@@ -19,13 +19,18 @@ import {
 } from "@/components/ui/select";
 import {
   Check,
-  Zap,
-  Users,
-  Building2,
+  Flash,
+  Group,
+  Building,
   ArrowRight,
-  Loader2,
+  SystemRestart,
   ArrowLeft,
-} from "lucide-react";
+  Shop,
+  Globe,
+  Bag,
+  User,
+  Coins,
+} from "iconoir-react";
 import { cn } from "@/lib/utils";
 
 import { createOrganization } from "@/actions/onboarding";
@@ -38,6 +43,39 @@ const INDUSTRIES = [
   "Food & Beverage",
   "Tech / SaaS",
   "Other",
+];
+
+const SELLING_METHODS = [
+  {
+    id: "online",
+    label: "Online / Delivery",
+    desc: "I ship nationwide or deliver to customers.",
+    icon: Globe,
+  },
+  {
+    id: "local",
+    label: "In-Store / Local",
+    desc: "Customers come to my physical location.",
+    icon: Shop,
+  },
+  {
+    id: "both",
+    label: "Both",
+    desc: "I have a shop but also deliver.",
+    icon: Building,
+  },
+];
+
+const PRICE_TIERS = [
+  { id: "budget", label: "Budget / Affordable", icon: Coins },
+  { id: "mid", label: "Mid-Range", icon: Coins },
+  { id: "premium", label: "Premium / Luxury", icon: Coins },
+];
+
+const GENDERS = [
+  { id: "female", label: "Women", icon: User },
+  { id: "male", label: "Men", icon: User },
+  { id: "both", label: "Everyone", icon: Group },
 ];
 
 const PLANS = [
@@ -83,12 +121,16 @@ export default function OnboardingPage() {
   // Form State
   const [orgName, setOrgName] = useState("");
   const [industry, setIndustry] = useState("");
+  const [sellingMethod, setSellingMethod] = useState("online");
+  const [priceTier, setPriceTier] = useState("mid");
+  const [customerGender, setCustomerGender] = useState("female");
+  const [userRole, setUserRole] = useState("owner");
   const [selectedPlan, setSelectedPlan] = useState<string>(PLAN_IDS.GROWTH);
 
-  const progress = (step / 3) * 100;
+  const progress = (step / 5) * 100;
 
   const handleNext = () => {
-    if (step < 3) setStep(step + 1);
+    if (step < 5) setStep(step + 1);
   };
 
   const handleBack = () => {
@@ -102,10 +144,13 @@ export default function OnboardingPage() {
     const formData = new FormData();
     formData.append("orgName", orgName);
     formData.append("industry", industry);
+    formData.append("sellingMethod", sellingMethod);
+    formData.append("priceTier", priceTier);
+    formData.append("customerGender", customerGender);
     formData.append("plan", selectedPlan);
+    formData.append("userRole", userRole);
 
     // Call the Server Action
-    // Note: Since the action redirects on success, we don't need to manually router.push
     const result = await createOrganization(formData);
 
     if (result?.error) {
@@ -119,7 +164,7 @@ export default function OnboardingPage() {
       {/* Top Logo */}
       <div className="mb-8 flex items-center gap-2">
         <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-600/20">
-          <Zap className="h-5 w-5 fill-current" />
+          <Flash className="h-5 w-5 fill-current" />
         </div>
         <span className="font-heading font-bold text-xl text-slate-900">
           AdSync
@@ -130,14 +175,10 @@ export default function OnboardingPage() {
         {/* Progress Header */}
         <div className="mb-8 px-4">
           <div className="flex justify-between text-sm font-medium text-slate-500 mb-2">
-            <span>Step {step} of 3</span>
+            <span>Step {step} of 5</span>
             <span>{Math.round(progress)}%</span>
           </div>
-          <Progress
-            value={progress}
-            className="h-2 bg-slate-200"
-            // indicatorClassName="bg-slate-900"
-          />
+          <Progress value={progress} className="h-2 bg-slate-200" />
         </div>
 
         {/* Main Content Card */}
@@ -150,23 +191,29 @@ export default function OnboardingPage() {
 
               <div className="relative z-10">
                 <div className="h-12 w-12 rounded-2xl bg-white/10 flex items-center justify-center mb-6 backdrop-blur-sm border border-white/10">
-                  {step === 1 && (
-                    <Building2 className="h-6 w-6 text-blue-400" />
-                  )}
-                  {step === 2 && <Zap className="h-6 w-6 text-yellow-400" />}
-                  {step === 3 && <Users className="h-6 w-6 text-green-400" />}
+                  {step === 1 && <Building className="h-6 w-6 text-blue-400" />}
+                  {step === 2 && <Bag className="h-6 w-6 text-pink-400" />}
+                  {step === 3 && <User className="h-6 w-6 text-purple-400" />}
+                  {step === 4 && <Flash className="h-6 w-6 text-yellow-400" />}
+                  {step === 5 && <Group className="h-6 w-6 text-green-400" />}
                 </div>
                 <h2 className="text-2xl font-bold mb-2">
                   {step === 1 && "Create your workspace"}
-                  {step === 2 && "Choose your plan"}
-                  {step === 3 && "Connect accounts"}
+                  {step === 2 && "Business Details"}
+                  {step === 3 && "Tell us about you"}
+                  {step === 4 && "Choose your plan"}
+                  {step === 5 && "Connect accounts"}
                 </h2>
                 <p className="text-slate-400 leading-relaxed">
                   {step === 1 &&
-                    "Start by naming your organization. This is where your team will collaborate."}
+                    "Start by naming your business. This is where your team will collaborate."}
                   {step === 2 &&
-                    "Start your 14-day free trial. No credit card required. Cancel anytime."}
+                    "Help our AI understand your business model for better ad targeting."}
                   {step === 3 &&
+                    "We'll tailor your experience based on your role."}
+                  {step === 4 &&
+                    "Start your 14-day free trial. No credit card required. Cancel anytime."}
+                  {step === 5 &&
                     "Link your Meta or TikTok ad accounts to import your campaigns instantly."}
                 </p>
               </div>
@@ -197,7 +244,7 @@ export default function OnboardingPage() {
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="orgName" className="text-base">
-                        Organization Name
+                        Business Name
                       </Label>
                       <Input
                         id="orgName"
@@ -230,8 +277,148 @@ export default function OnboardingPage() {
                 </div>
               )}
 
-              {/* STEP 2: PRICING */}
+              {/* STEP 2: BUSINESS DETAILS (NEW) */}
               {step === 2 && (
+                <div className="flex-1 flex flex-col justify-center space-y-8 max-w-md mx-auto w-full">
+                  {/* Selling Method */}
+                  <div className="space-y-3">
+                    <Label className="text-base">How do you sell?</Label>
+                    <div className="grid grid-cols-1 gap-2">
+                      {SELLING_METHODS.map((method) => {
+                        const Icon = method.icon;
+                        return (
+                          <div
+                            key={method.id}
+                            onClick={() => setSellingMethod(method.id)}
+                            className={cn(
+                              "cursor-pointer rounded-xl border p-3 flex items-center gap-3 transition-all",
+                              sellingMethod === method.id
+                                ? "border-blue-600 bg-blue-50/50"
+                                : "border-slate-200 hover:bg-slate-50",
+                            )}
+                          >
+                            <div className="h-10 w-10 rounded-full bg-white border flex items-center justify-center text-slate-600 shrink-0">
+                              <Icon className="h-5 w-5" />
+                            </div>
+                            <div>
+                              <div className="font-bold text-sm text-slate-900">
+                                {method.label}
+                              </div>
+                              <div className="text-xs text-slate-500">
+                                {method.desc}
+                              </div>
+                            </div>
+                            {sellingMethod === method.id && (
+                              <Check className="h-5 w-5 text-blue-600 ml-auto" />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Price Tier & Gender Row */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                      <Label className="text-base">Pricing?</Label>
+                      <div className="flex flex-col gap-2">
+                        {PRICE_TIERS.map((pt) => (
+                          <div
+                            key={pt.id}
+                            onClick={() => setPriceTier(pt.id)}
+                            className={cn(
+                              "cursor-pointer rounded-xl border p-2 text-center transition-all text-xs font-bold",
+                              priceTier === pt.id
+                                ? "border-blue-600 bg-blue-50 text-blue-700"
+                                : "border-slate-200 text-slate-600 hover:bg-slate-50",
+                            )}
+                          >
+                            {pt.label}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <Label className="text-base">Audience?</Label>
+                      <div className="flex flex-col gap-2">
+                        {GENDERS.map((g) => (
+                          <div
+                            key={g.id}
+                            onClick={() => setCustomerGender(g.id)}
+                            className={cn(
+                              "cursor-pointer rounded-xl border p-2 text-center transition-all text-xs font-bold",
+                              customerGender === g.id
+                                ? "border-purple-600 bg-purple-50 text-purple-700"
+                                : "border-slate-200 text-slate-600 hover:bg-slate-50",
+                            )}
+                          >
+                            {g.label}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 3: ROLE */}
+              {step === 3 && (
+                <div className="flex-1 flex flex-col justify-center space-y-6 max-w-md mx-auto w-full">
+                  <div className="space-y-4">
+                    <Label className="text-base">
+                      What describes you best?
+                    </Label>
+                    <div className="grid gap-3">
+                      {[
+                        {
+                          id: "owner",
+                          label: "Business Owner",
+                          desc: "I own the business I want to advertise.",
+                        },
+                        {
+                          id: "marketer",
+                          label: "Marketer / Freelancer",
+                          desc: "I manage ads for other businesses.",
+                        },
+                        {
+                          id: "creator",
+                          label: "Content Creator",
+                          desc: "I want to boost my own content.",
+                        },
+                      ].map((role) => (
+                        <div
+                          key={role.id}
+                          onClick={() => setUserRole(role.id)}
+                          className={cn(
+                            "cursor-pointer rounded-xl border-2 p-4 transition-all hover:bg-slate-50",
+                            userRole === role.id
+                              ? "border-blue-600 bg-blue-50/50"
+                              : "border-slate-100 bg-white",
+                          )}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="font-bold text-slate-900">
+                                {role.label}
+                              </div>
+                              <div className="text-xs text-slate-500">
+                                {role.desc}
+                              </div>
+                            </div>
+                            {userRole === role.id && (
+                              <Check className="h-5 w-5 text-blue-600" />
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 4: PRICING */}
+              {step === 4 && (
                 <div className="flex-1 flex flex-col gap-4 overflow-y-auto">
                   <div className="grid gap-4">
                     {PLANS.map((plan) => (
@@ -242,7 +429,7 @@ export default function OnboardingPage() {
                           "relative flex cursor-pointer rounded-xl border-2 p-5 transition-all hover:shadow-md",
                           selectedPlan === plan.id
                             ? "border-blue-600 bg-blue-50/50"
-                            : "border-slate-100 bg-white hover:border-slate-200"
+                            : "border-slate-100 bg-white hover:border-slate-200",
                         )}
                       >
                         <div className="flex-1">
@@ -284,7 +471,7 @@ export default function OnboardingPage() {
                             "w-6 h-6 rounded-full border-2 flex items-center justify-center ml-4 mt-1 transition-colors",
                             selectedPlan === plan.id
                               ? "border-blue-600 bg-blue-600"
-                              : "border-slate-300"
+                              : "border-slate-300",
                           )}
                         >
                           {selectedPlan === plan.id && (
@@ -297,11 +484,16 @@ export default function OnboardingPage() {
                 </div>
               )}
 
-              {/* STEP 3: CONNECT */}
-              {step === 3 && (
+              {/* STEP 5: CONNECT */}
+              {step === 5 && (
                 <div className="flex-1 flex flex-col justify-center space-y-6 max-w-md mx-auto w-full">
                   <div className="grid gap-4">
-                    <button className="group relative flex items-center gap-4 p-5 rounded-xl border-2 border-slate-200 hover:border-blue-600 hover:bg-blue-50 transition-all text-left">
+                    <button
+                      onClick={() =>
+                        (window.location.href = "/api/connect/meta")
+                      }
+                      className="group relative flex items-center gap-4 p-5 rounded-xl border-2 border-slate-200 hover:border-blue-600 hover:bg-blue-50 transition-all text-left"
+                    >
                       <div className="w-12 h-12 rounded-lg bg-blue-600 flex items-center justify-center shrink-0">
                         <svg
                           className="w-6 h-6 text-white"
@@ -358,7 +550,7 @@ export default function OnboardingPage() {
                 </Button>
 
                 <div className="flex gap-3 items-center">
-                  {step === 3 && (
+                  {step === 5 && (
                     <Button
                       variant="ghost"
                       onClick={handleFinish}
@@ -368,22 +560,27 @@ export default function OnboardingPage() {
                     </Button>
                   )}
                   <Button
-                    onClick={step === 3 ? handleFinish : handleNext}
-                    disabled={step === 1 && (!orgName || !industry)}
+                    onClick={step === 5 ? handleFinish : handleNext}
+                    disabled={
+                      (step === 1 && (!orgName || !industry)) ||
+                      (step === 2 &&
+                        (!sellingMethod || !priceTier || !customerGender)) ||
+                      (step === 3 && !userRole)
+                    }
                     className="bg-slate-900 hover:bg-slate-800 text-white min-w-[140px] h-12 rounded-xl font-bold shadow-xl shadow-slate-900/10"
                   >
                     {isLoading ? (
                       <>
-                        <Loader2 className="w-4 h-4 animate-spin mr-2" />{" "}
+                        <SystemRestart className="w-4 h-4 animate-spin mr-2" />{" "}
                         Setting up...
                       </>
                     ) : (
                       <>
-                        {step === 3
+                        {step === 5
                           ? "Finish Setup"
-                          : step === 2
-                          ? "Continue to Trial"
-                          : "Continue"}{" "}
+                          : step === 4
+                            ? "Continue to Trial"
+                            : "Continue"}{" "}
                         <ArrowRight className="w-4 h-4 ml-2" />
                       </>
                     )}

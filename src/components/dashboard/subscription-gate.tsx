@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Lock, Zap } from "lucide-react";
+import { Lock, Flash } from "iconoir-react";
 
 export function SubscriptionGate({
   children,
@@ -46,7 +46,8 @@ export function SubscriptionGate({
           <div className="space-y-2">
             <h2 className="text-2xl font-bold text-slate-900">Access Locked</h2>
             <p className="text-slate-600">
-              Your subscription has expired. Please renew your plan to continue managing your campaigns.
+              Your subscription has expired. Please renew your plan to continue
+              managing your campaigns.
             </p>
           </div>
 
@@ -55,7 +56,7 @@ export function SubscriptionGate({
             className="w-full bg-red-600 hover:bg-red-700 font-bold shadow-lg shadow-red-600/20"
             onClick={() => router.push("/billing")}
           >
-            <Zap className="mr-2 h-4 w-4" /> Reactivate Plan
+            <Flash className="mr-2 h-4 w-4" /> Reactivate Plan
           </Button>
         </CardContent>
       </Card>
