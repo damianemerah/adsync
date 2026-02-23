@@ -14,6 +14,7 @@ import {
   MusicNote,
   MoreHoriz,
   Check,
+  Play,
 } from "iconoir-react";
 import {
   DropdownMenu,
@@ -29,7 +30,7 @@ interface PhoneMockupProps {
     headline: string;
     cta: CTAData;
   };
-  creatives: string[];
+  creatives: Array<{ url: string; media_type?: string }>;
   objective: string;
   platform: "meta" | "tiktok" | null;
   metaPlacement?: "automatic" | "instagram" | "facebook";
@@ -96,11 +97,20 @@ export function PhoneMockup({
         {/* Full Screen Media */}
         <div className="absolute inset-0 bg-slate-800">
           {creatives.length > 0 ? (
-            <img
-              src={currentCreative}
-              className="w-full h-full object-cover opacity-90"
-              alt="TikTok Ad"
-            />
+            <>
+              <img
+                src={currentCreative.url}
+                className="w-full h-full object-cover opacity-90"
+                alt="TikTok Ad"
+              />
+              {currentCreative.media_type === "video" && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="bg-black/40 backdrop-blur-md rounded-full p-2">
+                    <Play className="h-8 w-8 text-white" />
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
             <div className="flex items-center justify-center h-full text-slate-500 text-xs">
               Select Video/Image
@@ -222,11 +232,20 @@ export function PhoneMockup({
       {/* Media (Scrollable if multiple) */}
       <div className="relative aspect-square bg-slate-100 shrink-0">
         {creatives.length > 0 ? (
-          <img
-            src={currentCreative}
-            className="w-full h-full object-cover"
-            alt="Ad Creative"
-          />
+          <>
+            <img
+              src={currentCreative.url}
+              className="w-full h-full object-cover"
+              alt="Ad Creative"
+            />
+            {currentCreative.media_type === "video" && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="bg-black/40 backdrop-blur-md rounded-full p-2">
+                  <Play className="h-8 w-8 text-white" />
+                </div>
+              </div>
+            )}
+          </>
         ) : (
           <div className="w-full h-full flex items-center justify-center text-[10px] text-slate-400">
             No Image

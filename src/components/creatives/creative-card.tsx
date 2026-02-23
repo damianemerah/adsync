@@ -45,7 +45,7 @@ export function CreativeCard({
         }}
       >
         <Image
-          src={data.original_url}
+          src={data.thumbnail_url || data.original_url}
           alt={data.name || "Creative"}
           fill
           className="object-cover transition-transform duration-500 group-hover:scale-105"

@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { decrypt } from "@/lib/crypto";
+import { CAMPAIGN_OBJECTIVES } from "@/lib/constants";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
   const { accountId } = await request.json();
 
-  console.log(`[Sync] Starting sync for accountId: ${accountId}`);
+  console.log(`🔄 [Sync] Starting sync for accountId: ${accountId}`);
+  console.log(`📦 [Sync] Request Body:`, { accountId });
 
   // 1. Get Account & Token
   const { data: account } = await supabase
@@ -51,7 +53,7 @@ export async function POST(request: Request) {
     }
 
     const campaigns = data.data || [];
-    console.log(`[Sync] Fetched ${campaigns.length} campaigns from Meta`);
+    console.log(`📥 [Sync] Fetched ${campaigns.length} campaigns from Meta`);
 
     // --- HELPER MAPPERS (To satisfy DB Constraints) ---
 
@@ -66,12 +68,19 @@ export async function POST(request: Request) {
 
     const mapObjective = (metaObj: string) => {
       const obj = metaObj ? metaObj.toUpperCase() : "";
-      // These must match your DB 'check' constraints exactly
+
+      // Handle legacy LEADS logic for existing whatsapp campaigns
+      if (obj === "OUTCOME_LEADS") return "whatsapp";
+
+      // Dynamic lookup from our new source of truth
+      // Note: OUTCOME_SALES maps to the first one defined (whatsapp), which is safe
+      // but long-term might need deeper AdSet optimization_goal inspection to distinguish whatsapp vs traffic.
+      const mapped = CAMPAIGN_OBJECTIVES.find((o) => o.metaObjective === obj);
+      if (mapped) return mapped.id;
+
+      // Legacy mapping
       if (obj === "OUTCOME_TRAFFIC") return "traffic";
-      if (obj === "OUTCOME_AWARENESS") return "awareness";
-      if (obj === "OUTCOME_ENGAGEMENT") return "engagement"; // Check if your DB has 'engagement' or 'video_views'
-      if (obj === "OUTCOME_LEADS") return "traffic"; // Fallback if 'leads' not in DB
-      if (obj === "OUTCOME_SALES") return "traffic"; // Fallback if 'sales' not in DB
+
       return "traffic"; // Safe default
     };
 
@@ -96,6 +105,9 @@ export async function POST(request: Request) {
         const ctr = insights.ctr ? parseFloat(insights.ctr) : 0;
 
         // A. Campaign Upsert
+        console.log(
+          `💾 [Sync] Upserting Campaign ${c.id}: ${c.name} mapped objective: ${safeObjective}, metrics: {spend: ${spendCents}, impressions: ${impressions}}`,
+        );
         const { data: campaignData, error: campaignError } = await supabase
           .from("campaigns")
           .upsert(

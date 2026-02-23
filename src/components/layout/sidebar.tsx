@@ -118,7 +118,7 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 z-50 h-screen flex flex-col bg-card border-r border-border text-subtle-foreground transition-all duration-300 font-sans shadow-soft", // [UPDATED] bg-card, shadow-soft
+        "dark fixed left-0 top-0 z-50 h-screen flex flex-col bg-sidebar border-r border-border text-subtle-foreground transition-all duration-300 font-sans shadow-soft", // [UPDATED] bg-sidebar, shadow-soft
         isOpen ? "w-65" : "w-20",
       )}
     >
@@ -344,7 +344,7 @@ export function Sidebar() {
       {/* 3. Footer */}
       <div
         className={cn(
-          "p-4 space-y-3 bg-card border-t border-border", // [UPDATED] bg-card
+          "p-4 space-y-3 bg-transparent border-t border-border", // [UPDATED] bg-transparent
           !isOpen && "p-2 space-y-2 items-center flex flex-col",
         )}
       >

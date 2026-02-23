@@ -1,8 +1,8 @@
-# AdSync Project Summary
+# Sellam (formerly AdSync) Project Summary
 
 ## Overview
 
-AdSync is an AI-powered advertising management platform designed to democratize ad creation and management for Nigerian SMEs. It simplifies the complex Meta Ads interface into a chat-driven, mobile-first experience, addressing local challenges like payment friction and creative design.
+Sellam is an AI-powered advertising management platform designed to democratize ad creation and management for Nigerian SMEs. It simplifies the complex Meta Ads interface into a chat-driven, mobile-first experience, addressing local challenges like payment friction and creative design.
 
 ## Tech Stack
 
@@ -18,13 +18,13 @@ AdSync is an AI-powered advertising management platform designed to democratize 
 
 - **Chat-First Interface**: Users build campaigns by chatting with an AI marketing expert.
 - **Non-Linear Navigation**: Flexible workflow allowing users to jump between Goal, Audience, and Creative steps.
-- **Context-Aware**: Generates tailored copy, targeting, and creative suggestions based on user business data.
+- **Context-Aware ("Assume + Confirm")**: Employs an "Assume + Confirm" AI model to proactively infer strategy (copy, targeting, creatives) from business data, rather than interrogating the user. Allows one-click harmonization if the user changes campaign goals.
 - **Simplified Structure**: Enforces a strict 1 Campaign -> 1 Ad Set -> 1 Ad architecture for manageability.
 
 ### 2. Creative Studio
 
 - **Generative AI**: Built-in text-to-image generation using restricted Flux models via Fal.ai.
-- **Editing Tools**: Integrated cropping, aspect ratio adjustments (1:1, 9:16), and image refinement.
+- **Intelligent Aspect Ratio & Editing**: Automatically defaults the creative aspect ratio based on selected Meta sub-placements (e.g., 9:16 for Reels, 4:5 for Explore, 1:1 for Feed), alongside manual cropping and filtering.
 - **Asset Library**: "My Creations" gallery for storing and reusing ad creatives.
 - **Ephemeral Uploads**: Temporary storage for reference images during generation.
 
@@ -32,7 +32,7 @@ AdSync is an AI-powered advertising management platform designed to democratize 
 
 - **Nigerian Context**: Optimized for Naira payments and WhatsApp-focused objectives.
 - **Billing**: Integration with Paystack for subscription management (Prepaid Access).
-- **AdSync Guard**: Robust error handling wrapper around fragile Meta APIs.
+- **AdSync Guard & Guardrails**: Robust error handling wrapper around fragile Meta APIs. Includes pre-launch intelligence guardrails to enforce budget controls for new Nigerian accounts and check ad copy for Meta policy compliance (preventing bans).
 
 ### 4. Attribution & ROI Tracking (Phase 1)
 
@@ -54,13 +54,14 @@ AdSync is an AI-powered advertising management platform designed to democratize 
 ### Onboarding Flow
 
 1.  **Sign Up/Login**: Magic link or Social Auth via Supabase.
-2.  **Connect Ad Platform**: OAuth flow to link Meta/Facebook Ad Accounts.
-3.  **Subscription**: Select plan and pay via Paystack (Gatekeeper for features).
+2.  **Business Context**: Collects comprehensive onboarding data (industry, selling method, price tier, target gender) to power AI smart defaults.
+3.  **Connect Ad Platform**: OAuth flow to link Meta/Facebook Ad Accounts.
+4.  **Subscription**: Select plan and pay via Paystack (Gatekeeper for features).
 
 ### Non-Linear Campaign Flow
 
-1.  **Objective Selection**: User selects goal (e.g., WhatsApp Messages) and Platform (Meta, TikTok).
-2.  **AI Consultation**: Chat interface gathers context and proposes strategy.
+1.  **Revenue-Centric Objective Selection**: User selects tailored, revenue-focused goals (e.g., "WhatsApp Sales") and Platform.
+2.  **AI Consultation (Assume + Confirm)**: Chat interface uses aggressive inference to propose a complete strategy, only asking for confirmation or minor refinements.
 3.  **Creative Generation/Selection**:
     - **Smart Skip**: Skip creative step if using existing posts.
     - **Studio**: Generate or editing visuals.
@@ -77,12 +78,12 @@ AdSync is an AI-powered advertising management platform designed to democratize 
 
 ### Campaign Launch Process
 
-1.  **Pre-Flight Check**: System validates budget, ad account status, and user subscription (Gatekeeper check).
+1.  **Pre-Flight Check & Guardrails**: System validates budget, ad account status, user subscription (Gatekeeper check), and flags potentially policy-violating ad copy.
 2.  **Structure Assembly**: Constructs the nested JSON payload following the **1:1:1 Rule** (1 Campaign -> 1 Ad Set -> 1 Ad).
 3.  **Token Decryption**: Retrieves and decrypts the stored Meta access token (AES-256-CBC) securely on the server.
 4.  **API Execution**: Posts to Meta Marketing API in sequence:
-    - **Create Campaign**: Objective set to "OUTCOME_APP_MESSAGING" or similar.
-    - **Create Ad Set**: Budget and targeting defined here. (`is_adset_budget_sharing_enabled: false`).
+    - **Create Campaign**: Objective mapped to the correct Meta objective dynamically (e.g., `OUTCOME_SALES` for Website and WhatsApp campaigns).
+    - **Create Ad Set**: Budget and targeting defined here. (`is_adset_budget_sharing_enabled: false`). Dynamically injects the correct `optimization_goal` (e.g., `CONVERSATIONS` for WhatsApp, `LINK_CLICKS` for Website).
     - **Create Ad Creative**: Uploads image hash and text copy.
     - **Create Ad**: Links creative to Ad Set.
 5.  **Synchronization**: On success, saves Meta IDs to Supabase `campaigns` table and triggers an immediate "Sync" to fetch live status (Active/In Review).

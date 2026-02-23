@@ -2,7 +2,7 @@ const API_VERSION = "v24.0";
 const BASE_URL = `https://graph.facebook.com/${API_VERSION}`;
 
 import {
-  META_OBJECTIVE_MAP,
+  CAMPAIGN_OBJECTIVES,
   AdSyncObjective,
   META_PLACEMENTS,
   MetaPlacement,
@@ -31,14 +31,7 @@ const getPlacementSpec = (
 };
 
 // Maps AdSync objectives to the correct Meta optimization_goal for the Ad Set.
-// Using the wrong optimization_goal causes Meta to deliver the ad to the wrong audience.
-// e.g. Using LINK_CLICKS for an Awareness campaign wastes budget on clickers, not reach.
-const META_OPTIMIZATION_GOAL_MAP: Record<AdSyncObjective, string> = {
-  whatsapp: "CONVERSATIONS", // Optimize for messaging conversations started
-  traffic: "LINK_CLICKS", // Standard link click optimisation
-  awareness: "REACH", // Maximise unique people who see the ad
-  engagement: "POST_ENGAGEMENT", // Maximise likes, comments, shares
-};
+// Now driven by CAMPAIGN_OBJECTIVES constant.
 
 export const MetaService = {
   // Generic Request Wrapper
@@ -124,10 +117,15 @@ export const MetaService = {
     name: string,
     objective: string,
   ) => {
-    // Use the Constant Map
-    // Cast strict type or fallback to Traffic
+    // Cast strict type or fallback to OUTCOME_SALES
     const metaObjective =
-      META_OBJECTIVE_MAP[objective as AdSyncObjective] || "OUTCOME_TRAFFIC";
+      CAMPAIGN_OBJECTIVES.find((o) => o.id === objective)?.metaObjective ||
+      "OUTCOME_SALES";
+
+    console.log(
+      "🎯 [Meta API] createCampaign - mapped objective:",
+      metaObjective,
+    );
 
     const id = adAccountId.startsWith("act_")
       ? adAccountId
@@ -174,7 +172,8 @@ export const MetaService = {
   ) => {
     // Resolve correct optimization goal from objective
     const optimizationGoal =
-      META_OPTIMIZATION_GOAL_MAP[objective] || "LINK_CLICKS";
+      CAMPAIGN_OBJECTIVES.find((o) => o.id === objective)
+        ?.metaOptimizationGoal || "LINK_CLICKS";
 
     // billing_event must be compatible with optimization_goal:
     // LINK_CLICKS + IMPRESSIONS = valid
@@ -205,9 +204,22 @@ export const MetaService = {
         ? { page_id: params.pageId }
         : undefined;
 
+    // Click-to-WhatsApp requires destination_type=WHATSAPP on the ad set.
+    // Without this, Meta won't route the click to WhatsApp even with CONVERSATIONS optimization.
+    const destinationType = objective === "whatsapp" ? "WHATSAPP" : undefined;
+
     const id = adAccountId.startsWith("act_")
       ? adAccountId
       : `act_${adAccountId}`;
+
+    console.log(
+      "🧩 [Meta API] createAdSet Payload:",
+      JSON.stringify(
+        { targetingPayload, dailyBudget: params.dailyBudget, placement },
+        null,
+        2,
+      ),
+    );
 
     return MetaService.request(`/${id}/adsets`, "POST", token, {
       name: `${params.name} - Ad Set`,
@@ -220,6 +232,7 @@ export const MetaService = {
       targeting: targetingPayload,
       start_time: new Date(Date.now() + 10 * 60000).toISOString(),
       ...(promotedObject && { promoted_object: promotedObject }),
+      ...(destinationType && { destination_type: destinationType }),
     });
   },
   createAdImage: async (
@@ -252,7 +265,7 @@ export const MetaService = {
       });
 
       const data = await res.json();
-      console.log("Data:📧", data);
+      console.log("🖼️ [Meta API] Ad Image Upload Response:", data);
 
       if (data.error) {
         console.error("Meta Image Upload Error:", data.error);
@@ -274,10 +287,24 @@ export const MetaService = {
     creativeHash: string,
     copy: any,
     ctaCode: string = "SHOP_NOW", // Added ctaCode with default
+    objective?: string, // Pass objective so we can build the correct CTA for WhatsApp
   ) => {
     const id = adAccountId.startsWith("act_")
       ? adAccountId
       : `act_${adAccountId}`;
+
+    // Click-to-WhatsApp requires a specific CTA structure — WHATSAPP_MESSAGE + app_destination.
+    // Using SHOP_NOW or any other generic type here will cause Meta to reject the ad or route
+    // clicks incorrectly.
+    const isWhatsApp = objective === "whatsapp";
+    const callToAction = isWhatsApp
+      ? {
+          type: "WHATSAPP_MESSAGE",
+          value: { app_destination: "WHATSAPP" },
+        }
+      : { type: ctaCode };
+
+    console.log("📣 [Meta API] createAd - CallToAction:", callToAction);
 
     // First, create the Ad Creative Object
     const creativeRes = await MetaService.request(
@@ -293,9 +320,7 @@ export const MetaService = {
             link: copy.destinationUrl,
             message: copy.primaryText,
             name: copy.headline,
-            call_to_action: {
-              type: ctaCode, // Use dynamic CTA code
-            },
+            call_to_action: callToAction,
           },
         },
       },

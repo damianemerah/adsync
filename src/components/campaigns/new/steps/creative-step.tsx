@@ -20,6 +20,7 @@ import {
   Check,
   ArrowRight,
   Sparks,
+  Play,
 } from "iconoir-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -228,10 +229,17 @@ export function CreativeStep() {
                         )}
                       >
                         <img
-                          src={item.original_url}
+                          src={item.thumbnail_url || item.original_url}
                           className="w-full h-full object-cover"
                           alt="creative"
                         />
+                        {item.media_type === "video" && (
+                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <div className="bg-black/40 backdrop-blur-md rounded-full p-1.5">
+                              <Play className="h-5 w-5 text-white" />
+                            </div>
+                          </div>
+                        )}
                         {selectedCreatives.includes(item.original_url) && (
                           <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
                             <div className="bg-primary text-primary-foreground p-1.5 rounded-full shadow-lg">

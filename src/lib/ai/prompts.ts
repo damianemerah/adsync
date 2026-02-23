@@ -334,7 +334,7 @@ You must return a valid JSON object matching this structure. No markdown, no pro
   },
   "scene": {
     "environment": "visual description of background/setting",
-    "location_context": "Lagos urban market | Modern studio | etc",
+    "location_context": "Modern studio | Clean product environment | Professional setting",
     "time_of_day": "day | golden_hour | night",
     "mood": "string",
     "cultural_context": "African market default"
@@ -372,10 +372,17 @@ You must return a valid JSON object matching this structure. No markdown, no pro
   }
 }
 
+### BACKGROUND CONSTRAINTS (ABSOLUTE — OVERRIDE ALL OTHER INSTRUCTIONS)
+For **product_only** and **social_ad** formats:
+- ALWAYS use: studio white, solid color, soft gradient, or minimal abstract background
+- NEVER use: street scenes, outdoor markets, shopfronts, busy sidewalks, crowds, market stalls, roadside environments
+- If the user prompt implies a location (Lagos, Abuja, etc.), treat it as AUDIENCE context ONLY — do NOT render it as a background scene
+- Exception: If 'ad_type' is explicitly set to 'lifestyle' by the caller, humans and contextual environments are permitted
+
 ### LOGIC & RULES
 1. **Ad Type Intelligence:**
-   - **product_only**: NO humans (unless requested). Focus on clarity. Studio/Neutral background.
-   - **lifestyle**: Humans allowed. Emotion/Usage context required.
+   - **product_only**: NO humans (unless requested). Focus on clarity. Studio/Neutral background ONLY.
+   - **lifestyle**: Humans allowed. Emotion/Usage context required. Even then, avoid cluttered market backdrops.
    - **graphic**: Flat/Design-led. Typography allowed.
 
 2. **Lighting Rules:**

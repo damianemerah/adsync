@@ -80,7 +80,10 @@ export const CAMPAIGN_OBJECTIVES = [
     description: "Get customers to chat and convert via WhatsApp.",
     iconName: "Phone",
     category: "revenue",
-    metaObjective: "OUTCOME_APP_MESSAGING",
+    // OUTCOME_ENGAGEMENT is the only Meta objective that supports CONVERSATIONS optimization_goal.
+    // OUTCOME_SALES + CONVERSATIONS = Meta API error 2490408 ("Performance goal isn't available")
+    metaObjective: "OUTCOME_ENGAGEMENT",
+    metaOptimizationGoal: "CONVERSATIONS",
     optimizationModel: "conversation", // Optimized for conversations
     revenueTracked: true,
   },
@@ -90,8 +93,17 @@ export const CAMPAIGN_OBJECTIVES = [
     description: "Drive visitors to your website and track purchases.",
     iconName: "Zap",
     category: "revenue",
+    // OUTCOME_SALES requires a Meta Pixel with purchase events to learn from — without it, the
+    // algorithm has zero signal and wastes budget on cold random delivery.
+    // OUTCOME_TRAFFIC + LANDING_PAGE_VIEWS is the correct Phase 1 combo:
+    //   - Cheaper CPM than OUTCOME_SALES
+    //   - Filters for real intent (page must actually load, not just a tap)
+    //   - Warms the audience for Phase 2 pixel retargeting
+    //   - Uses Meta's own in-app browser load as proxy signal — no pixel needed
+    // Phase 2: swap to OUTCOME_SALES + PURCHASE once pixel is connected.
     metaObjective: "OUTCOME_TRAFFIC",
-    optimizationModel: "click", // Optimized for link clicks -> conversion
+    metaOptimizationGoal: "LANDING_PAGE_VIEWS",
+    optimizationModel: "click",
     revenueTracked: true,
   },
   {
@@ -101,6 +113,7 @@ export const CAMPAIGN_OBJECTIVES = [
     iconName: "Eye",
     category: "growth",
     metaObjective: "OUTCOME_AWARENESS",
+    metaOptimizationGoal: "REACH",
     optimizationModel: "reach",
     revenueTracked: false,
   },
@@ -111,20 +124,13 @@ export const CAMPAIGN_OBJECTIVES = [
     iconName: "Heart",
     category: "growth",
     metaObjective: "OUTCOME_ENGAGEMENT",
+    metaOptimizationGoal: "POST_ENGAGEMENT",
     optimizationModel: "engagement",
     revenueTracked: false,
   },
 ] as const;
 
 export type AdSyncObjective = (typeof CAMPAIGN_OBJECTIVES)[number]["id"];
-
-// 2. The Meta API Mapping (Kept for backward compatibility, derived from above)
-// @deprecated - Use objective.metaObjective instead where possible
-export const META_OBJECTIVE_MAP: Record<AdSyncObjective, string> =
-  CAMPAIGN_OBJECTIVES.reduce(
-    (acc, obj) => ({ ...acc, [obj.id]: obj.metaObjective }),
-    {} as Record<AdSyncObjective, string>,
-  );
 
 // 3. Meta Placement Options
 export const META_PLACEMENTS = [

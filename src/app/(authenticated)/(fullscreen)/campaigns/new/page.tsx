@@ -50,7 +50,10 @@ export default function NewCampaignPage() {
     predictedROAS,
     ...campaignState
   } = useCampaignStore();
-  const [isSaving, setIsSaving] = useState(false);
+  const [savingState, setSavingState] = useState<"none" | "save" | "exit">(
+    "none",
+  );
+  const isSaving = savingState !== "none";
 
   // Hydrate from Server Draft if ID present
   useEffect(() => {
@@ -75,7 +78,7 @@ export default function NewCampaignPage() {
   }, [draftId, searchParams]);
 
   const handleSaveAndExit = async () => {
-    setIsSaving(true);
+    setSavingState("exit");
     try {
       await saveDraft(campaignState, draftId || undefined);
       toast.success("Draft Saved", {
@@ -86,7 +89,22 @@ export default function NewCampaignPage() {
       toast.error("Failed to save draft");
       console.error(error);
     } finally {
-      setIsSaving(false);
+      setSavingState("none");
+    }
+  };
+
+  const handleSaveOnly = async () => {
+    setSavingState("save");
+    try {
+      await saveDraft(campaignState, draftId || undefined);
+      toast.success("Draft Saved", {
+        description: "Your progress has been saved.",
+      });
+    } catch (error) {
+      toast.error("Failed to save draft");
+      console.error(error);
+    } finally {
+      setSavingState("none");
     }
   };
 
@@ -114,21 +132,38 @@ export default function NewCampaignPage() {
       {/* HEADER */}
       <header className="sticky top-0 z-40 w-full border-b border-border bg-background/80 backdrop-blur-md">
         <div className="mx-auto max-w-7xl flex h-16 items-center justify-between px-6">
-          <Button
-            variant="ghost"
-            onClick={handleSaveAndExit}
-            disabled={isSaving}
-            className="flex items-center gap-2 text-subtle-foreground hover:text-foreground hover:bg-transparent transition-colors p-0 disabled:opacity-50"
-          >
-            {isSaving ? (
-              <SystemRestart className="h-4 w-4 animate-spin" />
-            ) : (
-              <FloppyDisk className="h-4 w-4" />
-            )}
-            <span className="text-sm font-medium">
-              {isSaving ? "Saving draft..." : "Save & Exit"}
-            </span>
-          </Button>
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSaveOnly}
+              disabled={isSaving}
+              className="flex items-center gap-2 h-9 rounded-xl font-medium border-border"
+            >
+              {savingState === "save" ? (
+                <SystemRestart className="h-4 w-4 animate-spin" />
+              ) : (
+                <FloppyDisk className="h-4 w-4" />
+              )}
+              {savingState === "save" ? "Saving..." : "Save"}
+            </Button>
+
+            <Button
+              variant="ghost"
+              onClick={handleSaveAndExit}
+              disabled={isSaving}
+              className="flex items-center gap-2 text-subtle-foreground hover:text-foreground hover:bg-transparent transition-colors p-0 disabled:opacity-50"
+            >
+              {savingState === "exit" ? (
+                <SystemRestart className="h-4 w-4 animate-spin" />
+              ) : (
+                <FloppyDisk className="h-4 w-4" />
+              )}
+              <span className="text-sm font-medium">
+                {savingState === "exit" ? "Saving..." : "Save & Exit"}
+              </span>
+            </Button>
+          </div>
 
           <div className="flex items-center gap-4">
             {/* ROAS Badge (if available) */}

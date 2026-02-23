@@ -116,6 +116,8 @@ export async function saveDraft(
   const orgId = await getOrganization(user.id);
   if (!orgId) throw new Error("No organization found");
 
+  console.log("💾 [Drafts] Saving draft state for org:", orgId);
+
   const payload = {
     ...mapStateToDb(state),
     organization_id: orgId,
@@ -152,6 +154,11 @@ export async function getDraft(campaignId: string) {
     .eq("id", campaignId)
     .single();
 
-  if (error) return null;
+  if (error) {
+    console.error("❌ [Drafts] Error fetching draft:", error);
+    return null;
+  }
+
+  console.log("📂 [Drafts] Successfully fetched draft:", campaignId);
   return mapDbToState(data);
 }

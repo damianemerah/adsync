@@ -2,6 +2,7 @@
 
 import { useCampaignStore } from "@/stores/campaign-store";
 import { useOrganization } from "@/hooks/use-organization";
+import { useCreatives } from "@/hooks/use-creatives";
 import { PhoneMockup } from "./phone-mockup";
 import { Badge } from "@/components/ui/badge";
 import { Phone, OpenNewWindow, Sparks, MapPin } from "iconoir-react";
@@ -29,6 +30,16 @@ export function PhoneMockupPanel({ compact = false }: PhoneMockupPanelProps) {
 
   const { organization } = useOrganization();
   const brandName = organization?.name ?? undefined;
+
+  const { creatives } = useCreatives();
+
+  const resolvedCreatives = selectedCreatives.map((url) => {
+    const matched = creatives?.find((c) => c.original_url === url);
+    return {
+      url: matched?.thumbnail_url || url,
+      media_type: matched?.media_type || "image",
+    };
+  });
 
   const openNativePreview = () => {
     if (selectedCreatives.length === 0) {
@@ -84,7 +95,7 @@ export function PhoneMockupPanel({ compact = false }: PhoneMockupPanelProps) {
       <div className={cn("flex-1 min-h-0", compact && "max-h-[320px]")}>
         <PhoneMockup
           adCopy={adCopy}
-          creatives={selectedCreatives}
+          creatives={resolvedCreatives}
           objective={objective || "traffic"}
           platform={platform === "tiktok" ? "tiktok" : "meta"}
           metaPlacement={platform === "meta" ? metaPlacement : undefined}

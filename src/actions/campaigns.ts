@@ -59,7 +59,8 @@ interface LaunchConfig {
 }
 
 export async function launchCampaign(config: LaunchConfig) {
-  console.log("🚀 Launching campaign:", config.name);
+  console.log("🚀 [Server Action] Launching campaign:", config.name);
+  console.log("📦 [Launch Payload Received]:", JSON.stringify(config, null, 2));
   const supabase = await createClient();
 
   // 1. Auth & User Check
@@ -123,6 +124,8 @@ export async function launchCampaign(config: LaunchConfig) {
     campaignCount,
     adCopy: [config.adCopy.headline, config.adCopy.primary],
   });
+
+  console.log("🛡️ [Pre-Launch Validation Result]:", validation);
 
   if (!validation.canLaunch) {
     // Return the first blocking error to the UI
@@ -272,15 +275,19 @@ export async function launchCampaign(config: LaunchConfig) {
     // Step B: Prepare Targeting Objects
     // Now we use the stored IDs directly
 
-    const validatedInterests = config.targetInterests.map((i) => ({
-      id: i.id,
-      name: i.name,
-    }));
+    const validatedInterests = config.targetInterests
+      .filter((i) => /^\d+$/.test(i.id))
+      .map((i) => ({
+        id: i.id,
+        name: i.name,
+      }));
 
-    const validatedBehaviors = config.targetBehaviors.map((b) => ({
-      id: b.id,
-      name: b.name,
-    }));
+    const validatedBehaviors = config.targetBehaviors
+      .filter((b) => /^\d+$/.test(b.id))
+      .map((b) => ({
+        id: b.id,
+        name: b.name,
+      }));
 
     // Step C: Location Logic
     // Construct geo_locations based on types
@@ -312,7 +319,12 @@ export async function launchCampaign(config: LaunchConfig) {
       geo_locations.countries = countries;
     }
 
-    console.log("Geo Locations Payload:", JSON.stringify(geo_locations));
+    console.log(
+      "🌍 [Geo Locations Payload]:",
+      JSON.stringify(geo_locations, null, 2),
+    );
+
+    console.log("⚙️ [Config Data Checkpoint]:", config);
 
     // Step D: Create Campaign Container
     // MetaService handles mapping 'whatsapp' -> 'OUTCOME_TRAFFIC'
@@ -323,7 +335,7 @@ export async function launchCampaign(config: LaunchConfig) {
       config.objective,
     );
 
-    console.log("Campaign Created:", campaignRes);
+    console.log("🏗️ [Meta API - Campaign Created]:", campaignRes);
 
     // Step E: Create Ad Set (Targeting & Budget)
     // Pass `objective` so MetaService can resolve the correct optimization_goal.
@@ -351,7 +363,7 @@ export async function launchCampaign(config: LaunchConfig) {
       config.metaPlacement ?? "automatic", // Surface targeting
     );
 
-    console.log("Ad Set Created:", adSetRes);
+    console.log("🎯 [Meta API - Ad Set Created]:", adSetRes);
 
     // Step F: Upload Image (Binary)
     // We take the first creative from the list (MVP Single Image)
@@ -361,7 +373,7 @@ export async function launchCampaign(config: LaunchConfig) {
       config.creatives[0],
     );
 
-    console.log("Image Created:", imageRes);
+    console.log("🖼️ [Meta API - Image Uploaded]:", imageRes);
 
     // Extract Image Hash
     const imageKey = Object.keys(imageRes.images)[0];
@@ -385,9 +397,10 @@ export async function launchCampaign(config: LaunchConfig) {
         : typeof config.adCopy.cta === "string"
           ? config.adCopy.cta
           : undefined,
+      config.objective, // Pass objective so createAd builds correct WhatsApp CTA
     );
 
-    console.log("Ad Created:", adRes);
+    console.log("📣 [Meta API - Ad Creative/Ad Created]:", adRes);
 
     // 6. SAVE TO DATABASE
     const { data: insertedCampaign, error: dbError } = await supabase
@@ -470,6 +483,8 @@ export async function launchCampaign(config: LaunchConfig) {
         objective: config.objective,
         metaSubPlacements: config.metaSubPlacements, // [NEW] Save user's specific sub-placements for studio
       };
+
+      console.log("AI Context:", aiContext);
 
       // Save context to campaign (non-blocking - don't fail launch if this fails)
       if (dbCampaignId) {

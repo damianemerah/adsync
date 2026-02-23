@@ -14,9 +14,46 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { CloudUpload, Check, WarningTriangle, Xmark } from "iconoir-react";
+import {
+  CloudUpload,
+  Check,
+  WarningTriangle,
+  Xmark,
+  Play,
+} from "iconoir-react";
 import { Creative } from "@/types";
 import { cn } from "@/lib/utils";
+
+const generateVideoThumbnail = (file: File): Promise<string> =>
+  new Promise((resolve) => {
+    const video = document.createElement("video");
+    video.autoplay = true;
+    video.muted = true;
+    video.playsInline = true;
+    const url = URL.createObjectURL(file);
+    video.src = url;
+
+    // Set time after loaded metadata
+    video.onloadedmetadata = () => {
+      // Seek to 1 second or halfway if shorter
+      video.currentTime = Math.min(1, video.duration / 2 || 0);
+    };
+
+    video.onseeked = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL("image/jpeg"));
+      URL.revokeObjectURL(url);
+    };
+
+    video.onerror = () => {
+      resolve("");
+      URL.revokeObjectURL(url);
+    };
+  });
 
 interface UploadQueueItem {
   id: string;
@@ -73,6 +110,7 @@ export function CreativeUploadDialog({
       queueId: string,
       file: File,
       dimensions: { width: number; height: number },
+      thumbnailDataUrl?: string,
     ) => {
       setUploadQueue((prev) =>
         prev.map((item) =>
@@ -83,7 +121,11 @@ export function CreativeUploadDialog({
       );
 
       try {
-        const newCreative = await uploadCreative({ file, dimensions });
+        const newCreative = await uploadCreative({
+          file,
+          dimensions,
+          thumbnailDataUrl,
+        });
 
         setUploadQueue((prev) =>
           prev.map((item) =>
@@ -181,24 +223,50 @@ export function CreativeUploadDialog({
 
     const files = Array.from(e.target.files);
 
-    const newItems: UploadQueueItem[] = files.map((file) => ({
-      id: Math.random().toString(36).substring(7),
-      file,
-      name: file.name,
-      // Videos skip cropping; images go to pending_crop
-      status: file.type.startsWith("video") ? "queued" : "pending_crop",
-      progress: 0,
-      previewUrl: URL.createObjectURL(file),
-    }));
+    const newItems: UploadQueueItem[] = files.map((file) => {
+      const isVideo = file.type.startsWith("video");
+      return {
+        id: Math.random().toString(36).substring(7),
+        file,
+        name: file.name,
+        // Videos skip cropping; images go to pending_crop
+        status: isVideo ? "queued" : "pending_crop",
+        progress: 0,
+        previewUrl: isVideo ? "" : URL.createObjectURL(file), // Will generate video thumbnail async
+      };
+    });
+
+    console.log(newItems, "New items");
 
     setUploadQueue((prev) => [...prev, ...newItems]);
 
     // Immediately kick off video uploads (no crop needed)
-    newItems
-      .filter((item) => item.file.type.startsWith("video"))
-      .forEach((item) => {
-        handleUploadProcess(item.id, item.file, { width: 0, height: 0 });
-      });
+    newItems.forEach(async (item) => {
+      if (item.file.type.startsWith("video")) {
+        // Generate thumbnail client-side to avoid rendering <video> in tiny containers
+        try {
+          const thumbUrl = await generateVideoThumbnail(item.file);
+          if (thumbUrl) {
+            setUploadQueue((prev) =>
+              prev.map((qItem) =>
+                qItem.id === item.id
+                  ? { ...qItem, previewUrl: thumbUrl }
+                  : qItem,
+              ),
+            );
+          }
+          handleUploadProcess(
+            item.id,
+            item.file,
+            { width: 0, height: 0 },
+            thumbUrl,
+          );
+        } catch (err) {
+          console.error("Failed to generate video thumbnail", err);
+          handleUploadProcess(item.id, item.file, { width: 0, height: 0 });
+        }
+      }
+    });
 
     // Reset input so the same files can be re-selected if needed
     e.target.value = "";
@@ -226,14 +294,24 @@ export function CreativeUploadDialog({
     }
   }, [uploadQueue]);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     // Clean up blob URLs to avoid memory leaks
     uploadQueue.forEach((item) => URL.revokeObjectURL(item.previewUrl));
     setUploadQueue([]);
     setCropItem(null);
     setCropSrc(null);
     onOpenChange(false);
-  };
+  }, [uploadQueue, onOpenChange]);
+
+  // Auto-close after successful upload
+  useEffect(() => {
+    if (allDone && uploadQueue.length > 0) {
+      const timer = setTimeout(() => {
+        handleClose();
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [allDone, uploadQueue.length, handleClose]);
 
   const statusLabel = (item: UploadQueueItem) => {
     switch (item.status) {
@@ -253,8 +331,11 @@ export function CreativeUploadDialog({
   return (
     <>
       {/* ---- MAIN UPLOAD DIALOG ---- */}
-      <Dialog open={open && !cropItem} onOpenChange={(o) => !o && handleClose()}>
-        <DialogContent className="max-w-2xl text-foreground">
+      <Dialog
+        open={open && !cropItem}
+        onOpenChange={(o) => !o && handleClose()}
+      >
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col text-foreground">
           <DialogHeader>
             <DialogTitle>Upload Assets</DialogTitle>
             <DialogDescription>
@@ -262,26 +343,28 @@ export function CreativeUploadDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-4 overflow-y-auto">
             {/* Drop Zone */}
-            <label className="relative border-2 border-dashed border-border rounded-2xl p-10 flex flex-col items-center justify-center text-center hover:bg-muted/50 hover:border-primary transition-all cursor-pointer group bg-muted/20 block">
-              <input
-                type="file"
-                multiple
-                className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full"
-                accept="image/png,image/jpeg,image/jpg,image/webp,video/mp4"
-                onChange={handleFileSelect}
-              />
-              <div className="h-16 w-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <CloudUpload className="w-8 h-8" />
-              </div>
-              <h3 className="font-bold text-lg text-foreground">
-                Drag & Drop files
-              </h3>
-              <p className="text-muted-foreground text-sm">
-                or click to browse — multiple files supported
-              </p>
-            </label>
+            {!hasUploading && !allDone && (
+              <label className="relative border-2 border-dashed border-border rounded-2xl p-10 flex flex-col items-center justify-center text-center hover:bg-muted/50 hover:border-primary transition-all cursor-pointer group bg-muted/20">
+                <input
+                  type="file"
+                  multiple
+                  className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full"
+                  accept="image/png,image/jpeg,image/jpg,image/webp,video/mp4"
+                  onChange={handleFileSelect}
+                />
+                <div className="h-16 w-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <CloudUpload className="w-8 h-8" />
+                </div>
+                <h3 className="font-bold text-lg text-foreground">
+                  Drag & Drop files
+                </h3>
+                <p className="text-muted-foreground text-sm">
+                  or click to browse — multiple files supported
+                </p>
+              </label>
+            )}
 
             {/* Upload Queue */}
             {uploadQueue.length > 0 && (
@@ -290,7 +373,7 @@ export function CreativeUploadDialog({
                   <div
                     key={item.id}
                     className={cn(
-                      "flex items-center gap-3 p-3 border rounded-xl bg-card transition-colors",
+                      "flex items-center gap-3 p-3 border rounded-xl bg-card transition-colors w-full overflow-hidden",
                       item.status === "error"
                         ? "border-destructive/40 bg-destructive/5"
                         : item.status === "done"
@@ -299,19 +382,45 @@ export function CreativeUploadDialog({
                     )}
                   >
                     {/* Thumbnail */}
-                    <div className="h-10 w-10 bg-muted/50 rounded-lg overflow-hidden shrink-0 relative">
-                      <Image
-                        src={item.previewUrl}
-                        alt="preview"
-                        fill
-                        className="object-cover"
-                      />
+                    <div className="h-10 w-10 bg-muted/50 rounded-lg overflow-hidden shrink-0 relative flex items-center justify-center">
+                      {item.file.type.startsWith("video") ? (
+                        <>
+                          {item.previewUrl ? (
+                            <Image
+                              src={item.previewUrl}
+                              alt="preview"
+                              fill
+                              className="object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-muted flex items-center justify-center">
+                              {/* Generic Video Icon if thumb failed or loading */}
+                              <Play className="w-4 h-4 text-muted-foreground" />
+                            </div>
+                          )}
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                            <Play className="w-4 h-4 text-white" />
+                          </div>
+                        </>
+                      ) : (
+                        item.previewUrl && (
+                          <Image
+                            src={item.previewUrl}
+                            alt="preview"
+                            fill
+                            className="object-cover"
+                          />
+                        )
+                      )}
                     </div>
 
                     {/* Info + Progress */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between text-sm mb-1.5">
-                        <span className="font-medium truncate pr-4 text-foreground">
+                    <div className="flex-1 min-w-0 overflow-hidden">
+                      <div className="flex gap-2 justify-between items-center text-sm mb-1.5 w-full overflow-hidden">
+                        <span
+                          className="font-medium truncate text-foreground flex-1 min-w-0 block"
+                          title={item.name}
+                        >
                           {item.name}
                         </span>
                         <span
@@ -385,14 +494,6 @@ export function CreativeUploadDialog({
                 Done
               </Button>
             )}
-            {allDone && (
-              <Button
-                className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-soft"
-                onClick={handleClose}
-              >
-                ✓ All Uploaded — Close
-              </Button>
-            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -411,8 +512,7 @@ export function CreativeUploadDialog({
               {uploadQueue.filter((i) => i.status === "pending_crop").length >
                 1 && (
                 <span className="ml-2 text-sm font-normal text-muted-foreground">
-                  (
-                  {uploadQueue.findIndex((i) => i.id === cropItem?.id) + 1} of{" "}
+                  ({uploadQueue.findIndex((i) => i.id === cropItem?.id) + 1} of{" "}
                   {uploadQueue.length})
                 </span>
               )}

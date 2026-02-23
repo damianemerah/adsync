@@ -214,63 +214,65 @@ export function BudgetLaunchStep() {
   // ─── Launch handler ──────────────────────────────────────────────────────────
 
   const handleLaunch = () => {
-    launchCampaign(
-      {
-        name:
-          campaignName || `New Campaign - ${new Date().toLocaleDateString()}`,
-        objective: objective as AdSyncObjective,
-        budget,
-        platform: platform as "meta" | "tiktok",
-        metaPlacement: platform === "meta" ? metaPlacement : undefined,
-        adCopy: {
-          primary: adCopy.primary,
-          headline: adCopy.headline,
-          cta: adCopy.cta,
-        },
-        creatives: selectedCreatives,
-        targetLocations: locations,
-        targetInterests,
-        targetBehaviors: targetBehaviors || [],
-        targetAgeRange: ageRange || { min: 18, max: 65 },
-        targetGender: gender || "all",
-        destinationValue,
-        aiContext: {
-          businessDescription: aiPrompt || "My Business",
-          targeting: {
-            interests: targetInterests.map((i) => i.name),
-            behaviors: (targetBehaviors || []).map((b) => b.name),
-            locations: locations.map((l) => l.name),
-            demographics: {
-              age_min: ageRange?.min || 18,
-              age_max: ageRange?.max || 65,
-              gender: gender || "all",
-            },
+    const launchPayload = {
+      name: campaignName || `New Campaign - ${new Date().toLocaleDateString()}`,
+      objective: objective as AdSyncObjective,
+      budget,
+      platform: platform as "meta" | "tiktok",
+      metaPlacement: platform === "meta" ? metaPlacement : undefined,
+      adCopy: {
+        primary: adCopy.primary,
+        headline: adCopy.headline,
+        cta: adCopy.cta,
+      },
+      creatives: selectedCreatives,
+      targetLocations: locations,
+      targetInterests,
+      targetBehaviors: targetBehaviors || [],
+      targetAgeRange: ageRange || { min: 18, max: 65 },
+      targetGender: gender || "all",
+      destinationValue,
+      aiContext: {
+        businessDescription: aiPrompt || "My Business",
+        targeting: {
+          interests: targetInterests.map((i) => i.name),
+          behaviors: (targetBehaviors || []).map((b) => b.name),
+          locations: locations.map((l) => l.name),
+          demographics: {
+            age_min: ageRange?.min || 18,
+            age_max: ageRange?.max || 65,
+            gender: gender || "all",
           },
-          copy: { headline: adCopy.headline, bodyCopy: adCopy.primary },
-          platform: platform || "meta",
-          objective: objective || "sales",
         },
+        copy: { headline: adCopy.headline, bodyCopy: adCopy.primary },
+        platform: platform || "meta",
+        objective: objective || "sales",
       },
-      {
-        onSuccess: (result: any) => {
-          if (result?.dbCampaignId) {
-            setDbCampaignId(result.dbCampaignId);
-            setShowSuccess(true);
-          } else {
-            resetDraft();
-            router.push("/campaigns");
-          }
-        },
-        onError: (err: any) => {
-          if (
-            err.message.includes("subscription") ||
-            err.message.includes("upgrade")
-          ) {
-            setIsPaymentOpen(true);
-          }
-        },
+    };
+
+    console.log("🚀 [UI Start Launch] Payload sent to action:", launchPayload);
+
+    launchCampaign(launchPayload, {
+      onSuccess: (result: any) => {
+        console.log("✅ [UI Launch Success] Result:", result);
+        if (result?.dbCampaignId) {
+          setDbCampaignId(result.dbCampaignId);
+          setShowSuccess(true);
+        } else {
+          resetDraft();
+          router.push("/campaigns");
+        }
       },
-    );
+      onError: (err: any) => {
+        console.error("❌ [UI Launch Error]:", err);
+        if (
+          err.message.includes("subscription") ||
+          err.message.includes("upgrade")
+        ) {
+          setIsPaymentOpen(true);
+        }
+      },
+    });
   };
 
   return (

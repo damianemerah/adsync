@@ -390,11 +390,14 @@ export function AudienceChatStep() {
   const handleGenerateCreative = async (customPrompt?: string) => {
     if (isGeneratingImage) return;
 
+    console.log("🎨 [AudienceChatStep] Generating creative...", customPrompt);
     // Ensure customPrompt is a string (and not an Event object from onClick)
     const promptToUse =
       typeof customPrompt === "string" ? customPrompt : undefined;
 
     const aspectRatio = deduceAspectRatio(platform, objective);
+
+    console.log("🎨 [AudienceChatStep] Aspect ratio:", aspectRatio);
 
     setIsGeneratingImage(true);
     const generationId = Date.now().toString();
@@ -433,6 +436,8 @@ export function AudienceChatStep() {
         objective: mapObjectiveToContext(objective),
       };
 
+      console.log("🎨 [AudienceChatStep] Campaign context:", campaignContext);
+
       // If user gave a custom prompt (e.g. "generate image, no street background"),
       // prepend it to the headline context so constraints are respected
       const composedPrompt = promptToUse
@@ -446,6 +451,8 @@ export function AudienceChatStep() {
         creativeFormat: "social_ad",
         campaignContext,
       });
+
+      console.log("🎨 [AudienceChatStep] Result:", result);
 
       setMessages((prev) => prev.filter((m) => m.id !== generationId));
 

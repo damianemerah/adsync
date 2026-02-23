@@ -4,7 +4,6 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useCreatives } from "@/hooks/use-creatives";
-import { useSocialMedia } from "@/hooks/use-social-media";
 import {
   CloudUpload,
   FilterList,
@@ -16,10 +15,7 @@ import {
   MoreVert,
   CheckCircle,
   Sparks,
-  Message,
-  Heart,
   Plus,
-  OpenNewWindow,
   NavArrowDown,
 } from "iconoir-react";
 import {
@@ -31,7 +27,6 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -41,7 +36,6 @@ import {
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DataTable } from "@/components/ui/data-table";
-import { SocialPostCard } from "@/components/creatives/social-post-card";
 import { Creative } from "@/types";
 import { CreativeCard } from "@/components/creatives/creative-card";
 import { useAdAccounts } from "@/hooks/use-ad-account";
@@ -56,14 +50,8 @@ export default function CreativesPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { creatives, isLoading } = useCreatives();
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useSocialMedia();
   const { data: accounts } = useAdAccounts();
 
-  // Flatten pages into one list of posts
-  const socialPosts = data?.pages.flatMap((page) => page.posts) || [];
-
-  const [activeTab, setActiveTab] = useState("library");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [filterType, setFilterType] = useState<
@@ -74,11 +62,6 @@ export default function CreativesPage() {
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [previewItem, setPreviewItem] = useState<any>(null);
 
-  // Check if a Meta account is connected
-  const isMetaConnected = accounts?.some(
-    (acc) => acc.platform === "meta" && acc.status === "active",
-  );
-
   const toggleSelection = (id: string) => {
     setSelectedItems((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
@@ -86,9 +69,9 @@ export default function CreativesPage() {
   };
 
   // Helper to open preview
-  const handlePreview = (item: any, type: "library" | "social") => {
+  const handlePreview = (item: any) => {
     console.log(item);
-    setPreviewItem({ ...item, _type: type });
+    setPreviewItem({ ...item });
   };
 
   // Filtered creatives based on type selection
@@ -159,7 +142,7 @@ export default function CreativesPage() {
         <div className="flex items-center gap-3 font-medium text-foreground">
           <div className="h-10 w-10 rounded-xl bg-muted overflow-hidden relative shrink-0">
             <Image
-              src={item.original_url}
+              src={item.thumbnail_url || item.original_url}
               alt={item.name || "Creative"}
               fill
               className="object-cover"
@@ -224,128 +207,95 @@ export default function CreativesPage() {
 
       {/* MAIN CONTENT */}
       <main className="flex-1 overflow-y-auto p-2 md:p-4 lg:p-6">
-        <Tabs
-          defaultValue="library"
-          value={activeTab}
-          onValueChange={setActiveTab}
-          className="space-y-6 container max-w-7xl mx-auto"
-        >
+        <div className="space-y-6 container max-w-7xl mx-auto">
           {/* Toolbar */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-card p-2 rounded-3xl border border-border shadow-soft">
-            <TabsList className="bg-muted/50 p-1 rounded-2xl h-12">
-              <TabsTrigger
-                value="library"
-                className="rounded-xl px-6 h-10 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all"
-              >
-                Media Library
-              </TabsTrigger>
-              <TabsTrigger
-                value="social"
-                className="rounded-xl px-6 h-10 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all"
-              >
-                Social Posts
-              </TabsTrigger>
-            </TabsList>
-
+          <div className="flex flex-col md:flex-row justify-end items-start md:items-center gap-4 bg-card p-2 rounded-3xl border border-border shadow-soft">
             <div className="flex items-center gap-2">
-              {activeTab === "library" && (
-                <>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-10 rounded-xl border-border text-subtle-foreground hover:text-foreground hover:bg-muted gap-2"
-                      >
-                        <FilterList className="w-4 h-4" />
-                        {filterType === "all"
-                          ? "Filter"
-                          : filterType === "generated_image"
-                            ? "AI Generated"
-                            : filterType.charAt(0).toUpperCase() +
-                              filterType.slice(1) +
-                              "s"}
-                        <NavArrowDown className="w-3 h-3" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-44">
-                      <DropdownMenuCheckboxItem
-                        checked={filterType === "all"}
-                        onCheckedChange={() => setFilterType("all")}
-                      >
-                        All Assets
-                      </DropdownMenuCheckboxItem>
-                      <DropdownMenuCheckboxItem
-                        checked={filterType === "image"}
-                        onCheckedChange={() => setFilterType("image")}
-                      >
-                        Images
-                      </DropdownMenuCheckboxItem>
-                      <DropdownMenuCheckboxItem
-                        checked={filterType === "video"}
-                        onCheckedChange={() => setFilterType("video")}
-                      >
-                        Videos
-                      </DropdownMenuCheckboxItem>
-                      <DropdownMenuCheckboxItem
-                        checked={filterType === "generated_image"}
-                        onCheckedChange={() => setFilterType("generated_image")}
-                      >
-                        AI Generated
-                      </DropdownMenuCheckboxItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  <div className="bg-muted/50 p-1 rounded-xl flex border border-border">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setView("grid")}
-                      className={cn(
-                        "h-8 w-8 p-0 rounded-lg transition-all",
-                        view === "grid"
-                          ? "bg-background shadow-sm text-primary"
-                          : "text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      <ViewGrid className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setView("list")}
-                      className={cn(
-                        "h-8 w-8 p-0 rounded-lg transition-all",
-                        view === "list"
-                          ? "bg-background shadow-sm text-primary"
-                          : "text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      <List className="w-4 h-4" />
-                    </Button>
-                  </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <Button
-                    onClick={() => setUploadModalOpen(true)}
+                    variant="outline"
                     size="sm"
-                    className="h-10 px-6 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-soft hover:shadow-lg transition-all"
+                    className="h-10 rounded-xl border-border text-subtle-foreground hover:text-foreground hover:bg-muted gap-2"
                   >
-                    <CloudUpload className="w-4 h-4 mr-2" /> Upload
+                    <FilterList className="w-4 h-4" />
+                    {filterType === "all"
+                      ? "Filter"
+                      : filterType === "generated_image"
+                        ? "AI Generated"
+                        : filterType.charAt(0).toUpperCase() +
+                          filterType.slice(1) +
+                          "s"}
+                    <NavArrowDown className="w-3 h-3" />
                   </Button>
-                </>
-              )}
-              {activeTab === "social" && !isMetaConnected && (
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-44">
+                  <DropdownMenuCheckboxItem
+                    checked={filterType === "all"}
+                    onCheckedChange={() => setFilterType("all")}
+                  >
+                    All Assets
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={filterType === "image"}
+                    onCheckedChange={() => setFilterType("image")}
+                  >
+                    Images
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={filterType === "video"}
+                    onCheckedChange={() => setFilterType("video")}
+                  >
+                    Videos
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={filterType === "generated_image"}
+                    onCheckedChange={() => setFilterType("generated_image")}
+                  >
+                    AI Generated
+                  </DropdownMenuCheckboxItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <div className="bg-muted/50 p-1 rounded-xl flex border border-border">
                 <Button
+                  variant="ghost"
                   size="sm"
-                  className="h-10 px-6 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl shadow-soft"
-                  onClick={() => (window.location.href = "/api/connect/meta")}
+                  onClick={() => setView("grid")}
+                  className={cn(
+                    "h-8 w-8 p-0 rounded-lg transition-all",
+                    view === "grid"
+                      ? "bg-background shadow-sm text-primary"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
                 >
-                  <Plus className="w-4 h-4 mr-2" /> Connect Account
+                  <ViewGrid className="w-4 h-4" />
                 </Button>
-              )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setView("list")}
+                  className={cn(
+                    "h-8 w-8 p-0 rounded-lg transition-all",
+                    view === "list"
+                      ? "bg-background shadow-sm text-primary"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <List className="w-4 h-4" />
+                </Button>
+              </div>
+              <Button
+                onClick={() => setUploadModalOpen(true)}
+                size="sm"
+                className="h-10 px-6 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-soft hover:shadow-lg transition-all"
+              >
+                <CloudUpload className="w-4 h-4 mr-2" /> Upload
+              </Button>
             </div>
           </div>
 
           {/* Tab Content: Library */}
-          <TabsContent value="library" className="mt-0">
+          <div className="mt-0">
             {view === "grid" ? (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
                 {/* Add New tile */}
@@ -382,7 +332,7 @@ export default function CreativesPage() {
                       data={item}
                       selected={selectedItems.includes(item.id)}
                       onSelect={() => toggleSelection(item.id)}
-                      onClick={() => handlePreview(item, "library")}
+                      onClick={() => handlePreview(item)}
                       onDelete={handleDelete}
                     />
                   ))}
@@ -415,41 +365,8 @@ export default function CreativesPage() {
                 enableViewToggle={false}
               />
             )}
-          </TabsContent>
-
-          {/* Tab Content: Social */}
-          <TabsContent value="social" className="mt-0">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {socialPosts.map((post) => (
-                <SocialPostCard
-                  key={post.id}
-                  post={post}
-                  selected={selectedItems.includes(post.id)}
-                  onSelect={() => toggleSelection(post.id)}
-                  onClick={() => handlePreview(post, "social")} // Add click handler
-                />
-              ))}
-              {socialPosts?.length === 0 && (
-                <div className="col-span-full text-center py-10 text-muted-foreground">
-                  No Instagram posts found. Connect your account in Settings.
-                </div>
-              )}
-            </div>
-
-            {/* Load More Button */}
-            {hasNextPage && (
-              <div className="py-8 text-center">
-                <Button
-                  variant="outline"
-                  onClick={() => fetchNextPage()}
-                  disabled={isFetchingNextPage}
-                >
-                  {isFetchingNextPage ? "Loading..." : "Load More Posts"}
-                </Button>
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
+          </div>
+        </div>
       </main>
 
       {/* Floating Action Bar */}
@@ -461,47 +378,28 @@ export default function CreativesPage() {
           </span>
           <div className="h-4 w-px bg-white/20" />
           <div className="flex gap-2">
-            {activeTab === "library" ? (
-              <>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="text-slate-300 hover:text-white hover:bg-white/10"
-                  onClick={async () => {
-                    // Download all selected creatives as a zip is complex;
-                    // for now open each in a new tab so user can save manually.
-                    // TODO: implement server-side zip download.
-                    const selected = creatives.filter((c) =>
-                      selectedItems.includes(c.id),
-                    );
-                    selected.forEach((c) =>
-                      window.open(c.original_url, "_blank"),
-                    );
-                  }}
-                >
-                  <Download className="w-4 h-4 mr-2" /> Download
-                </Button>
-                <Button
-                  size="sm"
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground border-0 rounded-full font-bold px-6 shadow-none"
-                  onClick={handleCreateCampaign}
-                >
-                  Create Campaign <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-              </>
-            ) : (
-              <Button
-                size="sm"
-                className="bg-primary hover:bg-primary/90 text-primary-foreground border-0 rounded-full font-bold px-6 shadow-none"
-                onClick={() => {
-                  // Boost post: redirect to campaign wizard with social objective pre-set
-                  sessionStorage.setItem("preselected_objective", "engagement");
-                  router.push("/campaigns/new");
-                }}
-              >
-                <Sparks className="w-4 h-4 mr-2" /> Boost Post
-              </Button>
-            )}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-slate-300 hover:text-white hover:bg-white/10"
+              onClick={async () => {
+                // Download all selected creatives as a zip is complex;
+                // for now open each in a new tab so user can save manually.
+                const selected = creatives.filter((c) =>
+                  selectedItems.includes(c.id),
+                );
+                selected.forEach((c) => window.open(c.original_url, "_blank"));
+              }}
+            >
+              <Download className="w-4 h-4 mr-2" /> Download
+            </Button>
+            <Button
+              size="sm"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground border-0 rounded-full font-bold px-6 shadow-none"
+              onClick={handleCreateCampaign}
+            >
+              Create Campaign <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
           </div>
           <Button
             size="icon"
@@ -544,14 +442,18 @@ export default function CreativesPage() {
               previewItem?.media_type === "video" ? (
                 <video
                   src={previewItem.media_url || previewItem.original_url}
+                  poster={previewItem.thumbnail_url}
                   controls
+                  preload="metadata"
                   className="max-h-full max-w-full rounded-2xl shadow-xl"
                 />
               ) : (
                 <div className="relative w-full h-full">
                   <Image
                     src={
-                      previewItem?.media_url || previewItem?.original_url || ""
+                      previewItem?.media_url ||
+                      previewItem?.original_url ||
+                      null
                     }
                     alt="Preview"
                     fill
@@ -565,85 +467,26 @@ export default function CreativesPage() {
             <div className="md:col-span-2 p-8 bg-card flex flex-col border-l border-border relative">
               <DialogHeader>
                 <DialogTitle className="text-3xl font-heading font-bold text-foreground mb-2 leading-tight">
-                  {previewItem?._type === "social"
-                    ? "Instagram Post"
-                    : previewItem?.name || "Library Asset"}
+                  {previewItem?.name || "Library Asset"}
                 </DialogTitle>
                 <p className="text-sm text-muted-foreground font-medium flex items-center gap-2">
-                  {previewItem?._type === "social" ? (
-                    <>
-                      <span className="w-2 h-2 rounded-full bg-pink-500" />
-                      Imported from Meta
-                    </>
-                  ) : (
-                    <>
-                      <span className="w-2 h-2 rounded-full bg-primary" />
-                      Uploaded to AdSync
-                    </>
-                  )}
+                  <span className="w-2 h-2 rounded-full bg-primary" />
+                  Uploaded to AdSync
                 </p>
               </DialogHeader>
 
               <div className="flex-1 space-y-8 mt-8 overflow-y-auto pr-2 no-scrollbar">
-                {previewItem?._type === "social" ? (
-                  <>
-                    {/* Stats Grid */}
-                    <div className="flex gap-6 py-4 border-y border-border/50">
-                      <div className="flex flex-col gap-1.5">
-                        <span className="text-[10px] uppercase font-bold text-subtle-foreground tracking-wider">
-                          Likes
-                        </span>
-                        <div className="flex items-center gap-2 text-foreground font-bold text-xl">
-                          <Heart className="w-5 h-5 text-pink-500 fill-pink-500" />
-                          {previewItem.likes}
-                        </div>
-                      </div>
-                      <div className="h-full w-px bg-border/50" />
-                      <div className="flex flex-col gap-1.5">
-                        <span className="text-[10px] uppercase font-bold text-subtle-foreground tracking-wider">
-                          Comments
-                        </span>
-                        <div className="flex items-center gap-2 text-foreground font-bold text-xl">
-                          <Message className="w-5 h-5 text-blue-500 fill-blue-500" />
-                          {previewItem.comments}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Caption */}
-                    <div className="space-y-3">
-                      <p className="text-foreground text-sm leading-relaxed whitespace-pre-wrap">
-                        {previewItem.caption || "No caption provided."}
-                      </p>
-                    </div>
-
-                    {/* External Link */}
-                    <Button
-                      variant="outline"
-                      className="w-full h-12 rounded-full border-border text-subtle-foreground hover:text-foreground hover:bg-muted hover:border-border transition-all"
-                      asChild
-                    >
-                      <a href={previewItem.permalink} target="_blank">
-                        View on Instagram{" "}
-                        <OpenNewWindow className="ml-2 w-4 h-4 opacity-50" />
-                      </a>
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    {/* Simplified Metadata for Library Assets */}
-                    <div className="space-y-6">
-                      <div className="bg-muted/30 p-4 rounded-2xl border border-border/50">
-                        <p className="text-xs font-medium text-subtle-foreground mb-1 uppercase tracking-wider">
-                          Filename
-                        </p>
-                        <p className="font-mono text-sm text-foreground break-all">
-                          {previewItem?.name}
-                        </p>
-                      </div>
-                    </div>
-                  </>
-                )}
+                {/* Simplified Metadata for Library Assets */}
+                <div className="space-y-6">
+                  <div className="bg-muted/30 p-4 rounded-2xl border border-border/50">
+                    <p className="text-xs font-medium text-subtle-foreground mb-1 uppercase tracking-wider">
+                      Filename
+                    </p>
+                    <p className="font-mono text-sm text-foreground break-all">
+                      {previewItem?.name}
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <DialogFooter className="mt-auto pt-6 border-t border-border flex gap-3 z-10">

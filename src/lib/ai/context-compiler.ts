@@ -77,25 +77,14 @@ export function compileContextPrompt(
     prompt += `, interested in ${topInterests}`;
   }
 
-  // SECTION 4: Location + Cultural Context
+  // SECTION 4: Location Context (audience signal only — NOT a scene directive)
+  // ⚠️ CRITICAL: Location text must NEVER describe outdoor/street environments.
+  // These words feed directly into FLUX as scene instructions. Keep them
+  // audience-demographic only so the visual stays clean and product-focused.
   if (locations && locations.length > 0) {
     const primaryLocation = locations[0];
-    prompt += `. Location: ${primaryLocation}`;
-
-    // Add Nigerian market-specific aesthetics
-    const locationLower = primaryLocation.toLowerCase();
-    if (locationLower.includes("lagos")) {
-      prompt +=
-        ", modern Lagos urban aesthetic, vibrant Nigerian street culture, Afrobeats vibe";
-    } else if (locationLower.includes("abuja")) {
-      prompt +=
-        ", Abuja professional environment, modern Nigerian capital aesthetic";
-    } else if (locationLower.includes("port harcourt")) {
-      prompt += ", Port Harcourt energy and vitality, Niger Delta culture";
-    } else if (locationLower.includes("nigeria")) {
-      prompt +=
-        ", authentic Nigerian cultural context, modern African aesthetic";
-    }
+    // Audience context only — no scene/environment language
+    prompt += `. Nigerian consumer market, modern urban professional audience`;
   }
 
   // SECTION 5: Copy Integration (if available)
@@ -107,25 +96,26 @@ export function compileContextPrompt(
   }
 
   // SECTION 6: Format-Specific Enhancements
+  // ⚠️ CRITICAL: Every non-poster format MUST enforce studio/clean background.
+  // This is the hard guardrail that prevents street/market scene bleed.
   switch (format) {
     case "product_image":
       prompt +=
-        ". Clean product photography, studio lighting, white or gradient background, no text overlay, no humans, commercial quality, product-focused composition";
+        ". STUDIO WHITE BACKGROUND ONLY. Clean e-commerce product photography, soft box studio lighting, pure white or light gradient background, no outdoor elements, no street, no market, no people, no hands, product centered and isolated, commercial quality";
       break;
     case "social_ad":
       const platform = context.platform || "Instagram";
-      prompt += `. ${platform} social media ad, engaging composition, scroll-stopping visual`;
+      prompt += `. ${platform} social media ad. STUDIO OR SOLID COLOR BACKGROUND ONLY. No street scenes, no outdoor market, no crowds. Product-centered composition, clean minimal background, scroll-stopping professional visual`;
       if (context.objective === "sales") {
-        prompt += ", call-to-action emphasis";
+        prompt += ", strong product focus, e-commerce quality";
       }
       break;
     case "poster":
       prompt +=
-        ". Poster-style layout, bold typography, attention-grabbing design, event or announcement aesthetic";
+        ". Graphic poster layout, bold typography, flat or gradient background, modern design aesthetic. No photorealistic street or outdoor scenes";
       break;
     case "auto":
-      // Let FLUX_AD_GENERATOR_SYSTEM decide
-      prompt += ". Professional ad creative";
+      prompt += ". Professional ad creative, clean studio background, product-focused composition. No street or market backgrounds";
       break;
   }
 
@@ -147,9 +137,10 @@ export function compileContextPrompt(
       prompt += ". Square 1:1 composition for Instagram and Facebook feeds";
   }
 
-  // SECTION 8: Quality Anchors
+  // SECTION 8: Quality Anchors + Background Hard Constraint
+  // Repeated explicitly to override any upstream context bleed.
   prompt +=
-    ". Professional commercial photography, high resolution, 8k quality, sharp focus, modern Nigerian aesthetic, culturally authentic";
+    ". Professional commercial photography, high resolution, 8k quality, sharp focus. CRITICAL: NO street backgrounds, NO outdoor market scenes, NO shopfront environments, NO crowds or pedestrians";
 
   return prompt.trim();
 }

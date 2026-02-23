@@ -26,9 +26,11 @@ export function useCreatives() {
     mutationFn: async ({
       file,
       dimensions,
+      thumbnailDataUrl,
     }: {
       file: File;
       dimensions: { width: number; height: number };
+      thumbnailDataUrl?: string;
     }) => {
       // A. Get User & Org
       const {
@@ -63,12 +65,39 @@ export function useCreatives() {
         data: { publicUrl },
       } = supabase.storage.from("creatives").getPublicUrl(fileName);
 
-      // D. Insert into DB
+      // D. Optionally Upload Thumbnail
+      let thumbnailUrl = null;
+      if (thumbnailDataUrl) {
+        try {
+          const thumbRes = await fetch(thumbnailDataUrl);
+          const thumbBlob = await thumbRes.blob();
+
+          const thumbFileName = `${member.organization_id}/${Math.random()
+            .toString(36)
+            .slice(2)}_thumb.jpg`;
+
+          const { error: thumbUploadError } = await supabase.storage
+            .from("creatives")
+            .upload(thumbFileName, thumbBlob, { contentType: "image/jpeg" });
+
+          if (!thumbUploadError) {
+            const {
+              data: { publicUrl: thumbPublicUrl },
+            } = supabase.storage.from("creatives").getPublicUrl(thumbFileName);
+            thumbnailUrl = thumbPublicUrl;
+          }
+        } catch (err) {
+          console.error("Warning: Failed to upload thumbnail", err);
+        }
+      }
+
+      // E. Insert into DB
       const creativeData = {
         organization_id: member.organization_id,
         name: file.name,
         media_type: file.type.startsWith("video") ? "video" : "image",
         original_url: publicUrl,
+        thumbnail_url: thumbnailUrl,
         width: dimensions.width,
         height: dimensions.height,
         file_size_bytes: file.size,
