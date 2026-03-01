@@ -2,7 +2,7 @@
 
 ## "Better ads for people who can't make ads"
 
-**Target: Months 7–9**
+**Target: Months 7–9 (Hours with AI)**
 
 The AI creative is already built. This phase makes it smarter and adds UGC video.
 

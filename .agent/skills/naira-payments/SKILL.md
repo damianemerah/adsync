@@ -1,7 +1,14 @@
+---
+name: naira-payments
+description: Manages Sellam's Naira-first payment system. Use when working on ad budget top-up (Phase 2A), Paystack webhooks, virtual USD card provisioning (Grey/Geegpay), `ad_budget_wallets` table, `ad-budget-topup.tsx` component, or anything related to the SME paying in Naira for ad spend.
+---
+
 # Naira Payments Skill
 
 ## When to Load
+
 Load this skill when working on:
+
 - `src/actions/ad-budget.ts` — new file
 - `src/components/billing/ad-budget-topup.tsx` — new component
 - `src/app/api/webhooks/paystack/route.ts` — extend existing webhook
@@ -9,18 +16,21 @@ Load this skill when working on:
 - Grey or Geegpay virtual card API integration
 
 ## Reference Implementation
+
 Full SQL, code, and specs in:
 `.agent/skills/naira-payments/references/phase-2a-naira-payments.md`
 
 ## Two Separate Payment Flows — Never Confuse Them
 
 ### Flow 1: Sellam Platform Subscription (ALREADY EXISTS)
+
 ```
 SME → Paystack → organizations.subscription_status = 'active'
 Handled by: src/actions/paystack.ts (existing)
 ```
 
 ### Flow 2: Ad Budget Top-Up (Phase 2A — BUILD THIS)
+
 ```
 SME pays ₦ → Paystack → webhook → creditAdBudget()
   → ad_budget_wallets.balance_ngn increases
@@ -29,6 +39,7 @@ SME pays ₦ → Paystack → webhook → creditAdBudget()
 ```
 
 ## The Isolation Rule (Critical)
+
 Each organization gets their OWN virtual card.
 That card is attached to the SME's OWN Meta ad account.
 Sellam's card is NEVER the payment method on Meta.
@@ -60,8 +71,10 @@ if (event === "charge.success") {
 ```
 
 ## Idempotency Rule
+
 Always check if Paystack reference already processed before crediting.
 Use `provider_reference` as unique constraint in `ad_budget_transactions`.
+
 ```typescript
 const { data: existing } = await supabase
   .from("ad_budget_transactions")
@@ -72,15 +85,18 @@ if (existing) return { success: true, message: "Already processed" };
 ```
 
 ## Prepaid Only Rule
+
 SME pays Adsync BEFORE the card is loaded.
 No credit. No post-billing.
 Non-refundable once converted and loaded (Meta doesn't reliably refund unspent budget).
 
 ## Top-Up Presets
+
 ₦5,000 / ₦10,000 / ₦25,000 / ₦50,000
 These map well to typical Nigerian SME weekly ad budgets.
 
 ## Key Tables
+
 ```
 ad_budget_wallets:     organization_id (unique), balance_ngn, reserved_ngn
 virtual_cards:         organization_id (unique), provider, provider_card_id, last_four, status, meta_account_id
@@ -88,6 +104,7 @@ ad_budget_transactions: organization_id, type, amount_ngn, balance_after, refere
 ```
 
 ## Ad Policy Pre-Screen (also triggered at payment time)
+
 Before loading the virtual card for a campaign spend,
 run the campaign's ad copy through policy-guard.ts.
 High-risk copy = don't load card until copy is fixed.

@@ -6,10 +6,10 @@ export default function BillingPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-bold text-slate-900">
-          Subscription & Payment
+        <h2 className="text-xl font-bold text-foreground">
+          Subscription &amp; Payment
         </h2>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-subtle-foreground">
           Manage your plan and billing details.
         </p>
       </div>

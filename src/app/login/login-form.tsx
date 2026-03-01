@@ -25,7 +25,7 @@ function SubmitButton() {
 }
 
 export function LoginForm() {
-  const [state, action] = useActionState(login, undefined);
+  const [state, action] = useActionState(login, null);
   const searchParams = useSearchParams();
   const next = searchParams.get("next") || "/dashboard";
 

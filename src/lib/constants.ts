@@ -20,15 +20,81 @@ export const PLAN_CREDITS: Record<string, number> = {
 
 // Credits cost per AI action (mirrors credit_costs DB table)
 // TEXT actions are FREE — cost is negligible (<₦1 per call)
+// Image costs are tier-driven — see TIER_CONFIG below
 export const CREDIT_COSTS = {
-  IMAGE_GEN_PRO: 3, // FLUX.2 Pro generate
-  IMAGE_EDIT_PRO: 2, // FLUX.2 Pro edit/refine (cheaper to encourage iteration)
-  IMAGE_GEN_FAST: 2, // FLUX.2 Dev (fast)
-  TEXT_GEN: 0, // FREE — GPT-4o-mini copy / analysis
+  IMAGE_GEN_PREMIUM: 8, // Nano Banana Pro (Agency only, Phase 3)
+  IMAGE_GEN_PRO: 3, // FLUX 2 Pro (default for all tiers)
+  IMAGE_EDIT_PRO: 2, // FLUX 2 Pro edit/refine
+  TEXT_GEN: 0, // FREE — GPT copy / analysis
   VIDEO_KLING_5S: 35, // Kling v2 5s  (Phase 2)
   VIDEO_KLING_10S: 60, // Kling v2 10s (Phase 2)
   VIDEO_VEO3_5S: 42, // Veo 3.1 5s   (Phase 2)
 } as const;
+
+// ─── Tier Configuration ──────────────────────────────────────────────────────
+// Single source of truth for all tier-specific AI models, credits, and limits.
+// Starter: gpt-5.2 WITHOUT Skills (inline prompt only)
+// Growth/Agency: gpt-5.2 WITH Skills (industry-specific .md files auto-loaded)
+// All tiers use FLUX 2 Pro for images. Agency gets Nano Banana Pro option (Phase 3).
+export const TIER_CONFIG = {
+  starter: {
+    ai: {
+      strategyModel: "gpt-5.2" as const,
+      refinementModel: "gpt-5-mini" as const,
+      imageModel: "fal-ai/flux-2-pro" as const,
+      premiumImageModel: null,
+      useSkills: false, // No Skills — inline system prompt only
+      maxCopyVariations: 2,
+      maxRefinementsPerCampaign: 3,
+    },
+    credits: { monthly: 150, imageCost: 3, premiumImageCost: null },
+    limits: {
+      maxAdAccounts: 1,
+      maxTeamMembers: 1,
+      linkAnalyticsDays: 7,
+      customLinkSlugs: false,
+    },
+  },
+  growth: {
+    ai: {
+      strategyModel: "gpt-5.2" as const,
+      refinementModel: "gpt-5-mini" as const,
+      imageModel: "fal-ai/flux-2-pro" as const,
+      premiumImageModel: null,
+      useSkills: true, // Full Skills loaded from .md files
+      maxCopyVariations: 3,
+      maxRefinementsPerCampaign: Infinity,
+    },
+    credits: { monthly: 400, imageCost: 3, premiumImageCost: null },
+    limits: {
+      maxAdAccounts: 3,
+      maxTeamMembers: 3,
+      linkAnalyticsDays: 30,
+      customLinkSlugs: true,
+    },
+  },
+  agency: {
+    ai: {
+      strategyModel: "gpt-5.2" as const,
+      refinementModel: "gpt-5-mini" as const,
+      imageModel: "fal-ai/flux-2-pro" as const,
+      premiumImageModel: "fal-ai/nano-banana-pro" as const, // Phase 3
+      useSkills: true,
+      maxCopyVariations: 5,
+      maxRefinementsPerCampaign: Infinity,
+    },
+    credits: { monthly: 1200, imageCost: 3, premiumImageCost: 8 },
+    limits: {
+      maxAdAccounts: 999,
+      maxTeamMembers: 10,
+      linkAnalyticsDays: 36500, // "Lifetime"
+      customLinkSlugs: true,
+    },
+  },
+} as const;
+
+export type TierConfig = typeof TIER_CONFIG;
+export type TierId = keyof TierConfig;
 
 // Credit pack top-ups (one-off purchases)
 export const CREDIT_PACKS = [

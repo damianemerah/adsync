@@ -67,6 +67,7 @@ export type Database = {
           is_default: boolean | null
           last_health_check: string | null
           last_known_balance_cents: number | null
+          last_synced_at: string | null
           nickname: string | null
           organization_id: string | null
           platform: string
@@ -85,6 +86,7 @@ export type Database = {
           is_default?: boolean | null
           last_health_check?: string | null
           last_known_balance_cents?: number | null
+          last_synced_at?: string | null
           nickname?: string | null
           organization_id?: string | null
           platform: string
@@ -103,6 +105,7 @@ export type Database = {
           is_default?: boolean | null
           last_health_check?: string | null
           last_known_balance_cents?: number | null
+          last_synced_at?: string | null
           nickname?: string | null
           organization_id?: string | null
           platform?: string
@@ -1174,6 +1177,8 @@ export type Database = {
       }
       organizations: {
         Row: {
+          billing_cycle_day: number | null
+          business_description: string | null
           created_at: string | null
           credits_balance: number
           credits_reset_at: string | null
@@ -1181,6 +1186,7 @@ export type Database = {
           deleted_at: string | null
           id: string
           industry: string | null
+          last_billing_update_at: string | null
           max_ad_accounts: number | null
           max_team_members: number | null
           name: string
@@ -1197,6 +1203,8 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          billing_cycle_day?: number | null
+          business_description?: string | null
           created_at?: string | null
           credits_balance?: number
           credits_reset_at?: string | null
@@ -1204,6 +1212,7 @@ export type Database = {
           deleted_at?: string | null
           id?: string
           industry?: string | null
+          last_billing_update_at?: string | null
           max_ad_accounts?: number | null
           max_team_members?: number | null
           name: string
@@ -1220,6 +1229,8 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          billing_cycle_day?: number | null
+          business_description?: string | null
           created_at?: string | null
           credits_balance?: number
           credits_reset_at?: string | null
@@ -1227,6 +1238,7 @@ export type Database = {
           deleted_at?: string | null
           id?: string
           industry?: string | null
+          last_billing_update_at?: string | null
           max_ad_accounts?: number | null
           max_team_members?: number | null
           name?: string

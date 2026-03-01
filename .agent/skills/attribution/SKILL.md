@@ -1,3 +1,8 @@
+---
+name: attribution
+description: Manages Sellam's smart link attribution system. Use when working on `/l/[token]` redirect route, `/api/pixel` endpoint, `attribution_links` or `link_clicks` tables, `generateAttributionToken`, `buildAttributionUrl`, WhatsApp/website click counters on campaigns, ROI dashboard, `useCampaignROI` hook, Mark as Sold, or `whatsapp_sales` table.
+---
+
 # Attribution Layer Skill
 
 ## When to Load

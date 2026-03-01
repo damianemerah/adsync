@@ -7,6 +7,8 @@ import { ROIMetricsCard } from "@/components/campaigns/roi-metrics-card";
 import { MarkAsSoldButton } from "@/components/campaigns/mark-as-sold-button";
 import { PixelSnippetCard } from "@/components/campaigns/pixel-snippet-card";
 import { SubPlacementROICard } from "@/components/campaigns/sub-placement-roi-card";
+import { PostLaunchRuleAlert } from "@/components/campaigns/post-launch-rule-alert";
+import { DemographicsCard } from "@/components/campaigns/demographics-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -45,6 +47,7 @@ import {
   MetricKey,
 } from "@/components/dashboard/performance-chart";
 import { useState, useMemo } from "react";
+import { useDashboardStore } from "@/store/dashboard-store";
 
 interface CampaignDetailViewProps {
   campaign: Campaign;
@@ -57,6 +60,7 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
     "revenue",
     "spend",
   ]);
+  const { dateRange } = useDashboardStore();
 
   // Auto-sync insights and ads when component mounts if data is stale or missing
   useEffect(() => {
@@ -91,13 +95,28 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
 
   // Calculate CTR for chart data since API might return it or we compute it
   const chartData = useMemo(() => {
-    return (campaign.performance || []).map((day: any) => ({
+    let rawData = campaign.performance || [];
+
+    if (dateRange?.from && dateRange?.to) {
+      rawData = rawData.filter((day: any) => {
+        const d = new Date(day.date);
+        // Make sure it falls within the start of the "from" day and end of the "to" day
+        d.setHours(0, 0, 0, 0);
+        const fromDate = new Date(dateRange.from!);
+        fromDate.setHours(0, 0, 0, 0);
+        const toDate = new Date(dateRange.to!);
+        toDate.setHours(23, 59, 59, 999);
+        return d >= fromDate && d <= toDate;
+      });
+    }
+
+    return rawData.map((day: any) => ({
       ...day,
       // If API doesn't return computed CTR per day, do it safely
       ctr:
         day.ctr ?? (day.impressions ? (day.clicks / day.impressions) * 100 : 0),
     }));
-  }, [campaign.performance]);
+  }, [campaign.performance, dateRange]);
 
   const currencySymbol = campaign.adAccount?.currency === "NGN" ? "₦" : "$";
 
@@ -186,7 +205,30 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="h-9">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9"
+              onClick={() => {
+                if (
+                  campaign.platform === "meta" &&
+                  campaign.platformCampaignId &&
+                  campaign.adAccount?.platformAccountId
+                ) {
+                  // Direct to Facebook Ads Manager for this specific campaign
+                  const actId = campaign.adAccount.platformAccountId;
+                  const actStr = actId.startsWith("act_")
+                    ? actId
+                    : `act_${actId}`;
+                  window.open(
+                    `https://adsmanager.facebook.com/adsmanager/manage/ads?act=${actStr}&campaign_ids=${campaign.platformCampaignId}`,
+                    "_blank",
+                  );
+                } else {
+                  window.open("https://adsmanager.facebook.com", "_blank");
+                }
+              }}
+            >
               <OpenNewWindow className="h-4 w-4 mr-2" />
               View Ad
             </Button>
@@ -277,6 +319,9 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
 
       {/* Main Scrollable Content */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        {/* Post-launch intelligence alert — surfaces highest-severity triggered rule */}
+        <PostLaunchRuleAlert campaign={campaign} />
+
         {/* Attribution & ROI Section */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
@@ -318,6 +363,13 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
             </CardContent>
           </Card>
         </div>
+
+        {/* Demographics Visualization */}
+        {campaign.demographics && (
+          <div className="space-y-3">
+            <DemographicsCard demographics={campaign.demographics} />
+          </div>
+        )}
 
         {/* Ads Table */}
         <AdsTable ads={campaign.ads || []} formatMoney={formatMoney} />

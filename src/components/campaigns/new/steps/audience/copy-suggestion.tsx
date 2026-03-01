@@ -34,8 +34,14 @@ function EditableField({
   };
 
   const handleKey = (e: React.KeyboardEvent) => {
-    if (!multiline && e.key === "Enter") { e.preventDefault(); handleSave(); }
-    if (e.key === "Escape") { setDraft(value); setEditing(false); }
+    if (!multiline && e.key === "Enter") {
+      e.preventDefault();
+      handleSave();
+    }
+    if (e.key === "Escape") {
+      setDraft(value);
+      setEditing(false);
+    }
   };
 
   return (
@@ -46,7 +52,10 @@ function EditableField({
         </div>
         {!editing && (
           <button
-            onClick={() => { setDraft(value); setEditing(true); }}
+            onClick={() => {
+              setDraft(value);
+              setEditing(true);
+            }}
             className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors"
           >
             <EditPencil className="h-3 w-3" /> Edit
@@ -63,7 +72,7 @@ function EditableField({
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={handleKey}
               rows={3}
-              className="w-full text-sm text-foreground leading-relaxed bg-muted/40 border border-primary/40 rounded-xl px-3 py-2 resize-none focus:outline-none focus:border-primary"
+              className="w-full text-sm text-foreground leading-relaxed bg-muted/40 border border-primary/40 rounded-xl px-3 py-2 resize-none focus:outline-none focus:border-primary no-scrollbar"
             />
           ) : (
             <input
@@ -85,7 +94,10 @@ function EditableField({
             <Button
               size="sm"
               variant="ghost"
-              onClick={() => { setDraft(value); setEditing(false); }}
+              onClick={() => {
+                setDraft(value);
+                setEditing(false);
+              }}
               className="h-7 px-3 rounded-lg text-xs"
             >
               Cancel
@@ -96,9 +108,14 @@ function EditableField({
         <div
           className={cn(
             "cursor-text hover:bg-muted/50 rounded-lg px-2 py-1 -mx-2 transition-colors",
-            multiline ? "text-sm text-foreground/80 leading-relaxed" : "font-bold text-foreground text-base leading-snug",
+            multiline
+              ? "text-sm text-foreground/80 leading-relaxed"
+              : "font-bold text-foreground text-base leading-snug",
           )}
-          onClick={() => { setDraft(value); setEditing(true); }}
+          onClick={() => {
+            setDraft(value);
+            setEditing(true);
+          }}
           title="Click to edit"
         >
           {value}

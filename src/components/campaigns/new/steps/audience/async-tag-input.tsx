@@ -29,7 +29,10 @@ export function AsyncTagInput({
   // Close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
         setOpen(false);
       }
     };
@@ -47,7 +50,13 @@ export function AsyncTagInput({
             `/api/meta/search-${searchType}?query=${encodeURIComponent(value)}`,
           );
           const data = await res.json();
-          setResults(Array.isArray(data) ? data : []);
+          // The API sometimes returns data inside a data object depending on the route
+          const resultsArray = Array.isArray(data)
+            ? data
+            : data?.data && Array.isArray(data.data)
+              ? data.data
+              : [];
+          setResults(resultsArray);
         } catch {
           // silent
         } finally {
@@ -71,7 +80,9 @@ export function AsyncTagInput({
           placeholder={placeholder}
           value={value}
           onValueChange={(val) => setValue(val)}
-          onFocus={() => { if (results.length > 0) setOpen(true); }}
+          onFocus={() => {
+            if (results.length > 0) setOpen(true);
+          }}
           className="h-8 text-xs"
         />
         {open && (

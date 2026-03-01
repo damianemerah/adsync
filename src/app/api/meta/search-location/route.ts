@@ -60,8 +60,11 @@ export async function GET(request: Request) {
       query as string,
       type as "city" | "region" | "country",
     );
+
+    console.log("Location Result👇👇", results);
     return NextResponse.json(results);
   } catch (error: any) {
+    console.log("Location Error", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

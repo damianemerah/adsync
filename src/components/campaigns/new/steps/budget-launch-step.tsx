@@ -22,6 +22,7 @@ import {
 import { AdSyncObjective } from "@/lib/constants";
 import { PaymentDialog } from "@/components/billing/payment-dialog";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { estimateBudget, predictROAS } from "@/lib/intelligence";
 
 // ─── Outcome Tiers ────────────────────────────────────────────────────────────
@@ -103,6 +104,9 @@ export function BudgetLaunchStep() {
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [dbCampaignId, setDbCampaignId] = useState<string | null>(null);
+  const [showPixelPrompt, setShowPixelPrompt] = useState(false);
+  const [skipPixel, setSkipPixel] = useState(false);
+
   // Derive initial selected tier from store budget so phone mockup + this step always agree
   const [selectedTier, setSelectedTier] = useState<string | null>(
     () => OUTCOME_TIERS.find((t) => t.amount === budget)?.key ?? null,
@@ -120,6 +124,12 @@ export function BudgetLaunchStep() {
     !isLoadingSub &&
     (subscriptionData?.org?.status === "active" ||
       subscriptionData?.org?.status === "trialing");
+
+  // Mock check for if the org has a pixel configured
+  const hasPixel = false;
+  // If objective is website/sales, and they haven't connected a pixel or skipped it, we pause them
+  const isWebsiteObjective = objective === "traffic";
+  const needsPixel = isWebsiteObjective && !hasPixel && !skipPixel;
 
   // If user loaded a draft with a custom budget, clear the tier highlight
   useEffect(() => {
@@ -257,6 +267,7 @@ export function BudgetLaunchStep() {
         console.log("✅ [UI Launch Success] Result:", result);
         if (result?.dbCampaignId) {
           setDbCampaignId(result.dbCampaignId);
+          if (result.showPixelPrompt) setShowPixelPrompt(true);
           setShowSuccess(true);
         } else {
           resetDraft();
@@ -455,6 +466,21 @@ export function BudgetLaunchStep() {
                   status={targetInterests.length > 0 ? "success" : "error"}
                   inverse
                 />
+                {isWebsiteObjective && (
+                  <CheckItem
+                    label={
+                      hasPixel
+                        ? "Pixel Connected"
+                        : skipPixel
+                          ? "Sales tracking disabled (No Pixel)"
+                          : "Pixel Required"
+                    }
+                    status={
+                      hasPixel ? "success" : skipPixel ? "warning" : "error"
+                    }
+                    inverse
+                  />
+                )}
               </div>
 
               {/* ROAS Prediction */}
@@ -524,13 +550,68 @@ export function BudgetLaunchStep() {
         </div>
       </div>
 
+      {/* Website Tracking Section */}
+      {needsPixel && (
+        <div className="pt-8 border-t border-border animate-in fade-in slide-in-from-bottom-2">
+          <div className="bg-yellow-50 border-2 border-yellow-200 rounded-3xl p-6 md:p-8 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-8 opacity-10">
+              <StatUp className="w-32 h-32 text-yellow-600" />
+            </div>
+
+            <div className="relative z-10 max-w-xl">
+              <div className="inline-flex items-center gap-2 bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-4">
+                <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+                Action Required
+              </div>
+
+              <h3 className="text-2xl font-bold text-yellow-900 mb-2">
+                To track how much Naira this ad makes, you need the Sellam
+                Pixel.
+              </h3>
+              <p className="text-yellow-800/80 mb-6">
+                Without it, you won't know if your ₦{budget.toLocaleString()}{" "}
+                daily spend is actually generating sales on your website.
+              </p>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                {["Shopify", "WordPress", "Bumpa", "Copy Code"].map(
+                  (platform) => (
+                    <button
+                      key={platform}
+                      onClick={() => {
+                        // Future Phase: Open Pixel integration modal
+                        alert(
+                          `Would open ${platform} integration instructions`,
+                        );
+                      }}
+                      className="p-3 bg-white border border-yellow-200 rounded-xl hover:border-yellow-400 hover:shadow-sm transition-all text-center text-sm font-bold text-yellow-900"
+                    >
+                      {platform}
+                    </button>
+                  ),
+                )}
+              </div>
+
+              <button
+                onClick={() => setSkipPixel(true)}
+                className="text-sm font-semibold text-yellow-700 hover:text-yellow-900 underline underline-offset-4"
+              >
+                Skip tracking for now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Launch Button */}
       <div className="pt-4 border-t border-border">
         <Button
           size="lg"
           className="w-full h-16 text-xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-soft rounded-2xl transition-all hover:scale-[1.01]"
           onClick={handleLaunch}
-          disabled={isLaunching || !hasHealthyAccount || !hasActiveSub}
+          disabled={
+            isLaunching || !hasHealthyAccount || !hasActiveSub || needsPixel
+          }
         >
           {isLaunching ? (
             <>
@@ -558,33 +639,64 @@ export function BudgetLaunchStep() {
                 </div>
                 <div>
                   <h2 className="text-2xl font-heading font-bold text-foreground mb-2">
-                    Your ad is live! 🎉
+                    {showPixelPrompt
+                      ? "Ad launched! One last step..."
+                      : "Your ad is live! 🎉"}
                   </h2>
                   <p className="text-muted-foreground">
-                    Meta is reviewing it now. Messages should start coming in
-                    within 24 hours.
+                    {showPixelPrompt
+                      ? "To track the exact Naira your ad makes, you need to install the Sellam Pixel."
+                      : "Meta is reviewing it now. Messages should start coming in within 24 hours."}
                   </p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 p-4 bg-muted/30 rounded-xl">
-                <div className="text-center">
-                  <div className="text-xs text-muted-foreground">
-                    Daily Budget
-                  </div>
-                  <div className="text-lg font-bold text-foreground">
-                    ₦{budget.toLocaleString()}
+              {showPixelPrompt ? (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-left">
+                  <div className="flex items-start gap-3">
+                    <div className="bg-yellow-100 p-2 rounded-full mt-0.5">
+                      <StatUp className="w-5 h-5 text-yellow-700" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-yellow-900 mb-1">
+                        Install Tracking Pixel
+                      </h4>
+                      <p className="text-sm text-yellow-800 mb-3">
+                        Copy this snippet into your website's{" "}
+                        <code>&lt;head&gt;</code> tag to enable ROI tracking.
+                      </p>
+                      <Button
+                        asChild
+                        size="sm"
+                        className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold"
+                      >
+                        <Link href={`/campaigns/${dbCampaignId}`}>
+                          Get Snippet Code
+                        </Link>
+                      </Button>
+                    </div>
                   </div>
                 </div>
-                <div className="text-center">
-                  <div className="text-xs text-muted-foreground">
-                    Predicted ROAS
+              ) : (
+                <div className="grid grid-cols-2 gap-3 p-4 bg-muted/30 rounded-xl">
+                  <div className="text-center">
+                    <div className="text-xs text-muted-foreground">
+                      Daily Budget
+                    </div>
+                    <div className="text-lg font-bold text-foreground">
+                      ₦{budget.toLocaleString()}
+                    </div>
                   </div>
-                  <div className="text-lg font-bold text-primary">
-                    {roasPrediction.value.toFixed(1)}×
+                  <div className="text-center">
+                    <div className="text-xs text-muted-foreground">
+                      Predicted ROAS
+                    </div>
+                    <div className="text-lg font-bold text-primary">
+                      {roasPrediction.value.toFixed(1)}×
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               <div className="space-y-3">
                 <Button
@@ -642,7 +754,7 @@ function CheckItem({
   inverse = false,
 }: {
   label: string;
-  status: "success" | "error" | "loading";
+  status: "success" | "warning" | "error" | "loading";
   inverse?: boolean;
 }) {
   return (
@@ -652,13 +764,17 @@ function CheckItem({
           "h-6 w-6 rounded-full flex items-center justify-center shrink-0",
           status === "success"
             ? "bg-primary/20 text-primary"
-            : status === "loading"
-              ? "bg-white/10 text-white/60"
-              : "bg-red-100 text-red-600",
+            : status === "warning"
+              ? "bg-yellow-100 text-yellow-600"
+              : status === "loading"
+                ? "bg-white/10 text-white/60"
+                : "bg-red-100 text-red-600",
         )}
       >
         {status === "success" ? (
           <Check className="h-4 w-4" />
+        ) : status === "warning" ? (
+          <span className="text-yellow-600 font-bold text-xs">!</span>
         ) : status === "loading" ? (
           <div className="h-3 w-3 rounded-full border-2 border-white/40 border-t-white/80 animate-spin" />
         ) : (

@@ -46,11 +46,15 @@ export async function updateSession(request: NextRequest) {
     "/signup",
     "/forgot-password",
     "/reset-password",
-    "/api/connect",
-    "/api/webhooks",
+    "/api/connect", // Meta OAuth callback (no session yet)
+    "/api/webhooks", // Paystack webhooks (no session)
+    "/api/campaigns/sync", // Internal sync — called fire-and-forget from callback
+    "/api/cron", // Supabase cron jobs (use CRON_SECRET, not user session)
+    "/l/", // Public attribution short-links
     "/privacy",
     "/verify-email",
   ];
+
   const isPublicRoute = publicRoutes.some((route) =>
     request.nextUrl.pathname.startsWith(route),
   );

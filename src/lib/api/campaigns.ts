@@ -200,6 +200,7 @@ export async function getCampaignById(supabase: SupabaseClient, id: string) {
     // Related data
     adAccount: data.ad_accounts
       ? {
+          platformAccountId: data.ad_accounts.platform_account_id,
           platform: data.ad_accounts.platform,
           currency: data.ad_accounts.currency || "NGN",
           accountName: data.ad_accounts.account_name,

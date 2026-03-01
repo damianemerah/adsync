@@ -18,7 +18,6 @@ import {
   Calendar as CalendarIcon,
   Facebook,
   Download,
-  InfoCircle,
 } from "iconoir-react";
 import { cn } from "@/lib/utils";
 import {
@@ -38,7 +37,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
-import { InfoCircleSolid } from "iconoir-react";
+import { NotificationBell } from "@/components/layout/notification-bell";
 import {
   Select,
   SelectContent,
@@ -47,7 +46,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export function GlobalContextBar() {
+interface GlobalContextBarProps {
+  onHealthCheckClick?: () => void;
+  hasProblems?: boolean;
+}
+
+export function GlobalContextBar({
+  onHealthCheckClick,
+  hasProblems = false,
+}: GlobalContextBarProps = {}) {
   const { data: accounts } = useAdAccounts();
   const { data: campaigns } = useCampaigns();
 
@@ -317,7 +324,7 @@ export function GlobalContextBar() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent
-                className="w-[280px] p-0 rounded-2xl border-border shadow-soft"
+                className="w-[290px] p-0 rounded-2xl border-border shadow-soft"
                 align="start"
               >
                 <Command>
@@ -407,13 +414,51 @@ export function GlobalContextBar() {
             </Select>
           </div>
 
+          {/* Account Health Button */}
           <Button
             variant="ghost"
             size="icon"
-            className="h-11 w-11 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+            onClick={onHealthCheckClick}
+            title="Account Health Check"
+            className={cn(
+              "relative h-11 w-11 rounded-full transition-colors",
+              hasProblems
+                ? "text-orange-500 hover:text-orange-600 hover:bg-orange-50"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted",
+            )}
           >
-            <InfoCircleSolid className="h-6 w-6" />
+            {/* Shield / warning icon from iconoir */}
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              className="h-5 w-5"
+              stroke="currentColor"
+              strokeWidth="1.8"
+            >
+              <path
+                d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
+                strokeLinejoin="round"
+              />
+              {hasProblems && (
+                <>
+                  <line x1="12" y1="8" x2="12" y2="12" strokeLinecap="round" />
+                  <circle cx="12" cy="15" r="0.5" fill="currentColor" />
+                </>
+              )}
+              {!hasProblems && (
+                <polyline
+                  points="9 12 11 14 15 10"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              )}
+            </svg>
+            {hasProblems && (
+              <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-orange-500 ring-2 ring-background" />
+            )}
           </Button>
+
+          <NotificationBell />
 
           <div className="space-y-1.5 flex-1 lg:flex-none">
             <Popover>
@@ -462,7 +507,9 @@ export function GlobalContextBar() {
             className="h-11 px-5 gap-2 border-border rounded-xl bg-card font-bold text-subtle-foreground hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all shadow-sm disabled:opacity-50"
           >
             <Download className="h-4 w-4" />
-            <span className="hidden sm:inline">{isExporting ? "Exporting..." : "Export"}</span>
+            <span className="hidden sm:inline">
+              {isExporting ? "Exporting..." : "Export"}
+            </span>
           </Button>
         </div>
       </div>

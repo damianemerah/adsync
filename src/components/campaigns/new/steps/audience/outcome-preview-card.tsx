@@ -1,6 +1,14 @@
 "use client";
 
-import { StatsUpSquare, Check, Sparks, ArrowRight } from "iconoir-react";
+import { useState } from "react";
+import {
+  StatsUpSquare,
+  Check,
+  Sparks,
+  ArrowRight,
+  NavArrowDown,
+  NavArrowRight,
+} from "iconoir-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -34,6 +42,8 @@ export function OutcomePreviewCard({
   currentInterests,
   onConfirmAudience,
 }: OutcomePreviewCardProps) {
+  const [showAssumptions, setShowAssumptions] = useState(false);
+
   return (
     <div className="mt-2 space-y-3 animate-in fade-in slide-in-from-top-2">
       {/* Outcome box — most prominent */}
@@ -52,62 +62,81 @@ export function OutcomePreviewCard({
         </p>
       </div>
 
-      {/* Plain summary */}
-      <p className="text-sm text-foreground/80 leading-relaxed px-1">
-        {plainSummary}
-      </p>
-
       {/* Interest chips */}
-      {interests?.length > 0 && (
+      {interests?.filter((int: any) => {
+        const intId = typeof int === "string" ? int : int.id;
+        const intName = typeof int === "string" ? int : int.name;
+        return isNaN(Number(intId)) === false; // Only show if ID is numeric (verified)
+      }).length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {interests.map((int: any) => {
-            const intId = typeof int === "string" ? int : int.id;
-            const intName = typeof int === "string" ? int : int.name;
-            const isSelected = currentInterests.find(
-              (i: any) => i.id === intId || i.name === intName,
-            );
-            return (
-              <Badge
-                key={intId}
-                variant="outline"
-                className={cn(
-                  "cursor-pointer transition-all py-1.5 px-3 rounded-full border hover:border-primary",
-                  isSelected
-                    ? "bg-primary/10 text-primary border-primary"
-                    : "bg-background text-muted-foreground hover:text-foreground",
-                )}
-                onClick={() =>
-                  isSelected
-                    ? onRemoveInterest(int)
-                    : onAddInterest(
-                        typeof int === "string" ? { id: int, name: int } : int,
-                      )
-                }
-              >
-                {isSelected && <Check className="h-3 w-3 mr-1" />}
-                {intName}
-              </Badge>
-            );
-          })}
+          {interests
+            .filter((int: any) => {
+              const intId = typeof int === "string" ? int : int.id;
+              return isNaN(Number(intId)) === false;
+            })
+            .map((int: any) => {
+              const intId = typeof int === "string" ? int : int.id;
+              const intName = typeof int === "string" ? int : int.name;
+              const isSelected = currentInterests.find(
+                (i: any) => i.id === intId || i.name === intName,
+              );
+              return (
+                <Badge
+                  key={intId}
+                  variant="outline"
+                  className={cn(
+                    "cursor-pointer transition-all py-1.5 px-3 rounded-full border hover:border-primary",
+                    isSelected
+                      ? "bg-primary/10 text-primary border-primary"
+                      : "bg-background text-muted-foreground hover:text-foreground",
+                  )}
+                  onClick={() =>
+                    isSelected
+                      ? onRemoveInterest(int)
+                      : onAddInterest(
+                          typeof int === "string"
+                            ? { id: int, name: int }
+                            : int,
+                        )
+                  }
+                >
+                  {isSelected && <Check className="h-3 w-3 mr-1" />}
+                  {intName}
+                </Badge>
+              );
+            })}
         </div>
       )}
 
       {/* Inferred assumptions */}
       {inferredAssumptions && inferredAssumptions.length > 0 && (
-        <div className="space-y-1.5">
-          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
-            What I assumed
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {inferredAssumptions.map((assumption: string, i: number) => (
-              <span
-                key={i}
-                className="text-[11px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border"
-              >
-                {assumption}
-              </span>
-            ))}
-          </div>
+        <div className="space-y-1.5 bg-muted/20 rounded-xl p-2 border border-border/50">
+          <button
+            onClick={() => setShowAssumptions(!showAssumptions)}
+            className="flex items-center justify-between w-full text-left"
+          >
+            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+              What I assumed
+            </p>
+            {showAssumptions ? (
+              <NavArrowDown className="h-3 w-3 text-muted-foreground" />
+            ) : (
+              <NavArrowRight className="h-3 w-3 text-muted-foreground" />
+            )}
+          </button>
+
+          {showAssumptions && (
+            <div className="flex flex-wrap gap-1.5 pt-1 animate-in fade-in slide-in-from-top-1">
+              {inferredAssumptions.map((assumption: string, i: number) => (
+                <span
+                  key={i}
+                  className="text-[11px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border"
+                >
+                  {assumption}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

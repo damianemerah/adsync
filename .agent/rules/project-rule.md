@@ -25,7 +25,7 @@ sell fashion, beauty, food, and services primarily via WhatsApp.
 - **State:** TanStack Query (Server State) + Zustand (Client Wizard State)
 - **UI:** Tailwind CSS + Shadcn UI
 - **Validation:** Zod
-- **AI:** OpenAI (copy/strategy) + Flux via Fal.ai (image generation)
+- **AI:** Anthropic Claude (copy/strategy/image schema) + Flux via Fal.ai (image generation)
 - **Payments:** Paystack (Naira billing)
 
 ---

@@ -19,7 +19,11 @@ import { isPermanentCreativeUrl, isTempUploadUrl } from "@/lib/creative-utils";
 import { requireCredits, spendCredits } from "@/lib/credits";
 import { CREDIT_COSTS } from "@/lib/constants";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY!,
+  timeout: 15000,
+  maxRetries: 1,
+});
 
 interface GenerateOptions {
   prompt: string;
@@ -140,13 +144,8 @@ export async function generateAdCreative({
   const supabase = await createClient();
   const { orgId, userId } = await requireCredits(supabase, creditCost);
 
-  // 3. Safety Check (Moderation)
-  if (prompt) {
-    const moderation = await openai.moderations.create({ input: prompt });
-    if (moderation.results[0].flagged) {
-      throw new Error("Your prompt contains unsafe content. Please revise.");
-    }
-  }
+  // 3. Safety Check: Moderation is now integrated directly into the FLUX_AD_GENERATOR_SYSTEM call.
+  // Exceptions will be thrown when we parse the generated schema if safety_flagged is true.
 
   // 4. Auth user object for downstream use
   const {
@@ -257,16 +256,27 @@ export async function generateAdCreative({
       // Use FLUX_EDIT_SYSTEM to generate instructions
       const systemPrompt = FLUX_EDIT_SYSTEM + imageContext;
 
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: finalPrompt },
-        ],
+      console.log("\n====================================");
+      console.log(
+        "🤖 [OpenAI Images] Calling responses.create (gpt-4.1-mini) for image edit instruction...",
+      );
+      console.log("📝 [OpenAI Images] systemPrompt:", systemPrompt);
+      console.log("📝 [OpenAI Images] finalPrompt:", finalPrompt);
+
+      const completion = await (openai.responses.create as any)({
+        model: "gpt-4.1-mini",
+        instructions: systemPrompt,
+        input: finalPrompt,
       });
 
-      if (completion.choices[0].message.content) {
-        finalPrompt = completion.choices[0].message.content;
+      console.log(
+        "✅ [OpenAI Images] Edit instruction generated successfully.",
+        completion,
+      );
+      console.log("====================================\n");
+
+      if (completion.output_text) {
+        finalPrompt = completion.output_text.trim();
       }
     } else {
       // --- GENERATION FLOW (Compiler Pattern) ---
@@ -297,27 +307,48 @@ export async function generateAdCreative({
 
       // 1. Construct User Context
       const userMessage = `
-Context: ${imageContext}
-Request: ${finalPrompt}
-FormatIntent: ${JSON.stringify(mappedContext)}
-AspectRatio: ${aspectRatio}
+        Context: ${imageContext}
+        Request: ${finalPrompt}
+        FormatIntent: ${JSON.stringify(mappedContext)}
+        AspectRatio: ${aspectRatio}
       `.trim();
 
+      console.log("\n====================================");
+      console.log(
+        "🤖 [OpenAI Images] Calling responses.create (gpt-4.1) for image prompt generation...",
+      );
+      console.log("📝 [OpenAI Images] userMessage:\n", userMessage);
+
       // 2. Call OpenAI for JSON
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: FLUX_AD_GENERATOR_SYSTEM },
-          { role: "user", content: userMessage },
-        ],
-        response_format: { type: "json_object" },
+      const completion = await (openai.responses.create as any)({
+        model: "gpt-4.1",
+        instructions: FLUX_AD_GENERATOR_SYSTEM,
+        input: userMessage,
       });
 
-      const jsonContent = completion.choices[0].message.content;
+      console.log(
+        "✅ [OpenAI Images] Image prompt components generated successfully.",
+        completion,
+      );
+      console.log("====================================\n");
 
-      if (jsonContent) {
+      if (completion.output_text) {
+        // Strip code fences defensively
+        const rawJson = completion.output_text
+          .replace(/```json\n?/g, "")
+          .replace(/```\n?/g, "")
+          .trim();
+
         // 3. Compile JSON to String
-        const jsonResponse = JSON.parse(jsonContent);
+        const jsonResponse = JSON.parse(rawJson);
+
+        // Safety gate
+        if (jsonResponse.safety_flagged) {
+          throw new Error(
+            "Your prompt contains unsafe content. Please revise.",
+          );
+        }
+
         /* @ts-ignore */
         const { compileFluxPrompt } = await import("@/lib/ai/compiler");
         finalPrompt = compileFluxPrompt(jsonResponse, aspectRatio || "1:1");

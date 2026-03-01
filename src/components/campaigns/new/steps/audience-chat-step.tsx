@@ -30,8 +30,16 @@ import {
 } from "@/components/ui/resizable";
 import { Check, ListSelect } from "iconoir-react";
 import type { AIStrategyResult } from "@/lib/ai/types";
+import {
+  resolveInterests,
+  resolveLocation,
+  LAGOS_DEFAULT,
+} from "@/lib/utils/targeting-resolver";
 import { estimateBudget } from "@/lib/intelligence/estimator";
 import type { AdSyncObjective } from "@/lib/constants";
+import { CREDIT_COSTS, TIER_CONFIG } from "@/lib/constants";
+import { useCreditBalance, useSubscription } from "@/hooks/use-subscription";
+import { PaymentDialog } from "@/components/billing/payment-dialog";
 
 // Extracted Components
 import { ChatInterface } from "./audience/chat-interface";
@@ -121,169 +129,9 @@ function deduceAspectRatio(
   return "1:1";
 }
 
-function classifyUserInput(
-  input: string,
-):
-  | "strategy"
-  | "question"
-  | "refinement"
-  | "ambiguous"
-  | "image_request"
-  | "image_edit"
-  | "copy_correction" {
-  const lower = input.toLowerCase().trim();
-  const words = input.trim().split(/\s+/);
-
-  const questionPatterns = [
-    /how much/i,
-    /how do/i,
-    /what is/i,
-    /what are/i,
-    /which is better/i,
-    /\?$/,
-    /can i/i,
-    /should i/i,
-    /what time/i,
-    /when should/i,
-    /is it/i,
-    /what does.*mean/i,
-    /explain/i,
-    /help me understand/i,
-    /how does/i,
-    /is facebook/i,
-    /is instagram/i,
-    /which platform/i,
-  ];
-  if (questionPatterns.some((p) => p.test(lower))) return "question";
-
-  // Structural/compositional image edits → needs Studio (inpainting), not regen
-  // These describe modifying a specific element IN an existing image
-  const imageEditPatterns = [
-    /use .+ as (the |a |an )?stand/i,
-    /use .+ as (the |a |an )?base/i,
-    /use .+ as (the |a |an )?prop/i,
-    /add .+ (to|in|into) (the )?(image|photo|picture|ad|creative)/i,
-    /put .+ (in|into|on) (the )?(image|photo|picture|ad|creative)/i,
-    /replace .+ with/i,
-    /remove .+ from (the )?(image|photo)/i,
-    /swap .+ (with|for)/i,
-    /change .+ to .+ in (the )?(image|photo)/i,
-    /make (the |a |an )?.+ (look|appear|be) .+ in (the )?(image|photo)/i,
-    /mannequin/i,
-    /put a (model|person|woman|man|girl)/i,
-    /add a (model|person|woman|man|girl)/i,
-  ];
-  if (imageEditPatterns.some((p) => p.test(lower))) return "image_edit";
-
-  // Image generation with optional style/background constraints
-  const imagePatterns = [
-    /generate image/i,
-    /create.*image/i,
-    /design.*image/i,
-    /make.*image/i,
-    /design.*ad/i,
-    /create.*creative/i,
-    /generate.*creative/i,
-    /don'?t use.*background/i,
-    /no.*background/i,
-    /without.*background/i,
-    /use.*background/i,
-    /background.*setting/i,
-    /design.*for the ad/i,
-    /image.*for.*ad/i,
-  ];
-  if (imagePatterns.some((p) => p.test(lower))) return "image_request";
-
-  // Product fact corrections after copy is shown (not copy style changes)
-  const correctionPatterns = [
-    /it'?s? not/i,
-    /its not/i,
-    /actually/i,
-    /not really/i,
-    /wrong/i,
-    /incorrect/i,
-    /that'?s? wrong/i,
-    /not true/i,
-    /we don'?t/i,
-    /i don'?t sell/i,
-    /remove.*mention/i,
-    /don'?t mention/i,
-    /no need to mention/i,
-    /not need to mention/i,
-  ];
-  if (correctionPatterns.some((p) => p.test(lower))) return "copy_correction";
-
-  const refinementPatterns = [
-    /make it/i,
-    /make am/i,
-    /change it/i,
-    /add more/i,
-    /remove the/i,
-    /shorter/i,
-    /longer/i,
-    /more urgent/i,
-    /try again/i,
-    /regenerate/i,
-    /more spicy/i,
-    /rewrite/i,
-    /edit the copy/i,
-    // Pidgin
-    /make am fire/i,
-    /make e hot/i,
-    /e no sweet/i,
-    /e too long/i,
-  ];
-  if (refinementPatterns.some((p) => p.test(lower))) return "refinement";
-
-  if (words.length === 1) return "ambiguous";
-  return "strategy";
-}
-
-/** Normalize common Nigerian location shorthands before sending to AI/Meta */
-function normalizeNigerianLocation(input: string): string {
-  const aliases: Record<string, string> = {
-    ph: "Port Harcourt",
-    "p.h": "Port Harcourt",
-    vi: "Victoria Island",
-    "v.i": "Victoria Island",
-    eko: "Lagos",
-    naija: "Nigeria",
-    abj: "Abuja",
-    fct: "Abuja",
-    gra: "GRA",
-    lekks: "Lekki",
-    "ikorodu rd": "Ikorodu Road",
-  };
-  return aliases[input.toLowerCase().trim()] || input;
-}
-
-function getInlineAnswer(question: string): string {
-  const q = question.toLowerCase();
-  if (q.includes("how much") && (q.includes("spend") || q.includes("budget"))) {
-    return "Start at ₦5,000/day — that's the sweet spot for Nigerian SMEs. It gives Meta's algorithm enough to work with and gets you real results in 3–5 days. You can always scale up after you see what works.";
-  }
-  if (
-    q.includes("facebook") ||
-    q.includes("instagram") ||
-    q.includes("which platform")
-  ) {
-    return "Meta (Facebook + Instagram) is the go-to for Nigeria right now. One campaign reaches both platforms automatically. For WhatsApp sales specifically, Meta is the best option available.";
-  }
-  if (q.includes("what time") || q.includes("when should")) {
-    return "Meta figures out the best time automatically — it learns when your specific audience is most active. You don't need to set anything.";
-  }
-  if (q.includes("can i pause") || q.includes("pause the ad")) {
-    return "Yes! Pause, resume, or stop any campaign from your dashboard anytime. You're in control.";
-  }
-  if (
-    q.includes("targeting") ||
-    q.includes("what does") ||
-    q.includes("what is interest")
-  ) {
-    return "Interests are topics your customers already follow on Facebook/Instagram — like 'Natural hair' or 'Lagos fashion'. The more targeted your interests, the more Meta knows exactly who to show your ad to.";
-  }
-  return "Good question. Let's keep building your campaign first — once it's live, you'll see exactly how it performs.";
-}
+// classifyUserInput and getInlineAnswer removed — Claude's core-strategy-ng
+// skill handles all intent classification and question answering internally.
+// The shell is now a pure renderer that reacts to meta fields in the response.
 
 function generateCampaignName(prompt: string, interests: any[]): string {
   if (interests && interests.length > 0) {
@@ -369,6 +217,19 @@ export function AudienceChatStep() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isRefiningCopy, setIsRefiningCopy] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
+
+  // Credit & tier guards
+  const { balance } = useCreditBalance();
+  const { data: subscription } = useSubscription();
+  const tier = (subscription?.org?.tier ??
+    "starter") as keyof typeof TIER_CONFIG;
+  const maxRefinements =
+    TIER_CONFIG[tier]?.ai?.maxRefinementsPerCampaign ?? Infinity;
+  const refinementCount = useCampaignStore((s) => s.refinementCount);
+  const incrementRefinementCount = useCampaignStore(
+    (s) => s.incrementRefinementCount,
+  );
 
   // Warn on page refresh/close if there's a pending generated image not yet accepted
   useBeforeLeave(
@@ -389,6 +250,16 @@ export function AudienceChatStep() {
 
   const handleGenerateCreative = async (customPrompt?: string) => {
     if (isGeneratingImage) return;
+
+    // ── Credit pre-check — don't hit server if balance insufficient ─────────
+    if (balance < CREDIT_COSTS.IMAGE_GEN_PRO) {
+      toast.error(
+        `Not enough credits. You need ${CREDIT_COSTS.IMAGE_GEN_PRO} credits to generate an image. Top up or upgrade your plan.`,
+        { duration: 5000 },
+      );
+      setUpgradeDialogOpen(true);
+      return;
+    }
 
     console.log("🎨 [AudienceChatStep] Generating creative...", customPrompt);
     // Ensure customPrompt is a string (and not an Event object from onClick)
@@ -599,19 +470,34 @@ export function AudienceChatStep() {
   // ─── Copy Refinement ───────────────────────────────────────────────────────
 
   const handleCopyRefinement = async (instruction: string) => {
+    // ── Starter refinement limit guard ─────────────────────────────────────
+    if (tier === "starter" && refinementCount >= maxRefinements) {
+      setUpgradeDialogOpen(true);
+      toast.error(
+        `Starter plan allows ${maxRefinements} copy refinements per campaign. Upgrade to Growth or Agency for unlimited refinements.`,
+        { duration: 5000 },
+      );
+      return;
+    }
     setIsRefiningCopy(true);
     setIsTyping(true);
+    console.log(
+      "💬 [AudienceChatStep] Sending copy refinement request:",
+      instruction,
+    );
     try {
       const res = await fetch("/api/ai/generate", {
         method: "POST",
         body: JSON.stringify({
-          description: `${aiPrompt}. ${instruction}`,
+          description: aiPrompt,
           location: locations.length > 0 ? locations[0].name : "Nigeria",
           objective: objective || "whatsapp",
           // Pass live copy so AI edits THIS text, not a blank slate
           currentCopy: adCopy.headline
             ? { headline: adCopy.headline, primary: adCopy.primary }
             : undefined,
+          // Route to OpenAI gpt-4.1-mini for faster refinement
+          refinementInstruction: instruction,
         }),
       });
       if (!res.ok) throw new Error("Refinement failed");
@@ -658,6 +544,8 @@ export function AudienceChatStep() {
           },
         ]);
       }, 800);
+      // Increment after successful refinement
+      incrementRefinementCount();
     } catch {
       setIsTyping(false);
     } finally {
@@ -925,6 +813,10 @@ export function AudienceChatStep() {
         return;
       }
       setIsTyping(true);
+      console.log(
+        "💬 [AudienceChatStep] Sending AI rebuild request for objective:",
+        objective,
+      );
       try {
         const res = await fetch("/api/ai/generate", {
           method: "POST",
@@ -1050,153 +942,22 @@ export function AudienceChatStep() {
       }
       return;
     }
-
-    const intent = classifyUserInput(text);
-
-    // ── Branch: Advertising question ──────────────────────────────────────
-    if (intent === "question") {
-      const answer = getInlineAnswer(text);
-      setTimeout(() => {
-        setIsTyping(false);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString(),
-            role: "ai",
-            content: answer,
-            type: "text",
-          },
-        ]);
-      }, 600);
-      return;
-    }
-
-    // ── Branch: Structural image edit → direct to Studio ──────────────────────
-    if (intent === "image_edit") {
-      setIsTyping(false);
-      // pendingGeneratedImage is cleared after "Use This" — fall back to
-      // the accepted creative URL already saved in selectedCreatives
-      const imageUrl = pendingGeneratedImage?.url ?? selectedCreatives[0];
-      const imagePrompt =
-        pendingGeneratedImage?.prompt ?? adCopy.headline ?? "";
-
-      if (imageUrl) {
-        // Has a generated image — send them to Studio with instruction pre-filled
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString(),
-            role: "ai",
-            content: `That's a structural edit — adding or replacing specific objects needs the Studio editor to get it right. I've pre-filled your instruction there.`,
-            type: "studio_suggestion",
-            data: {
-              generatedImage: { url: imageUrl, prompt: imagePrompt },
-              editInstruction: text,
-            },
-          },
-        ]);
-      } else {
-        // No image yet — generate one first, then they can edit it
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString(),
-            role: "ai",
-            content:
-              "Let me generate the base image first, then you can refine it in Studio with that instruction.",
-            type: "text",
-          },
-        ]);
-        await handleGenerateCreative();
-      }
-      return;
-    }
-
-    // ── Branch: Image generation with optional user constraints ─────────────
-    if (intent === "image_request") {
-      setIsTyping(false);
-      // Pass the full user message as a custom prompt — the generation fn
-      // will incorporate it alongside headline/copy context
-      await handleGenerateCreative(text);
-      return;
-    }
-
-    // ── Branch: Copy correction (fact fix + interest sync) ─────────────────
-    if (intent === "copy_correction" && adCopy.headline) {
-      setIsTyping(false);
-      // 1. Rewrite the copy with corrected facts
-      await handleCopyRefinement(
-        `User correction: ${text}. Rewrite copy to reflect this fact. Keep same tone and objective. Do NOT contradict the correction.`,
-      );
-      // 2. Also rebuild the audience strategy with the corrected info so interests stay in sync
-      // We fire this silently — no new audience card is shown, just interests updated
-      try {
-        const correctionContext = `${aiPrompt}. Correction: ${text}`;
-        const res = await fetch("/api/ai/generate", {
-          method: "POST",
-          body: JSON.stringify({
-            description: correctionContext,
-            location: locations.length > 0 ? locations[0].name : "Nigeria",
-            objective: objective || "whatsapp",
-          }),
-        });
-        if (res.ok) {
-          const result = await res.json();
-          if (result.interests?.length) {
-            const resolved = await Promise.all(
-              result.interests.map(async (interest: any) => {
-                const name =
-                  typeof interest === "string" ? interest : interest.name;
-                try {
-                  const r = await fetch(
-                    `/api/meta/search-interest?query=${encodeURIComponent(name)}`,
-                  );
-                  const data = await r.json();
-                  const match =
-                    data?.find(
-                      (i: any) => i.name.toLowerCase() === name.toLowerCase(),
-                    ) || data?.[0];
-                  return match
-                    ? { id: String(match.id), name: match.name }
-                    : { id: name, name };
-                } catch {
-                  return { id: name, name };
-                }
-              }),
-            );
-            updateDraft({ targetInterests: resolved.filter(Boolean) });
-          }
-        }
-      } catch {
-        // Silent — interest sync is best-effort, copy correction already done
-      }
-      return;
-    }
-
-    // ── Branch: Copy refinement ───────────────────────────────────────────
-    if (intent === "refinement" && adCopy.headline) {
-      setIsTyping(false);
-      await handleCopyRefinement(text);
-      return;
-    }
-
-    // ── Branch: Strategy / Ambiguous → call AI ────────────────────────────
+    // ── Send ALL input to Claude — it classifies intent via core-strategy-ng ──
     try {
-      // We do not eagerly update `aiPrompt` here to preserve the original business
-      // description in case the AI recognizes the input as a question/confirmation.
-
-      // Normalize Nigerian location shorthand in user text before sending to AI
-      const normalizedText = text.replace(
-        /\b(ph|p\.h|vi|v\.i|eko|naija|abj|fct|lekks)\b/gi,
-        (m) => normalizeNigerianLocation(m),
+      console.log(
+        "💬 [AudienceChatStep] Sending main AI generation request for:",
+        text,
       );
-
       const res = await fetch("/api/ai/generate", {
         method: "POST",
         body: JSON.stringify({
-          description: normalizedText,
+          description: text,
           location: locations.length > 0 ? locations[0].name : "Nigeria",
           objective: objective || "whatsapp",
+          // Always pass current copy so Claude can detect refinements/corrections
+          currentCopy: adCopy.headline
+            ? { headline: adCopy.headline, primary: adCopy.primary }
+            : undefined,
         }),
       });
 
@@ -1223,7 +984,7 @@ export function AudienceChatStep() {
         return;
       }
 
-      // ── Handle: AI answering a question ───────────────────────────────
+      // ── Handle: AI answering a question (TYPE_C, TYPE_E) ─────────────
       if (result.meta?.is_question) {
         setIsTyping(false);
         setMessages((prev) => [
@@ -1240,120 +1001,112 @@ export function AudienceChatStep() {
         return;
       }
 
-      // ── Resolve Locations, Interests, and Behaviors in parallel ──────────
-      const [resolvedLocations, resolvedInterests, resolvedBehaviors] =
+      // ── Handle: Structural image edit → Studio (TYPE_F) ─────────────────
+      if (result.meta?.input_type === "TYPE_F") {
+        setIsTyping(false);
+        const imageUrl = pendingGeneratedImage?.url ?? selectedCreatives[0];
+        const imagePrompt =
+          pendingGeneratedImage?.prompt ?? adCopy.headline ?? "";
+
+        if (imageUrl) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: Date.now().toString(),
+              role: "ai",
+              content:
+                result.meta.question_answer ||
+                "That's a structural edit — use the Studio editor for this.",
+              type: "studio_suggestion",
+              data: {
+                generatedImage: { url: imageUrl, prompt: imagePrompt },
+                editInstruction: text,
+              },
+            },
+          ]);
+        } else {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: Date.now().toString(),
+              role: "ai",
+              content:
+                "Let me generate the base image first, then you can refine it in Studio.",
+              type: "text",
+            },
+          ]);
+          await handleGenerateCreative();
+        }
+        return;
+      }
+
+      // ── Handle: Image generation request (TYPE_H) ──────────────────────
+      if (result.meta?.input_type === "TYPE_H") {
+        setIsTyping(false);
+        await handleGenerateCreative(text);
+        return;
+      }
+
+      // ── Handle: Copy refinement (TYPE_D) ───────────────────────────────
+      if (result.meta?.input_type === "TYPE_D" && adCopy.headline) {
+        setIsTyping(false);
+        await handleCopyRefinement(text);
+        return;
+      }
+
+      // ── Handle: Fact correction (TYPE_G) ───────────────────────────────
+      // Claude already returns updated copy + interests in the result
+      // We use the same strategy rendering below but also update interests
+      // ── Resolve targeting via fuzzy pipeline ─────────────────────────────
+      const interestNames = (result.interests || []).map((i: any) =>
+        typeof i === "string" ? i : i.name,
+      );
+      const locationNames: string[] = result.suggestedLocations || [];
+
+      const [resolvedInterests, resolvedLocations] =
         await Promise.all([
-          // Locations
-          Promise.all(
-            (result.suggestedLocations || []).map(async (locName: string) => {
-              try {
-                const searchRes = await fetch(
-                  `/api/meta/search-location?query=${encodeURIComponent(locName)}`,
-                );
-                const data = await searchRes.json();
-                return data?.[0]
-                  ? {
-                      id: data[0].key,
-                      name: data[0].name,
-                      type: data[0].type,
-                      country: data[0].country_name || data[0].country_code,
-                    }
-                  : null;
-              } catch {
-                return null;
-              }
-            }),
-          ),
+          // Interests — keyword extraction + data[0] with word-overlap sanity check
+          resolveInterests(interestNames, async (query) => {
+            const r = await fetch(
+              `/api/meta/search-interest?query=${encodeURIComponent(query)}`,
+            );
+            return r.ok ? r.json() : [];
+          }),
 
-          // Interests — resolve AI names to real Meta IDs
+          // Locations — city search then region fallback
           Promise.all(
-            (result.interests || []).map(async (interest: any) => {
-              const name =
-                typeof interest === "string" ? interest : interest.name;
-              try {
-                const searchRes = await fetch(
-                  `/api/meta/search-interest?query=${encodeURIComponent(name)}`,
+            locationNames.map((name: string) =>
+              resolveLocation(name, async (query, type) => {
+                const r = await fetch(
+                  `/api/meta/search-location?query=${encodeURIComponent(query)}&type=${type}`,
                 );
-                const data = await searchRes.json();
-                // Match exact name first, then fall back to first result
-                const match =
-                  data?.find(
-                    (item: any) =>
-                      item.name.toLowerCase() === name.toLowerCase(),
-                  ) || data?.[0];
-                return match
-                  ? { id: String(match.id), name: match.name }
-                  : null;
-              } catch {
-                return null;
-              }
-            }),
-          ),
-
-          // Behaviors — resolve AI names to real Meta IDs
-          Promise.all(
-            (result.behaviors || []).map(async (behavior: any) => {
-              const name =
-                typeof behavior === "string" ? behavior : behavior.name;
-              try {
-                const searchRes = await fetch(
-                  `/api/meta/search-behavior?query=${encodeURIComponent(name)}`,
-                );
-                const data = await searchRes.json();
-                const match =
-                  data?.find(
-                    (item: any) =>
-                      item.name.toLowerCase() === name.toLowerCase(),
-                  ) || data?.[0];
-                return match
-                  ? { id: String(match.id), name: match.name }
-                  : null;
-              } catch {
-                return null;
-              }
-            }),
+                return r.ok ? r.json() : [];
+              }),
+            ),
           ),
         ]);
 
-      const validLocations = resolvedLocations.filter(
-        (l): l is NonNullable<typeof l> => l !== null,
-      );
+      const validLocations = resolvedLocations.filter(Boolean) as NonNullable<
+        (typeof resolvedLocations)[number]
+      >[];
 
-      // Keep resolved items that got real Meta IDs; fall back to name-only for any
-      // that failed (still useful for display, will be stripped at launch if no ID)
-      const normalizedInterests = resolvedInterests
-        .map((resolved, i) => {
-          if (resolved) return resolved;
-          const raw: any = result.interests[i];
-          const name: string | undefined =
-            typeof raw === "string" ? raw : raw?.name;
-          return name ? { id: name, name } : null;
-        })
-        .filter((i): i is { id: string; name: string } => i !== null);
+      // Keep all interests — resolved ones have real Meta IDs, unresolved fall back to name.
+      // Unresolved show in UI and get stripped at launch time (Meta ignores non-numeric IDs).
+      const normalizedInterests = resolvedInterests.map(({ id, name }) => ({ id, name }));
 
-      const normalizedBehaviors = resolvedBehaviors
-        .map((resolved, i) => {
-          if (resolved) return resolved;
-          const raw: any = (result.behaviors || [])[i];
-          const name: string | undefined =
-            typeof raw === "string" ? raw : raw?.name;
-          return name ? { id: name, name } : null;
-        })
-        .filter((b): b is { id: string; name: string } => b !== null);
+      // Behaviors: name-only, no API call. Meta behavior IDs are resolved at launch
+      // via the targetingsearch endpoint, not during the AI strategy flow.
+      const normalizedBehaviors = (result.behaviors || []).map((b: any) => {
+        const name = typeof b === "string" ? b : b.name;
+        return { id: name, name };
+      });
 
       const finalLocations =
         locations.length > 0
           ? locations
           : validLocations.length > 0
             ? validLocations
-            : [
-                {
-                  id: "2420605",
-                  name: "Lagos",
-                  type: "city",
-                  country: "Nigeria",
-                },
-              ];
+            : [LAGOS_DEFAULT];
 
       // ── Update Store ───────────────────────────────────────────────────
       updateDraft({
@@ -1480,6 +1233,7 @@ export function AudienceChatStep() {
         }
       }, 1000);
     } catch (err: any) {
+      console.log("Error:📁📁", err);
       setIsTyping(false);
 
       // Detect transient network/timeout errors vs genuine AI failures
@@ -1605,6 +1359,13 @@ export function AudienceChatStep() {
           </div>
         </ResizablePanel>
       </ResizablePanelGroup>
+
+      {/* Upgrade dialog — shown when credits run out or Starter refinement limit hit */}
+      <PaymentDialog
+        open={upgradeDialogOpen}
+        onOpenChange={setUpgradeDialogOpen}
+        planId="growth"
+      />
     </>
   );
 }

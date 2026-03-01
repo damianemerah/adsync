@@ -36,7 +36,7 @@ export { computeSmartDefaults } from "./smart-defaults";
 export type { SmartDefaults, SmartDefaultsInput } from "./smart-defaults";
 
 // Pre-Launch Rules
-export { validatePreLaunch } from "./pre-launch-rules";
+export { validatePreLaunch, validateDestinationUrl } from "./pre-launch-rules";
 export type { PreLaunchResult, ValidationIssue } from "./pre-launch-rules";
 
 // Post-Launch Rules

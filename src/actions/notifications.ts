@@ -3,8 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
-// Force dynamic rendering
-export const dynamic = "force-dynamic";
+// Removed dynamic export as it breaks server action extraction
 
 export async function getNotificationSettings() {
   const supabase = await createClient();
@@ -84,21 +83,44 @@ export async function startWhatsAppVerification(phoneNumber: string) {
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 mins
 
-  console.log(`[MOCK WHATSAPP] Sending OTP ${otp} to ${phoneNumber}`);
+  // Send OTP via Twilio WhatsApp
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  const fromNumber = process.env.TWILIO_WHATSAPP_FROM; // e.g. "whatsapp:+14155238886"
 
-  const { error } = await supabase
-    .from("notification_settings")
-    // Use upsert to handle case where settings row doesn't exist yet
-    .upsert(
-      {
-        user_id: user.id,
-        whatsapp_number: phoneNumber,
-        whatsapp_otp_code: otp,
-        whatsapp_otp_expires_at: expiresAt,
-        verified: false,
-      },
-      { onConflict: "user_id" },
+  if (accountSid && authToken && fromNumber) {
+    const twilio = (await import("twilio")).default;
+    const client = twilio(accountSid, authToken);
+
+    try {
+      await client.messages.create({
+        body: `Your Sellam verification code is: ${otp}. It expires in 10 minutes.`,
+        from: fromNumber,
+        to: `whatsapp:${phoneNumber}`,
+      });
+    } catch (twilioError) {
+      console.error("[Twilio WhatsApp] Failed to send OTP:", twilioError);
+      throw new Error(
+        "Failed to send WhatsApp message. Please check the number and try again.",
+      );
+    }
+  } else {
+    // Dev fallback — no Twilio configured
+    console.warn(
+      `[WhatsApp OTP] Twilio not configured. OTP for ${phoneNumber}: ${otp}`,
     );
+  }
+
+  const { error } = await supabase.from("notification_settings").upsert(
+    {
+      user_id: user.id,
+      whatsapp_number: phoneNumber,
+      whatsapp_otp_code: otp,
+      whatsapp_otp_expires_at: expiresAt,
+      verified: false,
+    },
+    { onConflict: "user_id" },
+  );
 
   if (error) throw error;
 

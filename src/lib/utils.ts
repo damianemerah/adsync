@@ -39,5 +39,10 @@ export function formatCurrency(amount: number) {
     style: "currency",
     currency: "NGN",
     minimumFractionDigits: 0,
-  }).format(amount / 100); // Paystack uses kobo
+  }).format(amount);
+}
+
+/** Format an amount in kobo (e.g. from Paystack/DB) as Naira */
+export function formatKobo(kobo: number) {
+  return formatCurrency(kobo / 100);
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { encrypt } from "@/lib/crypto";
+import { TIER_CONFIG, TierId } from "@/lib/constants";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
       state,
     });
     return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL}/ad-accounts?error=meta_rejected`
+      `${process.env.NEXT_PUBLIC_APP_URL}/onboarding?error=meta_rejected`,
     );
   }
 
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
   if (!tokenData.access_token) {
     console.error("[Meta Callback] Meta Token Error:", tokenData);
     return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL}/ad-accounts?error=token_failed`
+      `${process.env.NEXT_PUBLIC_APP_URL}/onboarding?error=token_failed`,
     );
   }
 
@@ -87,7 +88,7 @@ export async function GET(request: NextRequest) {
   if (orgQueryError) {
     console.error(
       "[Meta Callback] Organization member query error",
-      orgQueryError
+      orgQueryError,
     );
   }
   console.debug("[Meta Callback] Organization Membership Data:", memberData);
@@ -95,7 +96,31 @@ export async function GET(request: NextRequest) {
   if (!memberData) {
     console.warn("[Meta Callback] No organization member found");
     return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL}/ad-accounts?error=no_org`
+      `${process.env.NEXT_PUBLIC_APP_URL}/onboarding?error=no_org`,
+    );
+  }
+
+  // 3b. Enforce maxAdAccounts tier limit (defense-in-depth)
+  const { data: orgData } = await supabase
+    .from("organizations")
+    .select("subscription_tier")
+    .eq("id", memberData.organization_id as string)
+    .single();
+
+  const tier = (orgData?.subscription_tier || "starter") as TierId;
+  const maxAccounts = TIER_CONFIG[tier]?.limits?.maxAdAccounts ?? 1;
+
+  const { count: existingCount } = await supabase
+    .from("ad_accounts")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", memberData.organization_id as string);
+
+  if ((existingCount ?? 0) >= maxAccounts) {
+    console.warn(
+      `[Meta Callback] Ad account limit reached (${existingCount}/${maxAccounts}) for tier ${tier}`,
+    );
+    return NextResponse.redirect(
+      `${process.env.NEXT_PUBLIC_APP_URL}/settings/business?error=account_limit_reached`,
     );
   }
 
@@ -136,25 +161,62 @@ export async function GET(request: NextRequest) {
         last_health_check: new Date().toISOString(),
         // Note: You might want to fetch/store funding source details here too if available
       },
-      { onConflict: "organization_id, platform, platform_account_id" }
+      { onConflict: "organization_id, platform, platform_account_id" },
     );
 
     if (upsertError) {
       console.error("[Meta Callback] DB Error:", upsertError);
       return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_APP_URL}/ad-accounts?error=db_save_failed`
+        `${process.env.NEXT_PUBLIC_APP_URL}/onboarding?error=db_save_failed`,
       );
     }
     console.debug("[Meta Callback] Ad account upserted successfully");
+
+    // ✅ AUTO-SYNC: Trigger campaign sync immediately after account is connected
+    // This ensures campaigns are populated without the user having to press "Sync".
+    // We look up the newly upserted account's DB uuid first.
+    try {
+      const { data: newAccount } = await supabase
+        .from("ad_accounts")
+        .select("id")
+        .eq("organization_id", memberData.organization_id as string)
+        .eq("platform_account_id", acc.account_id)
+        .single();
+
+      if (newAccount?.id) {
+        console.debug(
+          "[Meta Callback] Triggering initial campaign sync for account",
+          newAccount.id,
+        );
+        // Fire-and-forget: don't await so the redirect is instant
+        fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/campaigns/sync`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ accountId: newAccount.id }),
+        }).catch((syncErr) => {
+          // Non-critical: user can manually sync later if this fails
+          console.warn(
+            "[Meta Callback] Initial sync failed silently:",
+            syncErr,
+          );
+        });
+      }
+    } catch (syncSetupErr) {
+      // Non-blocking — don't fail the redirect if sync setup throws
+      console.warn(
+        "[Meta Callback] Could not initiate auto-sync:",
+        syncSetupErr,
+      );
+    }
   } else {
     console.warn(
       "[Meta Callback] No ad accounts found in Meta API response",
-      accountsData
+      accountsData,
     );
   }
 
-  console.debug("[Meta Callback] Redirecting to ad-accounts with success");
+  console.debug("[Meta Callback] Redirecting to dashboard with success");
   return NextResponse.redirect(
-    `${process.env.NEXT_PUBLIC_APP_URL}/ad-accounts?success=meta_connected`
+    `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?success=meta_connected`,
   );
 }

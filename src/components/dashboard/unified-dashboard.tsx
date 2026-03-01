@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { GlobalContextBar } from "@/components/layout/global-context-bar";
 import { MetricCards } from "@/components/dashboard/metric-cards";
@@ -16,6 +16,10 @@ import { CampaignMetrics } from "@/lib/utils/campaign-metrics";
 import { useDashboardStore } from "@/store/dashboard-store";
 import { useInsights } from "@/hooks/use-insights";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AccountHealthDialog } from "@/components/dashboard/account-health-dialog";
+import { getAccountHealth } from "@/actions/account-health";
+import { ShieldCheck, WarningTriangle } from "iconoir-react";
+import { Button } from "@/components/ui/button";
 
 interface UnifiedDashboardProps {
   initialData: any;
@@ -41,6 +45,16 @@ export function UnifiedDashboard({
   const router = useRouter();
 
   // Track which metric cards the user has toggled ON
+  const [healthDialogOpen, setHealthDialogOpen] = useState(false);
+  const [hasProblems, setHasProblems] = useState(false);
+
+  // Run a quick health check on mount to know if we should flash the button
+  useEffect(() => {
+    getAccountHealth().then((result) => {
+      setHasProblems(result.totalProblems > 0);
+    }).catch(() => {});
+  }, []);
+
   const [selectedMetricLabels, setSelectedMetricLabels] = useState<string[]>([
     "Total Spend",
     "Impressions",
@@ -97,8 +111,17 @@ export function UnifiedDashboard({
 
   return (
     <div>
+      {/* Account Health Dialog */}
+      <AccountHealthDialog
+        open={healthDialogOpen}
+        onOpenChange={setHealthDialogOpen}
+      />
+
       {/* Global Filter Bar */}
-      <GlobalContextBar />
+      <GlobalContextBar
+        onHealthCheckClick={() => setHealthDialogOpen(true)}
+        hasProblems={hasProblems}
+      />
 
       {/* Main Content */}
       <main className="flex-1 p-2 md:p-4 lg:p-6 overflow-y-auto">

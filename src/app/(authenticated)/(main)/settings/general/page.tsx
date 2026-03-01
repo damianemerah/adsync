@@ -1,117 +1,149 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SystemRestart } from "iconoir-react";
 import { useAuth } from "@/components/providers/auth-provider";
+import { updateProfile } from "@/actions/settings";
+import { toast } from "sonner";
+import { createClient } from "@/lib/supabase/client";
 
 export default function GeneralSettingsPage() {
   const { user } = useAuth();
-  const [isSaving, setIsSaving] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
 
-  const handleSave = () => {
-    setIsSaving(true);
-    setTimeout(() => setIsSaving(false), 1500);
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+
+    startTransition(async () => {
+      const result = await updateProfile(formData);
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("Profile updated successfully!");
+      }
+    });
+  };
+
+  const handlePasswordReset = async () => {
+    if (!user?.email) {
+      toast.error("No email found for your account.");
+      return;
+    }
+    setIsResettingPassword(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+        redirectTo: `${window.location.origin}/settings/general`,
+      });
+      if (error) throw error;
+      toast.success("Password reset email sent! Check your inbox.");
+    } catch (e: any) {
+      toast.error(e.message || "Failed to send reset email");
+    } finally {
+      setIsResettingPassword(false);
+    }
   };
 
   return (
-    <div className="space-y-6">
-      {/* Profile Card */}
+    <div className="space-y-8">
+      {/* Personal Info Card */}
       <Card>
-        <CardHeader>
-          <CardTitle>Personal Information</CardTitle>
-          <CardDescription>
-            Manage your personal details and contact info.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex items-center gap-6">
-            <Avatar className="h-20 w-20 border border-border">
-              <AvatarImage src={user?.user_metadata?.avatar_url} />
-              <AvatarFallback className="bg-primary/10 text-primary text-xl font-bold">
-                {user?.email?.substring(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div className="space-y-2">
-              <Button variant="outline" size="sm">
-                Change Photo
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                JPG, GIF or PNG. Max size of 800K
+        <form onSubmit={handleSubmit}>
+          <CardContent className="p-6 space-y-6">
+            <div>
+              <h3 className="text-lg font-heading font-bold text-foreground">
+                Personal Info
+              </h3>
+              <p className="text-sm text-subtle-foreground">
+                Manage your personal information
               </p>
             </div>
-          </div>
 
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label>Full Name</Label>
-              <Input
-                defaultValue={user?.user_metadata?.full_name}
-                className="bg-background"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="fullName">Name</Label>
+                <Input
+                  id="fullName"
+                  name="fullName"
+                  defaultValue={user?.user_metadata?.full_name || ""}
+                  placeholder="Enter your name"
+                  className="bg-background"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">E-mail</Label>
+                <Input
+                  id="email"
+                  defaultValue={user?.email || ""}
+                  disabled
+                  className="bg-muted text-muted-foreground"
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Email Address</Label>
-              <Input
-                defaultValue={user?.email}
-                disabled
-                className="bg-muted text-muted-foreground"
-              />
-            </div>
-          </div>
-        </CardContent>
-        <CardFooter className="border-t border-border bg-muted/20 px-6 py-4 flex justify-end">
-          <Button
-            onClick={handleSave}
-            disabled={isSaving}
-            className="font-bold"
-          >
-            {isSaving ? (
-              <>
-                <SystemRestart className="mr-2 h-4 w-4 animate-spin" />{" "}
-                Saving...
-              </>
-            ) : (
-              "Save Changes"
-            )}
-          </Button>
-        </CardFooter>
+          </CardContent>
+
+          <CardFooter className="border-t border-border bg-muted/20 px-6 py-4 flex justify-end">
+            <Button type="submit" disabled={isPending} className="font-bold">
+              {isPending ? (
+                <>
+                  <SystemRestart className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save Changes"
+              )}
+            </Button>
+          </CardFooter>
+        </form>
       </Card>
 
-      {/* Security Card */}
+      {/* Change Password Section */}
       <Card>
-        <CardHeader>
-          <CardTitle>Security</CardTitle>
-          <CardDescription>
-            Update your password and secure your account.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="p-6 space-y-6">
+          <div>
+            <h3 className="text-lg font-heading font-bold text-foreground">
+              Change Password
+            </h3>
+            <p className="text-sm text-subtle-foreground">
+              Update your password to secure your account.
+            </p>
+          </div>
+
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-bold text-foreground">Password</p>
+              <p className="font-medium text-foreground">Password</p>
               <p className="text-sm text-muted-foreground">
-                Last changed 3 months ago
+                Use a strong, unique password for your account.
               </p>
             </div>
-            <Button variant="outline">Change Password</Button>
+            <Button
+              variant="outline"
+              onClick={handlePasswordReset}
+              disabled={isResettingPassword}
+            >
+              {isResettingPassword ? (
+                <>
+                  <SystemRestart className="mr-2 h-4 w-4 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                "Change Password"
+              )}
+            </Button>
           </div>
+
           <Separator />
+
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-bold text-destructive">Delete Account</p>
+              <p className="font-medium text-destructive">Delete Account</p>
               <p className="text-sm text-muted-foreground">
                 Permanently remove your data and access.
               </p>

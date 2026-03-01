@@ -72,6 +72,37 @@ The research shows Nigerian SMEs aren't a monolith. Attribution must serve all o
 
 **The Sellam Attribution Link solves segments 1 and 2 identically.** The destination doesn't matter — WhatsApp URL or website URL, the wrapper is the same. Segment 3 already has tracking; the optional pixel snippet gives them a Sellam-native layer on top.
 
+---
+
+### Phase 1.5: Pixel Prompt in Campaign Creation
+
+Add the "Connect Pixel" UI to the campaign creation flow for users running Website ads.
+
+#### [MODIFY] [budget-launch-step.tsx](file:///home/chisom/projects/adsync/src/components/campaigns/new/steps/budget-launch-step.tsx)
+
+- Add a "Website Tracking" section right above the Launch button for users whose `objective` is `traffic` or `sales`.
+- If the organization does _not_ have a pixel installed (we will mock this state for now or check settings), show:
+  > **To track how much Naira this ad makes, you need the Sellam Pixel.**
+  > [Shopify] [WordPress] [Bumpa] [Copy Code]
+- Include a "Skip for now" button.
+- If skipped, show a warning in the "Campaign Check" checklist: ⚠️ _Sales tracking disabled. Connect Pixel to see ROI._
+- Do _not_ block the user from launching.
+
+## Verification Plan
+
+### Automated Tests
+
+- Run `npm run build` to ensure type-safety.
+
+### Manual Verification
+
+- Go to `/campaigns/new` and select "Make Sales (Website)".
+- Proceed to the launch step and verify the "Connect Pixel" prompt appears.
+- Click "Skip for now" and ensure the warning icon replaces the Tracking status in the checklist.
+- Verify that users can still launch the campaign.
+
+---
+
 ### What We're Building
 
 Every ad destination, regardless of type, gets wrapped in a **Sellam-hosted micro-redirect** (`sellam.app/l/[token]`) that:

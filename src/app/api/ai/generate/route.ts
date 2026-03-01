@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { generateAndSaveStrategy } from "@/lib/ai/service";
+import {
+  generateAndSaveStrategy,
+  refineAdCopyWithOpenAI,
+} from "@/lib/ai/service";
 import { createClient } from "@/lib/supabase/server";
 import { OBJECTIVE_INTENT_MAP, AdSyncObjective } from "@/lib/constants";
 
@@ -45,7 +48,20 @@ export async function POST(request: Request) {
 
   // 3. Parse input
   const body = await request.json();
-  const { description, location, objective, currentCopy } = body;
+  const {
+    description,
+    location,
+    objective,
+    currentCopy,
+    refinementInstruction,
+  } = body;
+  console.log("\n====================================");
+  console.log("🚀 [API Route: /api/ai/generate] Request received");
+  console.log("   - Location:", location);
+  console.log("   - Objective:", objective);
+  console.log("   - Description Length:", description?.length || 0);
+  console.log("   - Is Refinement:", !!refinementInstruction);
+  console.log("====================================\n");
 
   // Resolve objective context
   const objId = objective as AdSyncObjective;
@@ -61,6 +77,31 @@ export async function POST(request: Request) {
     );
 
   try {
+    // ── Copy refinement via OpenAI gpt-4.1-mini (faster + cheaper) ──────────
+    if (
+      refinementInstruction &&
+      currentCopy &&
+      process.env.AI_PROVIDER === "openai"
+    ) {
+      const strategy = await refineAdCopyWithOpenAI(
+        {
+          businessDescription: description,
+          location,
+          industry: org?.industry,
+          sellingMethod: org?.selling_method,
+          priceTier: org?.price_tier,
+          customerGender: org?.customer_gender,
+          objective: objective ? String(objective).toUpperCase() : undefined,
+          currentCopy,
+        },
+        refinementInstruction,
+      );
+      console.log(
+        "\n[API Route: /api/ai/generate] ✅ Refinement generated successfully, returning to client.\n",
+      );
+      return NextResponse.json(strategy);
+    }
+
     const strategy = await generateAndSaveStrategy({
       businessDescription: description,
       location: location,
@@ -72,6 +113,9 @@ export async function POST(request: Request) {
       objectiveContext: objContext,
       currentCopy: currentCopy ?? undefined,
     });
+    console.log(
+      "\n[API Route: /api/ai/generate] ✅ Strategy generated successfully, returning to client.\n",
+    );
 
     // 4. Log usage (free action — no credits deducted)
     await supabase

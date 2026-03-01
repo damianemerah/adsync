@@ -208,3 +208,79 @@ export function validatePreLaunch(ctx: RuleContext): PreLaunchResult {
     warnings,
   };
 }
+
+// ── Async Validators ───────────────────────────────────────────────────────
+
+/**
+ * Checks if a provided website URL is reachable and does not return a 404 or broken status.
+ * Intended to be called asynchronously during launch actions.
+ */
+export async function validateDestinationUrl(
+  url: string,
+  objective: AdSyncObjective,
+): Promise<ValidationIssue | null> {
+  // WhatsApp uses wa.me deep links generated internally, skipped here
+  if (objective === "whatsapp") return null;
+  if (!url || url.trim() === "") return null;
+
+  let targetUrl = url;
+  if (!targetUrl.startsWith("http")) {
+    targetUrl = `https://${targetUrl}`;
+  }
+
+  try {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+
+    // Attempt HEAD request first to save bandwidth
+    let response = await fetch(targetUrl, {
+      method: "HEAD",
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; AdSyncBot/1.0)" },
+      signal: controller.signal,
+      cache: "no-store",
+    });
+
+    // Some servers block HEAD requests (405 or 403), fallback to GET
+    if (response.status === 405 || response.status === 403) {
+      response = await fetch(targetUrl, {
+        method: "GET",
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; AdSyncBot/1.0)" },
+        signal: controller.signal,
+        cache: "no-store",
+      });
+    }
+
+    clearTimeout(id);
+
+    if (response.status === 404) {
+      return {
+        id: "url_404",
+        severity: "error",
+        message: `The provided website link (${targetUrl}) is broken (404 Page Not Found). Please provide a valid, working link.`,
+      };
+    }
+    if (response.status >= 500) {
+      return {
+        id: "url_500",
+        severity: "error",
+        message: `The provided website link (${targetUrl}) returned a server error (${response.status}). Meta will likely reject this ad.`,
+      };
+    }
+  } catch (error: any) {
+    if (error.name === "AbortError") {
+      return {
+        id: "url_timeout",
+        severity: "error",
+        message: `The website link (${targetUrl}) took too long to load or timed out. Please ensure your website is accessible.`,
+      };
+    }
+    // Network errors, DNS resolution failures, etc.
+    return {
+      id: "url_unreachable",
+      severity: "error",
+      message: `Cannot reach the destination website (${targetUrl}). The link might be broken, or the domain is unavailable.`,
+    };
+  }
+
+  return null;
+}

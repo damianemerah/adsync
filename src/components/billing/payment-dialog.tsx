@@ -80,7 +80,8 @@ export function PaymentDialog({
 
       window.location.href = authorization_url;
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Failed to start payment";
+      const msg =
+        error instanceof Error ? error.message : "Failed to start payment";
       console.error("Payment Error:", error);
       toast.error(msg);
       setLoading(false);
@@ -98,7 +99,7 @@ export function PaymentDialog({
             Upgrade to {planName}
           </DialogTitle>
           <DialogDescription className="text-center">
-            Unlock your full AdSync experience with AI-powered ad creation.
+            Unlock your full Sellam experience with AI-powered ad creation.
           </DialogDescription>
         </DialogHeader>
 
@@ -108,7 +109,9 @@ export function PaymentDialog({
               <span className="font-bold text-lg">{planName} Plan</span>
               <span className="text-2xl font-black">
                 {formatCurrency(price)}
-                <span className="text-sm font-normal text-muted-foreground">/mo</span>
+                <span className="text-sm font-normal text-muted-foreground">
+                  /mo
+                </span>
               </span>
             </div>
             <ul className="space-y-2 mt-4">

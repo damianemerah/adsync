@@ -1,10 +1,19 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
 import { decrypt } from "@/lib/crypto";
 import { CAMPAIGN_OBJECTIVES } from "@/lib/constants";
+import { Database } from "@/types/supabase";
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
+  // Use the service-role client so this route works whether called with a session
+  // (manual sync button) OR without one (fire-and-forget from the Meta callback).
+  // Safety: we only read/write the account specified by accountId; no org data is exposed.
+  const supabase = createSupabaseAdmin<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+
   const { accountId } = await request.json();
 
   console.log(`🔄 [Sync] Starting sync for accountId: ${accountId}`);
@@ -189,6 +198,12 @@ export async function POST(request: Request) {
         // Continue to next campaign
       }
     }
+
+    // ✅ Cache-on-Read: stamp last_synced_at so the 5-minute rule gate knows data is fresh
+    await supabase
+      .from("ad_accounts")
+      .update({ last_synced_at: new Date().toISOString() })
+      .eq("id", accountId);
 
     return NextResponse.json({ success: true, count: campaigns.length });
   } catch (e: any) {

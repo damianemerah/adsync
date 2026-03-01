@@ -4,6 +4,7 @@ import { MetaService } from "@/lib/api/meta";
 import { decrypt } from "@/lib/crypto";
 
 export async function GET(request: Request) {
+  console.log("Search interest");
   const { searchParams } = new URL(request.url);
   const query = searchParams.get("query");
 
@@ -51,14 +52,18 @@ export async function GET(request: Request) {
     );
   }
 
+  console.log("Searching for interest", query);
+
   try {
     const accessToken = decrypt(adAccount.access_token);
     const results = await MetaService.searchInterests(
       accessToken,
       query as string,
     );
+    console.log("Results", results);
     return NextResponse.json(results);
   } catch (error: any) {
+    console.log("Error📁", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

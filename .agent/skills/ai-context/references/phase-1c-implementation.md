@@ -9,7 +9,7 @@ The existing files MUST be extended, not replaced.
 # PHASE 1C — Org-Level AI Context
 ## "The AI that already knows your business"
 
-**Target: Months 2–4 (parallel with Phase 1B)**
+**Target: Months 2–4 (Hours with AI) (parallel with Phase 1B)**
 
 ---
 

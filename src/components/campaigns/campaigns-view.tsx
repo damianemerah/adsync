@@ -9,8 +9,18 @@ import {
   SystemRestart,
   Edit,
   Eye,
+  Search,
+  Rocket,
 } from "iconoir-react";
 import { DataTable, Column } from "@/components/ui/data-table";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyContent,
+  EmptyMedia,
+} from "@/components/ui/empty";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { Sparkline } from "@/components/dashboard/sparkline";
 import Link from "next/link";
 
@@ -350,13 +361,42 @@ export function CampaignsView({
         onRowClick={(row) => onRowClick?.(row.id)}
         pageSize={pageSize}
         emptyState={
-          <div className="text-center py-12 text-slate-500">
-            {searchTerm || statusFilter !== "all" ? (
-              <p>No campaigns match your filters.</p>
-            ) : (
-              <p>No campaigns yet. Create your first campaign!</p>
-            )}
-          </div>
+          searchTerm || statusFilter !== "all" ? (
+            <Empty className="py-12 border-none">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <Search className="h-6 w-6" />
+                </EmptyMedia>
+                <EmptyTitle>No matching campaigns</EmptyTitle>
+                <EmptyDescription>
+                  Adjust your search filters to see more results.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          ) : (
+            <Empty className="py-12 border-none">
+              <EmptyHeader>
+                <EmptyMedia
+                  variant="icon"
+                  className="bg-primary/10 text-primary"
+                >
+                  <Rocket className="h-6 w-6" />
+                </EmptyMedia>
+                <EmptyTitle>No campaigns yet</EmptyTitle>
+                <EmptyDescription>
+                  Create your first AI-optimized campaign to start generating
+                  sales.
+                </EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
+                <Link href="/campaigns/new">
+                  <Button className="rounded-full bg-primary text-primary-foreground font-semibold">
+                    Start Campaign
+                  </Button>
+                </Link>
+              </EmptyContent>
+            </Empty>
+          )
         }
       />
     </div>

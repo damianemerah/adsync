@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { Mail } from "iconoir-react";
 import { ResendButton } from "./resend-button";
 
@@ -25,7 +26,12 @@ export default function VerifyEmailPage() {
         </div>
 
         <p className="text-sm text-slate-500 mb-8">
-          Didn&apos;t receive the e-mail? <ResendButton />
+          Didn&apos;t receive the e-mail?{" "}
+          <Suspense
+            fallback={<span className="text-slate-400">Loading...</span>}
+          >
+            <ResendButton />
+          </Suspense>
         </p>
 
         <Link

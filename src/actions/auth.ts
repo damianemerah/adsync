@@ -5,16 +5,14 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { loginSchema, signupSchema } from "@/lib/auth/validations";
 
-export type AuthState =
-  | {
-      error?: string; // Global error (e.g. "Invalid credentials")
-      fieldErrors?: {
-        email?: string[];
-        password?: string[];
-        fullName?: string[];
-      };
-    }
-  | undefined;
+export type AuthState = {
+  error?: string; // Global error (e.g. "Invalid credentials")
+  fieldErrors?: {
+    email?: string[];
+    password?: string[];
+    fullName?: string[];
+  };
+} | null;
 
 export async function login(
   prevState: AuthState,

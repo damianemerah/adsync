@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { Database } from "@/types/supabase";
+import { TIER_CONFIG, TierId } from "@/lib/constants";
 
 type Transaction = Database["public"]["Tables"]["transactions"]["Row"];
 
@@ -66,6 +67,8 @@ export function useSubscription() {
           name: org?.name || "My Business",
           status: org?.subscription_status || "expired",
           tier: org?.subscription_tier || "starter",
+          tierConfig:
+            TIER_CONFIG[(org?.subscription_tier || "starter") as TierId],
           expiresAt: org?.subscription_expires_at
             ? new Date(org.subscription_expires_at)
             : new Date(),

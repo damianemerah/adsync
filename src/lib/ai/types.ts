@@ -1,6 +1,14 @@
 // Meta classification from Step 0 in the system prompt
 export interface AIStrategyMeta {
-  input_type: "TYPE_A" | "TYPE_B" | "TYPE_C" | "TYPE_D";
+  input_type:
+    | "TYPE_A"
+    | "TYPE_B"
+    | "TYPE_C"
+    | "TYPE_D"
+    | "TYPE_E"
+    | "TYPE_F"
+    | "TYPE_G"
+    | "TYPE_H";
   needs_clarification: boolean;
   clarification_question: string | null;
   clarification_options: string[] | null;
@@ -46,7 +54,7 @@ export interface AIStrategyResult {
     | "get_quote"
     | "sign_up"
     | "download";
-  whatsappMessage?: string; // Only present when ctaIntent === "start_whatsapp_chat"
+  whatsappMessage?: string | null; // Only present when ctaIntent === "start_whatsapp_chat"
   reasoning: string;
   /**
    * One plain-English sentence that leads the chat response.

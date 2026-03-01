@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { Send, Sparks } from "iconoir-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,12 +31,31 @@ interface ChatInterfaceProps {
   };
 }
 
-function TypingIndicator() {
+function StrategyProgressIndicator() {
+  const [stepIdx, setStepIdx] = React.useState(0);
+  const steps = [
+    "Reading your business description…",
+    "Building your audience targeting…",
+    "Writing ad copy variations…",
+    "Checking Meta ad policy compliance…",
+    "Almost done — finalising strategy…",
+  ];
+
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setStepIdx((prev) => (prev < steps.length - 1 ? prev + 1 : prev));
+    }, 2400);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
-    <div className="flex gap-1">
-      <div className="w-2 h-2 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.3s]" />
-      <div className="w-2 h-2 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.15s]" />
-      <div className="w-2 h-2 bg-primary/40 rounded-full animate-bounce" />
+    <div className="flex flex-col gap-1.5">
+      <p className="text-sm text-foreground/80">{steps[stepIdx]}</p>
+      <div className="flex gap-1">
+        <div className="w-1.5 h-1.5 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.3s]" />
+        <div className="w-1.5 h-1.5 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.15s]" />
+        <div className="w-1.5 h-1.5 bg-primary/40 rounded-full animate-bounce" />
+      </div>
     </div>
   );
 }
@@ -81,39 +101,44 @@ export function ChatInterface({
 
       {/* Messages */}
       <ScrollArea className="flex-1 p-4 sm:p-6 bg-muted/10 min-h-[50vh] overflow-auto no-scrollbar">
-        <div className="space-y-6 pb-4">
-          {messages.map((msg) => (
-            <ChatBubble
-              key={msg.id}
-              message={msg}
-              onRemoveInterest={actions.removeInterest}
-              onAddInterest={actions.addInterest}
-              currentInterests={campaignStore.targetInterests}
-              currentLocations={campaignStore.locations}
-              onRemoveLocation={actions.removeLocation}
-              onAddLocation={actions.addLocation}
-              onCopyRefine={actions.handleCopyRefinement}
-              onProceedToCreative={actions.handleGenerateCreative}
-              isRefiningCopy={isRefiningCopy}
-              onAcceptImage={actions.handleAcceptImage}
-              onRegenerateImage={actions.handleGenerateCreative}
-              onEditInStudio={actions.handleEditInStudio}
-              onClarificationSelect={(option: string) => {
-                handleSend(option);
-              }}
-              onRecoverySelect={(value: string) => {
-                handleSend(value);
-              }}
-              onConfirmAudience={() => actions.setStep(3)}
-            />
-          ))}
+        <div className="space-y-6 pb-4 flex flex-col items-start w-full">
+          {messages.map((msg, idx) => {
+            const isConsecutive =
+              idx > 0 && messages[idx - 1].role === "ai" && msg.role === "ai";
+            return (
+              <ChatBubble
+                key={msg.id}
+                message={msg}
+                isConsecutive={isConsecutive}
+                onRemoveInterest={actions.removeInterest}
+                onAddInterest={actions.addInterest}
+                currentInterests={campaignStore.targetInterests}
+                currentLocations={campaignStore.locations}
+                onRemoveLocation={actions.removeLocation}
+                onAddLocation={actions.addLocation}
+                onCopyRefine={actions.handleCopyRefinement}
+                onProceedToCreative={actions.handleGenerateCreative}
+                isRefiningCopy={isRefiningCopy}
+                onAcceptImage={actions.handleAcceptImage}
+                onRegenerateImage={actions.handleGenerateCreative}
+                onEditInStudio={actions.handleEditInStudio}
+                onClarificationSelect={(option: string) => {
+                  handleSend(option);
+                }}
+                onRecoverySelect={(value: string) => {
+                  handleSend(value);
+                }}
+                onConfirmAudience={() => actions.setStep(3)}
+              />
+            );
+          })}
           {isTyping && (
             <div className="flex gap-3">
               <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                 <Sparks className="h-4 w-4 text-primary" />
               </div>
               <div className="bg-muted px-4 py-3 rounded-2xl rounded-tl-none">
-                <TypingIndicator />
+                <StrategyProgressIndicator />
               </div>
             </div>
           )}

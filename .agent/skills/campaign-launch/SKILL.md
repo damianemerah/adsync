@@ -1,3 +1,8 @@
+---
+name: campaign-launch
+description: Governs the Sellam campaign launch flow (1:1:1 structure on Meta). Use when working on `campaigns.ts` launch action, `meta.ts` API service, `policy-guard.ts`, `budget-launch-step.tsx`, attribution URL wrapping at launch time, or any pre-flight check before a Meta API write.
+---
+
 # Campaign Launch Skill
 
 ## When to Load

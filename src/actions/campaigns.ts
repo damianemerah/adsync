@@ -13,7 +13,7 @@ import {
   generatePixelToken,
   buildAttributionUrl,
 } from "@/lib/attribution";
-import { validatePreLaunch } from "@/lib/intelligence";
+import { validatePreLaunch, validateDestinationUrl } from "@/lib/intelligence";
 import type { CTAData } from "@/types/cta-types";
 import type { Database } from "@/types/supabase";
 
@@ -131,6 +131,19 @@ export async function launchCampaign(config: LaunchConfig) {
     // Return the first blocking error to the UI
     const firstError = validation.errors[0];
     throw new Error(firstError.message);
+  }
+
+  // 🛑 INTEGRATION: Async URL Reachability Validation
+  if (config.objective !== "whatsapp" && config.destinationValue) {
+    const urlIssue = await validateDestinationUrl(
+      config.destinationValue,
+      config.objective,
+    );
+    if (urlIssue && urlIssue.severity === "error") {
+      throw new Error(urlIssue.message);
+    } else if (urlIssue) {
+      console.warn("⚠️ [URL Validation Warning]:", urlIssue.message);
+    }
   }
 
   const orgId = member.organization_id;
@@ -523,6 +536,7 @@ export async function launchCampaign(config: LaunchConfig) {
       success: true,
       campaignId: campaignRes.id, // Meta platform ID
       dbCampaignId, // Database ID for redirects
+      showPixelPrompt: config.objective === "traffic", // Signal UI to show snippet alert
     };
   } catch (error: any) {
     console.error("Launch Error:", error);

@@ -75,6 +75,9 @@ export interface CampaignState {
     savedAt: number; // unix ms — for staleness checks
   } | null;
 
+  /** Number of copy refinements done this session. Used to enforce Starter tier limit (max 3). */
+  refinementCount: number;
+
   // History
   // Phase 2: savedAudiences will power a "Saved Audiences" panel in the audience step UI.
   // Currently populated by saveAudience() but not yet displayed anywhere.
@@ -92,6 +95,7 @@ export interface CampaignState {
   hydrate: (data: Partial<CampaignState>) => void;
   applyTemplate: (templateId: string) => void; // NEW
   updateROAS: (prediction: { value: number; confidence: number }) => void; // NEW
+  incrementRefinementCount: () => void;
 }
 
 export const useCampaignStore = create<CampaignState>()(
@@ -135,6 +139,7 @@ export const useCampaignStore = create<CampaignState>()(
       predictedROAS: null,
       roasHistory: [],
       pendingGeneratedImage: null,
+      refinementCount: 0,
       savedAudiences: [],
       userId: null,
 
@@ -188,6 +193,9 @@ export const useCampaignStore = create<CampaignState>()(
         }),
       setDestinationValue: (val) => set({ destinationValue: val }),
 
+      incrementRefinementCount: () =>
+        set((state) => ({ refinementCount: state.refinementCount + 1 })),
+
       hydrate: (data) => set((state) => ({ ...state, ...data })),
 
       resetDraft: () =>
@@ -227,6 +235,7 @@ export const useCampaignStore = create<CampaignState>()(
           predictedROAS: null,
           roasHistory: [],
           pendingGeneratedImage: null,
+          // refinementCount: 0, // Now persisted
         }),
 
       applyTemplate: (templateId: string) => {
@@ -273,7 +282,7 @@ export const useCampaignStore = create<CampaignState>()(
     }),
     {
       name: "adsync-campaign-draft",
-      version: 6, // Bumped for metaSubPlacements field
+      version: 7, // Bumped for refinementCount field
       migrate: (persistedState: any, version) => {
         if (version < 2) {
           return {
@@ -380,6 +389,14 @@ export const useCampaignStore = create<CampaignState>()(
               ],
               facebook: ["feed", "video_feeds", "instream_video"],
             },
+          } as CampaignState;
+        }
+
+        // Version 7 migration: Add refinementCount field
+        if (version < 7) {
+          return {
+            ...(persistedState as any),
+            refinementCount: 0,
           } as CampaignState;
         }
 

@@ -11,17 +11,34 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Check, SystemRestart, Flash, MediaImage, MediaVideo, Sparks, Gift } from "iconoir-react";
-import { PLAN_IDS, PLAN_PRICES, PLAN_CREDITS, CREDIT_COSTS, CREDIT_PACKS } from "@/lib/constants";
+import {
+  Check,
+  SystemRestart,
+  Flash,
+  MediaImage,
+  MediaVideo,
+  Sparks,
+  Gift,
+} from "iconoir-react";
+import {
+  PLAN_IDS,
+  PLAN_PRICES,
+  PLAN_CREDITS,
+  CREDIT_COSTS,
+  CREDIT_PACKS,
+  TIER_CONFIG,
+} from "@/lib/constants";
 import {
   initializePaystackTransaction,
   initializeCreditPackPurchase,
   getPaymentContext,
 } from "@/actions/paystack";
+import { verifyAndActivate } from "@/actions/verify-payment";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { DataTable, Column } from "@/components/ui/data-table";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatKobo, formatDate } from "@/lib/utils";
 
 type Transaction = {
   id: string;
@@ -42,8 +59,8 @@ const PLANS = [
     tagline: "Perfect for solo SMEs",
     features: [
       `${PLAN_CREDITS.starter} AI credits / month`,
-      "1 Meta Ad Account",
-      "1 Team Member",
+      `${TIER_CONFIG.starter.limits.maxAdAccounts} Meta Ad Account${TIER_CONFIG.starter.limits.maxAdAccounts > 1 ? "s" : ""}`,
+      `${TIER_CONFIG.starter.limits.maxTeamMembers} Team Member${TIER_CONFIG.starter.limits.maxTeamMembers > 1 ? "s" : ""}`,
       "AI Ad Copy (Free) + Image Generation",
       "Campaign Analytics",
     ],
@@ -57,8 +74,8 @@ const PLANS = [
     tagline: "For scaling businesses",
     features: [
       `${PLAN_CREDITS.growth} AI credits / month`,
-      "Up to 3 Ad Accounts",
-      "Up to 5 Team Members",
+      `Up to ${TIER_CONFIG.growth.limits.maxAdAccounts} Ad Accounts`,
+      `Up to ${TIER_CONFIG.growth.limits.maxTeamMembers} Team Members`,
       "AI Copy (Free) + Pro Image Generation",
       "Advanced Analytics + Rollover Credits",
     ],
@@ -72,8 +89,8 @@ const PLANS = [
     tagline: "Built for agencies managing multiple clients",
     features: [
       `${PLAN_CREDITS.agency} AI credits / month`,
-      "Up to 10 Ad Accounts",
-      "Up to 25 Team Members",
+      "Unlimited Accounts",
+      `Up to ${TIER_CONFIG.agency.limits.maxTeamMembers} Team Members`,
       "All AI features + Video (Phase 2)",
       "Priority Support + Credit Rollover",
     ],
@@ -83,15 +100,72 @@ const PLANS = [
 
 // Credit cost breakdown — text is free
 const CREDIT_BREAKDOWN = [
-  { icon: MediaImage, label: "Image Generate", credits: CREDIT_COSTS.IMAGE_GEN_PRO,  isFree: false, note: "FLUX.2 Pro" },
-  { icon: Sparks,     label: "Image Edit",     credits: CREDIT_COSTS.IMAGE_EDIT_PRO, isFree: false, note: "FLUX.2 Pro edit" },
-  { icon: Flash,      label: "AI Ad Copy",     credits: 0,                            isFree: true,  note: "Free - GPT-4o" },
-  { icon: MediaVideo, label: "Video - 5s",     credits: CREDIT_COSTS.VIDEO_KLING_5S, isFree: false, note: "Kling v2 - Phase 2" },
+  {
+    icon: MediaImage,
+    label: "Image Generate",
+    credits: CREDIT_COSTS.IMAGE_GEN_PRO,
+    isFree: false,
+    note: "AI-powered",
+  },
+  {
+    icon: Sparks,
+    label: "Image Edit",
+    credits: CREDIT_COSTS.IMAGE_EDIT_PRO,
+    isFree: false,
+    note: "AI-powered",
+  },
+  {
+    icon: Flash,
+    label: "AI Ad Copy",
+    credits: 0,
+    isFree: true,
+    note: "Always Free",
+  },
+  {
+    icon: MediaVideo,
+    label: "Video - 5s",
+    credits: CREDIT_COSTS.VIDEO_KLING_5S,
+    isFree: false,
+    note: "Coming Soon",
+  },
 ];
 
 export function BillingContent() {
-  const { data: subscription, isLoading } = useSubscription();
+  const { data: subscription, isLoading, refetch } = useSubscription();
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const verifiedRef = useRef(false);
+
+  // ── Callback verification: handle redirect from Paystack ────────────────
+  useEffect(() => {
+    if (verifiedRef.current) return;
+    const isSuccess =
+      searchParams.get("success") === "true" ||
+      searchParams.get("pack_success") === "true";
+    const reference =
+      searchParams.get("reference") || searchParams.get("trxref");
+
+    if (isSuccess && reference) {
+      verifiedRef.current = true;
+      verifyAndActivate(reference)
+        .then((result) => {
+          if (result.success) {
+            toast.success(
+              result.alreadyProcessed
+                ? "Payment confirmed!"
+                : `Payment verified! ${result.planId ? `${result.planId} plan activated.` : "Credits added."}`,
+            );
+            refetch();
+          }
+        })
+        .catch((err) => {
+          console.error("Callback verification failed:", err);
+          toast.error(
+            "Could not verify payment. If charged, credits will be added shortly.",
+          );
+        });
+    }
+  }, [searchParams, refetch]);
 
   const columns: Column<Transaction>[] = [
     { key: "reference", title: "Reference" },
@@ -103,7 +177,7 @@ export function BillingContent() {
     {
       key: "amount_cents",
       title: "Amount",
-      render: (row) => formatCurrency(row.amount_cents / 100),
+      render: (row) => formatKobo(row.amount_cents),
     },
     {
       key: "status",
@@ -129,7 +203,12 @@ export function BillingContent() {
     try {
       const { email, orgId } = await getPaymentContext();
       const callbackUrl = `${window.location.origin}/settings/subscription?success=true`;
-      const result = await initializePaystackTransaction(email, planId, callbackUrl, orgId);
+      const result = await initializePaystackTransaction(
+        email,
+        planId,
+        callbackUrl,
+        orgId,
+      );
       if (result?.authorization_url) {
         window.location.href = result.authorization_url;
       } else {
@@ -174,21 +253,29 @@ export function BillingContent() {
   const creditsBalance = subscription?.org?.creditsBalance ?? 0;
   const creditQuota = subscription?.org?.creditQuota ?? 0;
   const creditsUsed = Math.max(0, creditQuota - creditsBalance);
-  const creditsPercent = creditQuota > 0 ? Math.round((creditsUsed / creditQuota) * 100) : 0;
-  const transactions = (subscription?.transactions as unknown as Transaction[]) || [];
+  const creditsPercent =
+    creditQuota > 0 ? Math.round((creditsUsed / creditQuota) * 100) : 0;
+  const transactions =
+    (subscription?.transactions as unknown as Transaction[]) || [];
 
   return (
     <div className="space-y-10">
-
       {/* Current Plan */}
       <section>
-        <h2 className="text-lg font-heading font-bold mb-4">Current Subscription</h2>
+        <h2 className="text-lg font-heading font-bold mb-4">
+          Current Subscription
+        </h2>
         <Card className="bg-muted/40 border-border">
           <CardContent className="p-6 flex flex-col md:flex-row items-start justify-between gap-6">
             <div className="flex-1 space-y-4">
               <div className="flex items-center gap-3">
-                <h3 className="text-xl font-bold capitalize">{currentTier} Plan</h3>
-                <Badge variant={orgStatus === "active" ? "default" : "secondary"} className="capitalize">
+                <h3 className="text-xl font-bold capitalize">
+                  {currentTier} Plan
+                </h3>
+                <Badge
+                  variant={orgStatus === "active" ? "default" : "secondary"}
+                  className="capitalize"
+                >
                   {orgStatus}
                 </Badge>
               </div>
@@ -202,8 +289,12 @@ export function BillingContent() {
               {creditQuota > 0 && (
                 <div className="space-y-1 max-w-sm">
                   <div className="flex justify-between text-sm">
-                    <span className="text-subtle-foreground">AI Credits used</span>
-                    <span className="font-medium">{creditsUsed} / {creditQuota}</span>
+                    <span className="text-subtle-foreground">
+                      AI Credits used
+                    </span>
+                    <span className="font-medium">
+                      {creditsUsed} / {creditQuota}
+                    </span>
                   </div>
                   <Progress value={creditsPercent} className="h-2" />
                   <p className="text-xs text-subtle-foreground">
@@ -233,37 +324,51 @@ export function BillingContent() {
       <section>
         <h2 className="text-lg font-heading font-bold mb-1">Credit Costs</h2>
         <p className="text-subtle-foreground text-sm mb-4">
-          1 credit = {"\u20a6"}50 of AI value. Text & copy generation is always free.
+          1 credit = {"\u20a6"}50 of AI value. Text & copy generation is always
+          free.
         </p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {CREDIT_BREAKDOWN.map(({ icon: Icon, label, credits, isFree, note }) => (
-            <div
-              key={label}
-              className="flex items-center gap-3 rounded-xl border border-border bg-muted/30 p-4"
-            >
-              <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
-                isFree ? "bg-green-500/10" : "bg-ai/10"
-              }`}>
-                <Icon className={`w-5 h-5 ${isFree ? "text-green-600" : "text-ai"}`} />
+        {/* <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {CREDIT_BREAKDOWN.map(
+            ({ icon: Icon, label, credits, isFree, note }) => (
+              <div
+                key={label}
+                className="flex items-center gap-3 rounded-xl border border-border bg-muted/30 p-4"
+              >
+                <div
+                  className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+                    isFree ? "bg-green-500/10" : "bg-ai/10"
+                  }`}
+                >
+                  <Icon
+                    className={`w-5 h-5 ${isFree ? "text-green-600" : "text-ai"}`}
+                  />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold">{label}</p>
+                  {isFree ? (
+                    <p className="text-xs font-bold text-green-600">
+                      FREE - {note}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-subtle-foreground">
+                      {credits} credit{credits !== 1 ? "s" : ""} - {note}
+                    </p>
+                  )}
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-semibold">{label}</p>
-                {isFree ? (
-                  <p className="text-xs font-bold text-green-600">FREE - {note}</p>
-                ) : (
-                  <p className="text-xs text-subtle-foreground">{credits} credit{credits !== 1 ? "s" : ""} - {note}</p>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+            ),
+          )}
+        </div> */}
       </section>
 
       {/* Credit Pack Top-Ups */}
       <section>
-        <h2 className="text-lg font-heading font-bold mb-1">Need More Credits?</h2>
+        <h2 className="text-lg font-heading font-bold mb-1">
+          Need More Credits?
+        </h2>
         <p className="text-subtle-foreground text-sm mb-4">
-          One-off top-ups that stack on your plan. Credits never expire mid-cycle.
+          One-off top-ups that stack on your plan. Credits never expire
+          mid-cycle.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {CREDIT_PACKS.map((pack) => {
@@ -283,19 +388,26 @@ export function BillingContent() {
                     </div>
                     <p className="text-2xl font-black">
                       {pack.credits}{" "}
-                      <span className="text-sm font-normal text-subtle-foreground">credits</span>
+                      <span className="text-sm font-normal text-subtle-foreground">
+                        credits
+                      </span>
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-lg font-bold">{formatCurrency(pack.price)}</p>
-                    <p className="text-xs text-subtle-foreground">{"\u20a6"}{pricePerCredit}/credit</p>
+                    <p className="text-lg font-bold">
+                      {formatCurrency(pack.price)}
+                    </p>
+                    <p className="text-xs text-subtle-foreground">
+                      {"\u20a6"}
+                      {pricePerCredit}/credit
+                    </p>
                   </div>
                 </div>
                 <Button
                   variant="outline"
                   className="w-full"
                   onClick={() => handleBuyPack(pack.id)}
-                  disabled={isProcessing !== null || orgStatus !== "active"}
+                  disabled={isProcessingThis || orgStatus !== "active"}
                 >
                   {isProcessingThis ? (
                     <SystemRestart className="w-4 h-4 animate-spin" />
@@ -349,8 +461,12 @@ export function BillingContent() {
 
                 <CardContent className="flex flex-col flex-1">
                   <div className="mb-5">
-                    <span className="text-3xl font-black">{formatCurrency(plan.price)}</span>
-                    <span className="text-subtle-foreground text-sm">/month</span>
+                    <span className="text-3xl font-black">
+                      {formatCurrency(plan.price)}
+                    </span>
+                    <span className="text-subtle-foreground text-sm">
+                      /month
+                    </span>
                   </div>
 
                   <ul className="space-y-2 mb-6 text-sm text-subtle-foreground flex-1">
@@ -364,7 +480,13 @@ export function BillingContent() {
 
                   <Button
                     className="w-full"
-                    variant={isCurrent ? "outline" : plan.highlight ? "default" : "outline"}
+                    variant={
+                      isCurrent
+                        ? "outline"
+                        : plan.highlight
+                          ? "default"
+                          : "outline"
+                    }
                     onClick={() => handleUpgrade(plan.id)}
                     disabled={isCurrent || isProcessing !== null}
                   >

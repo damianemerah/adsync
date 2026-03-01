@@ -99,11 +99,10 @@ export const MetaService = {
     query: string,
     type: "city" | "region" | "country" = "city",
   ) => {
-    // Searches for "Lagos" to get ID
+    // Searches for "Lagos" to get Meta geo key
+    // location_types uses the original bracket format that Meta v24 expects
     const data = await MetaService.request(
-      `/search?type=adgeolocation&q=${encodeURIComponent(
-        query,
-      )}&location_types=['${type}']&limit=10`,
+      `/search?type=adgeolocation&q=${encodeURIComponent(query)}&location_types=['${type}']&limit=10`,
       "GET",
       token,
     );

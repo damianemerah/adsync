@@ -135,6 +135,24 @@ Decision: Optional — shown after campaign launch for website destination campa
 Never a gate or requirement to use Sellam.
 Reason: 56% of users have no website. Pixel cannot be a blocker.
 
+### [Feb 2026] Free Dashboard — "Connect for Free, Pay to Launch"
+
+Decision: Users connect their Meta Ad Account for free and get a read-only dashboard
+of their existing campaigns. Paid actions (create, edit, pause, AI) require a subscription.
+Three friction layers: Time Machine Block (date range limit), Panic Button Block (action gating),
+Blurred Consultant (blurred AI insights).
+Reason: "Monitoring is Free, Action is Paid." Separates value-delivery (beautiful stats)
+from monetization (tools to act). Builds trust before asking for money — critical in Nigeria.
+Low cost to serve (JSON fetch from Meta API). High conversion because upgrade is pain-driven,
+not feature-sold. See `skills/growth-strategy/SKILL.md` for full specification.
+
+### [Feb 2026] "Free" vs. "Expired" distinction
+
+Decision: `free` is the entry state (never paid). `expired` is the lapsed state (stopped paying).
+Free users get read-only dashboard. Expired users get the full lock screen with reactivation CTA.
+Reason: Different emotional states require different UX. Free users are prospects exploring value.
+Expired users are churned customers who need a re-activation nudge, not an onboarding flow.
+
 ### [Feb 2026] FX rate
 
 Decision: Read from `NEXT_PUBLIC_USD_NGN_RATE` env var, default 1600

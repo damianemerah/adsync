@@ -31,25 +31,25 @@ export function ConnectAccountDialog({
           <DialogDescription>Choose a platform to connect.</DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-4 py-4">
-          {/* META BUTTON - Wires to API */}
+          {/* META BUTTON */}
           <Button
             variant="outline"
-            className="h-24 flex flex-col gap-2 hover:border-blue-600 hover:bg-blue-50"
+            className="h-24 flex flex-col gap-2 hover:border-facebook hover:bg-facebook/5"
             onClick={handleConnectMeta}
           >
-            <Facebook className="h-8 w-8 text-blue-600" />
-            <span className="font-bold text-slate-700">Meta Ads</span>
+            <Facebook className="h-8 w-8 text-facebook" />
+            <span className="font-bold text-foreground">Meta Ads</span>
           </Button>
 
           <Button
             variant="outline"
-            className="h-24 flex flex-col gap-2 hover:border-black hover:bg-slate-50"
+            className="h-24 flex flex-col gap-2 hover:border-foreground hover:bg-muted"
             onClick={() => alert("Coming soon in Phase 2")}
           >
             <span className="h-8 w-8 flex items-center justify-center font-black text-2xl">
               Tk
             </span>
-            <span className="font-bold text-slate-700">TikTok Ads</span>
+            <span className="font-bold text-foreground">TikTok Ads</span>
           </Button>
         </div>
       </DialogContent>

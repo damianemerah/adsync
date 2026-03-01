@@ -4,10 +4,25 @@ import { useCampaignStore } from "@/stores/campaign-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Sparks, MapPin, Xmark, Phone } from "iconoir-react";
+import {
+  ArrowRight,
+  Sparks,
+  MapPin,
+  Xmark,
+  WarningTriangle,
+} from "iconoir-react";
 import { cn } from "@/lib/utils";
-import { PhoneMockupPanel } from "../../phone-mockup-panel";
 import { AsyncTagInput } from "./async-tag-input";
+
+/**
+ * An interest is "unresolved" when its id === name (string fallback).
+ * Real Meta interests always have a numeric id like "6003107902433".
+ * Unresolved interests are shown in the UI but will be silently rejected
+ * by Meta at campaign launch — the user should know.
+ */
+function isUnresolvedId(id: string): boolean {
+  return isNaN(Number(id));
+}
 
 export function AudienceSummaryPanel() {
   const {
@@ -18,16 +33,12 @@ export function AudienceSummaryPanel() {
     ageRange,
     gender,
     locations,
-    adCopy,
   } = useCampaignStore();
 
-  const campaignStore = { targetBehaviors, ageRange, gender }; // Just for local reference convenience
-
   const removeInterest = (interest: any) => {
-    const id = interest.id || interest;
     updateDraft({
       targetInterests: targetInterests.filter(
-        (i: any) => i.id !== id && i.name !== interest.name,
+        (i: any) => i.id !== interest.id && i.name !== interest.name,
       ),
     });
   };
@@ -57,6 +68,10 @@ export function AudienceSummaryPanel() {
     }
   };
 
+  const unresolvedCount = targetInterests.filter((i: any) =>
+    isUnresolvedId(i.id),
+  ).length;
+
   return (
     <div className="space-y-5 flex-1 overflow-y-auto pr-1 no-scrollbar pb-4">
       {/* Demographics */}
@@ -71,12 +86,12 @@ export function AudienceSummaryPanel() {
               type="number"
               min={18}
               max={65}
-              value={campaignStore.ageRange?.min || 18}
+              value={ageRange?.min ?? 18}
               onChange={(e) =>
                 updateDraft({
                   ageRange: {
                     min: parseInt(e.target.value) || 18,
-                    max: campaignStore.ageRange?.max || 65,
+                    max: ageRange?.max ?? 65,
                   },
                 })
               }
@@ -87,11 +102,11 @@ export function AudienceSummaryPanel() {
               type="number"
               min={18}
               max={65}
-              value={campaignStore.ageRange?.max || 65}
+              value={ageRange?.max ?? 65}
               onChange={(e) =>
                 updateDraft({
                   ageRange: {
-                    min: campaignStore.ageRange?.min || 18,
+                    min: ageRange?.min ?? 18,
                     max: parseInt(e.target.value) || 65,
                   },
                 })
@@ -109,7 +124,7 @@ export function AudienceSummaryPanel() {
                 onClick={() => updateDraft({ gender: g })}
                 className={cn(
                   "h-8 text-xs font-medium rounded-lg border transition-all capitalize",
-                  campaignStore.gender === g
+                  gender === g
                     ? "bg-primary text-primary-foreground border-primary"
                     : "bg-background text-muted-foreground border-border hover:border-primary/50",
                 )}
@@ -127,6 +142,13 @@ export function AudienceSummaryPanel() {
           Target Locations
         </label>
         <div className="flex flex-wrap gap-2">
+          <div className="w-full pt-1">
+            <AsyncTagInput
+              placeholder="Add city..."
+              searchType="location"
+              onAdd={addLocation}
+            />
+          </div>
           {locations.length > 0 ? (
             locations.map((loc: any) => (
               <Badge
@@ -149,13 +171,6 @@ export function AudienceSummaryPanel() {
               No locations yet
             </p>
           )}
-          <div className="w-full pt-1">
-            <AsyncTagInput
-              placeholder="Add city..."
-              searchType="location"
-              onAdd={addLocation}
-            />
-          </div>
         </div>
       </div>
 
@@ -165,15 +180,28 @@ export function AudienceSummaryPanel() {
           <Sparks className="h-3.5 w-3.5 text-purple-500" /> Behaviors
         </label>
         <div className="flex flex-wrap gap-2">
-          {campaignStore.targetBehaviors?.length > 0 ? (
-            campaignStore.targetBehaviors.map((beh: any) => (
+          <div className="w-full pt-1">
+            <AsyncTagInput
+              placeholder="Add behavior..."
+              searchType="behavior"
+              onAdd={(val) => {
+                if (!targetBehaviors?.some((b: any) => b.id === val.id)) {
+                  updateDraft({
+                    targetBehaviors: [...(targetBehaviors || []), val],
+                  });
+                }
+              }}
+            />
+          </div>
+          {targetBehaviors?.length > 0 ? (
+            targetBehaviors.map((beh: any) => (
               <Badge
                 key={beh.id}
                 variant="secondary"
                 className="bg-purple-500/10 text-purple-600 border border-purple-200 hover:bg-purple-500/20 py-1 px-3 rounded-full cursor-pointer"
                 onClick={() =>
                   updateDraft({
-                    targetBehaviors: campaignStore.targetBehaviors.filter(
+                    targetBehaviors: targetBehaviors.filter(
                       (b: any) => b.id !== beh.id,
                     ),
                   })
@@ -187,52 +215,15 @@ export function AudienceSummaryPanel() {
               No behaviors yet
             </p>
           )}
-          <div className="w-full pt-1">
-            <AsyncTagInput
-              placeholder="Add behavior..."
-              searchType="behavior"
-              onAdd={(val) => {
-                if (
-                  !campaignStore.targetBehaviors?.some(
-                    (b: any) => b.id === val.id,
-                  )
-                ) {
-                  updateDraft({
-                    targetBehaviors: [
-                      ...(campaignStore.targetBehaviors || []),
-                      val,
-                    ],
-                  });
-                }
-              }}
-            />
-          </div>
         </div>
       </div>
 
       {/* Interests */}
       <div className="space-y-3">
-        <label className="text-xs font-bold text-subtle-foreground uppercase tracking-wider">
-          Interests
+        <label className="text-xs font-bold text-subtle-foreground uppercase tracking-wider flex items-center justify-between">
+          <span>Interests</span>
         </label>
         <div className="flex flex-wrap gap-2">
-          {targetInterests.length > 0 ? (
-            targetInterests.map((int: any) => (
-              <Badge
-                key={int.id}
-                variant="secondary"
-                className="bg-primary/10 text-primary hover:bg-primary/20 py-1 px-3 rounded-full cursor-pointer"
-                onClick={() => removeInterest(int)}
-              >
-                {int.name}
-                <Xmark className="h-3 w-3 ml-1 opacity-50" />
-              </Badge>
-            ))
-          ) : (
-            <p className="text-sm text-muted-foreground italic">
-              No interests yet
-            </p>
-          )}
           <div className="w-full pt-1">
             <AsyncTagInput
               placeholder="Add interest..."
@@ -240,6 +231,31 @@ export function AudienceSummaryPanel() {
               onAdd={addInterest}
             />
           </div>
+          {targetInterests.filter((int: any) => !isUnresolvedId(int.id))
+            .length > 0 ? (
+            targetInterests
+              .filter((int: any) => !isUnresolvedId(int.id))
+              .map((int: any) => {
+                return (
+                  <Badge
+                    key={int.id}
+                    variant="secondary"
+                    title={`Meta ID: ${int.id}`}
+                    className={cn(
+                      "py-1 px-3 rounded-full cursor-pointer transition-colors bg-primary/10 text-primary hover:bg-primary/20",
+                    )}
+                    onClick={() => removeInterest(int)}
+                  >
+                    {int.name}
+                    <Xmark className="h-3 w-3 ml-1 opacity-50" />
+                  </Badge>
+                );
+              })
+          ) : (
+            <p className="text-sm text-muted-foreground italic">
+              No interests yet
+            </p>
+          )}
         </div>
       </div>
 

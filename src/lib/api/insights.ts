@@ -42,7 +42,20 @@ export async function getDashboardData(
     query = query.eq("id", filter.accountId);
   }
 
-  // 1b. Get Local Campaign Metrics (Revenue/Sales)
+  const accountsRes = await query;
+  const accounts = accountsRes.data;
+
+  if (!accounts || accounts.length === 0) {
+    return {
+      performance: [],
+      demographics: { age: [], gender: [], region: [] },
+      summary: { spend: "0", impressions: "0", clicks: "0", ctr: "0" },
+    };
+  }
+
+  const account = accounts[0];
+
+  // 1b. Get Local Campaign Metrics (Revenue/Sales/Clicks)
   let campaignQuery = supabase
     .from("campaigns")
     .select(
@@ -57,55 +70,93 @@ export async function getDashboardData(
     campaignQuery = campaignQuery.eq("id", filter.campaignId);
   }
 
-  const [accountsRes, campaignsRes] = await Promise.all([query, campaignQuery]);
+  // ─── THE 5-MINUTE CACHE-ON-READ RULE ───────────────────────────────────────
+  // Check if we have fresh data (synced within the last 5 minutes).
+  // If so, skip the Meta API call entirely and serve from DB.
+  const FIVE_MINUTES_MS = 5 * 60 * 1000;
+  const lastSynced = account.last_synced_at
+    ? new Date(account.last_synced_at).getTime()
+    : 0;
+  const isFresh = Date.now() - lastSynced < FIVE_MINUTES_MS;
 
-  const accounts = accountsRes.data;
-  const localCampaigns = campaignsRes.data || [];
+  if (isFresh) {
+    // ── FAST PATH: Aggregate from DB (< 100ms) ──────────────────────────────
+    console.log(
+      `[Insights] Cache HIT for account ${account.id} (synced ${Math.round((Date.now() - lastSynced) / 1000)}s ago). Serving from DB.`,
+    );
 
-  if (!accounts || accounts.length === 0) {
+    const { data: localCampaigns } = await campaignQuery;
+    const campaigns = localCampaigns || [];
+
+    const localSummary = campaigns.reduce(
+      (acc, c) => ({
+        spend: acc.spend + (c.spend_cents || 0) / 100,
+        impressions: acc.impressions + (c.impressions || 0),
+        clicks: acc.clicks + (c.clicks || 0),
+        revenue: acc.revenue + (c.revenue_ngn || 0),
+        sales: acc.sales + (c.sales_count || 0),
+        whatsapp_clicks: acc.whatsapp_clicks + (c.whatsapp_clicks || 0),
+        website_clicks: acc.website_clicks + (c.website_clicks || 0),
+      }),
+      {
+        spend: 0,
+        impressions: 0,
+        clicks: 0,
+        revenue: 0,
+        sales: 0,
+        whatsapp_clicks: 0,
+        website_clicks: 0,
+      },
+    );
+
+    const ctr =
+      localSummary.impressions > 0
+        ? ((localSummary.clicks / localSummary.impressions) * 100).toFixed(2)
+        : "0";
+    const cpc =
+      localSummary.clicks > 0
+        ? (localSummary.spend / localSummary.clicks).toFixed(2)
+        : "0";
+
     return {
-      performance: [],
+      performance: [], // Time-series from campaign_metrics available on detail page
       demographics: { age: [], gender: [], region: [] },
-      summary: { spend: "0", impressions: "0", clicks: "0", ctr: "0" },
+      summary: {
+        spend: localSummary.spend.toFixed(2),
+        impressions: localSummary.impressions.toString(),
+        clicks: localSummary.clicks.toString(),
+        ctr,
+        cpc,
+        reach: "0",
+        revenue: localSummary.revenue,
+        sales: localSummary.sales,
+      },
     };
   }
 
-  // For now, we aggregate across found accounts (usually 1 if filtered, or all)
-  // In a real multi-account scenario we'd Promise.all map across them.
-  // For MVP, let's take the first one or the selected one.
-  const account = accounts[0];
+  // ── STALE PATH: Hit Meta API, update DB cache ────────────────────────────
+  console.log(
+    `[Insights] Cache MISS for account ${account.id} (last synced: ${account.last_synced_at ?? "never"}). Fetching from Meta.`,
+  );
+
   const token = decrypt(account.access_token);
   const actId = account.platform_account_id;
 
   try {
     // 2. Build Meta API URLs
-    const datePreset = "last_30d"; // Can be dynamic later
+    const datePreset = "last_30d";
 
-    // A. Performance (Time Series)
     let perfUrl = `/act_${actId}/insights?date_preset=${datePreset}&time_increment=1&fields=spend,impressions,clicks,cpc,ctr,reach,date_start`;
-
-    // B. Demographics (Breakdowns) - Cannot use time_increment with breakdowns usually, so we do separate calls
-    // Note: Meta allows one breakdown type per call usually for complex metrics, or specific combos.
     const ageUrl = `/act_${actId}/insights?date_preset=${datePreset}&fields=spend,impressions,clicks&breakdowns=age`;
     const genderUrl = `/act_${actId}/insights?date_preset=${datePreset}&fields=spend,impressions,clicks&breakdowns=gender`;
     const regionUrl = `/act_${actId}/insights?date_preset=${datePreset}&fields=spend,impressions,clicks&breakdowns=region`;
 
-    // Apply Filtering if Campaign ID is present
     if (filter?.campaignId && filter.campaignId !== "all") {
       const filtering = `&filtering=[{field:"campaign.id",operator:"IN",value:[${filter.campaignId}]}]`;
       perfUrl += filtering;
-      // Append to breakdown URLs
-      /*
-         Note: Meta API syntax for filtering is standard.
-         We need to construct it carefully.
-      */
     }
 
-    // 3. Parallel Fetch
-    /*
-      We use MetaService.request which expects the endpoint (without base).
-      Standard endpoints are /act_<id>/insights...
-    */
+    // 3. Parallel Fetch from Meta
     const [perfRes, ageRes, genderRes, regionRes] = await Promise.all([
       MetaService.request(perfUrl, "GET", token),
       MetaService.request(ageUrl, "GET", token),
@@ -119,7 +170,6 @@ export async function getDashboardData(
     const gender = genderRes.data || [];
     const region = regionRes.data || [];
 
-    // Calculate Summary Totals from Performance Data
     const summary = performance.reduce(
       (acc: any, day: any) => ({
         spend: (parseFloat(acc.spend) + parseFloat(day.spend || 0)).toFixed(2),
@@ -129,26 +179,21 @@ export async function getDashboardData(
       { spend: "0", impressions: 0, clicks: 0 },
     );
 
-    // Calculate CTR safely
-    // Calculate CTR safely
     summary.ctr =
       summary.impressions > 0
         ? ((summary.clicks / summary.impressions) * 100).toFixed(2)
         : "0";
-
-    // Calculate CPC safely
     summary.cpc =
       summary.clicks > 0
         ? (parseFloat(summary.spend) / summary.clicks).toFixed(2)
         : "0";
-
-    // Sum Reach (Approximation)
     summary.reach = performance
       .reduce((acc: number, day: any) => acc + parseInt(day.reach || 0), 0)
       .toString();
 
-    // Calculate Local Metrics Summaries
-    const localSummary = localCampaigns.reduce(
+    // 5. Local Revenue/Sales Summary
+    const { data: localCampaigns } = await campaignQuery;
+    const localSummary = (localCampaigns || []).reduce(
       (acc, c) => ({
         revenue: acc.revenue + (c.revenue_ngn || 0),
         sales: acc.sales + (c.sales_count || 0),
@@ -158,27 +203,45 @@ export async function getDashboardData(
       { revenue: 0, sales: 0, whatsapp_clicks: 0, website_clicks: 0 },
     );
 
+    // 6. ✅ Stamp last_synced_at so subsequent loads hit the fast path
+    await supabase
+      .from("ad_accounts")
+      .update({ last_synced_at: new Date().toISOString() })
+      .eq("id", account.id);
+
     return {
       performance,
-      demographics: {
-        age,
-        gender,
-        region,
-      },
+      demographics: { age, gender, region },
       summary: {
         ...summary,
         revenue: localSummary.revenue,
         sales: localSummary.sales,
-        // We can overwrite clicks with local reliable data if we want, but Meta's time-series is better for trends.
-        // For revenue-first dashboard, we definitely need revenue.
       },
     };
   } catch (error) {
     console.error("Dashboard Data Error:", error);
+    // Fallback: serve from DB even if stale rather than showing nothing
+    const { data: localCampaigns } = await campaignQuery;
+    const campaigns = localCampaigns || [];
+    const localSummary = campaigns.reduce(
+      (acc, c) => ({
+        spend: acc.spend + (c.spend_cents || 0) / 100,
+        impressions: acc.impressions + (c.impressions || 0),
+        clicks: acc.clicks + (c.clicks || 0),
+      }),
+      { spend: 0, impressions: 0, clicks: 0 },
+    );
+
     return {
       performance: [],
       demographics: { age: [], gender: [], region: [] },
-      summary: { spend: "0", impressions: "0", clicks: "0", ctr: "0" },
+      summary: {
+        spend: localSummary.spend.toFixed(2),
+        impressions: localSummary.impressions.toString(),
+        clicks: localSummary.clicks.toString(),
+        ctr: "0",
+        cpc: "0",
+      },
     };
   }
 }

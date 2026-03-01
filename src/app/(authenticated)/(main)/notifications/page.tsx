@@ -22,11 +22,9 @@ import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 
 export default function NotificationsPage() {
-  const { notifications, isLoading, markAllRead, deleteNotification } =
+  const { notifications, isLoading, unreadCount, markAllRead, markRead, deleteNotification } =
     useNotifications();
   const [filter, setFilter] = useState<"all" | "unread">("all");
-
-  const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   const filteredList =
     filter === "all" ? notifications : notifications.filter((n) => !n.is_read);
@@ -81,7 +79,7 @@ export default function NotificationsPage() {
                 All
               </TabsTrigger>
               <TabsTrigger value="unread" className="px-4">
-                Unread
+                Unread {unreadCount > 0 && `(${unreadCount})`}
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -103,6 +101,7 @@ export default function NotificationsPage() {
               <NotificationItem
                 key={notification.id}
                 notification={notification}
+                onRead={() => markRead(notification.id)}
                 onDelete={() => deleteNotification(notification.id)}
               />
             ))
@@ -115,9 +114,11 @@ export default function NotificationsPage() {
 
 function NotificationItem({
   notification,
+  onRead,
   onDelete,
 }: {
   notification: Notification;
+  onRead: () => void;
   onDelete: () => void;
 }) {
   const type =
@@ -159,11 +160,12 @@ function NotificationItem({
   return (
     <div
       className={cn(
-        "group flex items-start gap-4 p-4 rounded-xl border transition-all hover:shadow-sm bg-white relative",
+        "group flex items-start gap-4 p-4 rounded-xl border transition-all hover:shadow-sm bg-white relative cursor-pointer",
         notification.is_read
           ? "border-slate-200"
           : "border-l-4 border-l-blue-600 border-y-slate-200 border-r-slate-200 bg-blue-50/10",
       )}
+      onClick={() => !notification.is_read && onRead()}
     >
       {/* Icon */}
       <div
