@@ -59,6 +59,7 @@ export type Database = {
         Row: {
           access_token: string
           account_name: string | null
+          auto_paused_at: string | null
           connected_at: string | null
           currency: string | null
           funding_source_details: Json | null
@@ -70,6 +71,7 @@ export type Database = {
           last_synced_at: string | null
           nickname: string | null
           organization_id: string | null
+          paused_by_system: boolean | null
           platform: string
           platform_account_id: string
           refresh_token: string | null
@@ -78,6 +80,7 @@ export type Database = {
         Insert: {
           access_token: string
           account_name?: string | null
+          auto_paused_at?: string | null
           connected_at?: string | null
           currency?: string | null
           funding_source_details?: Json | null
@@ -89,6 +92,7 @@ export type Database = {
           last_synced_at?: string | null
           nickname?: string | null
           organization_id?: string | null
+          paused_by_system?: boolean | null
           platform: string
           platform_account_id: string
           refresh_token?: string | null
@@ -97,6 +101,7 @@ export type Database = {
         Update: {
           access_token?: string
           account_name?: string | null
+          auto_paused_at?: string | null
           connected_at?: string | null
           currency?: string | null
           funding_source_details?: Json | null
@@ -108,6 +113,7 @@ export type Database = {
           last_synced_at?: string | null
           nickname?: string | null
           organization_id?: string | null
+          paused_by_system?: boolean | null
           platform?: string
           platform_account_id?: string
           refresh_token?: string | null
@@ -1085,6 +1091,7 @@ export type Database = {
           action_url: string | null
           category: string
           created_at: string | null
+          dedup_key: string | null
           id: string
           is_read: boolean | null
           message: string
@@ -1097,6 +1104,7 @@ export type Database = {
           action_url?: string | null
           category: string
           created_at?: string | null
+          dedup_key?: string | null
           id?: string
           is_read?: boolean | null
           message: string
@@ -1109,6 +1117,7 @@ export type Database = {
           action_url?: string | null
           category?: string
           created_at?: string | null
+          dedup_key?: string | null
           id?: string
           is_read?: boolean | null
           message?: string

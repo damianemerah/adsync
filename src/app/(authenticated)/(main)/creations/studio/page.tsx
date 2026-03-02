@@ -11,6 +11,8 @@ import {
   PromptInput,
   AspectRatio,
 } from "@/components/creatives/studio/prompt-input"; // Updated Import
+import { HelpCenterSheet } from "@/components/layout/help-center-sheet";
+import { CreditsDisplay } from "@/components/layout/credits-display";
 import { CreativeFormat } from "@/lib/ai/prompts"; // [NEW]
 import { GenerationView } from "@/components/creatives/studio/generation-view";
 import { Sparks, Link as LinkIcon, Plus } from "iconoir-react";
@@ -27,6 +29,7 @@ import { Badge } from "@/components/ui/badge";
 import { useCampaignStore } from "@/stores/campaign-store";
 import { useBeforeLeave } from "@/hooks/use-before-leave";
 import { isPermanentCreativeUrl } from "@/lib/creative-utils";
+import { CREDIT_COSTS } from "@/lib/constants";
 
 export default function StudioPage() {
   const { user } = useAuth();
@@ -76,9 +79,6 @@ export default function StudioPage() {
   const [generationHistory, setGenerationHistory] = useState<
     { imageUrl: string; id: string }[]
   >([]);
-
-  // Chat History State
-  const [chatHistoryId, setChatHistoryId] = useState<string | null>(null);
 
   // [NEW] Track the full enhanced prompt for continuity
   const [lastUsedFullPrompt, setLastUsedFullPrompt] = useState<string | null>(
@@ -272,28 +272,6 @@ export default function StudioPage() {
     loadEditContext();
   }, [editId]); // removed activeCreativeId dependency to avoid circles
 
-  useEffect(() => {
-    console.log("aspectRatio", aspectRatio);
-    console.log("Last used prompt", lastUsedFullPrompt);
-    console.log("Seed", seed);
-  }, [aspectRatio, lastUsedFullPrompt, seed]);
-
-  // Fetch Chat History
-  // const { data: chatHistory, refetch: refetchChatHistory } = useQuery({
-  //   queryKey: ["ai_chat_history", chatHistoryId],
-  //   queryFn: async () => {
-  //     if (!chatHistoryId) return null;
-  //     const supabase = createClient();
-  //     const { data } = await supabase
-  //       .from("ai_chat_history")
-  //       .select("*")
-  //       .eq("id", chatHistoryId)
-  //       .single();
-  //     return data;
-  //   },
-  //   enabled: !!chatHistoryId,
-  // });
-
   const handleGenerate = async () => {
     if (!prompt) {
       toast.error("Please enter a prompt description");
@@ -320,7 +298,6 @@ export default function StudioPage() {
         mode: mode,
         imageInputs: imageUrls.length > 0 ? imageUrls : undefined,
         aspectRatio: aspectRatio, // Pass selected ratio
-        chatHistoryId: chatHistoryId || undefined,
         seed: sessionSeed, // Force the session seed
         currentCreativeId: activeCreativeId || undefined, // Only pass if we exist
         parentCreativeId: activeCreativeId || undefined, // [NEW] Link new generation to this parent
@@ -333,8 +310,6 @@ export default function StudioPage() {
         setGeneratedImage(result.imageUrl);
         setPrompt(result.usedPrompt); // Update prompt to the one actually used by AI
         setSeed(result.seed); // Update seed so future refinements use this new base
-        if (result.chatHistoryId) setChatHistoryId(result.chatHistoryId);
-
         // Update History UI
         setGenerationHistory((prev) => [
           ...prev,
@@ -345,9 +320,6 @@ export default function StudioPage() {
         // Capture the enhanced prompt for future refinements
         if (result.usedPrompt) setLastUsedFullPrompt(result.usedPrompt);
 
-        if (result.chatHistoryId) {
-          setChatHistoryId(result.chatHistoryId);
-        }
         setViewMode("result");
         toast.dismiss();
       }
@@ -379,16 +351,10 @@ export default function StudioPage() {
         mode: "refine",
         imageInputs: allInputImages, // [UPDATED] Pass all images
         aspectRatio: aspectRatio,
-        chatHistoryId: chatHistoryId || undefined,
         seed: refineSeed || seed, // [NEW] Use passed seed or stored seed
         imageIntent: "edit", // [NEW] Refine is ALWAYS "edit" intent
         parentCreativeId: activeCreativeId || undefined, // [FIX] Link to current active parent
       } as any); // Cast as any to bypass strict checks if type inference is lagging
-
-      if (result.chatHistoryId) {
-        setChatHistoryId(result.chatHistoryId);
-        // setTimeout(() => refetchChatHistory(), 1000);
-      }
 
       // [NEW] Capture seed if we don't have one (e.g. from URL import) so subsequent edits range consistent
       if (result.seed && !seed) {
@@ -441,7 +407,6 @@ export default function StudioPage() {
     setImageUrls([]);
     setGeneratedImage(null);
     setSeed(undefined);
-    setChatHistoryId(null);
     setLastUsedFullPrompt(null);
     setGenerationHistory([]);
     setAspectRatio("1:1");
@@ -522,7 +487,10 @@ export default function StudioPage() {
             </Badge>
           )}
         </div>
-        {/* Credits hidden until real data is wired */}
+        <div className="flex items-center gap-3">
+          <CreditsDisplay />
+          <HelpCenterSheet />
+        </div>
       </div>
     </header>
   );
@@ -661,9 +629,14 @@ export default function StudioPage() {
                     Generating...
                   </>
                 ) : (
-                  <>
-                    <Sparks className="mr-2 h-5 w-5" /> Generate Creative
-                  </>
+                  <div className="flex flex-col items-center">
+                    <span className="flex items-center gap-2">
+                      <Sparks className="h-5 w-5" /> Generate Creative
+                    </span>
+                    <span className="text-xs opacity-75 mt-0.5 font-medium tracking-wide">
+                      (Costs {CREDIT_COSTS.IMAGE_GEN_PRO} Credits)
+                    </span>
+                  </div>
                 )}
               </Button>
             </div>

@@ -2,7 +2,7 @@
 
 import { Megaphone, Refresh, Sparks, EditPencil, Check } from "iconoir-react";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useCampaignStore } from "@/stores/campaign-store";
 import { cn } from "@/lib/utils";
 
@@ -133,18 +133,29 @@ export function CopySuggestion({
   isRefining,
 }: CopySuggestionProps) {
   const { adCopy, updateDraft } = useCampaignStore();
+  const [activeRefinement, setActiveRefinement] = useState<string | null>(null);
+
+  const [localHeadline, setLocalHeadline] = useState(headline);
+  const [localBody, setLocalBody] = useState(primary);
+
+  const handleRefine = (instruction: string, key: string) => {
+    setActiveRefinement(key);
+    onRefine(instruction);
+  };
+
+  useEffect(() => {
+    if (!isRefining) setActiveRefinement(null);
+  }, [isRefining]);
 
   const handleSaveHeadline = (val: string) => {
+    setLocalHeadline(val);
     updateDraft({ adCopy: { ...adCopy, headline: val } });
   };
 
   const handleSaveBody = (val: string) => {
+    setLocalBody(val);
     updateDraft({ adCopy: { ...adCopy, primary: val } });
   };
-
-  // Use live store values so edits persist across refinements
-  const liveHeadline = adCopy.headline || headline;
-  const liveBody = adCopy.primary || primary;
 
   return (
     <div className="mt-3 space-y-3 animate-in fade-in slide-in-from-top-2">
@@ -155,12 +166,12 @@ export function CopySuggestion({
       <div className="p-4 rounded-3xl bg-card border border-border shadow-soft space-y-3">
         <EditableField
           label="Headline"
-          value={liveHeadline}
+          value={localHeadline}
           onSave={handleSaveHeadline}
         />
         <EditableField
           label="Body"
-          value={liveBody}
+          value={localBody}
           onSave={handleSaveBody}
           multiline
         />
@@ -169,41 +180,47 @@ export function CopySuggestion({
         <Button
           size="sm"
           variant="outline"
-          onClick={() => onRefine("Make this copy shorter and more punchy")}
+          onClick={() =>
+            handleRefine("Make this copy shorter and more punchy", "shorter")
+          }
           disabled={isRefining}
           className="rounded-xl border-border hover:border-primary/50 hover:bg-primary/5 text-xs"
         >
-          {isRefining && (
+          {activeRefinement === "shorter" ? (
             <Refresh className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-          )}
+          ) : null}
           Shorter
         </Button>
         <Button
           size="sm"
           variant="outline"
-          onClick={() => onRefine("Make this more urgent and exciting")}
+          onClick={() =>
+            handleRefine("Make this more urgent and exciting", "fire")
+          }
           disabled={isRefining}
           className="rounded-xl border-border hover:border-primary/50 hover:bg-primary/5 text-xs"
         >
+          {activeRefinement === "fire" ? (
+            <Refresh className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+          ) : null}
           More Fire 🔥
         </Button>
         <Button
           size="sm"
           variant="outline"
-          onClick={() => onRefine("Rewrite with completely fresh wording")}
+          onClick={() =>
+            handleRefine("Rewrite with completely fresh wording", "tryagain")
+          }
           disabled={isRefining}
           className="rounded-xl border-border hover:border-primary/50 hover:bg-primary/5 text-xs"
         >
-          <Refresh className="h-3.5 w-3.5 mr-1.5" />
+          <Refresh
+            className={cn(
+              "h-3.5 w-3.5 mr-1.5",
+              activeRefinement === "tryagain" && "animate-spin",
+            )}
+          />
           Try Again
-        </Button>
-        <Button
-          size="sm"
-          onClick={() => onProceed()}
-          disabled={isRefining}
-          className="rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs shadow-soft ml-auto"
-        >
-          Generate Creative <Sparks className="h-3.5 w-3.5 ml-1.5" />
         </Button>
       </div>
     </div>

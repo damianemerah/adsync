@@ -24,6 +24,11 @@ interface SavedAudience {
   locations: LocationOption[];
 }
 
+export interface CopyVariation {
+  headline: string;
+  primary: string;
+}
+
 export interface CampaignState {
   // Wizard Data
   currentStep: number;
@@ -38,6 +43,9 @@ export interface CampaignState {
   targetBehaviors: TargetingOption[]; // NEW
   ageRange: { min: number; max: number }; // NEW
   gender: "all" | "male" | "female"; // NEW
+  targetLanguages: number[]; // Meta locale IDs e.g. [6] = English
+  exclusionAudienceIds: string[]; // Meta custom audience IDs to exclude
+  targetLifeEvents: TargetingOption[]; // Meta life_events field e.g. Newly Engaged, New Parents
   destinationValue: string;
 
   // AI & Targeting
@@ -78,6 +86,9 @@ export interface CampaignState {
   /** Number of copy refinements done this session. Used to enforce Starter tier limit (max 3). */
   refinementCount: number;
 
+  /** All copy variations returned by AI, sliced by tier limit. Index 0 mirrors adCopy. */
+  adCopyVariations: CopyVariation[];
+
   // History
   // Phase 2: savedAudiences will power a "Saved Audiences" panel in the audience step UI.
   // Currently populated by saveAudience() but not yet displayed anywhere.
@@ -116,6 +127,9 @@ export const useCampaignStore = create<CampaignState>()(
       targetBehaviors: [],
       ageRange: { min: 18, max: 65 },
       gender: "all",
+      targetLanguages: [],
+      exclusionAudienceIds: [],
+      targetLifeEvents: [],
       destinationValue: "",
 
       aiPrompt: "",
@@ -140,6 +154,7 @@ export const useCampaignStore = create<CampaignState>()(
       roasHistory: [],
       pendingGeneratedImage: null,
       refinementCount: 0,
+      adCopyVariations: [],
       savedAudiences: [],
       userId: null,
 
@@ -213,6 +228,9 @@ export const useCampaignStore = create<CampaignState>()(
           targetBehaviors: [],
           ageRange: { min: 18, max: 65 },
           gender: "all",
+          targetLanguages: [],
+          exclusionAudienceIds: [],
+          targetLifeEvents: [],
           destinationValue: "",
           aiPrompt: "",
           latestAiSummary: null,
@@ -235,6 +253,7 @@ export const useCampaignStore = create<CampaignState>()(
           predictedROAS: null,
           roasHistory: [],
           pendingGeneratedImage: null,
+          adCopyVariations: [],
           // refinementCount: 0, // Now persisted
         }),
 
@@ -282,7 +301,7 @@ export const useCampaignStore = create<CampaignState>()(
     }),
     {
       name: "adsync-campaign-draft",
-      version: 7, // Bumped for refinementCount field
+      version: 10, // Bumped for adCopyVariations
       migrate: (persistedState: any, version) => {
         if (version < 2) {
           return {
@@ -397,6 +416,31 @@ export const useCampaignStore = create<CampaignState>()(
           return {
             ...(persistedState as any),
             refinementCount: 0,
+          } as CampaignState;
+        }
+
+        // Version 8 migration: Add targetLanguages and exclusionAudienceIds
+        if (version < 8) {
+          return {
+            ...(persistedState as any),
+            targetLanguages: [],
+            exclusionAudienceIds: [],
+          } as CampaignState;
+        }
+
+        // Version 9 migration: Add targetLifeEvents
+        if (version < 9) {
+          return {
+            ...(persistedState as any),
+            targetLifeEvents: [],
+          } as CampaignState;
+        }
+
+        // Version 10 migration: Add adCopyVariations
+        if (version < 10) {
+          return {
+            ...(persistedState as any),
+            adCopyVariations: [],
           } as CampaignState;
         }
 

@@ -53,11 +53,12 @@ async function walk(
 
 async function uploadSkill(
   skillDir: string,
+  existingSkillId?: string,
 ): Promise<{ name: string; id: string }> {
   const skillName = path.basename(skillDir);
   const skillMdPath = path.join(skillDir, "SKILL.md");
 
-  console.log("Uploading skill:", skillName, skillMdPath);
+  console.log("Processing skill:", skillName, skillMdPath);
 
   if (!fs.existsSync(skillMdPath)) {
     throw new Error(`No SKILL.md found in ${skillDir}`);
@@ -74,6 +75,65 @@ async function uploadSkill(
     formData.append("files[]", blob, fileObj.name);
   }
 
+  if (existingSkillId) {
+    process.stdout.write(
+      `   Found existing ID (${existingSkillId}). Creating new version... `,
+    );
+    try {
+      const versionRes = await fetch(
+        `https://api.openai.com/v1/skills/${existingSkillId}/versions`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+          body: formData,
+        },
+      );
+
+      if (!versionRes.ok) {
+        throw new Error(`Failed to create version: ${await versionRes.text()}`);
+      }
+
+      const versionData = await versionRes.json();
+      if (!versionData.id) throw new Error("No version ID returned.");
+
+      process.stdout.write(
+        `✅\n   Setting default version to ${versionData.id}... `,
+      );
+      const updateRes = await fetch(
+        `https://api.openai.com/v1/skills/${existingSkillId}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ default_version: versionData.id }),
+        },
+      );
+
+      if (!updateRes.ok) {
+        throw new Error(
+          `Failed to set default version: ${await updateRes.text()}`,
+        );
+      }
+      return { name: skillName, id: existingSkillId };
+    } catch (err: any) {
+      console.log(
+        `\n⚠️ Update failed (${err.message}). Falling back to recreate...`,
+      );
+      // Fallback: Delete the existing skill
+      try {
+        await fetch(`https://api.openai.com/v1/skills/${existingSkillId}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+        });
+      } catch (delErr) {
+        console.log("   Warning: Failed to delete old skill during fallback.");
+      }
+    }
+  }
+
+  // Normal creation (either new skill, or fallback from failed update)
   const response = await fetch("https://api.openai.com/v1/skills", {
     method: "POST",
     headers: {
@@ -102,7 +162,9 @@ async function main() {
     process.exit(1);
   }
 
-  console.log("Cleaning up existing skills...");
+  console.log("Fetching existing skills to determine update vs create...");
+  const existingSkillsMap: Record<string, string> = {};
+
   try {
     const listResponse = await fetch("https://api.openai.com/v1/skills", {
       headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
@@ -110,30 +172,9 @@ async function main() {
 
     if (listResponse.ok) {
       const existingSkillsList = await listResponse.json();
-
       for (const skill of existingSkillsList.data || []) {
-        if (skill.id) {
-          process.stdout.write(`Deleting ${skill.name || skill.id}... `);
-          try {
-            const delRes = await fetch(
-              `https://api.openai.com/v1/skills/${skill.id}`,
-              {
-                method: "DELETE",
-                headers: {
-                  Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-                },
-              },
-            );
-            if (delRes.ok) {
-              console.log("✅");
-            } else {
-              console.log(`❌ ${delRes.status} ${delRes.statusText}`);
-            }
-          } catch (delErr: any) {
-            console.error(
-              `\n   ⚠️ Failed to delete: ${delErr.message || delErr}`,
-            );
-          }
+        if (skill.name && skill.id) {
+          existingSkillsMap[skill.name] = skill.id;
         }
       }
     } else {
@@ -142,8 +183,8 @@ async function main() {
       );
     }
   } catch (e: any) {
-    console.log(`⚠️ Could not clean existing skills. Error: ${e.message || e}`);
-    console.log("   Continuing with upload...");
+    console.log(`⚠️ Could not fetch existing skills. Error: ${e.message || e}`);
+    console.log("   Continuing with initial upload mode...");
   }
 
   const skillDirs = fs
@@ -151,26 +192,25 @@ async function main() {
     .map((d) => path.join(SKILLS_DIR, d))
     .filter((d) => fs.statSync(d).isDirectory());
 
-  console.log(`\nFound ${skillDirs.length} skills to upload...\n`);
+  console.log(`\nFound ${skillDirs.length} skills to upload/update...\n`);
 
   const results: { name: string; id: string }[] = [];
 
   for (const dir of skillDirs) {
     const skillName = path.basename(dir);
-    process.stdout.write(`Uploading ${skillName}... `);
+    process.stdout.write(`--> ${skillName}... `);
     try {
-      const result = await uploadSkill(dir);
+      const existingId = existingSkillsMap[skillName];
+      const result = await uploadSkill(dir, existingId);
       results.push(result);
-      console.log(`✅ ${result.id}`);
+      console.log(`✅ Final ID: ${result.id}\n`);
     } catch (err: any) {
-      console.log(`❌ Failed: ${err?.message || err}`);
-      if (err?.status) console.log(`   Status: ${err.status}`);
-      if (err?.error) console.log(`   Detail: ${JSON.stringify(err.error)}`);
+      console.log(`❌ Failed: ${err?.message || err}\n`);
     }
   }
 
   if (results.length > 0) {
-    console.log("\n--- Paste these into your .env.local file ---\n");
+    console.log("--- Paste these into your .env.local file ---\n");
     for (const { name, id } of results) {
       const envKey = `SKILL_ID_${name.toUpperCase().replace(/-/g, "_")}`;
       console.log(`${envKey}=${id}`);

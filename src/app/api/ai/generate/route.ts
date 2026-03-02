@@ -54,6 +54,7 @@ export async function POST(request: Request) {
     objective,
     currentCopy,
     refinementInstruction,
+    preInferred,
   } = body;
   console.log("\n====================================");
   console.log("🚀 [API Route: /api/ai/generate] Request received");
@@ -99,20 +100,46 @@ export async function POST(request: Request) {
       console.log(
         "\n[API Route: /api/ai/generate] ✅ Refinement generated successfully, returning to client.\n",
       );
-      return NextResponse.json(strategy);
+
+      // Log text refinement usage
+      await supabase
+        .from("ai_requests")
+        .insert({
+          user_id: user.id,
+          organization_id: member.organization_id as string,
+          request_type: "copy_refinement",
+          input_json: {
+            type: "copy_refinement",
+            description_length: description.length,
+            refinement_instruction: refinementInstruction,
+          },
+          result_json: { generated: true, usage: strategy.usage },
+          tokens_used: strategy.usage?.total_tokens || 0,
+        })
+        .then(({ error }) => {
+          if (error)
+            console.error("[refinement] Failed to log request:", error);
+        });
+
+      // Remove usage from client response
+      const { usage, ...clientStrategy } = strategy;
+      return NextResponse.json(clientStrategy);
     }
 
-    const strategy = await generateAndSaveStrategy({
-      businessDescription: description,
-      location: location,
-      industry: org?.industry,
-      sellingMethod: org?.selling_method,
-      priceTier: org?.price_tier,
-      customerGender: org?.customer_gender,
-      objective: objective ? String(objective).toUpperCase() : undefined,
-      objectiveContext: objContext,
-      currentCopy: currentCopy ?? undefined,
-    });
+    const strategy = await generateAndSaveStrategy(
+      {
+        businessDescription: description,
+        location: location,
+        industry: org?.industry,
+        sellingMethod: org?.selling_method,
+        priceTier: org?.price_tier,
+        customerGender: org?.customer_gender,
+        objective: objective ? String(objective).toUpperCase() : undefined,
+        objectiveContext: objContext,
+        currentCopy: currentCopy ?? undefined,
+      },
+      preInferred,
+    );
     console.log(
       "\n[API Route: /api/ai/generate] ✅ Strategy generated successfully, returning to client.\n",
     );
@@ -128,14 +155,16 @@ export async function POST(request: Request) {
           type: "campaign_strategy",
           description_length: description.length,
         },
-        result_json: { generated: true },
-        tokens_used: 0,
+        result_json: { generated: true, usage: strategy.usage },
+        tokens_used: strategy.usage?.total_tokens || 0,
       })
       .then(({ error }) => {
         if (error) console.error("[strategy] Failed to log request:", error);
       });
 
-    return NextResponse.json(strategy);
+    // Remove usage from client response
+    const { usage, ...clientStrategy } = strategy;
+    return NextResponse.json(clientStrategy);
   } catch (error: any) {
     console.error("AI Strategy Error:", error);
     return NextResponse.json(

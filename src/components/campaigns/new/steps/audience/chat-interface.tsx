@@ -15,6 +15,7 @@ interface ChatInterfaceProps {
   handleSend: (val?: string) => void;
   isTyping: boolean;
   isRefiningCopy: boolean;
+  copyReady: boolean;
   placeholder: string;
   scrollRef: React.RefObject<HTMLDivElement | null>;
   campaignStore: any; // Passed for read-only access in bubbles if needed
@@ -24,10 +25,7 @@ interface ChatInterfaceProps {
     removeLocation: (l: any) => void;
     addLocation: (l: any) => void;
     handleCopyRefinement: (val: string) => void;
-    handleGenerateCreative: (prompt?: string) => void; // also used as onRegenerateImage
-    handleAcceptImage: (url: string) => void;
-    handleEditInStudio: (url: string, prompt: string) => void;
-    setStep: (step: number) => void;
+    confirmAudience: () => void;
   };
 }
 
@@ -71,6 +69,7 @@ export function ChatInterface({
   scrollRef,
   campaignStore,
   actions,
+  copyReady,
 }: ChatInterfaceProps) {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -117,18 +116,15 @@ export function ChatInterface({
                 onRemoveLocation={actions.removeLocation}
                 onAddLocation={actions.addLocation}
                 onCopyRefine={actions.handleCopyRefinement}
-                onProceedToCreative={actions.handleGenerateCreative}
                 isRefiningCopy={isRefiningCopy}
-                onAcceptImage={actions.handleAcceptImage}
-                onRegenerateImage={actions.handleGenerateCreative}
-                onEditInStudio={actions.handleEditInStudio}
                 onClarificationSelect={(option: string) => {
                   handleSend(option);
                 }}
                 onRecoverySelect={(value: string) => {
                   handleSend(value);
                 }}
-                onConfirmAudience={() => actions.setStep(3)}
+                onConfirmAudience={() => actions.confirmAudience()}
+                copyReady={copyReady}
               />
             );
           })}

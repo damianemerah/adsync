@@ -14,6 +14,7 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { CREDIT_COSTS } from "@/lib/constants";
 
 import { type AspectRatio } from "./prompt-input";
 
@@ -243,9 +244,14 @@ export function GenerationView({
                 <Sparks className="mr-2 h-4 w-4 animate-spin" /> Redesigning...
               </>
             ) : (
-              <>
-                <Sparks className="mr-2 h-4 w-4" /> Redesign Now
-              </>
+              <div className="flex flex-col items-center pb-1">
+                <span className="flex items-center gap-1.5 mt-1">
+                  <Sparks className="h-4 w-4" /> Redesign Now
+                </span>
+                <span className="text-[10px] opacity-80 mt-0 tracking-wide font-medium">
+                  (Costs {CREDIT_COSTS.IMAGE_EDIT_PRO} Credits)
+                </span>
+              </div>
             )}
           </Button>
 

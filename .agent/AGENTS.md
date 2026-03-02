@@ -31,6 +31,7 @@
 | **Lead Scoring**      | lead prioritization, which ad to optimize, cost-per-chat, best performing ad                     | [skills/lead-scoring/SKILL.md](skills/lead-scoring/SKILL.md)           |
 | **Momentum Tracking** | stalled deal, no chats, ad went quiet, no sales, re-engagement prompt                            | [skills/momentum-tracking/SKILL.md](skills/momentum-tracking/SKILL.md) |
 | **Growth Strategy**   | free dashboard, read-only mode, `SubscriptionGate`, action gating, date range limit, upsell      | [skills/growth-strategy/SKILL.md](skills/growth-strategy/SKILL.md)     |
+| **Audience Targeting** | language targeting, locales, income proxy, custom audiences, lookalike audiences, retargeting toggle, exclusions, Phase 1/2/3 targeting, meta_audiences table, `customAudienceIds`, `lookalikAudienceIds`, `targetLanguages` | [skills/audience-targeting/SKILL.md](skills/audience-targeting/SKILL.md) |
 
 ---
 
@@ -42,6 +43,9 @@
 | **1B** | Naira ROI dashboard — Mark as Sold, `useCampaignROI`            | ✅ Complete |
 | **1C** | Org-level AI context — `useOrgContext`, category playbooks      | ✅ Complete |
 | **2A** | Naira ad budget wallet — Paystack top-up, virtual USD card      | ⬜ Next     |
+| **T1** | Targeting Phase 1 — Language, income proxies, exclusions        | ⬜ Next     |
+| **T2** | Targeting Phase 2 — Custom audiences, retargeting               | ⬜ Planned  |
+| **T3** | Targeting Phase 3 — Lookalike audiences (Agency tier)           | ⬜ Planned  |
 | **2B** | Creative intelligence — UGC video pipeline                      | ⬜ Planned  |
 | **3**  | AI optimizer from attribution data                              | ⬜ Planned  |
 

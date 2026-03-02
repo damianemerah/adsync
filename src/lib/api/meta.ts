@@ -94,6 +94,31 @@ export const MetaService = {
     return data.data || [];
   },
 
+  searchLifeEvents: async (
+    token: string,
+    adAccountId: string,
+    query: string,
+  ) => {
+    // Browse all life events or search within category (query optional)
+    const params = new URLSearchParams({
+      type: "adTargetingCategory",
+      class: "life_events",
+      q: query, // Filter by name
+      limit: "10",
+    });
+
+    const id = adAccountId.startsWith("act_")
+      ? adAccountId
+      : `act_${adAccountId}`;
+
+    const data = await MetaService.request(
+      `/${id}/targetingsearch?${params.toString()}`,
+      "GET",
+      token,
+    );
+    return data.data || [];
+  },
+
   searchLocation: async (
     token: string,
     query: string,
@@ -107,6 +132,15 @@ export const MetaService = {
       token,
     );
     return data.data || [];
+  },
+
+  searchLocales: async (token: string, query: string) => {
+    const data = await MetaService.request(
+      `/search?type=adlocale&q=${encodeURIComponent(query)}&limit=20`,
+      "GET",
+      token,
+    );
+    return data.data || []; // Returns [{ key: number, name: string }]
   },
 
   // 1. Create Campaign (The Container)
@@ -188,10 +222,27 @@ export const MetaService = {
       behaviors: params.targeting.behaviors,
       age_min: params.targeting.age_min,
       age_max: params.targeting.age_max,
+      // Language targeting — only include if languages are selected
+      ...(params.targeting.locales?.length > 0 && {
+        locales: params.targeting.locales, // e.g. [6, 114] = English + Yoruba
+      }),
       // Meta API for Gender: 1=Male, 2=Female. Omit for All.
       ...(params.targeting.gender === "male" && { genders: [1] }),
       ...(params.targeting.gender === "female" && { genders: [2] }),
-      exclusions: params.targeting.exclusions,
+      // Life Events — time-sensitive targeting (separate field from behaviors in Meta v24)
+      ...(params.targeting.lifeEvents?.length > 0 && {
+        life_events: params.targeting.lifeEvents.map(
+          (e: { id: string; name: string }) => ({ id: e.id, name: e.name }),
+        ),
+      }),
+      // Exclusions — omit if empty (Meta rejects empty exclusion objects)
+      ...(params.targeting.exclusionAudienceIds?.length > 0 && {
+        exclusions: {
+          custom_audiences: params.targeting.exclusionAudienceIds.map(
+            (id: string) => ({ id }),
+          ),
+        },
+      }),
       ...getPlacementSpec(placement, params.metaSubPlacements),
     };
 

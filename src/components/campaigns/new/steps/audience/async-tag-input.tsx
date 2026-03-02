@@ -11,7 +11,7 @@ import {
 
 interface AsyncTagInputProps {
   placeholder: string;
-  searchType: "location" | "interest" | "behavior";
+  searchType: "location" | "interest" | "behavior" | "life-events";
   onAdd: (value: any) => void;
 }
 

@@ -22,6 +22,8 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { CreditsDisplay } from "@/components/layout/credits-display";
+import { HelpCenterSheet } from "@/components/layout/help-center-sheet";
 
 // Step Components
 import { GoalPlatformStep } from "@/components/campaigns/new/steps/goal-platform-step";
@@ -163,6 +165,8 @@ export default function NewCampaignPage() {
                 {savingState === "exit" ? "Saving..." : "Save & Exit"}
               </span>
             </Button>
+            <CreditsDisplay />
+            <HelpCenterSheet />
           </div>
 
           <div className="flex items-center gap-4">

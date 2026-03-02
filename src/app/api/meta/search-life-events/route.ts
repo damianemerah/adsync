@@ -36,7 +36,7 @@ export async function GET(request: Request) {
   // Fetch ad account token
   const { data: adAccount } = await supabase
     .from("ad_accounts")
-    .select("access_token")
+    .select("access_token, platform_account_id")
     .eq("organization_id", member.organization_id)
     .eq("platform", "meta")
     .eq("health_status", "healthy")
@@ -51,17 +51,15 @@ export async function GET(request: Request) {
     );
   }
 
-  console.log("Searching for interest", query);
-
   try {
     const accessToken = decrypt(adAccount.access_token);
-    const results = await MetaService.searchInterests(
+    const results = await MetaService.searchLifeEvents(
       accessToken,
+      adAccount.platform_account_id,
       query as string,
     );
     return NextResponse.json(results);
   } catch (error: any) {
-    console.log("Error📁", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

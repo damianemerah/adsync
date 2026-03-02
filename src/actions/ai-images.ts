@@ -70,7 +70,6 @@ export async function generateAdCreative({
   imageInput,
   imageInputs,
   enhancePrompt = true,
-  chatHistoryId,
   currentCreativeId,
   seed,
   aspectRatio = "1:1", // Default to square
@@ -80,7 +79,6 @@ export async function generateAdCreative({
   campaignContext, // [NEW] Campaign context for auto-enrichment
 }: GenerateOptions & {
   imageInputs?: string[];
-  chatHistoryId?: string;
   currentCreativeId?: string;
   parentCreativeId?: string; // [NEW]
   campaignContext?: CampaignContext; // [NEW]
@@ -114,9 +112,6 @@ export async function generateAdCreative({
     "\n",
     "Seed:",
     seed,
-    "\n",
-    "History ID:",
-    chatHistoryId,
     "\n",
     "Creative ID:",
     currentCreativeId,
@@ -152,46 +147,6 @@ export async function generateAdCreative({
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
-
-  // --- CHAT HISTORY INITIALIZATION ---
-  let historyId = chatHistoryId;
-  // If no history ID provided but we have a prompt, create a new session
-  if (!historyId && prompt) {
-    if (orgId) {
-      const { data: newHistory, error: historyError } = await supabase
-        .from("ai_chat_history")
-        .insert({
-          user_id: user.id,
-          organization_id: orgId,
-          creative_id: currentCreativeId || null,
-          messages: [{ role: "user", content: prompt }] as any,
-        })
-        .select("id")
-        .single();
-
-      if (!historyError && newHistory) {
-        historyId = newHistory.id;
-      }
-    }
-  } else if (historyId && prompt) {
-    // Append user message to existing history
-    const { data: currentHistory } = await supabase
-      .from("ai_chat_history")
-      .select("messages")
-      .eq("id", historyId)
-      .single();
-
-    if (currentHistory) {
-      const updatedMessages = [
-        ...(currentHistory.messages as any[]),
-        { role: "user", content: prompt },
-      ];
-      await supabase
-        .from("ai_chat_history")
-        .update({ messages: updatedMessages as any })
-        .eq("id", historyId);
-    }
-  }
 
   // --- PROMPT ENGINEERING ---
   let finalPrompt = prompt;
@@ -247,6 +202,8 @@ export async function generateAdCreative({
     }
   }
 
+  let promptGenerationUsage: any = null;
+
   try {
     if (mode === "raw") {
       // Pass through
@@ -274,6 +231,8 @@ export async function generateAdCreative({
         completion,
       );
       console.log("====================================\n");
+
+      promptGenerationUsage = completion.usage || null;
 
       if (completion.output_text) {
         finalPrompt = completion.output_text.trim();
@@ -326,11 +285,9 @@ export async function generateAdCreative({
         input: userMessage,
       });
 
-      console.log(
-        "✅ [OpenAI Images] Image prompt components generated successfully.",
-        completion,
-      );
       console.log("====================================\n");
+
+      promptGenerationUsage = completion.usage || null;
 
       if (completion.output_text) {
         // Strip code fences defensively
@@ -510,35 +467,16 @@ export async function generateAdCreative({
         result_json: {
           image_url: imageUrl,
           fal_request_id: result.requestId,
+          fal_metrics: result.metrics || null,
+          credit_cost: creditCost,
+          prompt_generation_usage: promptGenerationUsage,
         },
-        tokens_used: 0,
+        tokens_used: promptGenerationUsage?.total_tokens || 0,
         organization_id: orgId,
       });
 
       if (error) {
         console.error("Failed to log AI request:", error);
-      }
-
-      // B. Chat History Update (Append AI Response)
-      if (historyId) {
-        const { data: currentHistory } = await supabase
-          .from("ai_chat_history")
-          .select("messages")
-          .eq("id", historyId)
-          .single();
-
-        if (currentHistory) {
-          const updatedMessages = [
-            ...(currentHistory.messages as any[]),
-            { role: "assistant", content: finalPrompt, image: imageUrl },
-          ];
-          await supabase
-            .from("ai_chat_history")
-            .update({
-              messages: updatedMessages as any,
-            })
-            .eq("id", historyId);
-        }
       }
     } catch (logError) {
       console.error("Failed to log AI request:", logError);
@@ -553,7 +491,6 @@ export async function generateAdCreative({
     return {
       imageUrl,
       usedPrompt: finalPrompt,
-      chatHistoryId: historyId,
       seed: result.data?.seed || result.seed,
     };
   } catch (error: any) {

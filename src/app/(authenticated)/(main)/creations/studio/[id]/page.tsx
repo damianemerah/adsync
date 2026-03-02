@@ -62,7 +62,6 @@ export default function EditCreativePage({ params }: EditCreativePageProps) {
   const [seed, setSeed] = useState<number | undefined>(undefined);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [generationHistory, setGenerationHistory] = useState<string[]>([]);
-  const [chatHistoryId, setChatHistoryId] = useState<string | null>(null);
   const [lastUsedFullPrompt, setLastUsedFullPrompt] = useState<string | null>(
     null,
   );
@@ -75,10 +74,7 @@ export default function EditCreativePage({ params }: EditCreativePageProps) {
   const [hasEdited, setHasEdited] = useState(false);
 
   // Warn if user tries to close the tab after making unsaved edits
-  useBeforeLeave(
-    hasEdited,
-    "You have unsaved edits. Leave anyway?",
-  );
+  useBeforeLeave(hasEdited, "You have unsaved edits. Leave anyway?");
 
   // Use Hook for History
   const { data: historyData, isLoading: isHistoryLoading } =
@@ -196,7 +192,9 @@ export default function EditCreativePage({ params }: EditCreativePageProps) {
     const draftId = searchParams.get("draftId");
     let target = returnTo || "/campaigns/new";
     if (draftId && !target.includes("draftId=")) {
-      target += target.includes("?") ? `&draftId=${draftId}` : `?draftId=${draftId}`;
+      target += target.includes("?")
+        ? `&draftId=${draftId}`
+        : `?draftId=${draftId}`;
     }
     if (!target.includes("resume=true")) {
       target += target.includes("?") ? "&resume=true" : "?resume=true";
@@ -225,16 +223,11 @@ export default function EditCreativePage({ params }: EditCreativePageProps) {
         mode: "refine",
         imageInputs: allInputImages,
         aspectRatio,
-        chatHistoryId: chatHistoryId || undefined,
         seed: refineSeed || seed,
         imageIntent: "edit",
         parentCreativeId: activeCreativeId,
         campaignContext: campaignContext || undefined,
       });
-
-      if (result.chatHistoryId) {
-        setChatHistoryId(result.chatHistoryId);
-      }
 
       if (result.seed && !seed) {
         setSeed(result.seed);

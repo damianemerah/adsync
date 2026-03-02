@@ -53,6 +53,9 @@ interface LaunchConfig {
   targetBehaviors: { id: string; name: string }[];
   targetAgeRange: { min: number; max: number }; // NEW
   targetGender: "all" | "male" | "female"; // NEW
+  targetLanguages?: number[]; // Phase 1 targeting
+  exclusionAudienceIds?: string[]; // Phase 1 targeting
+  targetLifeEvents?: { id: string; name: string }[]; // Life events e.g. Newly Engaged, New Parents
   destinationValue: string; // The raw input (Phone or URL)
   aiContext: any; // Using any for now to avoid circular dependency, but should match CampaignContext
   businessDescription?: string; // [NEW] For AI context building
@@ -369,6 +372,9 @@ export async function launchCampaign(config: LaunchConfig) {
           age_min: config.targetAgeRange.min,
           age_max: config.targetAgeRange.max,
           gender: config.targetGender,
+          locales: config.targetLanguages,
+          exclusionAudienceIds: config.exclusionAudienceIds,
+          lifeEvents: config.targetLifeEvents,
           metaSubPlacements: config.metaSubPlacements,
         },
       },
@@ -434,6 +440,9 @@ export async function launchCampaign(config: LaunchConfig) {
           behaviors: config.targetBehaviors,
           age: config.targetAgeRange,
           gender: config.targetGender,
+          languages: config.targetLanguages,
+          exclusions: config.exclusionAudienceIds,
+          life_events: config.targetLifeEvents,
         },
         creative_snapshot: {
           creatives: config.creatives,

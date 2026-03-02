@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { User, Sparks, Check, Refresh, EditPencil } from "iconoir-react";
+import { User, Sparks, Check } from "iconoir-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,149 +43,6 @@ function buildRecoveryChips(detectedLocation?: string | null) {
   }));
 }
 
-// ─── Studio Suggestion Bubble ───────────────────────────────────
-// For structural edits (add prop, replace object) — needs Studio inpainting
-
-function StudioSuggestionBubble({
-  imageUrl,
-  imagePrompt,
-  editInstruction,
-  onEditInStudio,
-}: {
-  imageUrl: string;
-  imagePrompt: string;
-  editInstruction: string;
-  onEditInStudio: (url: string, prompt: string) => void;
-}) {
-  // Pre-fill the Studio prompt: original prompt + user's structural edit instruction
-  const studioPrompt = editInstruction
-    ? `${imagePrompt}. Edit: ${editInstruction}`
-    : imagePrompt;
-
-  return (
-    <div className="mt-3 space-y-3 animate-in fade-in slide-in-from-top-2">
-      <div className="p-4 rounded-2xl bg-ai/5 border border-ai/20 space-y-3">
-        <div className="flex items-start gap-2">
-          <EditPencil className="h-4 w-4 text-ai mt-0.5 shrink-0" />
-          <div className="space-y-1">
-            <p className="text-sm font-semibold text-foreground">
-              Your edit instruction
-            </p>
-            <p className="text-xs text-muted-foreground italic">
-              “{editInstruction}”
-            </p>
-          </div>
-        </div>
-        <p className="text-xs text-foreground/70 leading-relaxed">
-          Structural edits like adding props or swapping objects work best in
-          Studio, where you can paint exactly what to change. Your instruction
-          is already pre-filled.
-        </p>
-      </div>
-      <Button
-        onClick={() => onEditInStudio(imageUrl, studioPrompt)}
-        className="w-full h-11 rounded-2xl bg-ai hover:bg-ai/90 text-white font-bold shadow-soft"
-      >
-        <EditPencil className="h-4 w-4 mr-2" />
-        Open in Studio with this edit
-      </Button>
-    </div>
-  );
-}
-
-// ─── Image Generated Bubble (with inline constraint input) ──────────────────
-
-function ImageGeneratedBubble({
-  message,
-  onAcceptImage,
-  onRegenerateImage,
-  onEditInStudio,
-}: {
-  message: any;
-  onAcceptImage: (url: string) => void;
-  onRegenerateImage: (prompt?: string) => void;
-  onEditInStudio: (url: string, prompt: string) => void;
-}) {
-  const [showConstraintInput, setShowConstraintInput] = useState(false);
-  const [constraint, setConstraint] = useState("");
-
-  const { url, prompt } = message.data.generatedImage;
-
-  const handleRegenWithConstraint = () => {
-    const fullPrompt = constraint.trim()
-      ? `${prompt}. ${constraint.trim()}`
-      : undefined;
-    onRegenerateImage(fullPrompt);
-    setConstraint("");
-    setShowConstraintInput(false);
-  };
-
-  return (
-    <div className="mt-3 space-y-3 animate-in fade-in slide-in-from-top-4 max-w-sm">
-      <div className="rounded-2xl overflow-hidden border border-border shadow-soft bg-black/5">
-        <img
-          src={url}
-          alt="Generated ad creative"
-          className="w-full h-auto object-contain"
-          loading="lazy"
-        />
-      </div>
-
-      {/* Inline constraint input */}
-      {showConstraintInput && (
-        <div className="flex gap-2 animate-in fade-in slide-in-from-top-1">
-          <input
-            autoFocus
-            value={constraint}
-            onChange={(e) => setConstraint(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleRegenWithConstraint();
-            }}
-            placeholder="e.g. no street background, add model..."
-            className="flex-1 text-sm bg-muted/40 border border-primary/40 rounded-xl px-3 py-2 focus:outline-none focus:border-primary placeholder:text-muted-foreground"
-          />
-          <Button
-            size="sm"
-            onClick={handleRegenWithConstraint}
-            className="rounded-xl bg-primary text-primary-foreground shrink-0 h-9"
-          >
-            <Refresh className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-      )}
-
-      <div className="flex flex-wrap gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => setShowConstraintInput((v) => !v)}
-          className="rounded-xl border-border hover:border-primary/50 hover:bg-primary/5"
-        >
-          <Refresh className="h-3.5 w-3.5 mr-1.5" />
-          {showConstraintInput ? "Cancel" : "Try Again"}
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => onEditInStudio(url, prompt)}
-          className="rounded-xl border-border text-ai hover:border-ai/50 hover:bg-ai/5"
-        >
-          <EditPencil className="h-3.5 w-3.5 mr-1.5" />
-          Edit in Studio
-        </Button>
-        <Button
-          size="sm"
-          onClick={() => onAcceptImage(url)}
-          className="rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-soft ml-auto"
-        >
-          <Check className="h-3.5 w-3.5 mr-1.5" />
-          Use This
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 interface ChatBubbleProps {
   message: any;
   isConsecutive?: boolean;
@@ -197,14 +53,11 @@ interface ChatBubbleProps {
   onRemoveLocation: (loc: any) => void;
   onAddLocation: (loc: any) => void;
   onCopyRefine: (val: string) => void;
-  onProceedToCreative: () => void;
   isRefiningCopy: boolean;
-  onAcceptImage: (url: string) => void;
-  onRegenerateImage: (prompt?: string) => void;
-  onEditInStudio: (url: string, prompt: string) => void;
   onClarificationSelect: (val: string) => void;
   onRecoverySelect: (val: string) => void;
   onConfirmAudience: () => void;
+  copyReady: boolean;
 }
 
 export function ChatBubble({
@@ -217,14 +70,11 @@ export function ChatBubble({
   onRemoveLocation, // params kept for future use if needed
   onAddLocation, // params kept for future use if needed
   onCopyRefine,
-  onProceedToCreative,
   isRefiningCopy,
-  onAcceptImage,
-  onRegenerateImage,
-  onEditInStudio,
   onClarificationSelect,
   onRecoverySelect,
   onConfirmAudience,
+  copyReady,
 }: ChatBubbleProps) {
   const isAI = message.role === "ai";
 
@@ -292,6 +142,10 @@ export function ChatBubble({
             onAddInterest={onAddInterest}
             currentInterests={currentInterests}
             onConfirmAudience={onConfirmAudience}
+            copyReady={copyReady}
+            onRefinementAnswer={(answer) => {
+              onRecoverySelect(answer);
+            }}
           />
         )}
 
@@ -367,64 +221,8 @@ export function ChatBubble({
             headline={message.data.adCopy.headline}
             primary={message.data.adCopy.primary}
             onRefine={onCopyRefine}
-            onProceed={onProceedToCreative}
+            onProceed={onConfirmAudience}
             isRefining={isRefiningCopy}
-          />
-        )}
-
-        {/* Creative suggestion */}
-        {message.type === "creative_suggestion" && (
-          <div className="mt-3 animate-in fade-in slide-in-from-top-2">
-            <Button
-              onClick={() => onProceedToCreative()}
-              className="w-full h-12 bg-linear-to-r from-purple-600 to-primary hover:from-purple-700 hover:to-primary/90 text-white shadow-soft rounded-2xl font-bold"
-            >
-              <Sparks className="h-4 w-4 mr-2" />
-              Yes, design my ad image ✨
-            </Button>
-          </div>
-        )}
-
-        {/* Image generating */}
-        {message.type === "image_generating" && (
-          <div className="mt-3 animate-in fade-in">
-            <div className="p-6 rounded-3xl bg-linear-to-br from-primary/5 to-purple-500/5 border border-primary/20">
-              <div className="flex flex-col items-center gap-4">
-                <div className="relative">
-                  <div className="h-16 w-16 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
-                  <Sparks className="h-6 w-6 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-                </div>
-                <div className="text-center">
-                  <p className="font-semibold text-foreground">
-                    Designing your ad...
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Using your audience data + location context
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Studio suggestion — structural edit that needs inpainting */}
-        {message.type === "studio_suggestion" &&
-          message.data?.generatedImage && (
-            <StudioSuggestionBubble
-              imageUrl={message.data.generatedImage.url}
-              imagePrompt={message.data.generatedImage.prompt}
-              editInstruction={message.data.editInstruction ?? ""}
-              onEditInStudio={onEditInStudio}
-            />
-          )}
-
-        {/* Image generated */}
-        {message.type === "image_generated" && message.data?.generatedImage && (
-          <ImageGeneratedBubble
-            message={message}
-            onAcceptImage={onAcceptImage}
-            onRegenerateImage={onRegenerateImage}
-            onEditInStudio={onEditInStudio}
           />
         )}
 

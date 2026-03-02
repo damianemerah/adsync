@@ -29,14 +29,13 @@ export interface AIStrategyMeta {
   inferred_assumptions?: string[];
   /** The single refinement question the AI asks after generating a full strategy */
   refinement_question?: string | null;
-  /** Human-readable plain English summary — shown as first line in chat */
-  plain_english_summary?: string | null;
 }
 
 export interface AIStrategyResult {
   // Always present
   interests: string[];
   behaviors: string[];
+  lifeEvents?: string[];
   demographics: {
     age_min: number;
     age_max: number;
@@ -55,7 +54,7 @@ export interface AIStrategyResult {
     | "sign_up"
     | "download";
   whatsappMessage?: string | null; // Only present when ctaIntent === "start_whatsapp_chat"
-  reasoning: string;
+  reasoning?: string;
   /**
    * One plain-English sentence that leads the chat response.
    * e.g. "Targeting women 18–35 in Lagos who follow beauty and hair content."
@@ -64,6 +63,9 @@ export interface AIStrategyResult {
 
   // Classification metadata — always present in new responses
   meta: AIStrategyMeta;
+
+  // Optional usage statistics
+  usage?: any;
 }
 
 export interface AIInput {

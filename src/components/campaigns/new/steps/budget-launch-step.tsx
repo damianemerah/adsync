@@ -96,6 +96,9 @@ export function BudgetLaunchStep() {
     targetBehaviors,
     ageRange,
     gender,
+    targetLanguages,
+    exclusionAudienceIds,
+    targetLifeEvents,
     destinationValue,
     aiPrompt,
   } = useCampaignStore();
@@ -241,6 +244,9 @@ export function BudgetLaunchStep() {
       targetBehaviors: targetBehaviors || [],
       targetAgeRange: ageRange || { min: 18, max: 65 },
       targetGender: gender || "all",
+      targetLanguages,
+      exclusionAudienceIds,
+      targetLifeEvents: targetLifeEvents || [],
       destinationValue,
       aiContext: {
         businessDescription: aiPrompt || "My Business",

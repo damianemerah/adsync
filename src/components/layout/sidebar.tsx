@@ -34,7 +34,7 @@ import { useNotifications } from "@/hooks/use-notifications";
 
 import { useSidebar } from "@/components/providers/sidebar-provider";
 import { useAuth } from "@/components/providers/auth-provider";
-import { useSubscription, useCreditBalance } from "@/hooks/use-subscription";
+import { useSubscription } from "@/hooks/use-subscription";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
@@ -51,7 +51,6 @@ export function Sidebar() {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
   const { data: subscription } = useSubscription();
-  const { balance, quota, percentUsed } = useCreditBalance();
   const { isOpen, toggle } = useSidebar(); // Use context
   const { unreadCount } = useNotifications();
   const [openSections, setOpenSections] = useState<string[]>([
@@ -357,13 +356,16 @@ export function Sidebar() {
           href="/notifications"
           className={cn(
             "flex items-center gap-3 rounded-xl px-3 py-2.5 border border-border transition-colors hover:bg-muted/50 hover:text-foreground text-subtle-foreground relative",
-            pathname === "/notifications" && "bg-primary/10 text-primary border-primary/20",
+            pathname === "/notifications" &&
+              "bg-primary/10 text-primary border-primary/20",
             !isOpen && "justify-center px-0 border-0 bg-transparent",
           )}
           title="Notifications"
         >
           <Bell className="h-5 w-5 shrink-0" />
-          {isOpen && <span className="text-sm font-medium flex-1">Notifications</span>}
+          {isOpen && (
+            <span className="text-sm font-medium flex-1">Notifications</span>
+          )}
           {unreadCount > 0 && (
             <span
               className={cn(
@@ -376,78 +378,7 @@ export function Sidebar() {
           )}
         </Link>
 
-        {/* Credits Pill */}
-        {isOpen ? (
-          <Link
-            href="/settings/subscription"
-            className={`rounded-xl px-4 py-3 flex items-center gap-2 border transition-colors ${
-              percentUsed >= 100
-                ? "bg-red-50 border-red-200 hover:bg-red-100"
-                : percentUsed >= 80
-                  ? "bg-amber-50 border-amber-200 hover:bg-amber-100"
-                  : "bg-muted/50 border-border hover:bg-muted"
-            }`}
-          >
-            <Cloud
-              className={`h-5 w-5 ${
-                percentUsed >= 100
-                  ? "text-red-500"
-                  : percentUsed >= 80
-                    ? "text-amber-500"
-                    : "text-primary"
-              }`}
-            />
-            <div className="flex-1 min-w-0">
-              <span
-                className={`text-sm font-semibold block ${
-                  percentUsed >= 100
-                    ? "text-red-700"
-                    : percentUsed >= 80
-                      ? "text-amber-700"
-                      : "text-foreground"
-                }`}
-              >
-                {balance.toLocaleString()} Credits
-              </span>
-              {quota > 0 && (
-                <div className="w-full bg-border rounded-full h-1 mt-1">
-                  <div
-                    className={`h-1 rounded-full transition-all ${
-                      percentUsed >= 100
-                        ? "bg-red-500"
-                        : percentUsed >= 80
-                          ? "bg-amber-400"
-                          : "bg-primary"
-                    }`}
-                    style={{ width: `${Math.min(percentUsed, 100)}%` }}
-                  />
-                </div>
-              )}
-            </div>
-          </Link>
-        ) : (
-          <Link
-            href="/settings/subscription"
-            className={`rounded-xl p-2 flex items-center justify-center border transition-colors ${
-              percentUsed >= 100
-                ? "bg-red-50 border-red-200"
-                : percentUsed >= 80
-                  ? "bg-amber-50 border-amber-200"
-                  : "bg-muted/50 border-border"
-            }`}
-            title={`${balance.toLocaleString()} of ${quota.toLocaleString()} credits`}
-          >
-            <Cloud
-              className={`h-5 w-5 ${
-                percentUsed >= 100
-                  ? "text-red-500"
-                  : percentUsed >= 80
-                    ? "text-amber-500"
-                    : "text-primary"
-              }`}
-            />
-          </Link>
-        )}
+        {/* Credits Pill Extracted to Header */}
 
         {/* User Profile Card */}
         <DropdownMenu>

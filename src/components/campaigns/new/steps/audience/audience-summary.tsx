@@ -32,8 +32,13 @@ export function AudienceSummaryPanel() {
     targetBehaviors,
     ageRange,
     gender,
+    targetLanguages,
+    exclusionAudienceIds,
+    targetLifeEvents,
     locations,
   } = useCampaignStore();
+
+  console.log(targetLifeEvents);
 
   const removeInterest = (interest: any) => {
     updateDraft({
@@ -134,6 +139,78 @@ export function AudienceSummaryPanel() {
             ))}
           </div>
         </div>
+
+        {/* Languages (Phase 1A) */}
+        <div className="space-y-2">
+          <span className="text-xs text-muted-foreground flex items-center justify-between">
+            <span>Language</span>
+            {targetLanguages?.length > 0 && (
+              <button
+                onClick={() => updateDraft({ targetLanguages: [] })}
+                className="text-[10px] text-primary hover:underline"
+              >
+                Clear
+              </button>
+            )}
+          </span>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { id: 6, label: "English" },
+              { id: 114, label: "Yoruba" },
+              { id: 66, label: "Igbo" },
+              { id: 35, label: "Hausa" },
+            ].map((lang) => {
+              const isSelected = targetLanguages?.includes(lang.id);
+              return (
+                <Badge
+                  key={lang.id}
+                  variant="outline"
+                  className={cn(
+                    "cursor-pointer transition-colors border-border px-3 py-1 text-xs",
+                    isSelected
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background text-muted-foreground hover:border-primary/50",
+                  )}
+                  onClick={() => {
+                    const current = targetLanguages || [];
+                    const next = isSelected
+                      ? current.filter((id) => id !== lang.id)
+                      : [...current, lang.id];
+                    updateDraft({ targetLanguages: next });
+                  }}
+                >
+                  {lang.label}
+                </Badge>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Exclusions Stub (Phase 1C) */}
+        {/* Full custom audience UI will go in Phase 2, but we need the field ready */}
+        <div className="space-y-2 pt-2 border-t border-border/50">
+          <label className="flex items-center gap-2 cursor-pointer group">
+            <input
+              type="checkbox"
+              className="rounded border-border text-primary focus:ring-primary/20 bg-background"
+              checked={exclusionAudienceIds?.length > 0}
+              onChange={(e) => {
+                // For now, this just toggles a dummy state to prove the data flow works before Phase 2 adds real Meta Audiences
+                updateDraft({
+                  exclusionAudienceIds: e.target.checked
+                    ? ["dummy_exclusion_id_phase1"]
+                    : [],
+                });
+              }}
+            />
+            <span className="text-xs text-subtle-foreground group-hover:text-foreground transition-colors">
+              Exclude previous customers
+              <span className="text-[10px] text-muted-foreground ml-1">
+                (Coming soon)
+              </span>
+            </span>
+          </label>
+        </div>
       </div>
 
       {/* Locations */}
@@ -213,6 +290,50 @@ export function AudienceSummaryPanel() {
           ) : (
             <p className="text-sm text-muted-foreground italic">
               No behaviors yet
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Life Events (Phase 1D) */}
+      <div className="space-y-3">
+        <label className="text-xs font-bold text-subtle-foreground uppercase tracking-wider flex items-center gap-2">
+          <Sparks className="h-3.5 w-3.5 text-pink-500" /> Life Events
+        </label>
+        <div className="flex flex-wrap gap-2">
+          <div className="w-full pt-1">
+            <AsyncTagInput
+              placeholder="Add life event..."
+              searchType="life-events"
+              onAdd={(val) => {
+                if (!targetLifeEvents?.some((e: any) => e.id === val.id)) {
+                  updateDraft({
+                    targetLifeEvents: [...(targetLifeEvents || []), val],
+                  });
+                }
+              }}
+            />
+          </div>
+          {targetLifeEvents?.length > 0 ? (
+            targetLifeEvents.map((event: any) => (
+              <Badge
+                key={event.id}
+                variant="secondary"
+                className="bg-pink-500/10 text-pink-600 border border-pink-200 hover:bg-pink-500/20 py-1 px-3 rounded-full cursor-pointer"
+                onClick={() =>
+                  updateDraft({
+                    targetLifeEvents: targetLifeEvents.filter(
+                      (e: any) => e.id !== event.id,
+                    ),
+                  })
+                }
+              >
+                {event.name} <Xmark className="h-3 w-3 ml-1 opacity-50" />
+              </Badge>
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground italic">
+              No life events yet
             </p>
           )}
         </div>

@@ -3,22 +3,20 @@ import { AIInput, AIStrategyResult } from "./types";
 import { createClient } from "@/lib/supabase/server";
 import { TIER_CONFIG, TierId } from "@/lib/constants";
 import { resolveTier } from "@/lib/tier";
+import { LocalClassification } from "./preprocessor";
 
 // ─── Minimal System Instruction ──────────────────────────────────────────────
-// Provide a lightweight instruction since the actual ad strategy rules and
-// formats are automatically mounted into the model's environment via Skills.
 const BASE_INSTRUCTION =
   "You are an expert Nigerian ad copywriter and marketing strategist. Use your available skills to determine the best strategy and generate high-converting ad copy. Structure your response according to the provided JSON schema.";
 
-// ─── Structured output JSON schema (mirrors AIStrategyResult + AIStrategyMeta) ─
-// Using text.format for guaranteed valid JSON — no more manual
-// code-fence stripping or JSON.parse errors.
+// ─── Full Strategy JSON Schema ────────────────────────────────────────────────
 const AI_STRATEGY_SCHEMA = {
   type: "object" as const,
   properties: {
     plain_english_summary: { type: "string" as const },
     interests: { type: "array" as const, items: { type: "string" as const } },
     behaviors: { type: "array" as const, items: { type: "string" as const } },
+    lifeEvents: { type: "array" as const, items: { type: "string" as const } },
     demographics: {
       type: "object" as const,
       properties: {
@@ -49,22 +47,12 @@ const AI_STRATEGY_SCHEMA = {
       ],
     },
     whatsappMessage: { type: ["string", "null"] as const },
-    reasoning: { type: "string" as const },
     meta: {
       type: "object" as const,
       properties: {
         input_type: {
           type: "string" as const,
-          enum: [
-            "TYPE_A",
-            "TYPE_B",
-            "TYPE_C",
-            "TYPE_D",
-            "TYPE_E",
-            "TYPE_F",
-            "TYPE_G",
-            "TYPE_H",
-          ],
+          enum: ["TYPE_A", "TYPE_B", "TYPE_C", "TYPE_D", "TYPE_E", "TYPE_F", "TYPE_G", "TYPE_H"],
         },
         needs_clarification: { type: "boolean" as const },
         clarification_question: { type: ["string", "null"] as const },
@@ -82,16 +70,7 @@ const AI_STRATEGY_SCHEMA = {
         },
         detected_business_type: {
           type: "string" as const,
-          enum: [
-            "fashion",
-            "beauty",
-            "food",
-            "electronics",
-            "events",
-            "b2b",
-            "general",
-            "unknown",
-          ],
+          enum: ["fashion", "beauty", "food", "electronics", "events", "b2b", "general", "unknown"],
         },
         confidence: { type: "number" as const },
         inferred_assumptions: {
@@ -99,38 +78,20 @@ const AI_STRATEGY_SCHEMA = {
           items: { type: "string" as const },
         },
         refinement_question: { type: ["string", "null"] as const },
-        plain_english_summary: { type: ["string", "null"] as const },
       },
       required: [
-        "input_type",
-        "needs_clarification",
-        "clarification_question",
-        "clarification_options",
-        "is_question",
-        "question_answer",
-        "price_signal",
-        "detected_business_type",
-        "confidence",
-        "inferred_assumptions",
-        "refinement_question",
-        "plain_english_summary",
+        "input_type", "needs_clarification", "clarification_question",
+        "clarification_options", "is_question", "question_answer",
+        "price_signal", "detected_business_type", "confidence",
+        "inferred_assumptions", "refinement_question",
       ] as const,
       additionalProperties: false,
     },
   },
   required: [
-    "plain_english_summary",
-    "interests",
-    "behaviors",
-    "demographics",
-    "suggestedLocations",
-    "estimatedReach",
-    "copy",
-    "headline",
-    "ctaIntent",
-    "whatsappMessage",
-    "reasoning",
-    "meta",
+    "plain_english_summary", "interests", "behaviors", "lifeEvents",
+    "demographics", "suggestedLocations", "estimatedReach", "copy",
+    "headline", "ctaIntent", "whatsappMessage", "meta",
   ] as const,
   additionalProperties: false,
 };
@@ -142,7 +103,7 @@ const openai = new OpenAI({
   maxRetries: 1,
 });
 
-// Skill ID constants — set by upload-skills.ts, stored in .env
+// ─── Skill IDs ────────────────────────────────────────────────────────────────
 const SKILL_IDS = {
   coreStrategy: process.env.SKILL_ID_CORE_STRATEGY_NG!,
   fashion: process.env.SKILL_ID_COPY_FASHION_NG!,
@@ -150,66 +111,156 @@ const SKILL_IDS = {
   beauty: process.env.SKILL_ID_COPY_BEAUTY_NG!,
   services: process.env.SKILL_ID_COPY_SERVICES_NG!,
   policyGuard: process.env.SKILL_ID_POLICY_GUARD_NG!,
+  lifeEvents: process.env.SKILL_ID_LIFE_EVENTS_NG!,
 };
 
 console.log("SKILL_IDS", SKILL_IDS);
 
-// All skills passed as candidates on every call.
-// The model reads each skill's YAML description and auto-loads only the relevant ones.
-// Unloaded skills cost no tokens.
-function buildSkillList(): any[] {
-  return [
+function buildSkillList(businessType?: string, needsLifeEvents?: boolean): any[] {
+  const VERTICAL: Record<string, string> = {
+    fashion: SKILL_IDS.fashion,
+    beauty: SKILL_IDS.beauty,
+    food: SKILL_IDS.food,
+    events: SKILL_IDS.fashion,
+    electronics: SKILL_IDS.services,
+    b2b: SKILL_IDS.services,
+    general: SKILL_IDS.services,
+  };
+
+  const skills = [
     { type: "skill_reference", skill_id: SKILL_IDS.coreStrategy },
-    { type: "skill_reference", skill_id: SKILL_IDS.fashion },
-    { type: "skill_reference", skill_id: SKILL_IDS.food },
-    { type: "skill_reference", skill_id: SKILL_IDS.beauty },
-    { type: "skill_reference", skill_id: SKILL_IDS.services },
+    {
+      type: "skill_reference",
+      skill_id: VERTICAL[businessType ?? "general"] ?? SKILL_IDS.services,
+    },
     { type: "skill_reference", skill_id: SKILL_IDS.policyGuard },
   ];
+
+  if (needsLifeEvents) {
+    skills.push({ type: "skill_reference", skill_id: SKILL_IDS.lifeEvents });
+  }
+
+  return skills;
 }
 
-// Build the user message — raw input to the model. No pre-processing, no classification.
-function buildUserMessage(input: AIInput): string {
-  return [
-    `Business: ${input.businessDescription}.`,
-    `Location: ${input.location || "Nigeria"}.`,
-    input.industry ? `Industry: ${input.industry}.` : "",
-    input.sellingMethod ? `Selling Method: ${input.sellingMethod}.` : "",
-    input.priceTier ? `Price Tier: ${input.priceTier}.` : "",
-    input.customerGender ? `Target Audience: ${input.customerGender}.` : "",
-    input.objective
-      ? `\nCAMPAIGN OBJECTIVE: ${input.objective}\nTone: ${input.objectiveContext?.tone || "Standard"}\nTargeting Bias: ${input.objectiveContext?.targetingBias || "Standard"}\nPreferred CTA: ${input.objectiveContext?.ctaBias || "Standard"}`
-      : "",
-    input.currentCopy
-      ? `\nCURRENT COPY TO REFINE (edit this, do not rebuild from scratch):\nHeadline: "${input.currentCopy.headline}"\nBody: "${input.currentCopy.primary}"\nApply the refinement instruction above. Keep what works.`
-      : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
+// ─── Build User Message ───────────────────────────────────────────────────────
+// Injects onboarding org context into <ctx> so Skills skip re-inference entirely.
+// This alone reduces reasoning tokens by ~100-200 per call for known verticals.
+function buildUserMessage(
+  input: AIInput,
+  preInferred?: LocalClassification["preInferred"],
+): string {
+  const lines: string[] = [`<biz>${input.businessDescription}</biz>`];
+  const ctxParts: string[] = [];
+
+  if (preInferred) {
+    // Local preprocessor already ran — use its output directly
+    ctxParts.push(`gender:${preInferred.gender}`);
+    ctxParts.push(`tier:${preInferred.priceTier}`);
+    ctxParts.push(`type:${preInferred.businessType}`);
+    if (preInferred.lifeSignals) {
+      lines.push(`<life>${preInferred.lifeSignals}</life>`);
+    }
+  } else {
+    // Inject org onboarding data so Skills skip their inference tables.
+    // Previously these were fetched from DB but thrown away here — now they're used.
+    if (input.customerGender && input.customerGender !== "both") {
+      ctxParts.push(`gender:${input.customerGender}`);
+    }
+    if (input.priceTier) ctxParts.push(`tier:${input.priceTier}`);
+    if (input.industry) {
+      const industryMap: Record<string, string> = {
+        "E-commerce (Fashion/Beauty)": "fashion",
+        "Food & Beverage": "food",
+        "Beauty & Cosmetics": "beauty",
+        "Electronics": "electronics",
+        "Events": "events",
+        "B2B / Services": "b2b",
+      };
+      const mapped = industryMap[input.industry];
+      if (mapped) ctxParts.push(`type:${mapped}`);
+    }
+  }
+
+  if (ctxParts.length > 0) {
+    lines.push(`<ctx>${ctxParts.join(" | ")}</ctx>`);
+  }
+
+  if (input.location) lines.push(`<loc>${input.location}</loc>`);
+  if (input.objective) lines.push(`<obj>${input.objective}</obj>`);
+
+  if (input.currentCopy) {
+    lines.push(
+      `<refine>h:"${input.currentCopy.headline}" b:"${input.currentCopy.primary}"</refine>`,
+    );
+  }
+
+  return lines.filter(Boolean).join("\n");
 }
 
-// OpenAI strategy generator — tier-aware.
-// Growth/Agency: gpt-5.2 WITH Skills (industry-specific .md files auto-loaded)
-// Starter: gpt-5.2 WITHOUT Skills (inline system prompt only — still good quality)
+// ─── Two-model Triage ─────────────────────────────────────────────────────────
+// Cheap gpt-5-mini pre-check before expensive gpt-5.2+Skills call.
+// TYPE_B/C/E inputs never touch the Skills API — saves ~3,500 tokens each.
+const TRIAGE_SCHEMA = {
+  type: "object" as const,
+  properties: {
+    input_type: {
+      type: "string" as const,
+      enum: ["TYPE_A", "TYPE_B", "TYPE_C", "TYPE_D", "TYPE_E"] as const,
+    },
+    needs_full_generation: { type: "boolean" as const },
+    unlock_question: { type: ["string", "null"] as const },
+    direct_answer: { type: ["string", "null"] as const },
+  },
+  required: ["input_type", "needs_full_generation"] as const,
+  additionalProperties: false,
+};
+
+const TRIAGE_INSTRUCTION = `You classify Nigerian ad campaign inputs. Rules:
+TYPE_A = any product/service description with 2+ words → needs_full_generation:true
+TYPE_B = single bare word, price only, or pure location only → needs_full_generation:false, provide unlock_question
+TYPE_C = user asking an advertising question → needs_full_generation:false, provide direct_answer
+TYPE_D = user asking to refine existing copy → needs_full_generation:true
+TYPE_E = conversational sign-off/confirmation → needs_full_generation:false, direct_answer:"You're all set!"
+Pidgin multi-word = TYPE_A. Emojis with words = TYPE_A. Be decisive.`;
+
+async function triageInput(
+  description: string,
+  objective: string,
+): Promise<{
+  input_type: string;
+  needs_full_generation: boolean;
+  unlock_question?: string | null;
+  direct_answer?: string | null;
+}> {
+  const response = await (openai.responses.create as any)({
+    model: "gpt-5-mini",
+    instructions: TRIAGE_INSTRUCTION,
+    input: `obj:${objective} | input:${description}`,
+    text: {
+      format: { type: "json_schema", name: "triage_result", schema: TRIAGE_SCHEMA },
+    },
+  });
+  return JSON.parse(response.output_text);
+}
+
+// ─── Full Strategy Generator ──────────────────────────────────────────────────
 async function generateWithOpenAI(
   input: AIInput,
   tierAi: (typeof TIER_CONFIG)[TierId]["ai"],
+  preInferred?: LocalClassification["preInferred"],
 ): Promise<AIStrategyResult> {
   const useSkills = tierAi.useSkills;
   console.log("\n====================================");
   console.log("🚀 [OpenAI Service] generateWithOpenAI called");
-  console.log("📦 [OpenAI Service] Input details:", input);
-  console.log(
-    `   - Business: ${input.businessDescription.substring(0, 50)}...`,
-  );
+  console.log(`   - Business: ${input.businessDescription.substring(0, 50)}...`);
   console.log(`   - Target: ${input.customerGender} in ${input.location}`);
   console.log(`   - Model: ${tierAi.strategyModel} | Skills: ${useSkills}`);
 
   const response = await (openai.responses.create as any)({
     model: tierAi.strategyModel,
     instructions: BASE_INSTRUCTION,
-    input: buildUserMessage(input),
-    // Skills require shell tool + environment — only available for Growth/Agency
+    input: buildUserMessage(input, preInferred),
     ...(useSkills
       ? {
           tools: [
@@ -217,7 +268,10 @@ async function generateWithOpenAI(
               type: "shell",
               environment: {
                 type: "container_auto",
-                skills: buildSkillList(),
+                skills: buildSkillList(
+                  preInferred?.businessType,
+                  !!preInferred?.lifeSignals,
+                ),
               },
             },
           ],
@@ -232,36 +286,40 @@ async function generateWithOpenAI(
     },
   });
 
-  console.log(
-    "✅ [OpenAI Service] Raw response object received successfully.",
-    response,
-  );
+  console.log("✅ [OpenAI Service] Raw response object received successfully.");
+
+  const usage = response.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+
+  if (response.output) {
+    const outputStr = JSON.stringify(response.output);
+    const skillMatches = [...outputStr.matchAll(/\/skills\/([a-zA-Z0-9_-]+)\//g)];
+    const skillsUsed = new Set(skillMatches.map((m) => m[1]));
+    console.log("🛠️ [OpenAI Service] Skills actively used by AI in this generation:");
+    if (skillsUsed.size > 0) {
+      skillsUsed.forEach((skill) => console.log(`  - 🎯 ${skill}`));
+    } else {
+      console.log("  - No explicit skills were called (relied on pre-loaded knowledge)");
+    }
+  }
+
+  console.log("💎💎💎 USAGE 💎💎💎", usage);
   console.log("====================================\n");
 
   const outputText = response.output_text;
-  if (!outputText) {
-    throw new Error("No text response from OpenAI");
-  }
+  if (!outputText) throw new Error("No text response from OpenAI");
 
-  // text.format guarantees valid JSON — no stripping needed
-  return JSON.parse(outputText) as AIStrategyResult;
+  const result = JSON.parse(outputText) as AIStrategyResult;
+  return { ...result, usage };
 }
 
-// Copy refinement — gpt-5-mini for iterative edits (faster + cheaper)
-// NOTE: gpt-5-mini does NOT support shell tool, so no Skills here.
-// This is intentional — refinement doesn't need industry-specific Skills,
-// it just edits existing copy based on the user's instruction.
+// ─── Copy Refinement (gpt-5-mini, no Skills) ─────────────────────────────────
 export async function refineAdCopyWithOpenAI(
   input: AIInput,
   refinementInstruction: string,
-): Promise<AIStrategyResult> {
+): Promise<AIStrategyResult & { usage?: any }> {
   console.log("\n====================================");
-  console.log(
-    "🚀 [OpenAI Service] refineAdCopyWithOpenAI called: input:",
-    input,
-  );
+  console.log("🚀 [OpenAI Service] refineAdCopyWithOpenAI called");
   console.log("📝 [OpenAI Service] Instruction:", refinementInstruction);
-  console.log("🧠 [OpenAI Service] Calling responses.create (gpt-5-mini)...");
 
   const response = await (openai.responses.create as any)({
     model: "gpt-5-mini",
@@ -276,49 +334,36 @@ export async function refineAdCopyWithOpenAI(
     },
   });
 
-  console.log(
-    "✅ [OpenAI Service] Raw refinement response object received successfully.",
-    response,
-  );
+  const usage = response.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+  console.log("💎💎💎 USAGE 💎💎💎 refinement", usage);
   console.log("====================================\n");
 
   const outputText = response.output_text;
   if (!outputText) throw new Error("No response from OpenAI refinement");
 
-  return JSON.parse(outputText) as AIStrategyResult;
+  const result = JSON.parse(outputText) as AIStrategyResult;
+  return { ...result, usage };
 }
 
-// 2. THE MOCK GENERATOR (Free)
+// ─── Mock Generator (dev fallback) ───────────────────────────────────────────
 async function generateMock(input: AIInput): Promise<AIStrategyResult> {
-  // Simulate network delay
   await new Promise((resolve) => setTimeout(resolve, 2000));
-
   return {
-    interests: [
-      "Small Business",
-      "Entrepreneurship",
-      "Fashion Accessories",
-      "Lagos Life",
-    ],
+    interests: ["Small Business", "Entrepreneurship", "Fashion Accessories", "Lagos Life"],
     behaviors: ["Engaged Shoppers", "Mobile Device Users"],
-    demographics: {
-      age_min: 25,
-      age_max: 45,
-      gender: "all",
-    },
+    demographics: { age_min: 25, age_max: 45, gender: "all" },
     suggestedLocations: ["Lagos, Nigeria", "Abuja, Nigeria"],
     estimatedReach: 1200000,
     copy: [
-      `Stop scrolling! 🛑 The best ${input.businessDescription.substring(
-        0,
-        10,
-      )}... is here. Order now and get fast delivery in Lagos.`,
+      `Stop scrolling! 🛑 The best ${input.businessDescription.substring(0, 10)}... is here. Order now and get fast delivery in Lagos.`,
       "Upgrade your lifestyle with our premium collection. Limited stock available! 🛍️",
     ],
     headline: ["Best Prices in Lagos", "Premium Quality"],
-    reasoning:
-      "Mock Data: Targeted broad interests in commercial hubs for maximum visibility.",
+    reasoning: "Mock Data: Targeted broad interests in commercial hubs for maximum visibility.",
     ctaIntent: "buy_now" as const,
+    plain_english_summary: "Mock campaign targeting Lagos shoppers.",
+    lifeEvents: [],
+    whatsappMessage: null,
     meta: {
       input_type: "TYPE_A" as const,
       needs_clarification: false,
@@ -329,73 +374,114 @@ async function generateMock(input: AIInput): Promise<AIStrategyResult> {
       price_signal: "mid" as const,
       detected_business_type: "general" as const,
       confidence: 0.85,
+      inferred_assumptions: [],
+      refinement_question: null,
     },
   };
 }
 
-// 3. THE EXPORTED FUNCTION — resolves tier before calling AI
+// ─── Main Export: Resolves tier, runs triage, then generates ──────────────────
 export async function generateAndSaveStrategy(
   input: AIInput,
-): Promise<AIStrategyResult> {
+  preInferred?: LocalClassification["preInferred"],
+): Promise<AIStrategyResult & { usage?: any }> {
   const supabase = await createClient();
-  // Check env variable to decide provider
   const provider = process.env.AI_PROVIDER!;
 
-  // ─── OpenAI (Skills API) ──────────────────────────────────────────────────
-  if (provider === "openai") {
-    if (!process.env.OPENAI_API_KEY) throw new Error("OpenAI API key missing");
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) throw new Error("Unauthorized");
-
-    // Resolve the caller's subscription tier for model selection
-    const { config: tierConfig } = await resolveTier(supabase, user.id);
-    console.log(
-      `🎯 [OpenAI Service] Tier resolved — Skills: ${tierConfig.ai.useSkills}`,
-    );
-
-    const aiResult = await generateWithOpenAI(input, tierConfig.ai);
-    console.log("OpenAI Skills Result: 📋", aiResult);
-
-    const { data: member } = await supabase
-      .from("organization_members")
-      .select("organization_id")
-      .eq("user_id", user?.id)
-      .single();
-    if (!member) throw new Error("No organization found");
-
-    const { error } = await supabase
-      .from("targeting_profiles")
-      .insert({
-        organization_id: member?.organization_id,
-        name: `${input.businessDescription.substring(0, 20)}...`,
-        business_description: input.businessDescription,
-        product_category: "General",
-        ai_reasoning: aiResult.reasoning,
-        validated_interests: aiResult.interests,
-        created_by: user.id,
-      })
-      .select("id")
-      .single();
-
-    if (error) console.error("Failed to save targeting profile:", error);
-    return aiResult;
+  if (provider !== "openai") {
+    console.log("Generating mock data...", provider);
+    return generateMock(input);
   }
 
-  console.log("Generating mock data...", provider);
-  // ─── Fallback: Mock ───────────────────────────────────────────────────────
-  return generateMock(input);
+  if (!process.env.OPENAI_API_KEY) throw new Error("OpenAI API key missing");
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const { config: tierConfig } = await resolveTier(supabase, user.id);
+  console.log(`🎯 [OpenAI Service] Tier resolved — Skills: ${tierConfig.ai.useSkills}`);
+
+  // ── Two-model triage: route cheap cases through gpt-5-mini before Skills ──
+  // Skip triage when: local preprocessor already ran (preInferred set),
+  // or it's a copy refinement (currentCopy present) — both go straight to full gen
+  const skipTriage = !!preInferred || !!input.currentCopy;
+
+  if (!skipTriage) {
+    try {
+      const triage = await triageInput(
+        input.businessDescription,
+        input.objective || "whatsapp",
+      );
+      console.log("🔍 [Triage] Result:", triage);
+
+      // Non-TYPE_A: respond directly without loading Skills — saves ~3,500 tokens
+      if (!triage.needs_full_generation) {
+        return {
+          plain_english_summary: "",
+          interests: [],
+          behaviors: [],
+          lifeEvents: [],
+          demographics: { age_min: 18, age_max: 65, gender: "all" },
+          suggestedLocations: [],
+          estimatedReach: 0,
+          copy: [],
+          headline: [],
+          ctaIntent: "buy_now" as const,
+          whatsappMessage: null,
+          meta: {
+            input_type: triage.input_type as any,
+            needs_clarification: triage.input_type === "TYPE_B",
+            clarification_question: triage.unlock_question ?? null,
+            clarification_options: null,
+            is_question: triage.input_type === "TYPE_C" || triage.input_type === "TYPE_E",
+            question_answer: triage.direct_answer ?? null,
+            price_signal: "unknown" as const,
+            detected_business_type: "unknown" as const,
+            confidence: 0.3,
+            inferred_assumptions: [],
+            refinement_question: null,
+          },
+        };
+      }
+    } catch (triageErr) {
+      // Safe degradation: triage failure falls through to full generation
+      console.warn("[Triage] Failed, proceeding with full gen:", triageErr);
+    }
+  }
+
+  // ── Full generation: gpt-5.2 + Skills ────────────────────────────────────
+  const aiResult = await generateWithOpenAI(input, tierConfig.ai, preInferred);
+  console.log("OpenAI Skills Result: 📋", aiResult);
+
+  const { data: member } = await supabase
+    .from("organization_members")
+    .select("organization_id")
+    .eq("user_id", user?.id)
+    .single();
+  if (!member) throw new Error("No organization found");
+
+  const { error } = await supabase
+    .from("targeting_profiles")
+    .insert({
+      organization_id: member?.organization_id,
+      name: `${input.businessDescription.substring(0, 20)}...`,
+      business_description: input.businessDescription,
+      product_category: "General",
+      ai_reasoning: aiResult.reasoning,
+      validated_interests: aiResult.interests,
+      created_by: user.id,
+    })
+    .select("id")
+    .single();
+
+  if (error) console.error("Failed to save targeting profile:", error);
+  return aiResult;
 }
 
 /**
- * Helper function to save AI strategy result as campaign context
- * Call this after campaign creation to enable context-aware generation
- *
- * @param campaignId - The campaign ID to attach context to
- * @param strategyResult - The AI strategy result from generateAndSaveStrategy
- * @param businessDescription - Original business description from user
+ * Save AI strategy result as campaign context for creative step use.
  */
 export async function saveCampaignContext(
   campaignId: string,
@@ -405,7 +491,6 @@ export async function saveCampaignContext(
   const supabase = await createClient();
 
   try {
-    // Build campaign context object
     const campaignContext = {
       businessDescription,
       targeting: {
@@ -417,13 +502,12 @@ export async function saveCampaignContext(
       copy:
         strategyResult.copy && strategyResult.headline
           ? {
-              headline: strategyResult.headline[0], // Use first headline
-              bodyCopy: strategyResult.copy[0], // Use first copy variation
+              headline: strategyResult.headline[0],
+              bodyCopy: strategyResult.copy[0],
             }
           : undefined,
     };
 
-    // Update campaign with ai_context
     const { error } = await supabase
       .from("campaigns")
       .update({ ai_context: campaignContext })

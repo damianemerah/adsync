@@ -24,8 +24,18 @@ import {
 } from "iconoir-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { generateAdCreative } from "@/actions/ai-images";
+import {
+  generateAdCreative,
+  stashGeneratedImage,
+  saveCreativeToLibrary,
+} from "@/actions/ai-images";
+import { saveDraft } from "@/actions/drafts";
+import { useRouter } from "next/navigation";
+import { CREDIT_COSTS } from "@/lib/constants";
+import { useCreditBalance } from "@/hooks/use-subscription";
+import { PaymentDialog } from "@/components/billing/payment-dialog";
 import { toast } from "sonner";
+import { Refresh, EditPencil } from "iconoir-react";
 
 export function CreativeStep() {
   const {
@@ -42,11 +52,16 @@ export function CreativeStep() {
     platform,
     setStep,
     updateDraft,
+    pendingGeneratedImage,
   } = useCampaignStore();
 
   const { creatives, isLoading: isLoadingCreatives } = useCreatives();
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
+  const [customPrompt, setCustomPrompt] = useState("");
+  const { balance } = useCreditBalance();
+  const router = useRouter();
 
   const toggleCreative = (url: string) => {
     if (selectedCreatives.includes(url)) {
@@ -60,18 +75,19 @@ export function CreativeStep() {
 
   // ── AI Creative Generation ────────────────────────────────────────────────
 
-  const handleGenerateWithAI = async () => {
+  const handleGenerateWithAI = async (overridePrompt?: string) => {
     if (isGeneratingAI) return;
-    if (!aiPrompt && !adCopy.headline) {
-      toast.warning(
-        "Add a headline or describe your product to generate a creative.",
+    if (balance < CREDIT_COSTS.IMAGE_GEN_PRO) {
+      toast.error(
+        `Not enough credits. You need ${CREDIT_COSTS.IMAGE_GEN_PRO} credits to generate an image.`,
       );
+      setUpgradeDialogOpen(true);
       return;
     }
 
     setIsGeneratingAI(true);
     const toastId = "ai-creative-gen";
-    toast.loading("Generating your ad creative with AI...", { id: toastId });
+    toast.loading("Designing your ad creative with AI...", { id: toastId });
 
     try {
       const campaignContext = {
@@ -111,8 +127,14 @@ export function CreativeStep() {
               ? "4:5"
               : "1:1";
 
+      const promptToUse =
+        typeof overridePrompt === "string" ? overridePrompt : customPrompt;
+      const composedPrompt = promptToUse
+        ? `${adCopy.headline || "product shot"}. Additional instructions: ${promptToUse}`
+        : adCopy.headline || aiPrompt || "product shot";
+
       const result = await generateAdCreative({
-        prompt: adCopy.headline || aiPrompt || "product shot",
+        prompt: composedPrompt,
         mode: "smart",
         aspectRatio,
         creativeFormat: "social_ad",
@@ -120,11 +142,23 @@ export function CreativeStep() {
       });
 
       if (result.imageUrl) {
-        updateDraft({ selectedCreatives: [result.imageUrl] });
-        toast.success(
-          "AI creative ready! It's been selected for your campaign.",
-          { id: toastId },
-        );
+        toast.loading("Preparing your image...", { id: toastId });
+        let stashedUrl = result.imageUrl;
+        try {
+          stashedUrl = await stashGeneratedImage(result.imageUrl);
+        } catch (err) {
+          console.warn("Could not stash image", err);
+        }
+        updateDraft({
+          pendingGeneratedImage: {
+            url: stashedUrl,
+            prompt: result.usedPrompt ?? "",
+            aspectRatio,
+            savedAt: Date.now(),
+          },
+        });
+        setCustomPrompt("");
+        toast.success("AI creative ready to review!", { id: toastId });
       } else {
         throw new Error("No image URL returned");
       }
@@ -136,6 +170,59 @@ export function CreativeStep() {
     } finally {
       setIsGeneratingAI(false);
     }
+  };
+
+  const handleAcceptImage = async (imageUrl: string) => {
+    let finalUrl = imageUrl;
+    const toastId = toast.loading("Saving to your library...");
+    try {
+      const aspectRatio =
+        platform === "tiktok"
+          ? "9:16"
+          : objective?.toString().includes("awareness")
+            ? "9:16"
+            : objective?.toString().includes("sale")
+              ? "4:5"
+              : "1:1";
+      const saved = await saveCreativeToLibrary({
+        imageUrl,
+        prompt: pendingGeneratedImage?.prompt ?? adCopy.headline ?? "",
+        aspectRatio: (pendingGeneratedImage?.aspectRatio as any) ?? aspectRatio,
+      });
+      finalUrl = saved.publicUrl;
+      toast.dismiss(toastId);
+      toast.success("Saved seamlessly!");
+    } catch (err) {
+      toast.dismiss(toastId);
+    }
+    updateDraft({ selectedCreatives: [finalUrl], pendingGeneratedImage: null });
+  };
+
+  const handleEditInStudio = async (imageUrl: string, imagePrompt: string) => {
+    const toastId = toast.loading("Saving campaign progress...");
+    let savedId = null;
+    try {
+      const state = useCampaignStore.getState();
+      savedId = await saveDraft(state);
+      toast.dismiss(toastId);
+    } catch (e) {
+      toast.error("Could not save campaign draft");
+    }
+    const ratio =
+      pendingGeneratedImage?.aspectRatio ||
+      (platform === "tiktok"
+        ? "9:16"
+        : objective?.toString().includes("awareness")
+          ? "9:16"
+          : "1:1");
+    const params = new URLSearchParams({
+      image: imageUrl,
+      prompt: imagePrompt,
+      aspectRatio: ratio,
+      returnTo: `/campaigns/new?resume=true${savedId ? `&draftId=${savedId}` : ""}`,
+      returnStep: "3",
+    });
+    router.push(`/creations/studio?${params.toString()}`);
   };
 
   return (
@@ -163,18 +250,99 @@ export function CreativeStep() {
                   <CardTitle className="text-sm font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
                     <MediaImage className="h-4 w-4 text-primary" /> Visuals
                   </CardTitle>
-                  {/* ── Generate with AI Button ─────────────────────────────── */}
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 flex flex-col gap-4">
+                {/* ── Pending Generated Image ─────────────────────────────── */}
+                {pendingGeneratedImage && (
+                  <div className="rounded-2xl border-2 border-primary/20 bg-primary/5 p-4 flex flex-col gap-4 animate-in fade-in slide-in-from-top-2">
+                    <div className="flex gap-4">
+                      <img
+                        src={pendingGeneratedImage.url}
+                        alt="AI Generated"
+                        className="h-32 w-auto object-cover rounded-xl shadow-soft"
+                      />
+                      <div className="flex flex-col gap-2 flex-1 justify-center">
+                        <h4 className="text-sm font-bold text-primary flex items-center gap-1.5">
+                          <Sparks className="h-4 w-4" /> AI Generation Ready
+                        </h4>
+                        <p className="text-xs text-muted-foreground">
+                          Review your image. You can refine it with a prompt,
+                          edit it manually, or accept it for your campaign.
+                        </p>
+                        <div className="flex gap-2 mt-2">
+                          <Input
+                            className="flex-1 h-9 text-xs"
+                            placeholder="e.g. no text, make it brighter..."
+                            value={customPrompt}
+                            onChange={(e) => setCustomPrompt(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter")
+                                handleGenerateWithAI(customPrompt);
+                            }}
+                          />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleGenerateWithAI(customPrompt)}
+                            disabled={isGeneratingAI}
+                            className="h-9 w-9 p-0 shrink-0"
+                          >
+                            <Refresh
+                              className={cn(
+                                "h-4 w-4 text-primary",
+                                isGeneratingAI && "animate-spin",
+                              )}
+                            />
+                          </Button>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 h-9 text-xs"
+                            onClick={() =>
+                              handleEditInStudio(
+                                pendingGeneratedImage.url,
+                                pendingGeneratedImage.prompt,
+                              )
+                            }
+                          >
+                            <EditPencil className="h-3.5 w-3.5 mr-1" /> Edit in
+                            Studio
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="flex-1 h-9 text-xs bg-primary hover:bg-primary/90 text-primary-foreground"
+                            onClick={() =>
+                              handleAcceptImage(pendingGeneratedImage.url)
+                            }
+                          >
+                            <Check className="h-3.5 w-3.5 mr-1" /> Accept Image
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Media Controls ─────────────────────────────── */}
+                <div className="flex items-center gap-2 justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    Select creatives for this campaign:
+                  </p>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleGenerateWithAI}
-                    disabled={isGeneratingAI}
+                    onClick={() => handleGenerateWithAI()}
+                    disabled={isGeneratingAI || !!pendingGeneratedImage}
                     className={cn(
                       "h-8 px-3 rounded-xl border-primary/30 text-primary hover:bg-primary/5 hover:border-primary text-xs font-semibold gap-1.5 transition-all",
-                      isGeneratingAI && "opacity-60 cursor-not-allowed",
+                      (isGeneratingAI || !!pendingGeneratedImage) &&
+                        "opacity-60 cursor-not-allowed",
                     )}
                   >
-                    {isGeneratingAI ? (
+                    {isGeneratingAI && !pendingGeneratedImage ? (
                       <>
                         <SystemRestart className="h-3.5 w-3.5 animate-spin" />
                         Generating…
@@ -187,8 +355,6 @@ export function CreativeStep() {
                     )}
                   </Button>
                 </div>
-              </CardHeader>
-              <CardContent className="p-4">
                 {isLoadingCreatives ? (
                   <div className="flex justify-center p-8">
                     <SystemRestart className="animate-spin text-primary w-8 h-8" />
@@ -207,7 +373,7 @@ export function CreativeStep() {
                     </div>
 
                     {/* AI-generating placeholder */}
-                    {isGeneratingAI && (
+                    {isGeneratingAI && !pendingGeneratedImage && (
                       <div className="aspect-square rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 flex flex-col items-center justify-center gap-2">
                         <SystemRestart className="h-6 w-6 animate-spin text-primary" />
                         <span className="text-[10px] font-semibold text-primary">
@@ -369,6 +535,11 @@ export function CreativeStep() {
           toggleCreative(creative.original_url);
           setUploadModalOpen(false);
         }}
+      />
+      <PaymentDialog
+        planId="growth"
+        open={upgradeDialogOpen}
+        onOpenChange={setUpgradeDialogOpen}
       />
     </>
   );

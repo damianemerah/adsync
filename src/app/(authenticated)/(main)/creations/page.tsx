@@ -1,5 +1,6 @@
 "use client";
 import { HelpCenterSheet } from "@/components/layout/help-center-sheet";
+import { CreditsDisplay } from "@/components/layout/credits-display";
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -193,6 +194,7 @@ export default function CreativesPage() {
             Creatives
           </h1>
           <div className="flex items-center gap-3">
+            <CreditsDisplay />
             <HelpCenterSheet />
             <Button
               onClick={() => router.push("/creations/studio")}
