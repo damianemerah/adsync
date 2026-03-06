@@ -34,8 +34,9 @@ wigs: "100% human hair — no shedding, no wahala" | longevity | pre-styled
 
 ## CTA
 
-WhatsApp: "Send us a message — full collection and prices in minutes" / "DM us. We reply fast."
+Only if `ctaIntent` is `start_whatsapp_chat`: "Send us a message — full collection and prices in minutes" / "DM us. We reply fast."
 Buy now: "Tap to shop — delivery nationwide in 2-3 days"
+Learn more: "Tap to see our full collection and learn more."
 
 ## WhatsApp prefill
 

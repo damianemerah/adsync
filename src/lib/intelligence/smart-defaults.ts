@@ -10,8 +10,8 @@ import type { CampaignROI } from "@/hooks/use-campaign-roi";
 import type { LocationOption } from "@/stores/campaign-store";
 import {
   BUDGET_CONSTRAINTS,
+  DEFAULT_LOCATIONS,
   DEFAULT_AGE_RANGES,
-  DEFAULT_LOCATION_KEYS,
   ACCOUNT_TIERS,
 } from "./benchmarks";
 
@@ -33,7 +33,7 @@ export interface SmartDefaults {
   budget: number;
   ageRange: { min: number; max: number };
   gender: "all" | "male" | "female";
-  locationKeys: readonly string[];
+  locations: LocationOption[];
   duration: number;
   placementType: "automatic";
 }
@@ -84,17 +84,15 @@ export function computeSmartDefaults(input: SmartDefaultsInput): SmartDefaults {
   if (input.customerGender === "male") gender = "male";
   if (input.customerGender === "female") gender = "female";
 
-  // Locations: use provided or fall back to defaults
-  const locationKeys =
-    input.locations.length > 0
-      ? input.locations.map((l) => l.id)
-      : DEFAULT_LOCATION_KEYS;
+  // Locations: use provided or fall back to default cities
+  const locations: LocationOption[] =
+    input.locations.length > 0 ? input.locations : [...DEFAULT_LOCATIONS];
 
   return {
     budget,
     ageRange,
     gender,
-    locationKeys,
+    locations,
     duration: BUDGET_CONSTRAINTS.minDurationDays,
     placementType: "automatic",
   };

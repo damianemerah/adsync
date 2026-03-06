@@ -131,9 +131,19 @@ export const DEFAULT_AGE_RANGES: Record<
   engagement: { min: 18, max: 35 },
 };
 
-// ── Default Location Keys (Meta geo_locations) ─────────────────────────────
-/** Lagos State, Abuja FCT, Rivers State */
-export const DEFAULT_LOCATION_KEYS = ["2574", "2566", "2592"] as const;
+// ── Default Locations (Meta geo IDs — cities) ─────────────────────────────
+/**
+ * Lagos (2420605), Abuja (2347251), Port Harcourt (2346156) — Meta city IDs.
+ * Used when the user has not specified any locations.
+ * Lagos ID matches LAGOS_DEFAULT in targeting-resolver.ts — confirmed correct.
+ */
+import type { LocationOption } from "@/stores/campaign-store";
+
+export const DEFAULT_LOCATIONS: LocationOption[] = [
+  { id: "2420605", name: "Lagos", type: "city", country: "Nigeria" },
+  { id: "2347251", name: "Abuja", type: "city", country: "Nigeria" },
+  { id: "2346156", name: "Port Harcourt", type: "city", country: "Nigeria" },
+];
 
 // ── Account Health Tiers ───────────────────────────────────────────────────
 export const ACCOUNT_TIERS = {
@@ -166,6 +176,7 @@ export const ACCOUNT_TIERS = {
  * 3. Aggressive/Spammy language
  */
 export const RISKY_TERMS = [
+  // TODO: Move to ai checker away from shell
   // Health / Medical
   {
     pattern: /\b(cure|cures|cured)\b/i,

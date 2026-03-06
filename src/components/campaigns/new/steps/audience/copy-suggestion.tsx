@@ -12,6 +12,10 @@ interface CopySuggestionProps {
   onRefine: (instruction: string) => void;
   onProceed: () => void;
   isRefining: boolean;
+  /** Only the latest copy card shows refinement action buttons */
+  isLast?: boolean;
+  /** Which variation slot this card represents (0-based) */
+  variantIdx?: number;
 }
 
 function EditableField({
@@ -131,8 +135,11 @@ export function CopySuggestion({
   onRefine,
   onProceed,
   isRefining,
+  isLast = false,
+  variantIdx = 0,
 }: CopySuggestionProps) {
-  const { adCopy, updateDraft } = useCampaignStore();
+  const { adCopy, updateDraft, selectedCopyIdx } = useCampaignStore();
+  const isSelected = selectedCopyIdx === variantIdx;
   const [activeRefinement, setActiveRefinement] = useState<string | null>(null);
 
   const [localHeadline, setLocalHeadline] = useState(headline);
@@ -163,7 +170,14 @@ export function CopySuggestion({
         <Megaphone className="h-3.5 w-3.5" />
         Your Ad Copy
       </div>
-      <div className="p-4 rounded-3xl bg-card border border-border shadow-soft space-y-3">
+      <div
+        className={cn(
+          "p-4 rounded-3xl bg-card border shadow-soft space-y-3 transition-all",
+          isSelected
+            ? "border-primary ring-2 ring-primary/20"
+            : "border-border",
+        )}
+      >
         <EditableField
           label="Headline"
           value={localHeadline}
@@ -175,54 +189,83 @@ export function CopySuggestion({
           onSave={handleSaveBody}
           multiline
         />
+
+        {/* Selection indicator */}
+        <div className="flex items-center justify-between pt-1">
+          {isSelected ? (
+            <span className="flex items-center gap-1.5 text-[11px] font-bold text-primary">
+              <Check className="h-3 w-3" /> Using this copy
+            </span>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                updateDraft({
+                  selectedCopyIdx: variantIdx,
+                  adCopy: {
+                    ...adCopy,
+                    headline: localHeadline,
+                    primary: localBody,
+                  },
+                });
+              }}
+              className="h-7 px-3 rounded-lg border-primary/40 text-primary hover:bg-primary/5 text-xs font-semibold"
+            >
+              Use This Copy
+            </Button>
+          )}
+        </div>
       </div>
-      <div className="flex flex-wrap gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() =>
-            handleRefine("Make this copy shorter and more punchy", "shorter")
-          }
-          disabled={isRefining}
-          className="rounded-xl border-border hover:border-primary/50 hover:bg-primary/5 text-xs"
-        >
-          {activeRefinement === "shorter" ? (
-            <Refresh className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-          ) : null}
-          Shorter
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() =>
-            handleRefine("Make this more urgent and exciting", "fire")
-          }
-          disabled={isRefining}
-          className="rounded-xl border-border hover:border-primary/50 hover:bg-primary/5 text-xs"
-        >
-          {activeRefinement === "fire" ? (
-            <Refresh className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-          ) : null}
-          More Fire 🔥
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() =>
-            handleRefine("Rewrite with completely fresh wording", "tryagain")
-          }
-          disabled={isRefining}
-          className="rounded-xl border-border hover:border-primary/50 hover:bg-primary/5 text-xs"
-        >
-          <Refresh
-            className={cn(
-              "h-3.5 w-3.5 mr-1.5",
-              activeRefinement === "tryagain" && "animate-spin",
-            )}
-          />
-          Try Again
-        </Button>
-      </div>
+      {isLast && (
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              handleRefine("Make this copy shorter and more punchy", "shorter")
+            }
+            disabled={isRefining}
+            className="rounded-xl border-border hover:border-primary/50 hover:bg-primary/5 text-xs"
+          >
+            {activeRefinement === "shorter" ? (
+              <Refresh className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+            ) : null}
+            Shorter
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              handleRefine("Make this more urgent and exciting", "fire")
+            }
+            disabled={isRefining}
+            className="rounded-xl border-border hover:border-primary/50 hover:bg-primary/5 text-xs"
+          >
+            {activeRefinement === "fire" ? (
+              <Refresh className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+            ) : null}
+            More Fire 🔥
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              handleRefine("Rewrite with completely fresh wording", "tryagain")
+            }
+            disabled={isRefining}
+            className="rounded-xl border-border hover:border-primary/50 hover:bg-primary/5 text-xs"
+          >
+            <Refresh
+              className={cn(
+                "h-3.5 w-3.5 mr-1.5",
+                activeRefinement === "tryagain" && "animate-spin",
+              )}
+            />
+            Try Again
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

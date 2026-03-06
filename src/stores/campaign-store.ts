@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 import { AdSyncObjective, MetaPlacement } from "@/lib/constants";
 import type { CTAData } from "@/types/cta-types";
 
@@ -16,17 +15,40 @@ export interface TargetingOption {
   name: string;
 }
 
-interface SavedAudience {
-  id: string;
-  prompt: string;
-  timestamp: number;
-  interests: TargetingOption[];
-  locations: LocationOption[];
-}
-
 export interface CopyVariation {
   headline: string;
   primary: string;
+}
+
+export interface Message {
+  id: string;
+  role: "ai" | "user";
+  content: string;
+  type?:
+    | "text"
+    | "suggestion"
+    | "summary"
+    | "copy_suggestion"
+    | "clarification_choice"
+    | "outcome_preview"
+    | "recovery"
+    | "network_error";
+  data?: {
+    interests?: any[];
+    locations?: any[];
+    adCopy?: { headline: string; primary: string };
+    adCopyVariations?: CopyVariation[];
+    clarificationOptions?: string[];
+    inferredAssumptions?: string[];
+    refinementQuestion?: string;
+    // Outcome preview data
+    outcomeLabel?: string;
+    outcomeRange?: string;
+    budget?: number;
+    // Error recovery
+    originalInput?: string;
+    isMismatchPrompt?: boolean;
+  };
 }
 
 export interface CampaignState {
@@ -89,41 +111,161 @@ export interface CampaignState {
   /** All copy variations returned by AI, sliced by tier limit. Index 0 mirrors adCopy. */
   adCopyVariations: CopyVariation[];
 
-  // History
-  // Phase 2: savedAudiences will power a "Saved Audiences" panel in the audience step UI.
-  // Currently populated by saveAudience() but not yet displayed anywhere.
-  savedAudiences: SavedAudience[];
+  /** Index of the variation the user pinned as their preferred copy (default 0). */
+  selectedCopyIdx: number;
 
-  // User Scoping
+  messages: Message[];
+  setMessages: (messages: Message[] | ((prev: Message[]) => Message[])) => void;
+
   userId: string | null;
 
   // Actions
   setStep: (step: number) => void;
   updateDraft: (data: Partial<CampaignState>) => void;
   setDestinationValue: (val: string) => void;
+  /** Pick a copy variation by index — updates adCopy to that variation. */
+  selectCopyVariation: (idx: number) => void;
   resetDraft: () => void;
-  saveAudience: (audience: Omit<SavedAudience, "id" | "timestamp">) => void;
   hydrate: (data: Partial<CampaignState>) => void;
-  applyTemplate: (templateId: string) => void; // NEW
-  updateROAS: (prediction: { value: number; confidence: number }) => void; // NEW
+  applyTemplate: (templateId: string) => void;
+  updateROAS: (prediction: { value: number; confidence: number }) => void;
   incrementRefinementCount: () => void;
 }
 
-export const useCampaignStore = create<CampaignState>()(
-  persist(
-    (set, get) => ({
-      // Initial Values
+export const useCampaignStore = create<CampaignState>()((set, get) => ({
+  // Initial Values
+  currentStep: 1,
+  platform: null,
+  objective: null,
+
+  metaPlacement: "automatic" as MetaPlacement,
+  metaSubPlacements: {
+    instagram: ["feed", "story", "reels", "instagram_explore", "shop"],
+    facebook: ["feed", "video_feeds", "instream_video"],
+  },
+  campaignName: "", // Default empty, we will auto-set or let user type
+  targetInterests: [], // Important!
+  targetBehaviors: [],
+  ageRange: { min: 18, max: 65 },
+  gender: "all",
+  targetLanguages: [],
+  exclusionAudienceIds: [],
+  targetLifeEvents: [],
+  destinationValue: "",
+
+  aiPrompt: "",
+  latestAiSummary: null, // NEW
+  lastGeneratedObjective: null, // NEW
+  locations: [], // Start empty, force user/AI to add valid objects
+  locationInput: "",
+  customInterest: "",
+  budget: 7000, // Matches "Grow" recommended tier in budget-launch-step
+  selectedCreatives: [],
+  adCopy: {
+    primary: "",
+    headline: "",
+    cta: {
+      intent: "buy_now",
+      platformCode: "SHOP_NOW",
+      displayLabel: "Shop now",
+    },
+  },
+  selectedTemplate: null,
+  predictedROAS: null,
+  roasHistory: [],
+  pendingGeneratedImage: null,
+  refinementCount: 0,
+  adCopyVariations: [],
+  selectedCopyIdx: 0,
+  messages: [],
+  userId: null,
+
+  // Actions
+  setMessages: (updater) =>
+    set((state) => ({
+      messages:
+        typeof updater === "function" ? updater(state.messages) : updater,
+    })),
+  setStep: (step) => set({ currentStep: step }),
+
+  updateDraft: (data) =>
+    set((state) => {
+      const next = { ...state, ...data };
+
+      // Reactive CTA defaults: when objective changes, auto-set the most logical CTA.
+      // This prevents e.g. a WhatsApp campaign launching with a SHOP_NOW button,
+      // or an Awareness campaign with a SEND_MESSAGE button.
+      if (data.objective && data.objective !== state.objective) {
+        const ctaDefaults: Record<
+          string,
+          { intent: string; platformCode: string; displayLabel: string }
+        > = {
+          whatsapp: {
+            intent: "start_whatsapp_chat",
+            platformCode: "SEND_MESSAGE",
+            displayLabel: "Send message",
+          },
+          traffic: {
+            intent: "buy_now",
+            platformCode: "SHOP_NOW",
+            displayLabel: "Shop now",
+          },
+          awareness: {
+            intent: "learn_more",
+            platformCode: "LEARN_MORE",
+            displayLabel: "Learn more",
+          },
+          engagement: {
+            intent: "learn_more",
+            platformCode: "LEARN_MORE",
+            displayLabel: "Learn more",
+          },
+        };
+
+        const defaultCTA = ctaDefaults[data.objective];
+        if (defaultCTA) {
+          next.adCopy = {
+            ...next.adCopy,
+            cta: defaultCTA as typeof state.adCopy.cta,
+          };
+        }
+      }
+
+      return next;
+    }),
+  setDestinationValue: (val) => set({ destinationValue: val }),
+
+  selectCopyVariation: (idx) =>
+    set((state) => {
+      const variation = state.adCopyVariations[idx];
+      if (!variation) return state;
+      return {
+        selectedCopyIdx: idx,
+        adCopy: {
+          ...state.adCopy,
+          headline: variation.headline,
+          primary: variation.primary,
+        },
+      };
+    }),
+
+  incrementRefinementCount: () =>
+    set((state) => ({ refinementCount: state.refinementCount + 1 })),
+
+  hydrate: (data) => set((state) => ({ ...state, ...data })),
+
+  resetDraft: () =>
+    set({
       currentStep: 1,
       platform: null,
       objective: null,
-
       metaPlacement: "automatic" as MetaPlacement,
       metaSubPlacements: {
         instagram: ["feed", "story", "reels", "instagram_explore", "shop"],
         facebook: ["feed", "video_feeds", "instream_video"],
       },
-      campaignName: "", // Default empty, we will auto-set or let user type
-      targetInterests: [], // Important!
+      campaignName: "",
+      targetInterests: [],
       targetBehaviors: [],
       ageRange: { min: 18, max: 65 },
       gender: "all",
@@ -131,14 +273,13 @@ export const useCampaignStore = create<CampaignState>()(
       exclusionAudienceIds: [],
       targetLifeEvents: [],
       destinationValue: "",
-
       aiPrompt: "",
-      latestAiSummary: null, // NEW
-      lastGeneratedObjective: null, // NEW
-      locations: [], // Start empty, force user/AI to add valid objects
+      latestAiSummary: null,
+      lastGeneratedObjective: null,
+      locations: [],
       locationInput: "",
       customInterest: "",
-      budget: 7000, // Matches "Grow" recommended tier in budget-launch-step
+      budget: 7000, // Matches "Grow" recommended tier
       selectedCreatives: [],
       adCopy: {
         primary: "",
@@ -153,300 +294,25 @@ export const useCampaignStore = create<CampaignState>()(
       predictedROAS: null,
       roasHistory: [],
       pendingGeneratedImage: null,
-      refinementCount: 0,
       adCopyVariations: [],
-      savedAudiences: [],
-      userId: null,
-
-      // Actions
-      setStep: (step) => set({ currentStep: step }),
-
-      updateDraft: (data) =>
-        set((state) => {
-          const next = { ...state, ...data };
-
-          // Reactive CTA defaults: when objective changes, auto-set the most logical CTA.
-          // This prevents e.g. a WhatsApp campaign launching with a SHOP_NOW button,
-          // or an Awareness campaign with a SEND_MESSAGE button.
-          if (data.objective && data.objective !== state.objective) {
-            const ctaDefaults: Record<
-              string,
-              { intent: string; platformCode: string; displayLabel: string }
-            > = {
-              whatsapp: {
-                intent: "start_whatsapp_chat",
-                platformCode: "SEND_MESSAGE",
-                displayLabel: "Send message",
-              },
-              traffic: {
-                intent: "buy_now",
-                platformCode: "SHOP_NOW",
-                displayLabel: "Shop now",
-              },
-              awareness: {
-                intent: "learn_more",
-                platformCode: "LEARN_MORE",
-                displayLabel: "Learn more",
-              },
-              engagement: {
-                intent: "learn_more",
-                platformCode: "LEARN_MORE",
-                displayLabel: "Learn more",
-              },
-            };
-
-            const defaultCTA = ctaDefaults[data.objective];
-            if (defaultCTA) {
-              next.adCopy = {
-                ...next.adCopy,
-                cta: defaultCTA as typeof state.adCopy.cta,
-              };
-            }
-          }
-
-          return next;
-        }),
-      setDestinationValue: (val) => set({ destinationValue: val }),
-
-      incrementRefinementCount: () =>
-        set((state) => ({ refinementCount: state.refinementCount + 1 })),
-
-      hydrate: (data) => set((state) => ({ ...state, ...data })),
-
-      resetDraft: () =>
-        set({
-          currentStep: 1,
-          platform: null,
-          objective: null,
-          metaPlacement: "automatic" as MetaPlacement,
-          metaSubPlacements: {
-            instagram: ["feed", "story", "reels", "instagram_explore", "shop"],
-            facebook: ["feed", "video_feeds", "instream_video"],
-          },
-          campaignName: "",
-          targetInterests: [],
-          targetBehaviors: [],
-          ageRange: { min: 18, max: 65 },
-          gender: "all",
-          targetLanguages: [],
-          exclusionAudienceIds: [],
-          targetLifeEvents: [],
-          destinationValue: "",
-          aiPrompt: "",
-          latestAiSummary: null,
-          lastGeneratedObjective: null,
-          locations: [],
-          locationInput: "",
-          customInterest: "",
-          budget: 7000, // Matches "Grow" recommended tier
-          selectedCreatives: [],
-          adCopy: {
-            primary: "",
-            headline: "",
-            cta: {
-              intent: "buy_now",
-              platformCode: "SHOP_NOW",
-              displayLabel: "Shop now",
-            },
-          },
-          selectedTemplate: null,
-          predictedROAS: null,
-          roasHistory: [],
-          pendingGeneratedImage: null,
-          adCopyVariations: [],
-          // refinementCount: 0, // Now persisted
-        }),
-
-      applyTemplate: (templateId: string) => {
-        // Phase 2: Applying a template will pre-fill adCopy, targeting interests,
-        // and budget based on industry vertical (e.g. fashion, food, beauty).
-        // For now, just persists the selection so it can be read when templates ship.
-        set({ selectedTemplate: templateId });
-      },
-
-      updateROAS: (prediction: { value: number; confidence: number }) =>
-        set((state) => ({
-          predictedROAS: prediction,
-          roasHistory: [
-            ...state.roasHistory,
-            { timestamp: Date.now(), value: prediction.value },
-          ].slice(-10), // Keep last 10 predictions
-        })),
-
-      saveAudience: (audience) =>
-        set((state) => {
-          const exists = state.savedAudiences.find(
-            (a) => a.prompt === audience.prompt,
-          );
-          if (exists) return state;
-
-          if (!audience.interests) {
-            // Ensure interests are always present
-
-            console.warn("Attempted to save audience without interests.");
-
-            return state;
-          }
-
-          const newAudience = {
-            ...audience,
-            id: Math.random().toString(36).substring(7),
-            timestamp: Date.now(),
-          };
-
-          return {
-            savedAudiences: [newAudience, ...state.savedAudiences].slice(0, 5),
-          };
-        }),
+      selectedCopyIdx: 0,
+      messages: [],
+      // refinementCount: 0, // Now persisted
     }),
-    {
-      name: "adsync-campaign-draft",
-      version: 10, // Bumped for adCopyVariations
-      migrate: (persistedState: any, version) => {
-        if (version < 2) {
-          return {
-            currentStep: 1,
-            targetInterests: [],
-            targetBehaviors: [],
-            locations: [],
-            // Reset other critical fields to safe defaults
-            platform: null,
-            objective: null,
-            campaignName: "",
-            ageRange: { min: 18, max: 65 },
-            gender: "all",
-            destinationValue: "",
-            aiPrompt: "",
-            locationInput: "",
-            customInterest: "",
-            budget: 5000,
-            selectedCreatives: [],
-            adCopy: { primary: "", headline: "", cta: "Shop Now" },
-            savedAudiences: [],
-            userId: null,
-          } as unknown as CampaignState;
-        }
 
-        // Version 3 migration: Convert old string CTA to CTAData object
-        if (version < 3) {
-          const state = persistedState as any;
+  applyTemplate: (templateId: string) => {
+    // Phase 2: Applying a template will pre-fill adCopy, targeting interests,
+    // and budget based on industry vertical (e.g. fashion, food, beauty).
+    // For now, just persists the selection so it can be read when templates ship.
+    set({ selectedTemplate: templateId });
+  },
 
-          // Check if adCopy.cta is a string (old format)
-          if (state.adCopy && typeof state.adCopy.cta === "string") {
-            const oldCTA = state.adCopy.cta;
-
-            // Map common old CTA strings to new structure
-            let newCTA: CTAData;
-
-            if (
-              oldCTA.toLowerCase().includes("message") ||
-              oldCTA.toLowerCase().includes("whatsapp")
-            ) {
-              newCTA = {
-                intent: "start_whatsapp_chat",
-                platformCode: "SEND_MESSAGE",
-                displayLabel: "Send message",
-              };
-            } else if (oldCTA.toLowerCase().includes("shop")) {
-              newCTA = {
-                intent: "buy_now",
-                platformCode: "SHOP_NOW",
-                displayLabel: "Shop now",
-              };
-            } else if (oldCTA.toLowerCase().includes("learn")) {
-              newCTA = {
-                intent: "learn_more",
-                platformCode: "LEARN_MORE",
-                displayLabel: "Learn more",
-              };
-            } else {
-              // Default fallback
-              newCTA = {
-                intent: "buy_now",
-                platformCode: "SHOP_NOW",
-                displayLabel: "Shop now",
-              };
-            }
-
-            return {
-              ...state,
-              adCopy: {
-                ...state.adCopy,
-                cta: newCTA,
-              },
-            } as CampaignState;
-          }
-        }
-
-        // Version 4 migration: Add metaPlacement field
-        if (version < 4) {
-          return {
-            ...(persistedState as any),
-            metaPlacement: "automatic" as MetaPlacement,
-          } as CampaignState;
-        }
-
-        // Version 5 migration: Add pendingGeneratedImage field
-        if (version < 5) {
-          return {
-            ...(persistedState as any),
-            pendingGeneratedImage: null,
-          } as CampaignState;
-        }
-
-        // Version 6 migration: Add metaSubPlacements field
-        if (version < 6) {
-          return {
-            ...(persistedState as any),
-            metaSubPlacements: {
-              instagram: [
-                "feed",
-                "story",
-                "reels",
-                "instagram_explore",
-                "shop",
-              ],
-              facebook: ["feed", "video_feeds", "instream_video"],
-            },
-          } as CampaignState;
-        }
-
-        // Version 7 migration: Add refinementCount field
-        if (version < 7) {
-          return {
-            ...(persistedState as any),
-            refinementCount: 0,
-          } as CampaignState;
-        }
-
-        // Version 8 migration: Add targetLanguages and exclusionAudienceIds
-        if (version < 8) {
-          return {
-            ...(persistedState as any),
-            targetLanguages: [],
-            exclusionAudienceIds: [],
-          } as CampaignState;
-        }
-
-        // Version 9 migration: Add targetLifeEvents
-        if (version < 9) {
-          return {
-            ...(persistedState as any),
-            targetLifeEvents: [],
-          } as CampaignState;
-        }
-
-        // Version 10 migration: Add adCopyVariations
-        if (version < 10) {
-          return {
-            ...(persistedState as any),
-            adCopyVariations: [],
-          } as CampaignState;
-        }
-
-        return persistedState as CampaignState;
-      },
-      partialize: (state) => ({ ...state }),
-    },
-  ),
-);
+  updateROAS: (prediction: { value: number; confidence: number }) =>
+    set((state) => ({
+      predictedROAS: prediction,
+      roasHistory: [
+        ...state.roasHistory,
+        { timestamp: Date.now(), value: prediction.value },
+      ].slice(-10), // Keep last 10 predictions
+    })),
+}));

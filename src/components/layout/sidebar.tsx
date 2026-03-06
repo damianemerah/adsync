@@ -89,23 +89,23 @@ export function Sidebar() {
       ],
     },
     {
+      label: "Campaigns",
+      icon: NetworkReverse,
+      items: [
+        { label: "All Campaigns", icon: List, href: "/campaigns" },
+        { label: "Create New", icon: Plus, href: "/campaigns/new" },
+      ],
+    },
+    {
       label: "AI Creative",
       icon: MagicWand,
       variant: "ai",
       iconColor: "text-ai", // [UPDATED] Semantic token
       labelColor: "text-ai", // [UPDATED] Semantic token
       items: [
-        { label: "Create", icon: MagicWand, href: "/creations/studio" },
+        { label: "Create", icon: MagicWand, href: "/creations" },
         // { label: "Improve", icon: GraphUp, href: "#" },
-        { label: "My Creations", icon: LayoutLeft, href: "/creations" },
-      ],
-    },
-    {
-      label: "Campaigns",
-      icon: NetworkReverse,
-      items: [
-        { label: "All Campaigns", icon: List, href: "/campaigns" },
-        { label: "Create New", icon: Plus, href: "/campaigns/new" },
+        { label: "My Creations", icon: LayoutLeft, href: "/creations/library" },
       ],
     },
     // {

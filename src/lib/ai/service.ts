@@ -3,11 +3,22 @@ import { AIInput, AIStrategyResult } from "./types";
 import { createClient } from "@/lib/supabase/server";
 import { TIER_CONFIG, TierId } from "@/lib/constants";
 import { resolveTier } from "@/lib/tier";
-import { LocalClassification } from "./preprocessor";
+import { TRIAGE_INSTRUCTION } from "./prompts";
+import {
+  buildBehaviorCatalogPrompt,
+  buildLifeEventCatalogPrompt,
+} from "@/lib/constants/meta-behaviors";
 
 // ─── Minimal System Instruction ──────────────────────────────────────────────
-const BASE_INSTRUCTION =
-  "You are an expert Nigerian ad copywriter and marketing strategist. Use your available skills to determine the best strategy and generate high-converting ad copy. Structure your response according to the provided JSON schema.";
+const BASE_INSTRUCTION = `You are an expert Nigerian ad copywriter and marketing strategist. Use your available skills to determine the best strategy and generate high-converting ad copy. Structure your response according to the provided JSON schema.
+
+BEHAVIORS — you MUST output ONLY names from this exact list (2–5, never invent new names):
+${buildBehaviorCatalogPrompt()}
+
+LIFE EVENTS — output ONLY names from this exact list (0–2), or an empty array [] if none clearly apply:
+${buildLifeEventCatalogPrompt()}
+
+Outputting any behavior or life event name NOT in the above lists is a critical error.`;
 
 // ─── Full Strategy JSON Schema ────────────────────────────────────────────────
 const AI_STRATEGY_SCHEMA = {
@@ -31,6 +42,22 @@ const AI_STRATEGY_SCHEMA = {
       type: "array" as const,
       items: { type: "string" as const },
     },
+    geo_strategy: {
+      anyOf: [
+        {
+          type: "object" as const,
+          properties: {
+            type: {
+              type: "string" as const,
+              enum: ["broad", "cities"] as const,
+            },
+          },
+          required: ["type"] as const,
+          additionalProperties: false,
+        },
+        { type: "null" as const },
+      ],
+    },
     estimatedReach: { type: "number" as const },
     copy: { type: "array" as const, items: { type: "string" as const } },
     headline: { type: "array" as const, items: { type: "string" as const } },
@@ -52,7 +79,16 @@ const AI_STRATEGY_SCHEMA = {
       properties: {
         input_type: {
           type: "string" as const,
-          enum: ["TYPE_A", "TYPE_B", "TYPE_C", "TYPE_D", "TYPE_E", "TYPE_F", "TYPE_G", "TYPE_H"],
+          enum: [
+            "TYPE_A",
+            "TYPE_B",
+            "TYPE_C",
+            "TYPE_D",
+            "TYPE_E",
+            "TYPE_F",
+            "TYPE_G",
+            "TYPE_H",
+          ],
         },
         needs_clarification: { type: "boolean" as const },
         clarification_question: { type: ["string", "null"] as const },
@@ -70,7 +106,16 @@ const AI_STRATEGY_SCHEMA = {
         },
         detected_business_type: {
           type: "string" as const,
-          enum: ["fashion", "beauty", "food", "electronics", "events", "b2b", "general", "unknown"],
+          enum: [
+            "fashion",
+            "beauty",
+            "food",
+            "electronics",
+            "events",
+            "b2b",
+            "general",
+            "unknown",
+          ],
         },
         confidence: { type: "number" as const },
         inferred_assumptions: {
@@ -80,18 +125,35 @@ const AI_STRATEGY_SCHEMA = {
         refinement_question: { type: ["string", "null"] as const },
       },
       required: [
-        "input_type", "needs_clarification", "clarification_question",
-        "clarification_options", "is_question", "question_answer",
-        "price_signal", "detected_business_type", "confidence",
-        "inferred_assumptions", "refinement_question",
+        "input_type",
+        "needs_clarification",
+        "clarification_question",
+        "clarification_options",
+        "is_question",
+        "question_answer",
+        "price_signal",
+        "detected_business_type",
+        "confidence",
+        "inferred_assumptions",
+        "refinement_question",
       ] as const,
       additionalProperties: false,
     },
   },
   required: [
-    "plain_english_summary", "interests", "behaviors", "lifeEvents",
-    "demographics", "suggestedLocations", "estimatedReach", "copy",
-    "headline", "ctaIntent", "whatsappMessage", "meta",
+    "plain_english_summary",
+    "interests",
+    "behaviors",
+    "lifeEvents",
+    "demographics",
+    "suggestedLocations",
+    "geo_strategy",
+    "estimatedReach",
+    "copy",
+    "headline",
+    "ctaIntent",
+    "whatsappMessage",
+    "meta",
   ] as const,
   additionalProperties: false,
 };
@@ -114,9 +176,10 @@ const SKILL_IDS = {
   lifeEvents: process.env.SKILL_ID_LIFE_EVENTS_NG!,
 };
 
-console.log("SKILL_IDS", SKILL_IDS);
-
-function buildSkillList(businessType?: string, needsLifeEvents?: boolean): any[] {
+function buildSkillList(
+  businessType?: string,
+  needsLifeEvents?: boolean,
+): any[] {
   const VERTICAL: Record<string, string> = {
     fashion: SKILL_IDS.fashion,
     beauty: SKILL_IDS.beauty,
@@ -148,18 +211,18 @@ function buildSkillList(businessType?: string, needsLifeEvents?: boolean): any[]
 // This alone reduces reasoning tokens by ~100-200 per call for known verticals.
 function buildUserMessage(
   input: AIInput,
-  preInferred?: LocalClassification["preInferred"],
+  extracted?: TriageResult["extracted"],
 ): string {
   const lines: string[] = [`<biz>${input.businessDescription}</biz>`];
   const ctxParts: string[] = [];
 
-  if (preInferred) {
+  if (extracted) {
     // Local preprocessor already ran — use its output directly
-    ctxParts.push(`gender:${preInferred.gender}`);
-    ctxParts.push(`tier:${preInferred.priceTier}`);
-    ctxParts.push(`type:${preInferred.businessType}`);
-    if (preInferred.lifeSignals) {
-      lines.push(`<life>${preInferred.lifeSignals}</life>`);
+    ctxParts.push(`gender:${extracted.gender}`);
+    ctxParts.push(`tier:${extracted.priceTier}`);
+    ctxParts.push(`type:${extracted.businessType}`);
+    if (extracted.lifeSignals) {
+      lines.push(`<life>${extracted.lifeSignals}</life>`);
     }
   } else {
     // Inject org onboarding data so Skills skip their inference tables.
@@ -173,8 +236,8 @@ function buildUserMessage(
         "E-commerce (Fashion/Beauty)": "fashion",
         "Food & Beverage": "food",
         "Beauty & Cosmetics": "beauty",
-        "Electronics": "electronics",
-        "Events": "events",
+        Electronics: "electronics",
+        Events: "events",
         "B2B / Services": "b2b",
       };
       const mapped = industryMap[input.industry];
@@ -187,6 +250,7 @@ function buildUserMessage(
   }
 
   if (input.location) lines.push(`<loc>${input.location}</loc>`);
+  if (input.sellingMethod) lines.push(`<del>${input.sellingMethod}</del>`);
   if (input.objective) lines.push(`<obj>${input.objective}</obj>`);
 
   if (input.currentCopy) {
@@ -209,58 +273,131 @@ const TRIAGE_SCHEMA = {
       enum: ["TYPE_A", "TYPE_B", "TYPE_C", "TYPE_D", "TYPE_E"] as const,
     },
     needs_full_generation: { type: "boolean" as const },
+    is_refinement: { type: "boolean" as const },
     unlock_question: { type: ["string", "null"] as const },
     direct_answer: { type: ["string", "null"] as const },
+    extracted: {
+      type: "object" as const,
+      properties: {
+        gender: {
+          type: "string" as const,
+          enum: ["male", "female", "all"] as const,
+        },
+        priceTier: {
+          type: "string" as const,
+          enum: ["low", "mid", "high", "unknown"] as const,
+        },
+        businessType: {
+          type: "string" as const,
+          enum: [
+            "fashion",
+            "beauty",
+            "food",
+            "electronics",
+            "events",
+            "b2b",
+            "general",
+            "unknown",
+          ] as const,
+        },
+        lifeSignals: { type: "string" as const }, // comma-separated e.g. "wedding,job"
+      },
+      required: ["gender", "priceTier", "businessType", "lifeSignals"] as const,
+      additionalProperties: false,
+    },
   },
-  required: ["input_type", "needs_full_generation"] as const,
+  required: [
+    "input_type",
+    "needs_full_generation",
+    "is_refinement",
+    "unlock_question",
+    "direct_answer",
+    "extracted",
+  ] as const,
   additionalProperties: false,
 };
 
-const TRIAGE_INSTRUCTION = `You classify Nigerian ad campaign inputs. Rules:
-TYPE_A = any product/service description with 2+ words → needs_full_generation:true
-TYPE_B = single bare word, price only, or pure location only → needs_full_generation:false, provide unlock_question
-TYPE_C = user asking an advertising question → needs_full_generation:false, provide direct_answer
-TYPE_D = user asking to refine existing copy → needs_full_generation:true
-TYPE_E = conversational sign-off/confirmation → needs_full_generation:false, direct_answer:"You're all set!"
-Pidgin multi-word = TYPE_A. Emojis with words = TYPE_A. Be decisive.`;
+// Condensed conversation history for triage context window.
+// Only role + content — no internal message metadata needed.
+export interface TriageMessage {
+  role: "user" | "ai";
+  content: string;
+}
+
+export interface TriageResult {
+  input_type: string;
+  needs_full_generation: boolean;
+  is_refinement: boolean;
+  unlock_question?: string | null;
+  direct_answer?: string | null;
+  extracted: {
+    gender: "male" | "female" | "all";
+    priceTier: "low" | "mid" | "high" | "unknown";
+    businessType:
+      | "fashion"
+      | "beauty"
+      | "food"
+      | "electronics"
+      | "events"
+      | "b2b"
+      | "general"
+      | "unknown";
+    lifeSignals: string;
+  };
+}
 
 async function triageInput(
   description: string,
   objective: string,
-): Promise<{
-  input_type: string;
-  needs_full_generation: boolean;
-  unlock_question?: string | null;
-  direct_answer?: string | null;
-}> {
+  conversationHistory: TriageMessage[] = [],
+): Promise<TriageResult> {
+  // Build a compact history string for the triage model.
+  // Limit to last 6 messages to keep triage token cost low.
+  const recentHistory = conversationHistory.slice(-6);
+  const historyText =
+    recentHistory.length > 0
+      ? recentHistory
+          .map((m) => `${m.role.toUpperCase()}: ${m.content.substring(0, 200)}`)
+          .join("\n")
+      : "No prior history.";
+
+  const triageInput = `== CONVERSATION HISTORY ==\n${historyText}\n\n== LATEST USER MESSAGE ==\n${description}\n\n== CAMPAIGN OBJECTIVE ==\n${objective}`;
+
   const response = await (openai.responses.create as any)({
     model: "gpt-5-mini",
     instructions: TRIAGE_INSTRUCTION,
-    input: `obj:${objective} | input:${description}`,
+    input: triageInput,
     text: {
-      format: { type: "json_schema", name: "triage_result", schema: TRIAGE_SCHEMA },
+      format: {
+        type: "json_schema",
+        name: "triage_result",
+        schema: TRIAGE_SCHEMA,
+      },
     },
   });
-  return JSON.parse(response.output_text);
+
+  return JSON.parse(response.output_text) as TriageResult;
 }
 
 // ─── Full Strategy Generator ──────────────────────────────────────────────────
 async function generateWithOpenAI(
   input: AIInput,
   tierAi: (typeof TIER_CONFIG)[TierId]["ai"],
-  preInferred?: LocalClassification["preInferred"],
+  extracted?: TriageResult["extracted"],
 ): Promise<AIStrategyResult> {
   const useSkills = tierAi.useSkills;
   console.log("\n====================================");
   console.log("🚀 [OpenAI Service] generateWithOpenAI called");
-  console.log(`   - Business: ${input.businessDescription.substring(0, 50)}...`);
+  console.log(
+    `   - Business: ${input.businessDescription.substring(0, 50)}...`,
+  );
   console.log(`   - Target: ${input.customerGender} in ${input.location}`);
   console.log(`   - Model: ${tierAi.strategyModel} | Skills: ${useSkills}`);
 
   const response = await (openai.responses.create as any)({
     model: tierAi.strategyModel,
     instructions: BASE_INSTRUCTION,
-    input: buildUserMessage(input, preInferred),
+    input: buildUserMessage(input, extracted),
     ...(useSkills
       ? {
           tools: [
@@ -269,8 +406,8 @@ async function generateWithOpenAI(
               environment: {
                 type: "container_auto",
                 skills: buildSkillList(
-                  preInferred?.businessType,
-                  !!preInferred?.lifeSignals,
+                  extracted?.businessType,
+                  !!extracted?.lifeSignals,
                 ),
               },
             },
@@ -288,17 +425,27 @@ async function generateWithOpenAI(
 
   console.log("✅ [OpenAI Service] Raw response object received successfully.");
 
-  const usage = response.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+  const usage = response.usage || {
+    prompt_tokens: 0,
+    completion_tokens: 0,
+    total_tokens: 0,
+  };
 
   if (response.output) {
     const outputStr = JSON.stringify(response.output);
-    const skillMatches = [...outputStr.matchAll(/\/skills\/([a-zA-Z0-9_-]+)\//g)];
+    const skillMatches = [
+      ...outputStr.matchAll(/\/skills\/([a-zA-Z0-9_-]+)\//g),
+    ];
     const skillsUsed = new Set(skillMatches.map((m) => m[1]));
-    console.log("🛠️ [OpenAI Service] Skills actively used by AI in this generation:");
+    console.log(
+      "🛠️ [OpenAI Service] Skills actively used by AI in this generation:",
+    );
     if (skillsUsed.size > 0) {
       skillsUsed.forEach((skill) => console.log(`  - 🎯 ${skill}`));
     } else {
-      console.log("  - No explicit skills were called (relied on pre-loaded knowledge)");
+      console.log(
+        "  - No explicit skills were called (relied on pre-loaded knowledge)",
+      );
     }
   }
 
@@ -317,10 +464,6 @@ export async function refineAdCopyWithOpenAI(
   input: AIInput,
   refinementInstruction: string,
 ): Promise<AIStrategyResult & { usage?: any }> {
-  console.log("\n====================================");
-  console.log("🚀 [OpenAI Service] refineAdCopyWithOpenAI called");
-  console.log("📝 [OpenAI Service] Instruction:", refinementInstruction);
-
   const response = await (openai.responses.create as any)({
     model: "gpt-5-mini",
     instructions: BASE_INSTRUCTION,
@@ -334,7 +477,11 @@ export async function refineAdCopyWithOpenAI(
     },
   });
 
-  const usage = response.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+  const usage = response.usage || {
+    prompt_tokens: 0,
+    completion_tokens: 0,
+    total_tokens: 0,
+  };
   console.log("💎💎💎 USAGE 💎💎💎 refinement", usage);
   console.log("====================================\n");
 
@@ -349,17 +496,27 @@ export async function refineAdCopyWithOpenAI(
 async function generateMock(input: AIInput): Promise<AIStrategyResult> {
   await new Promise((resolve) => setTimeout(resolve, 2000));
   return {
-    interests: ["Small Business", "Entrepreneurship", "Fashion Accessories", "Lagos Life"],
-    behaviors: ["Engaged Shoppers", "Mobile Device Users"],
+    interests: [
+      "Small Business",
+      "Entrepreneurship",
+      "Fashion Accessories",
+      "Lagos Life",
+    ],
+    behaviors: [
+      "Engaged Shoppers",
+      "Facebook access (mobile): all mobile devices",
+    ],
     demographics: { age_min: 25, age_max: 45, gender: "all" },
     suggestedLocations: ["Lagos, Nigeria", "Abuja, Nigeria"],
+    geo_strategy: { type: "cities" },
     estimatedReach: 1200000,
     copy: [
       `Stop scrolling! 🛑 The best ${input.businessDescription.substring(0, 10)}... is here. Order now and get fast delivery in Lagos.`,
       "Upgrade your lifestyle with our premium collection. Limited stock available! 🛍️",
     ],
     headline: ["Best Prices in Lagos", "Premium Quality"],
-    reasoning: "Mock Data: Targeted broad interests in commercial hubs for maximum visibility.",
+    reasoning:
+      "Mock Data: Targeted broad interests in commercial hubs for maximum visibility.",
     ctaIntent: "buy_now" as const,
     plain_english_summary: "Mock campaign targeting Lagos shoppers.",
     lifeEvents: [],
@@ -383,7 +540,7 @@ async function generateMock(input: AIInput): Promise<AIStrategyResult> {
 // ─── Main Export: Resolves tier, runs triage, then generates ──────────────────
 export async function generateAndSaveStrategy(
   input: AIInput,
-  preInferred?: LocalClassification["preInferred"],
+  conversationHistory: TriageMessage[] = [],
 ): Promise<AIStrategyResult & { usage?: any }> {
   const supabase = await createClient();
   const provider = process.env.AI_PROVIDER!;
@@ -401,23 +558,29 @@ export async function generateAndSaveStrategy(
   if (!user) throw new Error("Unauthorized");
 
   const { config: tierConfig } = await resolveTier(supabase, user.id);
-  console.log(`🎯 [OpenAI Service] Tier resolved — Skills: ${tierConfig.ai.useSkills}`);
+  console.log(
+    `🎯 [OpenAI Service] Tier resolved — Skills: ${tierConfig.ai.useSkills}`,
+  );
 
   // ── Two-model triage: route cheap cases through gpt-5-mini before Skills ──
-  // Skip triage when: local preprocessor already ran (preInferred set),
-  // or it's a copy refinement (currentCopy present) — both go straight to full gen
-  const skipTriage = !!preInferred || !!input.currentCopy;
+  let extractedContext: TriageResult["extracted"] | undefined;
 
-  if (!skipTriage) {
-    try {
-      const triage = await triageInput(
-        input.businessDescription,
-        input.objective || "whatsapp",
-      );
-      console.log("🔍 [Triage] Result:", triage);
+  try {
+    const triage = await triageInput(
+      input.businessDescription,
+      input.objective || "whatsapp",
+      conversationHistory,
+    );
+    console.log("🔍 [Triage] Result:", triage);
 
-      // Non-TYPE_A: respond directly without loading Skills — saves ~3,500 tokens
-      if (!triage.needs_full_generation) {
+    extractedContext = triage.extracted;
+
+    // Non-TYPE_A: respond directly without loading Skills — saves ~3,500 tokens
+    if (!triage.needs_full_generation) {
+      // TYPE_D — triage confirmed this is a refinement request
+      // Route to refineAdCopyWithOpenAI. The API route handles this with
+      // refinementInstruction, so return a structured signal the route can act on.
+      if (triage.is_refinement) {
         return {
           plain_english_summary: "",
           interests: [],
@@ -425,34 +588,69 @@ export async function generateAndSaveStrategy(
           lifeEvents: [],
           demographics: { age_min: 18, age_max: 65, gender: "all" },
           suggestedLocations: [],
+          geo_strategy: null,
           estimatedReach: 0,
           copy: [],
           headline: [],
           ctaIntent: "buy_now" as const,
           whatsappMessage: null,
           meta: {
-            input_type: triage.input_type as any,
-            needs_clarification: triage.input_type === "TYPE_B",
-            clarification_question: triage.unlock_question ?? null,
+            input_type: "TYPE_D" as const,
+            needs_clarification: false,
+            clarification_question: null,
             clarification_options: null,
-            is_question: triage.input_type === "TYPE_C" || triage.input_type === "TYPE_E",
-            question_answer: triage.direct_answer ?? null,
+            is_question: false,
+            question_answer: null,
             price_signal: "unknown" as const,
             detected_business_type: "unknown" as const,
-            confidence: 0.3,
+            confidence: 0.9,
             inferred_assumptions: [],
             refinement_question: null,
           },
         };
       }
-    } catch (triageErr) {
-      // Safe degradation: triage failure falls through to full generation
-      console.warn("[Triage] Failed, proceeding with full gen:", triageErr);
+
+      // TYPE_B / TYPE_C / TYPE_E — same early-return shape as before
+      return {
+        plain_english_summary: "",
+        interests: [],
+        behaviors: [],
+        lifeEvents: [],
+        demographics: { age_min: 18, age_max: 65, gender: "all" },
+        suggestedLocations: [],
+        geo_strategy: null,
+        estimatedReach: 0,
+        copy: [],
+        headline: [],
+        ctaIntent: "buy_now" as const,
+        whatsappMessage: null,
+        meta: {
+          input_type: triage.input_type as any,
+          needs_clarification: triage.input_type === "TYPE_B",
+          clarification_question: triage.unlock_question ?? null,
+          clarification_options: null,
+          is_question:
+            triage.input_type === "TYPE_C" || triage.input_type === "TYPE_E",
+          question_answer: triage.direct_answer ?? null,
+          price_signal: "unknown" as const,
+          detected_business_type: "unknown" as const,
+          confidence: 0.3,
+          inferred_assumptions: [],
+          refinement_question: null,
+        },
+      };
     }
+  } catch (triageErr) {
+    // Safe degradation: triage failure falls through to full generation
+    console.warn("[Triage] Failed, proceeding with full gen:", triageErr);
   }
 
   // ── Full generation: gpt-5.2 + Skills ────────────────────────────────────
-  const aiResult = await generateWithOpenAI(input, tierConfig.ai, preInferred);
+  const aiResult = await generateWithOpenAI(
+    input,
+    tierConfig.ai,
+    extractedContext,
+  );
   console.log("OpenAI Skills Result: 📋", aiResult);
 
   const { data: member } = await supabase

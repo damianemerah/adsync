@@ -1,10 +1,14 @@
 "use client";
 
-import { useCampaignStore } from "@/stores/campaign-store";
+import {
+  useCampaignStore,
+  Message,
+  CopyVariation,
+} from "@/stores/campaign-store";
 import { classifyLocally } from "@/lib/ai/preprocessor";
+import type { TriageMessage } from "@/lib/ai/service";
 import { useState, useRef, useEffect } from "react";
 import { saveDraft } from "@/actions/drafts";
-import { useBeforeLeave } from "@/hooks/use-before-leave";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -28,13 +32,16 @@ import { Check, ListSelect } from "iconoir-react";
 import type { AIStrategyResult } from "@/lib/ai/types";
 import {
   resolveInterests,
+  resolveBehaviors,
+  resolveLifeEvents,
   resolveLocation,
+  normalizeLocationName,
   LAGOS_DEFAULT,
 } from "@/lib/utils/targeting-resolver";
 import { estimateBudget } from "@/lib/intelligence/estimator";
 import type { AdSyncObjective } from "@/lib/constants";
 import { CREDIT_COSTS, TIER_CONFIG } from "@/lib/constants";
-import { useCreditBalance, useSubscription } from "@/hooks/use-subscription";
+import { useSubscription } from "@/hooks/use-subscription";
 import { PaymentDialog } from "@/components/billing/payment-dialog";
 
 // Extracted Components
@@ -52,46 +59,16 @@ const CHAT_PLACEHOLDERS = [
   "What do you sell? (e.g. 'Thrift fashion Surulere')",
 ];
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export interface CopyVariation {
-  headline: string;
-  primary: string;
-}
-
-interface Message {
-  id: string;
-  role: "ai" | "user";
-  content: string;
-  type?:
-    | "text"
-    | "suggestion"
-    | "summary"
-    | "copy_suggestion"
-    | "clarification_choice"
-    | "outcome_preview"
-    | "recovery"
-    | "network_error";
-  data?: {
-    interests?: any[];
-    locations?: any[];
-    adCopy?: { headline: string; primary: string };
-    adCopyVariations?: CopyVariation[];
-    clarificationOptions?: string[];
-    inferredAssumptions?: string[];
-    refinementQuestion?: string;
-    // Outcome preview data
-    outcomeLabel?: string;
-    outcomeRange?: string;
-    budget?: number;
-    // Error recovery
-    originalInput?: string;
-    detectedLocation?: string | null;
-    isMismatchPrompt?: boolean;
-  };
-}
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function buildTriageHistory(messages: Message[]): TriageMessage[] {
+  return messages
+    .filter((m) => typeof m.content === "string" && m.content.length > 0)
+    .map((m) => ({
+      role: m.role === "user" ? "user" : "ai",
+      content: m.content as string,
+    }));
+}
 
 function generateCampaignName(prompt: string, interests: any[]): string {
   if (interests && interests.length > 0) {
@@ -104,6 +81,15 @@ function generateCampaignName(prompt: string, interests: any[]): string {
     return `${words.charAt(0).toUpperCase() + words.slice(1)} Campaign`;
   }
   return `Campaign - ${new Date().toLocaleDateString()}`;
+}
+
+/**
+ * Build the location string sent to the AI.
+ * Joins ALL stored locations so the AI has full geographic context.
+ * Fallback: "Nigeria" (AI uses this as the broadest default).
+ */
+function buildLocationString(locs: { name: string }[]): string {
+  return locs.length > 0 ? locs.map((l) => l.name).join(", ") : "Nigeria";
 }
 
 function buildOutcomePreview(
@@ -137,7 +123,6 @@ function buildOutcomePreview(
 export function AudienceChatStep() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const strategyCache = useRef<Map<string, AIStrategyResult>>(new Map());
   const draftIdRef = useRef<string | null>(searchParams.get("draftId"));
   const {
     setStep,
@@ -149,13 +134,14 @@ export function AudienceChatStep() {
     ageRange,
     gender,
     locations,
-    saveAudience,
     objective,
     campaignName,
     platform,
     adCopy,
     budget,
     lastGeneratedObjective,
+    messages,
+    setMessages,
   } = useCampaignStore();
 
   const campaignStore = {
@@ -166,19 +152,18 @@ export function AudienceChatStep() {
     locations,
   };
 
-  const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const lockScrollToCopy = useRef<string | null>(null);
   const [isRefiningCopy, setIsRefiningCopy] = useState(false);
   const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
   const [copyReady, setCopyReady] = useState(false);
   const [chatPhase, setChatPhase] = useState<"initial" | "refining">("initial");
 
   // Credit & tier guards
-  const { balance } = useCreditBalance();
   const { data: subscription } = useSubscription();
   const tier = (subscription?.org?.tier ??
     "starter") as keyof typeof TIER_CONFIG;
@@ -223,7 +208,7 @@ export function AudienceChatStep() {
         method: "POST",
         body: JSON.stringify({
           description: aiPrompt,
-          location: locations.length > 0 ? locations[0].name : "Nigeria",
+          location: buildLocationString(locations), // send ALL locations, not just first
           objective: objective || "whatsapp",
           currentCopy: adCopy.headline
             ? { headline: adCopy.headline, primary: adCopy.primary }
@@ -235,12 +220,20 @@ export function AudienceChatStep() {
       const result = await res.json();
 
       // Build sliced variations from refinement result
-      const allHeadlines: string[] = (result.headline || []).slice(0, maxCopyVariations);
-      const allCopies: string[] = (result.copy || []).slice(0, maxCopyVariations);
-      const variations: CopyVariation[] = allHeadlines.map((h: string, i: number) => ({
-        headline: h,
-        primary: allCopies[i] || allCopies[0] || "",
-      }));
+      const allHeadlines: string[] = (result.headline || []).slice(
+        0,
+        maxCopyVariations,
+      );
+      const allCopies: string[] = (result.copy || []).slice(
+        0,
+        maxCopyVariations,
+      );
+      const variations: CopyVariation[] = allHeadlines.map(
+        (h: string, i: number) => ({
+          headline: h,
+          primary: allCopies[i] || allCopies[0] || "",
+        }),
+      );
       const newCopy = variations[0] ?? { headline: "", primary: "" };
 
       const ctaFromIntent = mapIntentToCTA(
@@ -265,6 +258,7 @@ export function AudienceChatStep() {
           },
         },
         adCopyVariations: variations,
+        selectedCopyIdx: 0,
       });
 
       setTimeout(() => {
@@ -329,6 +323,8 @@ export function AudienceChatStep() {
   useEffect(() => {
     if (messages.length > 0) return;
 
+    console.log("🚀 [AudienceChatStep] Init chat", messages);
+
     const greeting =
       objective === "whatsapp"
         ? "Oya, tell me what you sell — I'll build your WhatsApp ad in seconds."
@@ -366,8 +362,13 @@ export function AudienceChatStep() {
           content: "Here's your ad copy:",
           type: "copy_suggestion",
           data: {
-            adCopy: { headline: storedCopy.headline, primary: storedCopy.primary },
-            adCopyVariations: storedVariations?.length ? storedVariations : undefined,
+            adCopy: {
+              headline: storedCopy.headline,
+              primary: storedCopy.primary,
+            },
+            adCopyVariations: storedVariations?.length
+              ? storedVariations
+              : undefined,
           },
         });
       }
@@ -410,6 +411,14 @@ export function AudienceChatStep() {
   }, [objective, lastGeneratedObjective]);
 
   useEffect(() => {
+    if (lockScrollToCopy.current) {
+      const el = document.getElementById(`msg-${lockScrollToCopy.current}`);
+      if (el) {
+        el.scrollIntoView({ block: "start", behavior: "smooth" });
+        lockScrollToCopy.current = null;
+        return;
+      }
+    }
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
@@ -424,7 +433,10 @@ export function AudienceChatStep() {
         const savedId = await saveDraft(state, draftIdRef.current ?? undefined);
         if (savedId && savedId !== draftIdRef.current) {
           draftIdRef.current = savedId;
-          router.replace(`/campaigns/new?draftId=${savedId}`, { scroll: false });
+
+          router.replace(`/campaigns/new?draftId=${savedId}`, {
+            scroll: false,
+          });
         }
       } catch {
         // Silent
@@ -439,7 +451,10 @@ export function AudienceChatStep() {
   function normalizeAmounts(input: string): string {
     return input
       .replace(/(\d+(?:\.\d+)?)k\b/gi, (_, n) => `₦${parseFloat(n) * 1000}`)
-      .replace(/(\d+(?:\.\d+)?)m\b/gi, (_, n) => `₦${parseFloat(n) * 1_000_000}`);
+      .replace(
+        /(\d+(?:\.\d+)?)m\b/gi,
+        (_, n) => `₦${parseFloat(n) * 1_000_000}`,
+      );
   }
 
   const handleConfirmFromChat = () => {
@@ -456,6 +471,11 @@ export function AudienceChatStep() {
     if (!text.trim() || isTyping) return;
 
     const isInternalSentinel = text.startsWith("__OBJECTIVE_");
+
+    // Triage will determine if this is a refinement using conversation history.
+    // No client-side merging or heuristic length checks.
+    const finalDescription = text;
+
     const userMsg: Message = {
       id: Date.now().toString(),
       role: "user",
@@ -494,7 +514,8 @@ export function AudienceChatStep() {
           {
             id: Date.now().toString(),
             role: "ai",
-            content: "Tell me what you sell first and I'll rebuild the strategy.",
+            content:
+              "Tell me what you sell first and I'll rebuild the strategy.",
             type: "text",
           },
         ]);
@@ -502,44 +523,83 @@ export function AudienceChatStep() {
       }
       setIsTyping(true);
       try {
+        console.log("REWRITE REQUEST🔥🔥🔥", {
+          description: businessDesc,
+          location: buildLocationString(locations),
+          objective: objective || "whatsapp",
+          conversationHistory: buildTriageHistory(messages),
+        });
         const res = await fetch("/api/ai/generate", {
           method: "POST",
           body: JSON.stringify({
             description: businessDesc,
-            location: locations.length > 0 ? locations[0].name : "Nigeria",
+            location: buildLocationString(locations),
             objective: objective || "whatsapp",
+            conversationHistory: buildTriageHistory(messages),
           }),
         });
         if (!res.ok) throw new Error("Rebuild failed");
         const result: AIStrategyResult = await res.json();
 
-        const resolvedInterests = await Promise.all(
-          (result.interests || []).map(async (interest: any) => {
-            const name = typeof interest === "string" ? interest : interest.name;
-            try {
-              const r = await fetch(
-                `/api/meta/search-interest?query=${encodeURIComponent(name)}`,
-              );
-              const data = await r.json();
-              const match =
-                data?.find((i: any) => i.name.toLowerCase() === name.toLowerCase()) ||
-                data?.[0];
-              return match ? { id: String(match.id), name: match.name } : { id: name, name };
-            } catch {
-              return { id: name, name };
-            }
-          }),
+        console.log("REWRITE RESULT🔥🔥🔥", result);
+
+        const rewriteInterestNames = (result.interests || []).map(
+          (interest: any) =>
+            typeof interest === "string" ? interest : interest.name,
+        );
+        const rewriteBehaviorNames = (result.behaviors || []).map((b: any) =>
+          typeof b === "string" ? b : b.name,
+        );
+        const rewriteLifeEventNames = (result.lifeEvents || []).map((e: any) =>
+          typeof e === "string" ? e : e.name,
         );
 
-        const allHeadlines: string[] = (result.headline || []).slice(0, maxCopyVariations);
-        const allCopies: string[] = (result.copy || []).slice(0, maxCopyVariations);
-        const variations: CopyVariation[] = allHeadlines.map((h: string, i: number) => ({
-          headline: h,
-          primary: allCopies[i] || allCopies[0] || "",
-        }));
+        const [
+          resolvedInterests,
+          rewriteResolvedBehaviors,
+          rewriteResolvedLifeEvents,
+        ] = await Promise.all([
+          resolveInterests(rewriteInterestNames, async (query) => {
+            const r = await fetch(
+              `/api/meta/search-interest?query=${encodeURIComponent(query)}`,
+            );
+            return r.ok ? r.json() : [];
+          }),
+          resolveBehaviors(rewriteBehaviorNames, async (query) => {
+            const r = await fetch(
+              `/api/meta/search-behavior?query=${encodeURIComponent(query)}`,
+            );
+            return r.ok ? r.json() : [];
+          }),
+          resolveLifeEvents(rewriteLifeEventNames, async (query) => {
+            const r = await fetch(
+              `/api/meta/search-life-events?query=${encodeURIComponent(query)}`,
+            );
+            return r.ok ? r.json() : [];
+          }),
+        ]);
+
+        const allHeadlines: string[] = (result.headline || []).slice(
+          0,
+          maxCopyVariations,
+        );
+        const allCopies: string[] = (result.copy || []).slice(
+          0,
+          maxCopyVariations,
+        );
+        const variations: CopyVariation[] = allHeadlines.map(
+          (h: string, i: number) => ({
+            headline: h,
+            primary: allCopies[i] || allCopies[0] || "",
+          }),
+        );
         const newCopy = variations[0] ?? { headline: "", primary: "" };
 
-        const ctaFromIntent = mapIntentToCTA(result.ctaIntent || "buy_now", platform, objective);
+        const ctaFromIntent = mapIntentToCTA(
+          result.ctaIntent || "buy_now",
+          platform,
+          objective,
+        );
         const whatsappMsg =
           result.whatsappMessage ||
           (ctaFromIntent.code === "SEND_MESSAGE"
@@ -548,14 +608,14 @@ export function AudienceChatStep() {
 
         updateDraft({
           targetInterests: resolvedInterests.filter(Boolean),
-          targetBehaviors: (result.behaviors || []).map((b: any) => {
-            const name = typeof b === "string" ? b : b.name;
-            return { id: name, name };
-          }),
-          targetLifeEvents: (result.lifeEvents || []).map((e: any) => {
-            const name = typeof e === "string" ? e : e.name;
-            return { id: name, name };
-          }),
+          targetBehaviors: rewriteResolvedBehaviors.map(({ id, name }) => ({
+            id,
+            name,
+          })),
+          targetLifeEvents: rewriteResolvedLifeEvents.map(({ id, name }) => ({
+            id,
+            name,
+          })),
           ageRange: {
             min: result.demographics?.age_min || 18,
             max: result.demographics?.age_max || 65,
@@ -571,6 +631,7 @@ export function AudienceChatStep() {
             },
           },
           adCopyVariations: variations,
+          selectedCopyIdx: 0,
           lastGeneratedObjective: objective || "whatsapp",
         });
 
@@ -587,7 +648,13 @@ export function AudienceChatStep() {
             role: "ai",
             content: plainSummary,
             type: "outcome_preview",
-            data: { outcomeLabel: outcome.label, outcomeRange: outcome.range, budget, interests: resolvedInterests, locations },
+            data: {
+              outcomeLabel: outcome.label,
+              outcomeRange: outcome.range,
+              budget,
+              interests: resolvedInterests,
+              locations,
+            },
           },
         ]);
         setTimeout(() => {
@@ -606,9 +673,15 @@ export function AudienceChatStep() {
         }, 900);
       } catch {
         setIsTyping(false);
+        // Remove the failed user message so retrying doesn't create duplicates
         setMessages((prev) => [
-          ...prev,
-          { id: Date.now().toString(), role: "ai", content: "Couldn't rebuild right now. Try again in a moment.", type: "text" },
+          ...prev.filter((m) => m.id !== userMsg.id),
+          {
+            id: Date.now().toString(),
+            role: "ai",
+            content: "Couldn't rebuild right now. Try again in a moment.",
+            type: "text",
+          },
         ]);
       }
       return;
@@ -621,16 +694,13 @@ export function AudienceChatStep() {
       setIsTyping(false);
       setMessages((prev) => [
         ...prev,
-        { id: Date.now().toString(), role: "ai", content: "You're all set! Click Next when you're ready to set your ad visuals.", type: "text" },
-      ]);
-      return;
-    }
-
-    if (classification.localType === "TIER1_TYPE_B") {
-      setIsTyping(false);
-      setMessages((prev) => [
-        ...prev,
-        { id: Date.now().toString(), role: "ai", content: "What are you selling? (e.g. 'Ankara bags Lagos', 'Skincare Abuja')", type: "text" },
+        {
+          id: Date.now().toString(),
+          role: "ai",
+          content:
+            "You're all set! Click Next when you're ready to set your ad visuals.",
+          type: "text",
+        },
       ]);
       return;
     }
@@ -642,13 +712,13 @@ export function AudienceChatStep() {
       const res = await fetch("/api/ai/generate", {
         method: "POST",
         body: JSON.stringify({
-          description: text,
-          location: locations.length > 0 ? locations[0].name : "Nigeria",
+          description: finalDescription,
+          location: buildLocationString(locations),
           objective: objective || "whatsapp",
           currentCopy: adCopy.headline
             ? { headline: adCopy.headline, primary: adCopy.primary }
             : undefined,
-          preInferred: classification.preInferred,
+          conversationHistory: buildTriageHistory(messages),
         }),
       });
 
@@ -673,14 +743,20 @@ export function AudienceChatStep() {
       }
 
       // ── TYPE_C / TYPE_E — question or sign-off (triage returned early) ─────
-      if (result.meta?.is_question && !result.copy?.length) {
+      if (
+        result.meta?.is_question &&
+        (result.meta.input_type === "TYPE_C" ||
+          result.meta.input_type === "TYPE_E")
+      ) {
         setIsTyping(false);
         setMessages((prev) => [
           ...prev,
           {
             id: Date.now().toString(),
             role: "ai",
-            content: result.meta.question_answer || "Good question. What are you selling?",
+            content:
+              result.meta.question_answer ||
+              "Good question. What are you selling?",
             type: "text",
           },
         ]);
@@ -688,11 +764,20 @@ export function AudienceChatStep() {
       }
 
       // ── TYPE_F / TYPE_H — image actions (defer to creative step) ──────────
-      if (result.meta?.input_type === "TYPE_F" || result.meta?.input_type === "TYPE_H") {
+      if (
+        result.meta?.input_type === "TYPE_F" ||
+        result.meta?.input_type === "TYPE_H"
+      ) {
         setIsTyping(false);
         setMessages((prev) => [
           ...prev,
-          { id: Date.now().toString(), role: "ai", content: "You can generate and edit images in the next 'Creative' step.", type: "text" },
+          {
+            id: Date.now().toString(),
+            role: "ai",
+            content:
+              "You can generate and edit images in the next 'Creative' step.",
+            type: "text",
+          },
         ]);
         return;
       }
@@ -708,11 +793,36 @@ export function AudienceChatStep() {
       const interestNames = (result.interests || []).map((i: any) =>
         typeof i === "string" ? i : i.name,
       );
-      const locationNames: string[] = result.suggestedLocations || [];
+      const behaviorNames = (result.behaviors || []).map((b: any) =>
+        typeof b === "string" ? b : b.name,
+      );
+      const lifeEventNames = (result.lifeEvents || []).map((e: any) =>
+        typeof e === "string" ? e : e.name,
+      );
+      console.log("Suggested Locations 👇👇", result.suggestedLocations);
+      console.log("Suggested Interests 👇👇", result.interests);
+      console.log("Suggested Behaviors 👇👇", result.behaviors);
+      console.log("Suggested Life Events 👇👇", result.lifeEvents);
+      const locationNames: string[] = Array.from(
+        new Set(
+          (result.suggestedLocations || []).map((name: string) =>
+            normalizeLocationName(name),
+          ),
+        ),
+      );
 
-      const [resolvedInterests, resolvedLocations] = await Promise.all([
+      console.log("Location Names 👇👇", locationNames);
+
+      const [
+        resolvedInterests,
+        resolvedLocations,
+        resolvedBehaviors,
+        resolvedLifeEvents,
+      ] = await Promise.all([
         resolveInterests(interestNames, async (query) => {
-          const r = await fetch(`/api/meta/search-interest?query=${encodeURIComponent(query)}`);
+          const r = await fetch(
+            `/api/meta/search-interest?query=${encodeURIComponent(query)}`,
+          );
           return r.ok ? r.json() : [];
         }),
         Promise.all(
@@ -725,44 +835,88 @@ export function AudienceChatStep() {
             }),
           ),
         ),
+        resolveBehaviors(behaviorNames, async (query) => {
+          const r = await fetch(
+            `/api/meta/search-behavior?query=${encodeURIComponent(query)}`,
+          );
+          return r.ok ? r.json() : [];
+        }),
+        resolveLifeEvents(lifeEventNames, async (query) => {
+          const r = await fetch(
+            `/api/meta/search-life-events?query=${encodeURIComponent(query)}`,
+          );
+          return r.ok ? r.json() : [];
+        }),
       ]);
+
+      console.log("Resolved Locations 👇👇", resolvedLocations);
+      console.log("Resolved Interests 👇👇", resolvedInterests);
+      console.log("Resolved Behaviors 👇👇", resolvedBehaviors);
+      console.log("Resolved Life Events 👇👇", resolvedLifeEvents);
 
       const validLocations = resolvedLocations.filter(Boolean) as NonNullable<
         (typeof resolvedLocations)[number]
       >[];
 
-      const normalizedInterests = resolvedInterests.map(({ id, name }) => ({ id, name }));
-      const normalizedBehaviors = (result.behaviors || []).map((b: any) => {
-        const name = typeof b === "string" ? b : b.name;
-        return { id: name, name };
-      });
-      const normalizedLifeEvents = (result.lifeEvents || []).map((e: any) => {
-        const name = typeof e === "string" ? e : e.name;
-        return { id: name, name };
-      });
+      console.log("Valid Locations 👇👇", validLocations);
+
+      const normalizedInterests = resolvedInterests.map(({ id, name }) => ({
+        id,
+        name,
+      }));
+      const normalizedBehaviors = resolvedBehaviors.map(({ id, name }) => ({
+        id,
+        name,
+      }));
+      const normalizedLifeEvents = resolvedLifeEvents.map(({ id, name }) => ({
+        id,
+        name,
+      }));
+      console.log("[Targeting] Resolved behaviors:", normalizedBehaviors);
+      console.log("[Targeting] Resolved life events:", normalizedLifeEvents);
+
+      // Deduplicate validLocations by id just to be absolutely certain we don't duplicate
+      const uniqueValidLocations = Array.from(
+        new Map(validLocations.map((l) => [l.id, l])).values(),
+      );
 
       const finalLocations =
         locations.length > 0
           ? locations
-          : validLocations.length > 0
-            ? validLocations
+          : uniqueValidLocations.length > 0
+            ? uniqueValidLocations
             : [LAGOS_DEFAULT];
 
       // ── Build tier-sliced copy variations ─────────────────────────────────
-      const allHeadlines: string[] = (result.headline || []).slice(0, maxCopyVariations);
-      const allCopies: string[] = (result.copy || []).slice(0, maxCopyVariations);
-      const variations: CopyVariation[] = allHeadlines.map((h: string, i: number) => ({
-        headline: h,
-        primary: allCopies[i] || allCopies[0] || "",
-      }));
+      const allHeadlines: string[] = (result.headline || []).slice(
+        0,
+        maxCopyVariations,
+      );
+      const allCopies: string[] = (result.copy || []).slice(
+        0,
+        maxCopyVariations,
+      );
+      const variations: CopyVariation[] = allHeadlines.map(
+        (h: string, i: number) => ({
+          headline: h,
+          primary: allCopies[i] || allCopies[0] || "",
+        }),
+      );
       const primaryCopy = variations[0] ?? { headline: "", primary: "" };
 
       // ── Update Store ──────────────────────────────────────────────────────
-      const ctaFromIntent = mapIntentToCTA(result.ctaIntent || "buy_now", platform, objective);
+      const ctaFromIntent = mapIntentToCTA(
+        result.ctaIntent || "buy_now",
+        platform,
+        objective,
+      );
       const whatsappMsg =
         result.whatsappMessage ||
         (ctaFromIntent.code === "SEND_MESSAGE"
-          ? generateWhatsAppMessage({ headline: primaryCopy.headline, locations })
+          ? generateWhatsAppMessage({
+              headline: primaryCopy.headline,
+              locations,
+            })
           : undefined);
 
       updateDraft({
@@ -789,11 +943,10 @@ export function AudienceChatStep() {
           },
         },
         adCopyVariations: variations,
+        selectedCopyIdx: 0,
         locations: finalLocations,
         lastGeneratedObjective: objective || "whatsapp",
       });
-
-      saveAudience({ prompt: text, interests: normalizedInterests, locations: finalLocations });
 
       const outcome = buildOutcomePreview(objective, budget);
       const plainSummary =
@@ -823,7 +976,9 @@ export function AudienceChatStep() {
               budget,
               interests: normalizedInterests,
               locations: finalLocations,
-              ...(assumptions?.length ? { inferredAssumptions: assumptions } : {}),
+              ...(assumptions?.length
+                ? { inferredAssumptions: assumptions }
+                : {}),
               ...(refinementQ ? { refinementQuestion: refinementQ } : {}),
             },
           },
@@ -832,10 +987,11 @@ export function AudienceChatStep() {
         // 2. Copy suggestion — 900ms later
         if (primaryCopy.headline && primaryCopy.primary) {
           setTimeout(() => {
+            const copyId = Date.now().toString();
             setMessages((prev) => [
               ...prev,
               {
-                id: Date.now().toString(),
+                id: copyId,
                 role: "ai",
                 content: "Here's your ad copy — ready to use:",
                 type: "copy_suggestion",
@@ -849,8 +1005,12 @@ export function AudienceChatStep() {
             setChatPhase("refining");
 
             // 3. Clarification nudge — 900ms after copy (post-generation, not a gate)
-            if (result.meta?.needs_clarification && result.meta?.clarification_question) {
+            if (
+              result.meta?.needs_clarification &&
+              result.meta?.clarification_question
+            ) {
               setTimeout(() => {
+                lockScrollToCopy.current = copyId;
                 setMessages((prev) => [
                   ...prev,
                   {
@@ -861,7 +1021,8 @@ export function AudienceChatStep() {
                       ? "clarification_choice"
                       : "text",
                     data: {
-                      clarificationOptions: result.meta.clarification_options || [],
+                      clarificationOptions:
+                        result.meta.clarification_options || [],
                     },
                   },
                 ]);
@@ -881,26 +1042,29 @@ export function AudienceChatStep() {
         err?.cause?.code === "UND_ERR_CONNECT_TIMEOUT";
 
       if (isNetworkError) {
+        // Remove the user message — it will be re-added when they tap "Try Again"
         setMessages((prev) => [
-          ...prev,
+          ...prev.filter((m) => m.id !== userMsg.id),
           {
             id: Date.now().toString(),
             role: "ai",
-            content: "I had a connection issue. Tap 'Try Again' and I'll build your campaign.",
+            content:
+              "I had a connection issue. Tap 'Try Again' and I'll build your campaign.",
             type: "network_error",
             data: { originalInput: text },
           },
         ]);
       } else {
-        const detectedLocation = locations.length > 0 ? locations[0].name : null;
+        // Remove the failed user message so a retry starts fresh
+        setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
         setMessages((prev) => [
           ...prev,
           {
             id: Date.now().toString(),
             role: "ai",
-            content: "I couldn't process that — try describing it differently. What are you selling?",
+            content: "Something went wrong on our end. Try sending that again.",
             type: "recovery",
-            data: { detectedLocation, originalInput: text },
+            data: { originalInput: text },
           },
         ]);
       }

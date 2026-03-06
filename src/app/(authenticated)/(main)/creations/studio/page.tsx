@@ -401,7 +401,7 @@ export default function StudioPage() {
       return;
     }
     setViewMode("input");
-    router.push("/creations/studio");
+    router.push("/creations");
     setPrompt("");
     setActiveCreativeId(null);
     setImageUrls([]);

@@ -7,42 +7,6 @@ import { Button } from "@/components/ui/button";
 import { OutcomePreviewCard } from "./outcome-preview-card";
 import { CopySuggestion } from "./copy-suggestion";
 
-// Recovery chips — location injected at render time from user's context
-const RECOVERY_CHIP_TEMPLATES = [
-  {
-    label: "👗 Fashion & Clothing",
-    template: "I sell fashion and clothing in {location}",
-  },
-  {
-    label: "💄 Beauty & Skincare",
-    template: "I sell skincare and beauty products in {location}",
-  },
-  {
-    label: "🍖 Food & Catering",
-    template: "I sell food and catering services in {location}",
-  },
-  {
-    label: "💇 Wigs & Hair",
-    template: "I sell wigs and hair products in {location}",
-  },
-  {
-    label: "📱 Electronics",
-    template: "I sell phones and electronics in {location}",
-  },
-  {
-    label: "🎂 Cakes & Pastries",
-    template: "I sell cakes and pastries in {location}",
-  },
-];
-
-function buildRecoveryChips(detectedLocation?: string | null) {
-  const loc = detectedLocation || "Nigeria";
-  return RECOVERY_CHIP_TEMPLATES.map((c) => ({
-    label: c.label,
-    value: c.template.replace("{location}", loc),
-  }));
-}
-
 interface ChatBubbleProps {
   message: any;
   isConsecutive?: boolean;
@@ -58,6 +22,8 @@ interface ChatBubbleProps {
   onRecoverySelect: (val: string) => void;
   onConfirmAudience: () => void;
   copyReady: boolean;
+  /** True when this is the last copy_suggestion message in the conversation */
+  isLastCopySuggestion?: boolean;
 }
 
 export function ChatBubble({
@@ -75,6 +41,7 @@ export function ChatBubble({
   onRecoverySelect,
   onConfirmAudience,
   copyReady,
+  isLastCopySuggestion = false,
 }: ChatBubbleProps) {
   const isAI = message.role === "ai";
 
@@ -96,8 +63,9 @@ export function ChatBubble({
 
   return (
     <div
+      id={`msg-${message.id}`}
       className={cn(
-        "flex gap-3 max-h-[700px] w-[92%] max-w-[92%] animate-in fade-in slide-in-from-bottom-2",
+        "flex gap-3 w-[92%] max-w-[92%] animate-in fade-in slide-in-from-bottom-2",
         isAI ? "mr-auto" : "ml-auto flex-row-reverse",
         isConsecutive && "-mt-6!",
       )}
@@ -117,7 +85,7 @@ export function ChatBubble({
         {!(isAI && message.type === "outcome_preview") && (
           <div
             className={cn(
-              "p-4 rounded-2xl text-sm leading-relaxed shadow-sm",
+              "p-4 rounded-2xl text-sm leading-relaxed shadow-sm whitespace-pre-wrap",
               isAI
                 ? "bg-card border border-border text-foreground rounded-tl-none"
                 : "bg-primary text-primary-foreground rounded-tr-none font-medium",
@@ -163,27 +131,7 @@ export function ChatBubble({
           </div>
         )}
 
-        {/* Recovery chips — only for genuine AI failures, uses user's detected location */}
-        {message.type === "recovery" &&
-          !message.data?.clarificationOptions?.length && (
-            <div className="mt-3 space-y-2 animate-in fade-in slide-in-from-top-2">
-              <div className="flex flex-wrap gap-2">
-                {buildRecoveryChips(message.data?.detectedLocation).map(
-                  (chip) => (
-                    <button
-                      key={chip.value}
-                      onClick={() => handleChipClick(chip.value)}
-                      className="px-3 py-2 rounded-full border border-border bg-card text-sm font-medium hover:border-primary/50 hover:bg-primary/5 hover:text-primary transition-colors"
-                    >
-                      {chip.label}
-                    </button>
-                  ),
-                )}
-              </div>
-            </div>
-          )}
-
-        {/* Custom Recovery for Mismatch (uses clarificationOptions from data for dynamic chips) */}
+        {/* Recovery chips for mismatch — uses clarificationOptions from data for dynamic chips */}
         {message.type === "recovery" &&
           message.data?.clarificationOptions?.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2 animate-in fade-in slide-in-from-top-2">
@@ -216,14 +164,49 @@ export function ChatBubble({
           )}
 
         {/* Copy suggestion */}
-        {message.type === "copy_suggestion" && message.data?.adCopy && (
-          <CopySuggestion
-            headline={message.data.adCopy.headline}
-            primary={message.data.adCopy.primary}
-            onRefine={onCopyRefine}
-            onProceed={onConfirmAudience}
-            isRefining={isRefiningCopy}
-          />
+        {message.type === "copy_suggestion" && (
+          <div className="space-y-6 w-full">
+            {message.data?.adCopyVariations?.length > 0 ? (
+              message.data.adCopyVariations.map(
+                (variation: any, idx: number) => {
+                  const isLastVariation =
+                    idx === message.data.adCopyVariations.length - 1;
+                  return (
+                    <div key={idx}>
+                      {idx > 0 && (
+                        <div className="flex items-center gap-2 mb-3 mt-4">
+                          <div className="h-px bg-border/50 flex-1" />
+                          <span className="text-[10px] font-bold text-subtle-foreground uppercase tracking-wider">
+                            Option {idx + 1}
+                          </span>
+                          <div className="h-px bg-border/50 flex-1" />
+                        </div>
+                      )}
+                      <CopySuggestion
+                        headline={variation.headline}
+                        primary={variation.primary}
+                        onRefine={onCopyRefine}
+                        onProceed={onConfirmAudience}
+                        isRefining={isRefiningCopy}
+                        isLast={isLastCopySuggestion && isLastVariation}
+                        variantIdx={idx}
+                      />
+                    </div>
+                  );
+                },
+              )
+            ) : message.data?.adCopy ? (
+              <CopySuggestion
+                headline={message.data.adCopy.headline}
+                primary={message.data.adCopy.primary}
+                onRefine={onCopyRefine}
+                onProceed={onConfirmAudience}
+                isRefining={isRefiningCopy}
+                isLast={isLastCopySuggestion}
+                variantIdx={0}
+              />
+            ) : null}
+          </div>
         )}
 
         {/* Legacy suggestion type (history replay) */}

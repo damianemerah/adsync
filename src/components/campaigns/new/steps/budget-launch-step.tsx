@@ -21,7 +21,7 @@ import {
 } from "iconoir-react";
 import { AdSyncObjective } from "@/lib/constants";
 import { PaymentDialog } from "@/components/billing/payment-dialog";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { estimateBudget, predictROAS } from "@/lib/intelligence";
 
@@ -81,6 +81,8 @@ const GRADE_CONFIG: Record<string, { label: string; color: string }> = {
 
 export function BudgetLaunchStep() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const draftId = searchParams.get("draftId");
   const {
     budget,
     campaignName,
@@ -264,6 +266,7 @@ export function BudgetLaunchStep() {
         platform: platform || "meta",
         objective: objective || "sales",
       },
+      campaignId: draftId || undefined,
     };
 
     console.log("🚀 [UI Start Launch] Payload sent to action:", launchPayload);

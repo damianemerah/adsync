@@ -33,8 +33,9 @@ hair: "Seals moisture, prevents breakage — type 4a/4b/4c tested"
 
 ## CTA
 
-WhatsApp: "Message us — we'll match you to the right product for your skin type"
-Booking: "Book your lash appointment via WhatsApp — slots fill every week"
+Only if `ctaIntent` is `start_whatsapp_chat`: "Message us — we'll match you to the right product for your skin type"
+Booking: "Book your appointment — slots fill every week"
+Learn more: "Tap to learn more about our products and services."
 
 ## WhatsApp prefill
 

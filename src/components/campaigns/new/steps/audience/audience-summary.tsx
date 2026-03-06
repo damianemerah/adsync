@@ -4,24 +4,13 @@ import { useCampaignStore } from "@/stores/campaign-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import {
-  ArrowRight,
-  Sparks,
-  MapPin,
-  Xmark,
-  WarningTriangle,
-} from "iconoir-react";
+import { ArrowRight, Sparks, MapPin, Xmark } from "iconoir-react";
 import { cn } from "@/lib/utils";
 import { AsyncTagInput } from "./async-tag-input";
 
-/**
- * An interest is "unresolved" when its id === name (string fallback).
- * Real Meta interests always have a numeric id like "6003107902433".
- * Unresolved interests are shown in the UI but will be silently rejected
- * by Meta at campaign launch — the user should know.
- */
-function isUnresolvedId(id: string): boolean {
-  return isNaN(Number(id));
+/** Real Meta IDs are always numeric strings (e.g. "6003107902433"). */
+function isResolvedId(id: string): boolean {
+  return !isNaN(Number(id));
 }
 
 export function AudienceSummaryPanel() {
@@ -37,8 +26,6 @@ export function AudienceSummaryPanel() {
     targetLifeEvents,
     locations,
   } = useCampaignStore();
-
-  console.log(targetLifeEvents);
 
   const removeInterest = (interest: any) => {
     updateDraft({
@@ -72,10 +59,6 @@ export function AudienceSummaryPanel() {
       updateDraft({ locations: [...locations, newLoc] });
     }
   };
-
-  const unresolvedCount = targetInterests.filter((i: any) =>
-    isUnresolvedId(i.id),
-  ).length;
 
   return (
     <div className="space-y-5 flex-1 overflow-y-auto pr-1 no-scrollbar pb-4">
@@ -253,8 +236,10 @@ export function AudienceSummaryPanel() {
 
       {/* Behaviors */}
       <div className="space-y-3">
-        <label className="text-xs font-bold text-subtle-foreground uppercase tracking-wider flex items-center gap-2">
-          <Sparks className="h-3.5 w-3.5 text-purple-500" /> Behaviors
+        <label className="text-xs font-bold text-subtle-foreground uppercase tracking-wider">
+          <span className="flex items-center gap-2">
+            <Sparks className="h-3.5 w-3.5 text-purple-500" /> Behaviors
+          </span>
         </label>
         <div className="flex flex-wrap gap-2">
           <div className="w-full pt-1">
@@ -270,23 +255,26 @@ export function AudienceSummaryPanel() {
               }}
             />
           </div>
-          {targetBehaviors?.length > 0 ? (
-            targetBehaviors.map((beh: any) => (
-              <Badge
-                key={beh.id}
-                variant="secondary"
-                className="bg-purple-500/10 text-purple-600 border border-purple-200 hover:bg-purple-500/20 py-1 px-3 rounded-full cursor-pointer"
-                onClick={() =>
-                  updateDraft({
-                    targetBehaviors: targetBehaviors.filter(
-                      (b: any) => b.id !== beh.id,
-                    ),
-                  })
-                }
-              >
-                {beh.name} <Xmark className="h-3 w-3 ml-1 opacity-50" />
-              </Badge>
-            ))
+          {targetBehaviors?.filter((b: any) => isResolvedId(b.id)).length >
+          0 ? (
+            targetBehaviors
+              .filter((b: any) => isResolvedId(b.id))
+              .map((beh: any) => (
+                <Badge
+                  key={beh.id}
+                  variant="secondary"
+                  className="py-1 px-3 rounded-full cursor-pointer border transition-colors bg-purple-500/10 text-purple-600 border-purple-200 hover:bg-purple-500/20"
+                  onClick={() =>
+                    updateDraft({
+                      targetBehaviors: targetBehaviors.filter(
+                        (b: any) => b.id !== beh.id,
+                      ),
+                    })
+                  }
+                >
+                  {beh.name} <Xmark className="h-3 w-3 ml-1 opacity-50" />
+                </Badge>
+              ))
           ) : (
             <p className="text-sm text-muted-foreground italic">
               No behaviors yet
@@ -295,10 +283,12 @@ export function AudienceSummaryPanel() {
         </div>
       </div>
 
-      {/* Life Events (Phase 1D) */}
+      {/* Life Events */}
       <div className="space-y-3">
-        <label className="text-xs font-bold text-subtle-foreground uppercase tracking-wider flex items-center gap-2">
-          <Sparks className="h-3.5 w-3.5 text-pink-500" /> Life Events
+        <label className="text-xs font-bold text-subtle-foreground uppercase tracking-wider">
+          <span className="flex items-center gap-2">
+            <Sparks className="h-3.5 w-3.5 text-pink-500" /> Life Events
+          </span>
         </label>
         <div className="flex flex-wrap gap-2">
           <div className="w-full pt-1">
@@ -314,23 +304,26 @@ export function AudienceSummaryPanel() {
               }}
             />
           </div>
-          {targetLifeEvents?.length > 0 ? (
-            targetLifeEvents.map((event: any) => (
-              <Badge
-                key={event.id}
-                variant="secondary"
-                className="bg-pink-500/10 text-pink-600 border border-pink-200 hover:bg-pink-500/20 py-1 px-3 rounded-full cursor-pointer"
-                onClick={() =>
-                  updateDraft({
-                    targetLifeEvents: targetLifeEvents.filter(
-                      (e: any) => e.id !== event.id,
-                    ),
-                  })
-                }
-              >
-                {event.name} <Xmark className="h-3 w-3 ml-1 opacity-50" />
-              </Badge>
-            ))
+          {targetLifeEvents?.filter((e: any) => isResolvedId(e.id)).length >
+          0 ? (
+            targetLifeEvents
+              .filter((e: any) => isResolvedId(e.id))
+              .map((event: any) => (
+                <Badge
+                  key={event.id}
+                  variant="secondary"
+                  className="py-1 px-3 rounded-full cursor-pointer border transition-colors bg-pink-500/10 text-pink-600 border-pink-200 hover:bg-pink-500/20"
+                  onClick={() =>
+                    updateDraft({
+                      targetLifeEvents: targetLifeEvents.filter(
+                        (e: any) => e.id !== event.id,
+                      ),
+                    })
+                  }
+                >
+                  {event.name} <Xmark className="h-3 w-3 ml-1 opacity-50" />
+                </Badge>
+              ))
           ) : (
             <p className="text-sm text-muted-foreground italic">
               No life events yet
@@ -341,8 +334,8 @@ export function AudienceSummaryPanel() {
 
       {/* Interests */}
       <div className="space-y-3">
-        <label className="text-xs font-bold text-subtle-foreground uppercase tracking-wider flex items-center justify-between">
-          <span>Interests</span>
+        <label className="text-xs font-bold text-subtle-foreground uppercase tracking-wider">
+          Interests
         </label>
         <div className="flex flex-wrap gap-2">
           <div className="w-full pt-1">
@@ -352,26 +345,21 @@ export function AudienceSummaryPanel() {
               onAdd={addInterest}
             />
           </div>
-          {targetInterests.filter((int: any) => !isUnresolvedId(int.id))
-            .length > 0 ? (
+          {targetInterests.filter((int: any) => isResolvedId(int.id)).length >
+          0 ? (
             targetInterests
-              .filter((int: any) => !isUnresolvedId(int.id))
-              .map((int: any) => {
-                return (
-                  <Badge
-                    key={int.id}
-                    variant="secondary"
-                    title={`Meta ID: ${int.id}`}
-                    className={cn(
-                      "py-1 px-3 rounded-full cursor-pointer transition-colors bg-primary/10 text-primary hover:bg-primary/20",
-                    )}
-                    onClick={() => removeInterest(int)}
-                  >
-                    {int.name}
-                    <Xmark className="h-3 w-3 ml-1 opacity-50" />
-                  </Badge>
-                );
-              })
+              .filter((int: any) => isResolvedId(int.id))
+              .map((int: any) => (
+                <Badge
+                  key={int.id}
+                  variant="secondary"
+                  className="py-1 px-3 rounded-full cursor-pointer transition-colors bg-primary/10 text-primary hover:bg-primary/20"
+                  onClick={() => removeInterest(int)}
+                >
+                  {int.name}
+                  <Xmark className="h-3 w-3 ml-1 opacity-50" />
+                </Badge>
+              ))
           ) : (
             <p className="text-sm text-muted-foreground italic">
               No interests yet

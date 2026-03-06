@@ -4,11 +4,12 @@ import { useCampaignStore } from "@/stores/campaign-store";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
-import { saveDraft, getDraft } from "@/actions/drafts";
+import { saveDraft, getDraft, deleteDraft } from "@/actions/drafts";
 import {
   FloppyDisk,
   MoreVert,
   Undo,
+  Trash,
   Sparks,
   SystemRestart,
 } from "iconoir-react";
@@ -56,6 +57,7 @@ export default function NewCampaignPage() {
     "none",
   );
   const isSaving = savingState !== "none";
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Hydrate from Server Draft if ID present
   useEffect(() => {
@@ -107,6 +109,34 @@ export default function NewCampaignPage() {
       console.error(error);
     } finally {
       setSavingState("none");
+    }
+  };
+
+  const handleDeleteDraft = async () => {
+    if (!draftId) {
+      if (confirm("Discard all changes and start over?")) {
+        resetDraft();
+      }
+      return;
+    }
+
+    if (
+      !confirm(
+        "Are you sure you want to delete this draft? This action cannot be undone.",
+      )
+    )
+      return;
+
+    setIsDeleting(true);
+    try {
+      await deleteDraft(draftId);
+      toast.success("Draft Deleted");
+      resetDraft();
+      router.push("/campaigns");
+    } catch (error) {
+      toast.error("Failed to delete draft");
+      console.error(error);
+      setIsDeleting(false);
     }
   };
 
@@ -206,12 +236,25 @@ export default function NewCampaignPage() {
                 align="end"
                 className="rounded-xl shadow-soft border-border bg-popover"
               >
+                {draftId && (
+                  <DropdownMenuItem
+                    onClick={handleDeleteDraft}
+                    disabled={isDeleting}
+                    className="text-red-600 rounded-lg focus:bg-red-50 cursor-pointer mb-1"
+                  >
+                    <Trash className="h-4 w-4 mr-2" />
+                    {isDeleting ? "Deleting..." : "Delete Draft"}
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem
                   onClick={() => {
                     if (confirm("Discard all changes and start over?"))
                       resetDraft();
                   }}
-                  className="text-red-600 rounded-lg focus:bg-red-50 cursor-pointer"
+                  className={cn(
+                    "rounded-lg cursor-pointer",
+                    !draftId && "text-red-600 focus:bg-red-50",
+                  )}
                 >
                   <Undo className="h-4 w-4 mr-2" /> Start Over
                 </DropdownMenuItem>

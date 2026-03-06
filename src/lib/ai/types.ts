@@ -42,6 +42,10 @@ export interface AIStrategyResult {
     gender: "all" | "male" | "female";
   };
   suggestedLocations: string[];
+  geo_strategy: {
+    /** broad = region/country-level for awareness. cities = precise conversion targeting. */
+    type: "broad" | "cities";
+  } | null;
   estimatedReach: number;
   copy: string[];
   headline: string[];

@@ -14,6 +14,7 @@ import {
   buildAttributionUrl,
 } from "@/lib/attribution";
 import { validatePreLaunch, validateDestinationUrl } from "@/lib/intelligence";
+import { pickGeoStrategy } from "@/lib/utils/geo-strategy";
 import type { CTAData } from "@/types/cta-types";
 import type { Database } from "@/types/supabase";
 
@@ -59,6 +60,7 @@ interface LaunchConfig {
   destinationValue: string; // The raw input (Phone or URL)
   aiContext: any; // Using any for now to avoid circular dependency, but should match CampaignContext
   businessDescription?: string; // [NEW] For AI context building
+  campaignId?: string; // [NEW] Draft ID to update instead of creating a new row
 }
 
 export async function launchCampaign(config: LaunchConfig) {
@@ -217,8 +219,19 @@ export async function launchCampaign(config: LaunchConfig) {
         .single();
 
       if (attrLink) {
-        finalUrl = buildAttributionUrl(attrLink.token);
-        console.log("✅ Attribution link created:", finalUrl);
+        // Skip replacing finalUrl in local dev because Meta API rejects localhost URLs
+        const isLocalhost =
+          process.env.NODE_ENV === "development" ||
+          process.env.NEXT_PUBLIC_APP_URL?.includes("localhost");
+
+        if (!isLocalhost) {
+          finalUrl = buildAttributionUrl(attrLink.token);
+          console.log("✅ Attribution link created:", finalUrl);
+        } else {
+          console.log(
+            "⏭️ Skipping attribution URL replacement in local dev to avoid Meta API rejection.",
+          );
+        }
         // Stash the link ID so we can attach campaign_id later
         (config as any)._attributionLinkId = attrLink.id;
       }
@@ -255,8 +268,19 @@ export async function launchCampaign(config: LaunchConfig) {
         .single();
 
       if (attrLink) {
-        finalUrl = buildAttributionUrl(attrLink.token);
-        console.log("✅ Attribution link created (website):", finalUrl);
+        // Skip replacing finalUrl in local dev because Meta API rejects localhost URLs
+        const isLocalhost =
+          process.env.NODE_ENV === "development" ||
+          process.env.NEXT_PUBLIC_APP_URL?.includes("localhost");
+
+        if (!isLocalhost) {
+          finalUrl = buildAttributionUrl(attrLink.token);
+          console.log("✅ Attribution link created (website):", finalUrl);
+        } else {
+          console.log(
+            "⏭️ Skipping attribution URL replacement (website) in local dev to avoid Meta API rejection.",
+          );
+        }
         (config as any)._attributionLinkId = attrLink.id;
       }
     } catch (attrError) {
@@ -305,35 +329,45 @@ export async function launchCampaign(config: LaunchConfig) {
         name: b.name,
       }));
 
-    // Step C: Location Logic
-    // Construct geo_locations based on types
-    const cities = config.targetLocations
-      .filter((l) => l.type === "city")
-      .map((l) => ({
-        key: l.id,
-        radius: 25, // Default radius
-        distance_unit: "mile",
-      }));
-
-    const regions = config.targetLocations
-      .filter((l) => l.type === "region")
-      .map((l) => ({ key: l.id }));
-
-    const countries = config.targetLocations
-      .filter((l) => l.type === "country")
-      .map((l) => l.id); // Countries are ISO codes usually, but search returns key
-
-    // If no specific locations, default to Nigeria (MVP safety)
+    // Step C: Objective-aware Geo Strategy
+    // pickGeoStrategy() is the server-side source of truth — overrides anything the AI suggested.
+    const geoStrategy = pickGeoStrategy(config.objective);
     const geo_locations: any = {};
-    if (cities.length > 0) geo_locations.cities = cities;
-    if (regions.length > 0) geo_locations.regions = regions;
-    // Meta API: if targeting cities/regions, country is inferred or not needed in 'countries' key unless broader targeting
-    // But if nothing selected, fallback to NG
-    if (cities.length === 0 && regions.length === 0 && countries.length === 0) {
-      geo_locations.countries = ["NG"];
-    } else if (countries.length > 0) {
-      geo_locations.countries = countries;
+
+    if (geoStrategy.type === "broad") {
+      // Awareness / Engagement: prefer regions (states), else fall back to country NG
+      // Broad geo → better CPM efficiency and correct reach for brand awareness objectives.
+      const regions = config.targetLocations
+        .filter((l) => l.type === "region")
+        .map((l) => ({ key: l.id }));
+
+      if (regions.length > 0) {
+        geo_locations.regions = regions;
+      } else {
+        // No region IDs — target entire Nigeria (safest broad fallback)
+        geo_locations.countries = ["NG"];
+      }
+    } else {
+      // Conversion (whatsapp / traffic): city-level, 10km, residents only
+      // 10km covers typical urban delivery/service area without wasting spend on tourists.
+      const cities = config.targetLocations
+        .filter((l) => l.type === "city")
+        .map((l) => ({
+          key: l.id,
+          radius: geoStrategy.radius_km,
+          distance_unit: "kilometer",
+        }));
+
+      if (cities.length === 0) {
+        // No city IDs stored — use Lagos safe fallback (matches LAGOS_DEFAULT in targeting-resolver.ts)
+        cities.push({ key: "2420605", radius: 17, distance_unit: "kilometer" });
+      }
+
+      geo_locations.cities = cities;
     }
+
+    // Note: location_types was removed in Meta v24 — Meta now targets
+    // "living or recently in" by default and rejects the field.
 
     console.log(
       "🌍 [Geo Locations Payload]:",
@@ -422,37 +456,59 @@ export async function launchCampaign(config: LaunchConfig) {
     console.log("📣 [Meta API - Ad Creative/Ad Created]:", adRes);
 
     // 6. SAVE TO DATABASE
-    const { data: insertedCampaign, error: dbError } = await supabase
-      .from("campaigns")
-      .insert({
-        organization_id: orgId,
-        ad_account_id: adAccount.id,
-        platform: config.platform,
-        platform_campaign_id: campaignRes.id,
-        name: config.name,
-        objective: config.objective,
-        status: "active", // It's created as 'PAUSED' on FB, but 'active' in our list means 'created'
-        daily_budget_cents: budgetInCents,
-        placement_type: config.metaPlacement ?? "automatic",
-        targeting_snapshot: {
-          locations: config.targetLocations,
-          interests: config.targetInterests,
-          behaviors: config.targetBehaviors,
-          age: config.targetAgeRange,
-          gender: config.targetGender,
-          languages: config.targetLanguages,
-          exclusions: config.exclusionAudienceIds,
-          life_events: config.targetLifeEvents,
-        },
-        creative_snapshot: {
-          creatives: config.creatives,
-          ad_copy: config.adCopy,
-          destination: finalUrl,
-        } as any,
-        ai_context: config.aiContext,
-      })
-      .select("id")
-      .single();
+    const payload = {
+      organization_id: orgId,
+      ad_account_id: adAccount.id,
+      platform: config.platform,
+      platform_campaign_id: campaignRes.id,
+      name: config.name,
+      objective: config.objective,
+      status: "active", // It's created as 'PAUSED' on FB, but 'active' in our list means 'created'
+      daily_budget_cents: budgetInCents,
+      placement_type: config.metaPlacement ?? "automatic",
+      targeting_snapshot: {
+        locations: config.targetLocations,
+        interests: config.targetInterests,
+        behaviors: config.targetBehaviors,
+        age: config.targetAgeRange,
+        gender: config.targetGender,
+        languages: config.targetLanguages,
+        exclusions: config.exclusionAudienceIds,
+        life_events: config.targetLifeEvents,
+      },
+      creative_snapshot: {
+        creatives: config.creatives,
+        ad_copy: config.adCopy,
+        destination: finalUrl,
+      } as any,
+      ai_context: config.aiContext,
+    };
+
+    let dbCampaignId = config.campaignId;
+    let savedCampaign;
+    let dbError;
+
+    if (dbCampaignId) {
+      console.log(`Updating existing draft campaign: ${dbCampaignId}`);
+      const { data, error } = await supabase
+        .from("campaigns")
+        .update(payload)
+        .eq("id", dbCampaignId)
+        .select("id")
+        .single();
+      savedCampaign = data;
+      dbError = error;
+    } else {
+      console.log("Creating new campaign row");
+      const { data, error } = await supabase
+        .from("campaigns")
+        .insert(payload)
+        .select("id")
+        .single();
+      savedCampaign = data;
+      dbError = error;
+      dbCampaignId = data?.id;
+    }
 
     if (dbError) {
       console.error("DB Insert Error (CRITICAL):", dbError);
@@ -463,8 +519,6 @@ export async function launchCampaign(config: LaunchConfig) {
         "Campaign launched on Meta, but failed to save globally. Please refresh or use 'Sync Campaigns'.",
       );
     }
-
-    const dbCampaignId = insertedCampaign?.id;
 
     // 6b. LINK ATTRIBUTION — attach campaign_id to the attribution link
     const attributionLinkId = (config as any)._attributionLinkId;

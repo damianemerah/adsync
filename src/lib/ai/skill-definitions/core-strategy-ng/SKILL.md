@@ -27,11 +27,45 @@ Multi-word Pidgin biz description = TYPE_A. Never classify as TYPE_B if 2+ words
 | affordable,cheap,budget,e no cost    | —            | low     | —       |
 | unisex / no signal                   | all          | mid     | general |
 
-## Location (skip if <loc> present — targeting-resolver normalizes upstream)
+## Location
 
 Area→city: Lekki/VI/Yaba/Surulere/Ikeja/Ajah→Lagos | Wuse/Maitama/Asokoro/Jabi→Abuja
 GRA/Ada George/Rumuola→Port Harcourt | "nationwide/ship everywhere"→[Lagos,Abuja,PH]
-Default: Lagos
+Default: Lagos (when no `<loc>` tag present)
+
+## Delivery Method (`<del>` tag)
+
+The `<del>` tag carries the seller's onboarding delivery scope. Use it to override geo-targeting:
+
+| `<del>` | `<loc>` present? | `suggestedLocations`                | `geo_strategy`   |
+| ------- | ---------------- | ----------------------------------- | ---------------- |
+| online  | yes (e.g. Lagos) | [Lagos, Abuja, Port Harcourt]       | broad, ["home"]  |
+| online  | no               | [Lagos, Abuja, Port Harcourt, Kano] | broad, ["home"]  |
+| both    | yes              | [<loc city>, Abuja, Port Harcourt]  | broad, ["home"]  |
+| both    | no               | [Lagos, Abuja, Port Harcourt]       | broad, ["home"]  |
+| local   | yes              | [<loc city> only]                   | cities, ["home"] |
+| local   | no               | [Lagos]                             | cities, ["home"] |
+
+⚠️ CRITICAL rules:
+
+- `<del>online</del>` or `<del>both</del>` → ALWAYS output ≥3 Nigerian metros in `suggestedLocations`. Never collapse to a single city.
+- `<del>local</del>` → target the stated `<loc>` city only. Do NOT expand.
+- If user text mentions "nationwide", "deliver everywhere", "ships across Nigeria" → treat as `<del>online</del>` even if `<del>` tag is absent.
+- Ad copy should reflect the actual delivery scope: nationwide sellers → mention "we deliver everywhere" or "Lagos-based, Nigeria-wide delivery". Local sellers → "come in-store" or "Lagos only".
+
+## Geo Strategy (emit `geo_strategy` alongside `suggestedLocations`)
+
+Pick `geo_strategy` based on campaign objective in `<obj>` tag:
+
+| Objective            | type   | radius_km |
+| -------------------- | ------ | --------- |
+| awareness/engagement | broad  | (omit)    |
+| whatsapp/traffic     | cities | 17        |
+
+`broad` → region/country-level targeting. Max reach, better CPM for awareness.
+`cities` → precise city targeting, residents only. Minimise wasted spend for conversions.
+
+Server enforces this at launch — emit as advisory signal.
 
 ## Pidgin Signals → Copy Angle
 
@@ -61,34 +95,35 @@ Default: Lagos
 
 ## Behaviors (3-5, always ≥2)
 
-Core: Engaged Shoppers + Mobile device users (every campaign)
-+Online buyers if nationwide | +iOS device users/Frequent travelers if high-tier
-| Type | Add |
-|---|---|
-| fashion/beauty | Frequent international travelers |
-| beauty | Beauty product buyers |
-| food | Food delivery app users |
-| electronics | Technology early adopters |
-| b2b | Small business owners |
-❌ Never <2 behaviors
+Reason from first principles — ask what purchase pattern or device signal fits someone who would buy this product.
+
+Rules:
+
+- Always include ≥1 purchase-intent signal (e.g. `Engaged Shoppers`, `Online buyers`)
+- Always include a mobile device signal — Nigeria is mobile-first
+- Add niche signals that specifically fit the product category and customer profile
+- Output exact Meta Ads Manager behavior names only
+- Never <2 behaviors, never >5
+  ❌ Never copy-paste the same behaviors for every campaign — reason per product
 
 ## Life Events (max 2, [] if none)
 
-| Product/Signal                                         | Event                                    |
-| ------------------------------------------------------ | ---------------------------------------- |
-| wedding gown,bridal,introduction                       | Newly engaged (1 year)                   |
-| baby products,maternity,naming                         | Expecting parents / New parents (1 year) |
-| home furniture,interior design                         | New homeowner (1 year)                   |
-| corporate wear,suits,NYSC,corper,send-forth,graduation | New job (6 months)                       |
+Only include if the product clearly serves a life transition (new job, new home, new baby, engagement, move).
+Skip for: generic food, general wigs, electronics, logistics, general catering.
+Output exact Meta life event names. Full reasoning: see `life-events-ng` skill.
 
-⚠️ Not exhaustive — if <life> tag present, confirm/expand from those signals + prompt context
+⚠️ Not exhaustive — if `<life>` tag present, confirm/expand from those signals + prompt context
 
 ## CTA
 
 default: start_whatsapp_chat (most NG SMEs → WhatsApp)
+If `<obj>` is `awareness` or `engagement` → ALWAYS default to `learn_more` instead of WhatsApp
 buy_now only if website URL stated | learn_more for real estate/finance | book_appointment for salons/clinics
 
 ## WhatsApp prefill: natural Nigerian customer voice. Product + location. Max 2 sentences. End with question.
+
+Only generate if `ctaIntent` is `start_whatsapp_chat`. If `ctaIntent` is NOT `start_whatsapp_chat` (e.g., for `awareness`), return `null`.
+CRITICAL: If objective is `awareness` or `ctaIntent` is NOT `start_whatsapp_chat`, DO NOT mention WhatsApp, "DM us", or "Message us" anywhere in the copy.
 
 ## Refinement question: ONE question max. null if product+location+audience already clear.
 

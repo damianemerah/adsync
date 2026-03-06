@@ -23,7 +23,10 @@
  *   4. Lagos default
  */
 
-import { resolveLocalBehavior } from "@/lib/constants/meta-behaviors";
+import {
+  resolveLocalBehavior,
+  resolveLocalLifeEvent,
+} from "@/lib/constants/meta-behaviors";
 
 export interface ResolvedTarget {
   id: string;
@@ -144,6 +147,12 @@ export async function resolveBehavior(
 ): Promise<ResolvedTarget> {
   // 1. Local catalog — normalizes common LLM aliases to exact Meta names
   const local = resolveLocalBehavior(name);
+
+  // Fast-path: confirmed Meta ID baked in (from validate-meta-behaviors.ts)
+  if (local?.metaId) {
+    return { id: local.metaId, name: local.name, resolved: true };
+  }
+
   const searchName = local?.name ?? name;
 
   try {
@@ -172,7 +181,89 @@ export async function resolveBehavior(
   return { id: searchName, name: searchName, resolved: false };
 }
 
-// ─── Location Resolution ─────────────────────────────────────────────────────
+/**
+ * Resolve all AI behaviors in batches (capped at 3 concurrent to avoid rate limits).
+ */
+export async function resolveBehaviors(
+  names: string[],
+  searchFn: (query: string) => Promise<any[]>,
+  concurrency = 3,
+): Promise<ResolvedTarget[]> {
+  const results: ResolvedTarget[] = [];
+  for (let i = 0; i < names.length; i += concurrency) {
+    const batch = names.slice(i, i + concurrency);
+    const resolved = await Promise.all(
+      batch.map((name) => resolveBehavior(name, searchFn)),
+    );
+    results.push(...resolved);
+  }
+  return results;
+}
+
+// ─── Life Event Resolution ────────────────────────────────────────────────────
+
+/**
+ * Resolve a single AI-generated life event name → Meta targeting object.
+ *
+ * Local catalog first (from META_LIFE_EVENT_SEEDS aliases).
+ * API search only if local lookup fails or returns no match.
+ */
+export async function resolveLifeEvent(
+  name: string,
+  searchFn: (query: string) => Promise<any[]>,
+): Promise<ResolvedTarget> {
+  // 1. Local catalog — normalizes LLM aliases to exact Meta names
+  const local = resolveLocalLifeEvent(name);
+
+  // Fast-path: confirmed Meta ID baked in (from validate-meta-behaviors.ts)
+  if (local?.metaId) {
+    return { id: local.metaId, name: local.name, resolved: true };
+  }
+
+  const searchName = local?.name ?? name;
+  try {
+    const results = await searchFn(searchName);
+    // Exact name match first
+    const exact = results.find(
+      (r: any) => r.name.toLowerCase() === searchName.toLowerCase(),
+    );
+    if (exact) {
+      return { id: String(exact.id), name: exact.name, resolved: true };
+    }
+    // Close enough — first result if there's any word overlap
+    if (results.length > 0 && hasWordOverlap(results[0].name, searchName)) {
+      return {
+        id: String(results[0].id),
+        name: results[0].name,
+        resolved: true,
+      };
+    }
+  } catch {
+    // silent
+  }
+
+  console.warn(`[resolveLifeEvent] No API match for: "${name}"`);
+  return { id: searchName, name: searchName, resolved: false };
+}
+
+/**
+ * Resolve all AI life events in batches (capped at 3 concurrent).
+ */
+export async function resolveLifeEvents(
+  names: string[],
+  searchFn: (query: string) => Promise<any[]>,
+  concurrency = 3,
+): Promise<ResolvedTarget[]> {
+  const results: ResolvedTarget[] = [];
+  for (let i = 0; i < names.length; i += concurrency) {
+    const batch = names.slice(i, i + concurrency);
+    const resolved = await Promise.all(
+      batch.map((name) => resolveLifeEvent(name, searchFn)),
+    );
+    results.push(...resolved);
+  }
+  return results;
+}
 
 /**
  * Area → parent city normalization for Nigeria.

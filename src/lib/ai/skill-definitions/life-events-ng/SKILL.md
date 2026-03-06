@@ -28,20 +28,14 @@ bridal shower/bachelorette→Newly engaged | baby naming→New parents | housewa
 engagement/introduction party→Newly engaged | send-forth/farewell→New job | newlywed gift→Newly married
 push present/maternity gift→Expecting parents
 
-## Layer 3 — Product inference (use when no explicit signal)
+## Layer 3 — Product inference (use only when no explicit signal)
 
-| Product                                                               | Event                                    | Confidence |
-| --------------------------------------------------------------------- | ---------------------------------------- | ---------- |
-| wedding gown,bridal accessories,asoebi,wedding cake/photo/decor       | Newly engaged (1 year)                   | Strong     |
-| baby clothes,diapers,prams,cribs                                      | Expecting parents + New parents (1 year) | Strong     |
-| maternity wear,nursing products                                       | Expecting parents                        | Strong     |
-| home furniture,sofas,beds,interior design,curtains,kitchen appliances | New homeowner (1 year)                   | Strong     |
-| moving/relocation services                                            | Recently moved (6 months)                | Strong     |
-| corporate wear,suits,office shirts                                    | New job (6 months)                       | Strong     |
-| office shoes,professional bags,laptop bags                            | New job (6 months)                       | Medium     |
-| couple accessories,matching outfits                                   | Newly married (1 year)                   | Medium     |
-| jewellery (engagement rings,bridal)                                   | Newly engaged (1 year)                   | Strong     |
-| Medium = include only if copy angle supports it                       | Weak = skip                              |
+Reason: does this product _require_ a life transition to explain why someone suddenly needs it now?
+
+- **Strong signal to include**: furniture → `New homeowner` | corporate wear → `New job (6 months)` | baby products → `Expecting parents` / `New parents (1 year)` | bridal accessories → `Newly engaged (1 year)` | relocation/moving services → `Recently moved (6 months)`
+- **Weak — skip**: wigs (general), food, skincare (unless explicitly bridal/maternity angle), electronics, logistics, general catering
+
+Rule: if the logic feels like a stretch, return `[]`. Accuracy beats coverage.
 
 ## Never include for
 

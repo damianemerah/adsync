@@ -12,7 +12,7 @@ interface ChatInterfaceProps {
   messages: any[];
   inputValue: string;
   setInputValue: (val: string) => void;
-  handleSend: (val?: string) => void;
+  handleSend: (val?: string, isClarification?: boolean) => void;
   isTyping: boolean;
   isRefiningCopy: boolean;
   copyReady: boolean;
@@ -78,8 +78,15 @@ export function ChatInterface({
     }
   };
 
+  // Find the index of the last copy_suggestion message so only that bubble
+  // renders the refinement action buttons (Shorter / More Fire / Try Again).
+  const lastCopySuggestionIdx = messages.reduce(
+    (last, msg, idx) => (msg.type === "copy_suggestion" ? idx : last),
+    -1,
+  );
+
   return (
-    <div className="flex flex-col bg-background border border-border rounded-3xl shadow-soft overflow-hidden relative h-full">
+    <div className="flex flex-col bg-background border border-border rounded-3xl shadow-soft overflow-hidden relative">
       {/* Header */}
       <div className="p-4 border-b border-border bg-muted/30 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
@@ -99,7 +106,7 @@ export function ChatInterface({
       </div>
 
       {/* Messages */}
-      <ScrollArea className="flex-1 p-4 sm:p-6 bg-muted/10 min-h-[50vh] overflow-auto no-scrollbar">
+      <ScrollArea className="flex-1 p-4 sm:p-6 bg-muted/10 min-h-[60vh] overflow-auto no-scrollbar max-h-[1000px]">
         <div className="space-y-6 pb-4 flex flex-col items-start w-full">
           {messages.map((msg, idx) => {
             const isConsecutive =
@@ -118,13 +125,14 @@ export function ChatInterface({
                 onCopyRefine={actions.handleCopyRefinement}
                 isRefiningCopy={isRefiningCopy}
                 onClarificationSelect={(option: string) => {
-                  handleSend(option);
+                  handleSend(option, true);
                 }}
                 onRecoverySelect={(value: string) => {
                   handleSend(value);
                 }}
                 onConfirmAudience={() => actions.confirmAudience()}
                 copyReady={copyReady}
+                isLastCopySuggestion={idx === lastCopySuggestionIdx}
               />
             );
           })}

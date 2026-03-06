@@ -32,8 +32,9 @@ local food: "Homestyle Nigerian cooking — amala, egusi, stew. The real thing."
 
 ## CTA
 
-WhatsApp: "WhatsApp us to place your order — confirmed in under 5 minutes" / "DM for full menu, pricing, delivery areas"
+Only if `ctaIntent` is `start_whatsapp_chat`: "WhatsApp us to place your order — confirmed in under 5 minutes" / "DM for full menu, pricing, delivery areas"
 Catering: "Send us your event date and guest count — we quote same day"
+Learn more: "Tap to view our full menu and learn more."
 
 ## WhatsApp prefill
 

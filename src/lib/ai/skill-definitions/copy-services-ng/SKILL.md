@@ -34,10 +34,11 @@ turnaround: "Photos in 48hrs" / "Repairs same-day for most faults" / "Quote in 1
 ✅ "Trusted by Lagos clients across events, businesses, homes" / "Repeat bookings are our biggest referral source" / "Schedule fills weeks ahead — book early"
 ❌ Never: "Lagos's #1 [service]","100% success rate","world-class"
 
-## CTA (always sets expectation for what happens in chat)
+## CTA (always sets expectation for what happens next)
 
-"WhatsApp us — quote same day" / "Send your date and details — confirm availability immediately" / "DM: response under 10 mins during business hours"
+Only if `ctaIntent` is `start_whatsapp_chat`: "WhatsApp us — quote same day" / "Send your date and details — confirm availability immediately" / "DM: response under 10 mins during business hours"
 Urgency: "Weekend slots going fast — DM before this weekend fills"
+Learn more: "Tap to see our full list of services and learn more."
 
 ## WhatsApp prefill by type
 

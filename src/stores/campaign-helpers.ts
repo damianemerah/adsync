@@ -17,14 +17,6 @@ export function canAccessLaunchStep(state: CampaignState): boolean {
   return state.selectedCreatives.length > 0 && canAccessCreativeStep(state);
 }
 
-export function canSkipCreative(state: CampaignState): boolean {
-  return state.selectedCreatives.length > 0 || state.selectedTemplate !== null;
-}
-
-export function canSkipAudience(state: CampaignState): boolean {
-  return state.savedAudiences.length > 0;
-}
-
 /**
  * Get completion percentage for progress tracking
  */

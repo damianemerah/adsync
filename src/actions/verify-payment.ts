@@ -128,10 +128,3 @@ export async function verifyAndActivate(reference: string): Promise<{
 
   return { success: true, alreadyProcessed: false, planId };
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Legacy export kept for any existing references — delegates to new function
-// ─────────────────────────────────────────────────────────────────────────────
-export async function verifyPayment(reference: string) {
-  return verifyAndActivate(reference);
-}

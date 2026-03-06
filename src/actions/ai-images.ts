@@ -243,7 +243,7 @@ export async function generateAdCreative({
       // [NEW] Format Mapping (v2.1)
       const formatMapping: Record<string, any> = {
         social_ad: {
-          ad_type: "product_only",
+          ad_type: "lifestyle", // Changed from "product_only" to allow environments
           format: { placement: "social_feed", aspect_ratio: aspectRatio },
         },
         product_image: {

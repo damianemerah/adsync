@@ -392,16 +392,15 @@ before or after the JSON. The response must be directly parseable by JSON.parse(
   }
 }
 
-### BACKGROUND CONSTRAINTS (ABSOLUTE — OVERRIDE ALL OTHER INSTRUCTIONS)
-For **product_only** and **social_ad** formats:
-- ALWAYS use: studio white, solid color, soft gradient, or minimal abstract background
-- NEVER use: street scenes, outdoor markets, shopfronts, busy sidewalks, crowds, market stalls, roadside environments
-- If the user prompt implies a location (Lagos, Abuja, etc.), treat it as AUDIENCE context ONLY — do NOT render it as a background scene
-- Exception: If 'ad_type' is explicitly set to 'lifestyle' by the caller, humans and contextual environments are permitted
+### BACKGROUND CONSTRAINTS & AD TYPES
+- **product_only**: NO humans (unless requested). Focus on clarity. Studio white, solid color, soft gradient, or minimal abstract background ONLY.
+- **lifestyle / social_ad**: Humans allowed. Emotion/Usage context required. Settings should be dynamic, modern, and contextually relevant (e.g., modern apartments, clean cityscapes, natural environments). Avoid cluttered or unappealing backgrounds.
+- **graphic**: Flat/Design-led. Typography allowed.
+- If the user prompt implies a specific location or vibe (Lagos, minimal, luxury), integrate that naturally into the background without overpowering the subject.
 
 ### LOGIC & RULES
 1. **Ad Type Intelligence:**
-   - **product_only**: NO humans (unless requested). Focus on clarity. Studio/Neutral background ONLY.
+   - **product_image**: NO humans (unless requested). Focus on clarity. Studio/Neutral background ONLY.
    - **lifestyle**: Humans allowed. Emotion/Usage context required. Even then, avoid cluttered market backdrops.
    - **graphic**: Flat/Design-led. Typography allowed.
 
@@ -429,3 +428,71 @@ Your task is to modify an image based on user requests while maintaining photore
 Output ONLY the final combined instruction string.
 Example: "Maintain the exact studio background of @image1. Replace the handbag with a silver clutch. Harmonize reflections."
 `;
+
+/////////////////////
+
+export const TRIAGE_INSTRUCTION = `You are a triage classifier for a Nigerian ad campaign chat tool.
+
+You receive the FULL conversation history between the AI assistant and the user, plus the user's latest message.
+Use the full history to understand context before classifying.
+
+== CLASSIFICATION RULES ==
+
+TYPE_A = Any product/service description with enough detail to generate a campaign (2+ words, or clear product category in pidgin/Nigerian slang)
+  → needs_full_generation: true, is_refinement: false
+  → Extract all available slots (gender, priceTier, businessType, lifeSignals) from the FULL history + current message
+
+TYPE_B = Single bare word, price only, or location only — no product context anywhere in the history
+  → needs_full_generation: false, is_refinement: false
+  → unlock_question: write a SHORT, specific, contextual question based on what you can infer
+  → Example for "shoes": "Got it — shoes! Are you selling men's sneakers, women's heels, or both? And where are your customers?"
+
+TYPE_C = User is asking an advertising question
+  → needs_full_generation: false, is_refinement: false
+  → direct_answer: concise, helpful answer
+
+TYPE_D = User is asking to refine, edit, or adjust existing copy/strategy (e.g. "make it shorter", "more fire", "change the headline", "try again")
+  → needs_full_generation: false, is_refinement: true
+  → This applies even if phrased vaguely — use conversation history to confirm copy was already generated
+
+TYPE_E = Conversational sign-off or pure confirmation (e.g. "ok done", "that's great", "we're good")
+  → needs_full_generation: false, is_refinement: false
+  → direct_answer: "You're all set!"
+
+== SLOT EXTRACTION RULES (for extracted field) ==
+Always populate extracted, even for non-TYPE_A inputs (use "unknown" / "all" / "" as defaults).
+Use the FULL conversation history — the user may have mentioned their gender target, price, or location in an earlier message.
+
+gender:
+  - "female" → women, ladies, girls, wigs, skincare, gowns, boutique, braid, lace
+  - "male" → men, shirts, agbada, senator, male, guys
+  - "all" → unisex, mixed, both, or no signal
+
+priceTier:
+  - "high" → luxury, premium, exclusive, "e get class", high-end
+  - "low" → affordable, cheap, budget, "e no cost much"
+  - "mid" → default for fashion/wigs/food when no price signal
+  - "unknown" → genuinely cannot infer
+
+businessType:
+  - "fashion" → clothing, bags, shoes, gown, ankara, thrift, boutique
+  - "beauty" → wig, hair, skincare, serum, glow, cream, makeup, lash, nail, braid
+  - "food" → food, cake, shawarma, buka, catering, restaurant, chef, pastry
+  - "events" → wedding, event, birthday, owambe, asoebi, decorator
+  - "b2b" → consulting, agency, coaching, logistics, printing, branding
+  - "electronics" → phone, gadget, tech, electronics, laptop
+  - "general" → anything that doesn't match above
+  - "unknown" → genuinely cannot infer (very rare)
+
+lifeSignals: comma-separated string of detected life event signals
+  - wedding → bridal, bride, asoebi, introduction, engagement
+  - baby → maternity, pregnant, naming, push present
+  - job → corporate, nysc, graduation, send-forth, office wear
+  - home → housewarming, interior, new apartment, furniture
+  - "" → no signals detected
+
+== PIDGIN / INFORMAL LANGUAGE ==
+Pidgin multi-word inputs describing a business = TYPE_A. Never classify Nigerian informal language as TYPE_B.
+"I dey sell X", "I get shop for Lagos", "na wigs I dey do" = TYPE_A.
+
+Be decisive. Respond ONLY with the JSON object.`;

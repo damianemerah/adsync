@@ -23,6 +23,7 @@ function mapStateToDb(state: Partial<CampaignState>) {
     aiPrompt,
     latestAiSummary,
     pendingGeneratedImage,
+    messages,
   } = state;
 
   return {
@@ -45,9 +46,16 @@ function mapStateToDb(state: Partial<CampaignState>) {
       pending_generated_image: pendingGeneratedImage ?? null,
     } as any,
     // Store AI chat snapshot
+    // Filter out recovery/error messages to keep snapshot clean
     ai_chat_snapshot: {
       prompt: aiPrompt || "",
       summary: latestAiSummary || null,
+      messages: (messages || []).filter(
+        (m) =>
+          m.role === "user" ||
+          (m.role === "ai" &&
+            !["recovery", "network_error"].includes(m.type || "text")),
+      ),
     } as any,
     objective,
     platform,
@@ -88,6 +96,7 @@ function mapDbToState(campaign: CampaignRow): Partial<CampaignState> {
     // Restore Chat State
     aiPrompt: chat.prompt || "",
     latestAiSummary: chat.summary || null,
+    messages: chat.messages || [],
   };
 }
 
@@ -159,6 +168,31 @@ export async function getDraft(campaignId: string) {
     return null;
   }
 
-  console.log("📂 [Drafts] Successfully fetched draft:", campaignId);
   return mapDbToState(data);
+}
+
+export async function deleteDraft(campaignId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("Unauthorized");
+
+  const orgId = await getOrganization(user.id);
+  if (!orgId) throw new Error("No organization found");
+
+  const { error } = await supabase
+    .from("campaigns")
+    .delete()
+    .eq("id", campaignId)
+    .eq("organization_id", orgId)
+    .eq("status", "draft");
+
+  if (error) {
+    console.error("❌ [Drafts] Error deleting draft:", error);
+    throw new Error(error.message);
+  }
+
+  return true;
 }

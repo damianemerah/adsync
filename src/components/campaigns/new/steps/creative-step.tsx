@@ -499,6 +499,37 @@ export function CreativeStep() {
                     </p>
                   )}
                 </div>
+
+                {/* WhatsApp pre-fill message — only shown for whatsapp objective */}
+                {objective === "whatsapp" && (
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-subtle-foreground uppercase tracking-wider">
+                      WhatsApp Message (pre-filled)
+                    </label>
+                    <Textarea
+                      value={adCopy.cta?.whatsappMessage ?? ""}
+                      onChange={(e) =>
+                        updateDraft({
+                          adCopy: {
+                            ...adCopy,
+                            cta: {
+                              ...adCopy.cta,
+                              whatsappMessage: e.target.value,
+                            },
+                          },
+                        })
+                      }
+                      rows={3}
+                      placeholder="e.g. Hi! I saw your ad and I'm interested. What's available?"
+                      className="border-border bg-muted/30 focus-visible:ring-primary/20 resize-none rounded-xl text-sm"
+                    />
+                    <p className="text-[10px] text-subtle-foreground flex items-center gap-1">
+                      <Sparks className="h-3 w-3 text-primary" />
+                      This is the message contacts send when they tap your ad.
+                      Edit it to match your tone.
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 

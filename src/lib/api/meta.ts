@@ -125,9 +125,8 @@ export const MetaService = {
     type: "city" | "region" | "country" = "city",
   ) => {
     // Searches for "Lagos" to get Meta geo key
-    // location_types uses the original bracket format that Meta v24 expects
     const data = await MetaService.request(
-      `/search?type=adgeolocation&q=${encodeURIComponent(query)}&location_types=['${type}']&limit=10`,
+      `/search?type=adgeolocation&q=${encodeURIComponent(query)}&limit=10`,
       "GET",
       token,
     );
@@ -216,12 +215,25 @@ export const MetaService = {
     const billingEvent = "IMPRESSIONS";
 
     // Construct the targeting object
+    // NOTE: With advantage_audience: 1 (Advantage+ audience), Meta requires age_max === 65.
+    // The user's selected age range becomes a suggestion via audience_controls, not a hard filter.
     const targetingPayload = {
       geo_locations: params.targeting.geo_locations,
       interests: params.targeting.interests,
       behaviors: params.targeting.behaviors,
       age_min: params.targeting.age_min,
-      age_max: params.targeting.age_max,
+      // age_max: params.targeting.age_max,
+      age_max: 65, // Required by Meta when advantage_audience: 1 — user's max is passed as a suggestion below
+      targeting_automation: {
+        advantage_audience: 1, // Required by Meta Marketing API v24.0+
+      },
+      // Suggest the user's intended age cap to Meta's AI without hard-restricting it
+      // ...(params.targeting.age_max &&
+      //   params.targeting.age_max < 65 && {
+      //     audience_controls: {
+      //       age_max: params.targeting.age_max,
+      //     },
+      //   }),
       // Language targeting — only include if languages are selected
       ...(params.targeting.locales?.length > 0 && {
         locales: params.targeting.locales, // e.g. [6, 114] = English + Yoruba
