@@ -54,7 +54,10 @@ export const MetaService = {
 
     if (data.error) {
       console.error("Meta API Error:", data.error);
-      throw new Error(data.error.message || "Meta API Failed");
+      const err = new Error(data.error.message || "Meta API Failed") as any;
+      err.subcode = data.error.error_subcode;
+      err.metaCode = data.error.code;
+      throw err;
     }
 
     return data;

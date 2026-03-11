@@ -87,10 +87,8 @@ export interface CampaignState {
     cta: CTAData;
   };
 
-  // NEW: Template & ROAS Prediction
+  // NEW: Template Prediction
   selectedTemplate: string | null; // "nollywood" | "bet9ja" | "afrobeat" | "jumia"
-  predictedROAS: { value: number; confidence: number } | null;
-  roasHistory: Array<{ timestamp: number; value: number }>; // Track changes over time
 
   /**
    * Image generated in the chat bubble that hasn't been accepted yet.
@@ -128,7 +126,6 @@ export interface CampaignState {
   resetDraft: () => void;
   hydrate: (data: Partial<CampaignState>) => void;
   applyTemplate: (templateId: string) => void;
-  updateROAS: (prediction: { value: number; confidence: number }) => void;
   incrementRefinementCount: () => void;
 }
 
@@ -171,8 +168,6 @@ export const useCampaignStore = create<CampaignState>()((set, get) => ({
     },
   },
   selectedTemplate: null,
-  predictedROAS: null,
-  roasHistory: [],
   pendingGeneratedImage: null,
   refinementCount: 0,
   adCopyVariations: [],
@@ -291,8 +286,6 @@ export const useCampaignStore = create<CampaignState>()((set, get) => ({
         },
       },
       selectedTemplate: null,
-      predictedROAS: null,
-      roasHistory: [],
       pendingGeneratedImage: null,
       adCopyVariations: [],
       selectedCopyIdx: 0,
@@ -306,13 +299,4 @@ export const useCampaignStore = create<CampaignState>()((set, get) => ({
     // For now, just persists the selection so it can be read when templates ship.
     set({ selectedTemplate: templateId });
   },
-
-  updateROAS: (prediction: { value: number; confidence: number }) =>
-    set((state) => ({
-      predictedROAS: prediction,
-      roasHistory: [
-        ...state.roasHistory,
-        { timestamp: Date.now(), value: prediction.value },
-      ].slice(-10), // Keep last 10 predictions
-    })),
 }));

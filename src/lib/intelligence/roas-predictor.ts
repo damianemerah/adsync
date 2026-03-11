@@ -77,7 +77,10 @@ function scoreTargeting(input: ROASInput): number {
   const agePenalty = ageSpread > 40 ? -0.1 : 0;
 
   return Math.min(
-    0.1 + interestBonus + locationBonus + audienceBonus + agePenalty,
+    Math.max(
+      0.1 + interestBonus + locationBonus + audienceBonus + agePenalty,
+      0,
+    ),
     1.0,
   );
 }
@@ -85,15 +88,16 @@ function scoreTargeting(input: ROASInput): number {
 function scoreCreative(count: number): number {
   if (count === 0) return 0;
   if (count === 1) return 0.6;
-  if (count <= 3) return 0.85;
+  if (count === 2) return 0.85;
   return 0.9; // 3+ enables A/B testing
 }
 
 function scoreHistory(input: ROASInput): number {
   if (!input.hasPreviousCampaigns) return 0.5; // Neutral — no data
   if (input.previousAvgROI !== null) {
-    // Scale 0-200% ROI → 0-1
-    return Math.min(Math.max(input.previousAvgROI / 200, 0), 1.0);
+    // Anchor: 50% ROI → 0.5 (neutral for Nigerian SMEs)
+    // 0% ROI → ~0.33 (below neutral), 150% ROI → 1.0 (excellent)
+    return Math.min(Math.max(input.previousAvgROI / 150, 0), 1.0);
   }
   return 0.5;
 }
@@ -127,6 +131,7 @@ export function predictROAS(input: ROASInput): ROASPrediction {
 
   const predicted =
     NG_BENCHMARKS.roasBenchmark *
+    NG_BENCHMARKS.qualityDiscount *
     compositeScore *
     qualityDiscount *
     objectiveMultiplier;

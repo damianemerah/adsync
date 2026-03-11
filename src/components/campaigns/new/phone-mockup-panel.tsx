@@ -19,7 +19,6 @@ export function PhoneMockupPanel({ compact = false }: PhoneMockupPanelProps) {
     selectedCreatives,
     adCopy,
     budget,
-    predictedROAS,
     platform,
     metaPlacement,
     locations,
@@ -135,16 +134,6 @@ export function PhoneMockupPanel({ compact = false }: PhoneMockupPanelProps) {
                 ₦{budget?.toLocaleString() || "0"}
               </p>
             </div>
-            {predictedROAS && (
-              <div className="space-y-1">
-                <span className="text-subtle-foreground flex items-center gap-1">
-                  <Sparks className="h-3 w-3 text-primary" /> ROAS
-                </span>
-                <p className="font-bold text-primary">
-                  {predictedROAS.value.toFixed(1)}x
-                </p>
-              </div>
-            )}
           </div>
 
           {/* Locations */}

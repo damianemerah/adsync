@@ -124,7 +124,7 @@ async function sendInAppNotification(supabase: any, params: any) {
     action_label: actionLabel,
     action_url: actionUrl,
     dedup_key: dedupKey,
-    read: false,
+    is_read: false,
   });
 
   if (error) {
@@ -158,7 +158,7 @@ serve(async (req) => {
     const { data: accounts, error: accErr } = await supabase
       .from("ad_accounts")
       .select("*")
-      .in("health_status", ["healthy", "paused_by_system"])
+      .in("health_status", ["healthy", "paused_by_system", "payment_issue"])
       .not("access_token", "is", null);
 
     if (accErr) throw accErr;
@@ -195,25 +195,72 @@ serve(async (req) => {
           }
 
           const balance = parseInt(metaData.balance || "0");
-          const fbStatus = metaData.account_status; // 1=Active, 2=Disabled
+          const fbStatus = metaData.account_status; // 1=Active, 2=Disabled, 3=Unsettled, 9=In Grace Period
+
+          const newHealthStatus =
+            fbStatus === 2
+              ? "disabled"
+              : fbStatus === 3 || fbStatus === 9
+                ? "payment_issue"
+                : account.health_status === "paused_by_system"
+                  ? "paused_by_system"
+                  : "healthy";
 
           await supabase
             .from("ad_accounts")
             .update({
               last_known_balance_cents: balance,
               last_health_check: new Date().toISOString(),
-              health_status:
-                fbStatus === 2
-                  ? "disabled"
-                  : account.health_status === "paused_by_system"
-                    ? "paused_by_system"
-                    : "healthy",
+              health_status: newHealthStatus,
             })
             .eq("id", account.id);
 
+          const ownerId = await getOrgOwner(supabase, account.organization_id);
+
+          // ── Billing problem detected ──────────────────────────────────────
+          if (fbStatus === 3 || fbStatus === 9) {
+            if (ownerId) {
+              await sendInAppNotification(supabase, {
+                userId: ownerId,
+                type: "critical",
+                category: "billing",
+                title: "⚠️ Payment Issue on Ad Account",
+                message: `Your Meta ad account has a billing problem (status ${fbStatus}). Add a valid payment method to resume campaigns.`,
+                actionLabel: "Fix Billing",
+                actionUrl: "/settings/general",
+                dedupKey: `payment_issue:${account.id}:${today}`,
+              });
+            }
+            return { id: account.id, status: "payment_issue" };
+          }
+
+          // ── Payment issue resolved — flip back to healthy ─────────────────
+          if (account.health_status === "payment_issue" && fbStatus === 1) {
+            await supabase
+              .from("ad_accounts")
+              .update({
+                health_status: "healthy",
+                last_health_check: new Date().toISOString(),
+              })
+              .eq("id", account.id);
+
+            if (ownerId) {
+              await sendInAppNotification(supabase, {
+                userId: ownerId,
+                type: "success",
+                category: "billing",
+                title: "✅ Payment Issue Resolved",
+                message: `Your Meta ad account billing is now active. You can launch campaigns again.`,
+                actionLabel: "Launch Campaign",
+                actionUrl: "/campaigns/new",
+                dedupKey: `payment_resolved:${account.id}:${today}`,
+              });
+            }
+            return { id: account.id, status: "payment_resolved" };
+          }
+
           if (fbStatus !== 1) return { id: account.id, status: "not_active" };
 
-          const ownerId = await getOrgOwner(supabase, account.organization_id);
           if (!ownerId) return { id: account.id, status: "no_owner" };
 
           const currency = metaData.currency ?? "NGN";

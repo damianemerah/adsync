@@ -25,6 +25,8 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { CreditsDisplay } from "@/components/layout/credits-display";
 import { HelpCenterSheet } from "@/components/layout/help-center-sheet";
+import { useSubscription } from "@/hooks/use-subscription";
+import { PaymentDialog } from "@/components/billing/payment-dialog";
 
 // Step Components
 import { GoalPlatformStep } from "@/components/campaigns/new/steps/goal-platform-step";
@@ -58,6 +60,20 @@ export default function NewCampaignPage() {
   );
   const isSaving = savingState !== "none";
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const { data: subscriptionData, isLoading: isLoadingSub } = useSubscription();
+  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+
+  const hasActiveSub =
+    !isLoadingSub &&
+    (subscriptionData?.org?.status === "active" ||
+      subscriptionData?.org?.status === "trialing");
+
+  useEffect(() => {
+    if (!isLoadingSub && !hasActiveSub) {
+      setIsPaymentOpen(true);
+    }
+  }, [isLoadingSub, hasActiveSub]);
 
   // Hydrate from Server Draft if ID present
   useEffect(() => {
@@ -158,6 +174,54 @@ export default function NewCampaignPage() {
   const canGoToCreative = canAccessCreativeStep(fullState);
   const canGoToLaunch = canAccessLaunchStep(fullState);
   const completionPercentage = getWizardCompletionPercentage(fullState);
+
+  if (isLoadingSub) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-muted">
+        <SystemRestart className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!hasActiveSub) {
+    return (
+      <div className="min-h-screen bg-muted flex flex-col items-center justify-center p-4">
+        <div className="text-center space-y-4 max-w-sm">
+          <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Sparks className="h-8 w-8 text-primary" />
+          </div>
+          <h2 className="text-2xl font-bold font-heading">
+            Subscription Required
+          </h2>
+          <p className="text-muted-foreground text-sm">
+            You need an active subscription or trial to create campaigns and
+            generate AI creatives.
+          </p>
+          <Button
+            className="w-full mt-4 font-bold h-12 rounded-xl"
+            onClick={() => setIsPaymentOpen(true)}
+          >
+            Upgrade Plan
+          </Button>
+          <Button
+            variant="ghost"
+            className="w-full text-subtle-foreground"
+            onClick={() => router.push("/campaigns")}
+          >
+            Go Back
+          </Button>
+
+          <PaymentDialog
+            open={isPaymentOpen}
+            onOpenChange={(open) => {
+              setIsPaymentOpen(open);
+              if (!open && !hasActiveSub) router.push("/campaigns");
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-muted font-sans">

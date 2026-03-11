@@ -176,6 +176,10 @@ export async function launchCampaign(config: LaunchConfig) {
     .limit(1)
     .single();
 
+  console.log(orgId, "orgId");
+  console.log(adAccount, "adAccount");
+  // console.log(adAccount?.health_status, "health_status")
+
   if (!adAccount)
     throw new Error(`No connected ${config.platform} account found.`);
 
@@ -603,6 +607,44 @@ export async function launchCampaign(config: LaunchConfig) {
     };
   } catch (error: any) {
     console.error("Launch Error:", error);
+
+    // [INTEGRATION] Handle Meta "No Payment Method" Error
+    if (error.subcode === 1359188) {
+      console.log(
+        "💳 Detected Meta missing payment method error, sending notification...",
+      );
+      try {
+        // Find owner ID to send the notification
+        const { data: owner } = await supabase
+          .from("organization_members")
+          .select("user_id")
+          .eq("organization_id", orgId as string)
+          .eq("role", "owner")
+          .single();
+
+        if (owner) {
+          await sendNotification({
+            userId: owner.user_id as string,
+            organizationId: orgId as string,
+            title: "Payment Method Required",
+            message:
+              "Your Meta Ad Account requires a valid payment method before launching campaigns.",
+            type: "critical",
+            category: "budget",
+            actionUrl: "/ad-accounts",
+            actionLabel: "Fix Account",
+          });
+        }
+
+        await supabase
+          .from("ad_accounts")
+          .update({ health_status: "payment_issue" })
+          .eq("id", adAccount.id);
+      } catch (notifyErr) {
+        console.error("⚠️ Failed to send payment notification:", notifyErr);
+      }
+    }
+
     // Return error message to UI
     return {
       success: false,

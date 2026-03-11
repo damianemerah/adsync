@@ -24,6 +24,7 @@ function mapStateToDb(state: Partial<CampaignState>) {
     latestAiSummary,
     pendingGeneratedImage,
     messages,
+    destinationValue,
   } = state;
 
   return {
@@ -44,6 +45,7 @@ function mapStateToDb(state: Partial<CampaignState>) {
       ad_copy: adCopy || { primary: "", headline: "", cta: null },
       selected_creatives: selectedCreatives || [],
       pending_generated_image: pendingGeneratedImage ?? null,
+      destination: destinationValue || "",
     } as any,
     // Store AI chat snapshot
     // Filter out recovery/error messages to keep snapshot clean
@@ -91,6 +93,7 @@ function mapDbToState(campaign: CampaignRow): Partial<CampaignState> {
     selectedCreatives: creative.selected_creatives || [],
     // Restore pending image so the chat bubble re-renders it on draft load
     pendingGeneratedImage: creative.pending_generated_image ?? null,
+    destinationValue: creative.destination || "",
     objective: campaign.objective as CampaignState["objective"],
     platform: campaign.platform as CampaignState["platform"],
     // Restore Chat State

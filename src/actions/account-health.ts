@@ -82,10 +82,11 @@ export async function getAccountHealth(): Promise<AccountHealthResult> {
   // 1. Ad Account Status
   const noAccounts = !adAccounts || adAccounts.length === 0;
   const expiredAccounts = (adAccounts || []).filter(
-    (a) => a.health_status === "token_expired" || a.health_status === "disabled",
+    (a) =>
+      a.health_status === "token_expired" || a.health_status === "disabled",
   );
-  const disabledAccounts = (adAccounts || []).filter(
-    (a) => a.health_status === "disabled",
+  const paymentIssueAccounts = (adAccounts || []).filter(
+    (a) => a.health_status === "payment_issue",
   );
 
   if (noAccounts) {
@@ -111,6 +112,18 @@ export async function getAccountHealth(): Promise<AccountHealthResult> {
       problemCount: expiredAccounts.length,
       detail: `Affected accounts: ${expiredAccounts.map((a) => a.nickname || a.account_name || a.platform_account_id).join(", ")}. Reconnect to resume campaign management.`,
       actionLabel: "Reconnect",
+      actionUrl: "/settings/general",
+    });
+  } else if (paymentIssueAccounts.length > 0) {
+    totalProblems += paymentIssueAccounts.length;
+    checks.push({
+      id: "ad_account_status",
+      label: "Ad Account Status",
+      description: `${paymentIssueAccounts.length} account(s) missing a payment method.`,
+      status: "critical",
+      problemCount: paymentIssueAccounts.length,
+      detail: `Affected accounts: ${paymentIssueAccounts.map((a) => a.nickname || a.account_name || a.platform_account_id).join(", ")}. Add a payment method in your Meta Billing center to resume campaigns.`,
+      actionLabel: "Fix Billing",
       actionUrl: "/settings/general",
     });
   } else {
@@ -222,7 +235,8 @@ export async function getAccountHealth(): Promise<AccountHealthResult> {
   // 6. Subscription / Credits
   const creditsBalance = org?.credits_balance ?? 0;
   const creditsQuota = org?.plan_credits_quota ?? 100;
-  const creditsPercent = creditsQuota > 0 ? (creditsBalance / creditsQuota) * 100 : 100;
+  const creditsPercent =
+    creditsQuota > 0 ? (creditsBalance / creditsQuota) * 100 : 100;
 
   if (creditsPercent < 10) {
     totalProblems++;

@@ -1,0 +1,1031 @@
+[
+  {
+    "seedName": "Engaged Shoppers",
+    "category": "behavior",
+    "status": "exact_match",
+    "metaId": "6071631541183",
+    "metaName": "Engaged Shoppers",
+    "rawResults": [
+      {
+        "id": "6071631541183",
+        "name": "Engaged Shoppers"
+      },
+      {
+        "id": "4",
+        "name": "Engaged"
+      },
+      {
+        "id": "6003050210972",
+        "name": "Newly engaged (1 year)"
+      },
+      {
+        "id": "6012631862383",
+        "name": "Newly engaged (3 months)"
+      },
+      {
+        "id": "6002714398772",
+        "name": "Newly-engaged (6 months)"
+      },
+      {
+        "id": "6048026229983",
+        "name": "Birthday in June"
+      },
+      {
+        "id": "6056265212183",
+        "name": "Owns: VIVO devices"
+      },
+      {
+        "id": "6056265200983",
+        "name": "Owns: Oppo"
+      },
+      {
+        "id": "6055133998183",
+        "name": "Facebook access (browser): Microsoft Edge"
+      },
+      {
+        "id": "6048810914583",
+        "name": "Birthday in December"
+      }
+    ]
+  },
+  {
+    "seedName": "Facebook access (mobile): all mobile devices",
+    "category": "behavior",
+    "status": "exact_match",
+    "metaId": "6004382299972",
+    "metaName": "Facebook access (mobile): all mobile devices",
+    "rawResults": [
+      {
+        "id": "6004382299972",
+        "name": "Facebook access (mobile): all mobile devices"
+      },
+      {
+        "id": "6004386044572",
+        "name": "Facebook access (mobile): Android devices"
+      },
+      {
+        "id": "6004386010572",
+        "name": "Facebook access (mobile): Samsung Android mobile devices"
+      },
+      {
+        "id": "6004385886572",
+        "name": "Facebook access (mobile): HTC Android mobile devices"
+      },
+      {
+        "id": "6004385879572",
+        "name": "Facebook access (mobile): Motorola Android mobile devices"
+      },
+      {
+        "id": "6004385865172",
+        "name": "Facebook access (mobile): Sony Android mobile devices"
+      },
+      {
+        "id": "6004385868372",
+        "name": "Facebook access(mobile): LG Android mobile devices"
+      },
+      {
+        "id": "6004384041172",
+        "name": "Facebook access (mobile): Apple (iOS) devices"
+      },
+      {
+        "id": "6004386303972",
+        "name": "Facebook access (mobile): iPhone 4S"
+      },
+      {
+        "id": "6120699687383",
+        "name": "Facebook access (mobile): iPhone XS"
+      }
+    ]
+  },
+  {
+    "seedName": "Facebook access (mobile): Android devices",
+    "category": "behavior",
+    "status": "exact_match",
+    "metaId": "6004386044572",
+    "metaName": "Facebook access (mobile): Android devices",
+    "rawResults": [
+      {
+        "id": "6004386044572",
+        "name": "Facebook access (mobile): Android devices"
+      },
+      {
+        "id": "6004386010572",
+        "name": "Facebook access (mobile): Samsung Android mobile devices"
+      },
+      {
+        "id": "6004385879572",
+        "name": "Facebook access (mobile): Motorola Android mobile devices"
+      },
+      {
+        "id": "6004385865172",
+        "name": "Facebook access (mobile): Sony Android mobile devices"
+      },
+      {
+        "id": "6004385868372",
+        "name": "Facebook access(mobile): LG Android mobile devices"
+      },
+      {
+        "id": "6004385886572",
+        "name": "Facebook access (mobile): HTC Android mobile devices"
+      },
+      {
+        "id": "6004382299972",
+        "name": "Facebook access (mobile): all mobile devices"
+      },
+      {
+        "id": "6004384041172",
+        "name": "Facebook access (mobile): Apple (iOS) devices"
+      },
+      {
+        "id": "6092512412783",
+        "name": "Facebook access (mobile): iPhone 8"
+      },
+      {
+        "id": "6004383767972",
+        "name": "Facebook access (mobile): iPad 1"
+      }
+    ]
+  },
+  {
+    "seedName": "Facebook access (mobile): Apple (iOS) devices",
+    "category": "behavior",
+    "status": "exact_match",
+    "metaId": "6004384041172",
+    "metaName": "Facebook access (mobile): Apple (iOS) devices",
+    "rawResults": [
+      {
+        "id": "6004384041172",
+        "name": "Facebook access (mobile): Apple (iOS) devices"
+      },
+      {
+        "id": "6004382299972",
+        "name": "Facebook access (mobile): all mobile devices"
+      },
+      {
+        "id": "6120699725783",
+        "name": "Facebook access (mobile): iPhone XR"
+      },
+      {
+        "id": "6092512462983",
+        "name": "Facebook access (mobile): iPhone X"
+      },
+      {
+        "id": "6004883585572",
+        "name": "Facebook access (mobile): iPhone 5"
+      },
+      {
+        "id": "6004383890572",
+        "name": "Facebook access (mobile): iPod Touch"
+      },
+      {
+        "id": "6004383806772",
+        "name": "Facebook access (mobile): iPad 3"
+      },
+      {
+        "id": "6004383808772",
+        "name": "Facebook access (mobile): iPad 2"
+      },
+      {
+        "id": "6004383767972",
+        "name": "Facebook access (mobile): iPad 1"
+      },
+      {
+        "id": "6004386303972",
+        "name": "Facebook access (mobile): iPhone 4S"
+      }
+    ]
+  },
+  {
+    "seedName": "Frequent international travelers",
+    "category": "behavior",
+    "status": "exact_match",
+    "metaId": "6022788483583",
+    "metaName": "Frequent international travelers",
+    "rawResults": [
+      {
+        "id": "6022788483583",
+        "name": "Frequent international travelers"
+      },
+      {
+        "id": "6002714895372",
+        "name": "Frequent Travelers"
+      },
+      {
+        "id": "6004382299972",
+        "name": "Facebook access (mobile): all mobile devices"
+      },
+      {
+        "id": "6002714398172",
+        "name": "Newlywed (1 year)"
+      },
+      {
+        "id": "6048808449583",
+        "name": "Birthday in July"
+      },
+      {
+        "id": "6058034528983",
+        "name": "Owns: Galaxy Note 7"
+      },
+      {
+        "id": "6056265212183",
+        "name": "Owns: VIVO devices"
+      },
+      {
+        "id": "6056265200983",
+        "name": "Owns: Oppo"
+      },
+      {
+        "id": "6055133998183",
+        "name": "Facebook access (browser): Microsoft Edge"
+      },
+      {
+        "id": "6048810914583",
+        "name": "Birthday in December"
+      }
+    ]
+  },
+  {
+    "seedName": "Frequent Travelers",
+    "category": "behavior",
+    "status": "exact_match",
+    "metaId": "6002714895372",
+    "metaName": "Frequent Travelers",
+    "rawResults": [
+      {
+        "id": "6002714895372",
+        "name": "Frequent Travelers"
+      },
+      {
+        "id": "6022788483583",
+        "name": "Frequent international travelers"
+      },
+      {
+        "id": "6004382299972",
+        "name": "Facebook access (mobile): all mobile devices"
+      },
+      {
+        "id": "6002714398172",
+        "name": "Newlywed (1 year)"
+      },
+      {
+        "id": "6048808449583",
+        "name": "Birthday in July"
+      },
+      {
+        "id": "6058034528983",
+        "name": "Owns: Galaxy Note 7"
+      },
+      {
+        "id": "6056265212183",
+        "name": "Owns: VIVO devices"
+      },
+      {
+        "id": "6056265200983",
+        "name": "Owns: Oppo"
+      },
+      {
+        "id": "6055133998183",
+        "name": "Facebook access (browser): Microsoft Edge"
+      },
+      {
+        "id": "6048810914583",
+        "name": "Birthday in December"
+      }
+    ]
+  },
+  {
+    "seedName": "Small business owners",
+    "category": "behavior",
+    "status": "exact_match",
+    "metaId": "6002714898572",
+    "metaName": "Small business owners",
+    "rawResults": [
+      {
+        "id": "6002714898572",
+        "name": "Small business owners"
+      },
+      {
+        "id": "783786835008288",
+        "name": "Orthodontist, Small Business Owner"
+      },
+      {
+        "id": "6080792282783",
+        "name": "Small business-to-business enterprise employees (10-200 employees)"
+      },
+      {
+        "id": "6020530281783",
+        "name": "Business page admins"
+      },
+      {
+        "id": "6262428231783",
+        "name": "Business Decision Makers"
+      },
+      {
+        "id": "6009003307783",
+        "name": "Business and Finance"
+      },
+      {
+        "id": "6075565069783",
+        "name": " Large business-to-business enterprise employees (500+ employees)"
+      },
+      {
+        "id": "6297846662583",
+        "name": "Instagram Business Profile Admins"
+      },
+      {
+        "id": "6080792228383",
+        "name": "Medium business-to-business enterprise employees (200 - 500 employees)"
+      },
+      {
+        "id": "6273108107383",
+        "name": "New Active Business (< 24 months)"
+      }
+    ]
+  },
+  {
+    "seedName": "New smartphone and tablet users",
+    "category": "behavior",
+    "status": "exact_match",
+    "metaId": "6007078565383",
+    "metaName": "New smartphone and tablet users",
+    "rawResults": [
+      {
+        "id": "6007078565383",
+        "name": "New smartphone and tablet users"
+      },
+      {
+        "id": "6004383049972",
+        "name": "Facebook access (mobile): smartphones and tablets"
+      },
+      {
+        "id": "6023516368383",
+        "name": "Lived in New Zealand (Formerly Expats - New Zealand)"
+      },
+      {
+        "id": "6012903160983",
+        "name": "Installation and Repair Services"
+      },
+      {
+        "id": "6273196847983",
+        "name": "New Active Business (< 12 months)"
+      },
+      {
+        "id": "6012903159383",
+        "name": "Healthcare and Medical Services"
+      },
+      {
+        "id": "6356471865383",
+        "name": "Facebook Lite app users"
+      },
+      {
+        "id": "6012903128783",
+        "name": "Construction and Extraction"
+      },
+      {
+        "id": "6012903127583",
+        "name": "Food and Restaurants"
+      },
+      {
+        "id": "6012903126783",
+        "name": "Architecture and Engineering"
+      }
+    ]
+  },
+  {
+    "seedName": "Video (HD) streamer",
+    "category": "behavior",
+    "status": "no_match",
+    "metaId": null,
+    "metaName": null,
+    "rawResults": [
+      {
+        "id": "6004382299972",
+        "name": "Facebook access (mobile): all mobile devices"
+      },
+      {
+        "id": "6203620854183",
+        "name": "Friends of people with birthdays in a month"
+      },
+      {
+        "id": "6016286626383",
+        "name": "Facebook access (mobile): tablets"
+      },
+      {
+        "id": "6002714398172",
+        "name": "Newlywed (1 year)"
+      },
+      {
+        "id": "6048026229983",
+        "name": "Birthday in June"
+      },
+      {
+        "id": "6056265212183",
+        "name": "Owns: VIVO devices"
+      },
+      {
+        "id": "6056265200983",
+        "name": "Owns: Oppo"
+      },
+      {
+        "id": "6055133998183",
+        "name": "Facebook access (browser): Microsoft Edge"
+      },
+      {
+        "id": "6048810914583",
+        "name": "Birthday in December"
+      },
+      {
+        "id": "6048810938183",
+        "name": "Birthday in November"
+      }
+    ]
+  },
+  {
+    "seedName": "Friends of people with birthdays in a month",
+    "category": "behavior",
+    "status": "exact_match",
+    "metaId": "6203620854183",
+    "metaName": "Friends of people with birthdays in a month",
+    "rawResults": [
+      {
+        "id": "6203620854183",
+        "name": "Friends of people with birthdays in a month"
+      },
+      {
+        "id": "6203621218383",
+        "name": "Friends of people with birthdays in a week"
+      },
+      {
+        "id": "6203621119983",
+        "name": "Friends of Men with a Birthday in 7-30 days"
+      },
+      {
+        "id": "6203621472783",
+        "name": "Friends of Men with a Birthday in 0-7 days"
+      },
+      {
+        "id": "6203621325983",
+        "name": "Friends of Women with a Birthday in 0-7 days"
+      },
+      {
+        "id": "6203621025983",
+        "name": "Friends of Women with a Birthday in 7-30 days"
+      },
+      {
+        "id": "6082317392983",
+        "name": "People who prefer high-value goods in Kingdom of Saudi Arabia"
+      },
+      {
+        "id": "6082317405583",
+        "name": "People who prefer mid and high-value goods in Kingdom of Saudi Arabia"
+      },
+      {
+        "id": "6203619967383",
+        "name": "Friends of those who live abroad"
+      },
+      {
+        "id": "6086326072983",
+        "name": "People who prefer high-value goods in Argentina"
+      }
+    ]
+  },
+  {
+    "seedName": "Console gamers",
+    "category": "behavior",
+    "status": "exact_match",
+    "metaId": "6007847947183",
+    "metaName": "Console gamers",
+    "rawResults": [
+      {
+        "id": "6007847947183",
+        "name": "Console gamers"
+      },
+      {
+        "id": "6004382299972",
+        "name": "Facebook access (mobile): all mobile devices"
+      },
+      {
+        "id": "6203620854183",
+        "name": "Friends of people with birthdays in a month"
+      },
+      {
+        "id": "6002714398172",
+        "name": "Newlywed (1 year)"
+      },
+      {
+        "id": "6048026229983",
+        "name": "Birthday in June"
+      },
+      {
+        "id": "6056265212183",
+        "name": "Owns: VIVO devices"
+      },
+      {
+        "id": "6056265200983",
+        "name": "Owns: Oppo"
+      },
+      {
+        "id": "6055133998183",
+        "name": "Facebook access (browser): Microsoft Edge"
+      },
+      {
+        "id": "6048810914583",
+        "name": "Birthday in December"
+      },
+      {
+        "id": "6048810938183",
+        "name": "Birthday in November"
+      }
+    ]
+  },
+  {
+    "seedName": "New Active Business (< 12 months)",
+    "category": "behavior",
+    "status": "exact_match",
+    "metaId": "6273196847983",
+    "metaName": "New Active Business (< 12 months)",
+    "rawResults": [
+      {
+        "id": "6273196847983",
+        "name": "New Active Business (< 12 months)"
+      },
+      {
+        "id": "6273108107383",
+        "name": "New Active Business (< 24 months)"
+      },
+      {
+        "id": "6273108079183",
+        "name": "New Active Business (< 6 months)"
+      },
+      {
+        "id": "6023005372383",
+        "name": "Parents (up to 12 months)"
+      },
+      {
+        "id": "6091658540583",
+        "name": "Uses a mobile device (10-12 months)"
+      },
+      {
+        "id": "6012631862383",
+        "name": "Newly engaged (3 months)"
+      },
+      {
+        "id": "6002714398772",
+        "name": "Newly-engaged (6 months)"
+      },
+      {
+        "id": "6003050226972",
+        "name": "Newlywed (6 months)"
+      },
+      {
+        "id": "6013133420583",
+        "name": "Newlywed (3 months)"
+      },
+      {
+        "id": "6023516368383",
+        "name": "Lived in New Zealand (Formerly Expats - New Zealand)"
+      }
+    ]
+  },
+  {
+    "seedName": "Food and Restaurants",
+    "category": "behavior",
+    "status": "exact_match",
+    "metaId": "6012903127583",
+    "metaName": "Food and Restaurants",
+    "rawResults": [
+      {
+        "id": "6012903127583",
+        "name": "Food and Restaurants"
+      },
+      {
+        "id": "6791684440085",
+        "name": "Food media and content (food & drink)"
+      },
+      {
+        "id": "6377407066783",
+        "name": "Food and drink creators"
+      },
+      {
+        "id": "6008888998983",
+        "name": "Education and Libraries"
+      },
+      {
+        "id": "6012903126783",
+        "name": "Architecture and Engineering"
+      },
+      {
+        "id": "6012903167783",
+        "name": "Computation and Mathematics"
+      },
+      {
+        "id": "6009003307783",
+        "name": "Business and Finance"
+      },
+      {
+        "id": "6012903320983",
+        "name": "Transportation and Moving"
+      },
+      {
+        "id": "6012903128783",
+        "name": "Construction and Extraction"
+      },
+      {
+        "id": "6012903317583",
+        "name": "Cleaning and Maintenance Services"
+      }
+    ]
+  },
+  {
+    "seedName": "Newly engaged (1 year)",
+    "category": "life_event",
+    "status": "exact_match",
+    "metaId": "6003050210972",
+    "metaName": "Newly engaged (1 year)",
+    "rawResults": [
+      {
+        "id": "6003050210972",
+        "name": "Newly engaged (1 year)"
+      },
+      {
+        "id": "6002714398172",
+        "name": "Newlywed (1 year)"
+      },
+      {
+        "id": "6002714398772",
+        "name": "Newly-engaged (6 months)"
+      },
+      {
+        "id": "6012631862383",
+        "name": "Newly engaged (3 months)"
+      },
+      {
+        "id": "6011191259183",
+        "name": "Owns: iPad Mini 1"
+      },
+      {
+        "id": "4",
+        "name": "Engaged"
+      },
+      {
+        "id": "6071631541183",
+        "name": "Engaged Shoppers"
+      },
+      {
+        "id": "6377169550583",
+        "name": "Company size: 1-10 employees"
+      },
+      {
+        "id": "6004383767972",
+        "name": "Facebook access (mobile): iPad 1"
+      },
+      {
+        "id": "6008261969983",
+        "name": "Returned from travels 1 week ago"
+      }
+    ]
+  },
+  {
+    "seedName": "Newlywed (1 year)",
+    "category": "life_event",
+    "status": "exact_match",
+    "metaId": "6002714398172",
+    "metaName": "Newlywed (1 year)",
+    "rawResults": [
+      {
+        "id": "6002714398172",
+        "name": "Newlywed (1 year)"
+      },
+      {
+        "id": "6003050210972",
+        "name": "Newly engaged (1 year)"
+      },
+      {
+        "id": "6003050226972",
+        "name": "Newlywed (6 months)"
+      },
+      {
+        "id": "6013133420583",
+        "name": "Newlywed (3 months)"
+      },
+      {
+        "id": "6011191259183",
+        "name": "Owns: iPad Mini 1"
+      },
+      {
+        "id": "6377169550583",
+        "name": "Company size: 1-10 employees"
+      },
+      {
+        "id": "6004383767972",
+        "name": "Facebook access (mobile): iPad 1"
+      },
+      {
+        "id": "6008261969983",
+        "name": "Returned from travels 1 week ago"
+      },
+      {
+        "id": "6091658708183",
+        "name": "Uses a mobile device (1-3 months)"
+      },
+      {
+        "id": "6091658707783",
+        "name": "Uses a mobile device (less than 1 month)"
+      }
+    ]
+  },
+  {
+    "seedName": "New relationship",
+    "category": "life_event",
+    "status": "exact_match",
+    "metaId": "6005232221572",
+    "metaName": "New relationship",
+    "rawResults": [
+      {
+        "id": "6005232221572",
+        "name": "New relationship"
+      },
+      {
+        "id": "6",
+        "name": "Unspecified"
+      },
+      {
+        "id": "1",
+        "name": "Single"
+      },
+      {
+        "id": "4",
+        "name": "Engaged"
+      },
+      {
+        "id": "6005149512172",
+        "name": "New job"
+      },
+      {
+        "id": "3",
+        "name": "Married"
+      },
+      {
+        "id": "2",
+        "name": "In a relationship"
+      },
+      {
+        "id": "6041891177783",
+        "name": "New Page Admins"
+      },
+      {
+        "id": "6003053984972",
+        "name": "Long-distance relationship"
+      },
+      {
+        "id": "6023516368383",
+        "name": "Lived in New Zealand (Formerly Expats - New Zealand)"
+      }
+    ]
+  },
+  {
+    "seedName": "Parents (All)",
+    "category": "life_event",
+    "status": "exact_match",
+    "metaId": "6002714398372",
+    "metaName": "Parents (All)",
+    "rawResults": [
+      {
+        "id": "6002714398372",
+        "name": "Parents (All)"
+      },
+      {
+        "id": "6023005718983",
+        "name": "Parents with adult children (18-26 years) "
+      },
+      {
+        "id": "6023005681983",
+        "name": "Parents with teenagers (13-17 years)"
+      },
+      {
+        "id": "6023005570783",
+        "name": "Parents with early school-age children (06-08 years) "
+      },
+      {
+        "id": "6023080302983",
+        "name": "Parents with preteens (09-12 years)"
+      },
+      {
+        "id": "6023005529383",
+        "name": "Parents with preschoolers (03-05 years) "
+      },
+      {
+        "id": "6023005458383",
+        "name": "Parents with toddlers (01-02 years) "
+      },
+      {
+        "id": "6023005372383",
+        "name": "Parents (up to 12 months)"
+      },
+      {
+        "id": "6378518542983",
+        "name": "All creators"
+      },
+      {
+        "id": "52559069175054",
+        "name": "Children’s TV Animation (television show)"
+      }
+    ]
+  },
+  {
+    "seedName": "Likely to move",
+    "category": "life_event",
+    "status": "no_match",
+    "metaId": null,
+    "metaName": null,
+    "rawResults": [
+      {
+        "id": "6023005372383",
+        "name": "Parents (up to 12 months)"
+      },
+      {
+        "id": "6377168992983",
+        "name": "Company revenue: $1M to $10M"
+      },
+      {
+        "id": "6075565069783",
+        "name": " Large business-to-business enterprise employees (500+ employees)"
+      },
+      {
+        "id": "6080792282783",
+        "name": "Small business-to-business enterprise employees (10-200 employees)"
+      },
+      {
+        "id": "6080792228383",
+        "name": "Medium business-to-business enterprise employees (200 - 500 employees)"
+      },
+      {
+        "id": "6003054185372",
+        "name": "Recently moved"
+      },
+      {
+        "id": "6020530139383",
+        "name": "Travel & Tourism page admins"
+      },
+      {
+        "id": "6203619820983",
+        "name": "Friends of Recently Moved"
+      },
+      {
+        "id": "6004383890572",
+        "name": "Facebook access (mobile): iPod Touch"
+      },
+      {
+        "id": "6023005458383",
+        "name": "Parents with toddlers (01-02 years) "
+      }
+    ]
+  },
+  {
+    "seedName": "Recently moved",
+    "category": "life_event",
+    "status": "exact_match",
+    "metaId": "6003054185372",
+    "metaName": "Recently moved",
+    "rawResults": [
+      {
+        "id": "6003054185372",
+        "name": "Recently moved"
+      },
+      {
+        "id": "6203619820983",
+        "name": "Friends of Recently Moved"
+      },
+      {
+        "id": "6320095608983",
+        "name": "Recently Detected Devices"
+      },
+      {
+        "id": "6320095650783",
+        "name": "Recently Detected Iphone 14 Devices"
+      },
+      {
+        "id": "6048026275783",
+        "name": "Birthday in April"
+      },
+      {
+        "id": "6055133998183",
+        "name": "Facebook access (browser): Microsoft Edge"
+      },
+      {
+        "id": "6048810914583",
+        "name": "Birthday in December"
+      },
+      {
+        "id": "6048810938183",
+        "name": "Birthday in November"
+      },
+      {
+        "id": "6048810950583",
+        "name": "Birthday in October"
+      },
+      {
+        "id": "6048810961183",
+        "name": "Birthday in September"
+      }
+    ]
+  },
+  {
+    "seedName": "New job",
+    "category": "life_event",
+    "status": "exact_match",
+    "metaId": "6005149512172",
+    "metaName": "New job",
+    "rawResults": [
+      {
+        "id": "6005149512172",
+        "name": "New job"
+      },
+      {
+        "id": "6003243604899",
+        "name": "Action movies (movies)"
+      },
+      {
+        "id": "6787378559665",
+        "name": "Children's Animated Movies (movies)"
+      },
+      {
+        "id": "6005232221572",
+        "name": "New relationship"
+      },
+      {
+        "id": "6041891177783",
+        "name": "New Page Admins"
+      },
+      {
+        "id": "6003268182136",
+        "name": "TV reality shows (movies & television)"
+      },
+      {
+        "id": "6023516368383",
+        "name": "Lived in New Zealand (Formerly Expats - New Zealand)"
+      },
+      {
+        "id": "6273108079183",
+        "name": "New Active Business (< 6 months)"
+      },
+      {
+        "id": "6007078565383",
+        "name": "New smartphone and tablet users"
+      },
+      {
+        "id": "6273108107383",
+        "name": "New Active Business (< 24 months)"
+      }
+    ]
+  },
+  {
+    "seedName": "Anniversary (within 61-90 days)",
+    "category": "life_event",
+    "status": "exact_match",
+    "metaId": "6018413514983",
+    "metaName": "Anniversary (within 61-90 days)",
+    "rawResults": [
+      {
+        "id": "6018413514983",
+        "name": "Anniversary (within 61-90 days)"
+      },
+      {
+        "id": "6017476616183",
+        "name": "Anniversary within 30 days"
+      },
+      {
+        "id": "6018399723983",
+        "name": "Anniversary within 31-60 Days"
+      },
+      {
+        "id": "6002764392172",
+        "name": "Facebook Payments users (90 days)"
+      },
+      {
+        "id": "6086568164383",
+        "name": "Marketing API developers (last 90 days)"
+      },
+      {
+        "id": "6004948896972",
+        "name": "Facebook Payments users (30 days)"
+      },
+      {
+        "id": "6019221038183",
+        "name": "Played Canvas games (last 7 days)"
+      },
+      {
+        "id": "6019221046583",
+        "name": "Played Canvas games (last 14 days)"
+      },
+      {
+        "id": "6019246164583",
+        "name": "Played Canvas games (last 3 days)"
+      },
+      {
+        "id": "6203621119983",
+        "name": "Friends of Men with a Birthday in 7-30 days"
+      }
+    ]
+  }
+]

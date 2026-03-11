@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useCampaignStore } from "@/stores/campaign-store";
 import { useCampaigns } from "@/hooks/use-campaigns";
 import { useAdAccounts } from "@/hooks/use-ad-account";
-import { useSubscription } from "@/hooks/use-subscription";
+import { useOrgROI } from "@/hooks/use-org-roi";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -67,18 +67,6 @@ const OUTCOME_TIERS: OutcomeTier[] = [
   },
 ];
 
-// ROAS grade display config
-const GRADE_CONFIG: Record<string, { label: string; color: string }> = {
-  A: {
-    label: "Excellent",
-    color: "text-green-600 bg-green-50 border-green-200",
-  },
-  B: { label: "Good", color: "text-primary bg-primary/5 border-primary/20" },
-  C: { label: "Fair", color: "text-yellow-600 bg-yellow-50 border-yellow-200" },
-  D: { label: "Weak", color: "text-orange-600 bg-orange-50 border-orange-200" },
-  F: { label: "At Risk", color: "text-red-600 bg-red-50 border-red-200" },
-};
-
 export function BudgetLaunchStep() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -103,8 +91,10 @@ export function BudgetLaunchStep() {
     targetLifeEvents,
     destinationValue,
     aiPrompt,
+    updateROAS,
   } = useCampaignStore();
 
+  const orgROI = useOrgROI();
   const { launchCampaign, isLaunching } = useCampaigns();
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -119,22 +109,22 @@ export function BudgetLaunchStep() {
 
   // ─── Real health checks ──────────────────────────────────────────────────
   const { data: adAccounts, isLoading: isLoadingAccounts } = useAdAccounts();
-  const { data: subscriptionData, isLoading: isLoadingSub } = useSubscription();
 
   const hasHealthyAccount =
     !isLoadingAccounts &&
     (adAccounts ?? []).some((a) => a.status === "healthy");
 
-  const hasActiveSub =
-    !isLoadingSub &&
-    (subscriptionData?.org?.status === "active" ||
-      subscriptionData?.org?.status === "trialing");
+  const hasPaymentIssue =
+    !isLoadingAccounts &&
+    (adAccounts ?? []).some((a) => a.status === "payment_issue");
 
   // Mock check for if the org has a pixel configured
   const hasPixel = false;
   // If objective is website/sales, and they haven't connected a pixel or skipped it, we pause them
   const isWebsiteObjective = objective === "traffic";
   const needsPixel = isWebsiteObjective && !hasPixel && !skipPixel;
+
+  const canLaunch = !isLaunching && hasHealthyAccount && !needsPixel;
 
   // If user loaded a draft with a custom budget, clear the tier highlight
   useEffect(() => {
@@ -168,10 +158,10 @@ export function BudgetLaunchStep() {
         objective: objective as AdSyncObjective,
         interestCount: targetInterests.length,
         locationCount: locations.length,
-        hasCustomAudience: false,
+        hasCustomAudience: exclusionAudienceIds.length > 0,
         creativeCount: selectedCreatives.length,
-        hasPreviousCampaigns: false,
-        previousAvgROI: null,
+        hasPreviousCampaigns: orgROI.hasPreviousCampaigns,
+        previousAvgROI: orgROI.avgROIPercent,
         ageRange: ageRange || { min: 18, max: 65 },
       }),
     [
@@ -179,12 +169,20 @@ export function BudgetLaunchStep() {
       objective,
       targetInterests.length,
       locations.length,
+      exclusionAudienceIds.length,
       selectedCreatives.length,
       ageRange,
+      orgROI.hasPreviousCampaigns,
+      orgROI.avgROIPercent,
     ],
   );
 
-  const gradeConfig = GRADE_CONFIG[roasPrediction.grade] || GRADE_CONFIG.C;
+  useEffect(() => {
+    updateROAS({
+      value: roasPrediction.value,
+      confidence: roasPrediction.confidence,
+    });
+  }, [roasPrediction.value, roasPrediction.confidence, updateROAS]);
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -435,36 +433,35 @@ export function BudgetLaunchStep() {
                   label={
                     isLoadingAccounts
                       ? "Checking ad account…"
-                      : hasHealthyAccount
-                        ? "Ad Account Connected"
-                        : "No healthy ad account"
+                      : hasPaymentIssue
+                        ? "Payment method missing on Meta"
+                        : hasHealthyAccount
+                          ? "Ad Account Connected"
+                          : "No healthy ad account"
                   }
                   status={
                     isLoadingAccounts
                       ? "loading"
-                      : hasHealthyAccount
-                        ? "success"
-                        : "error"
+                      : hasPaymentIssue
+                        ? "error"
+                        : hasHealthyAccount
+                          ? "success"
+                          : "error"
                   }
                   inverse
                 />
-                <CheckItem
-                  label={
-                    isLoadingSub
-                      ? "Checking subscription…"
-                      : hasActiveSub
-                        ? "Subscription Active"
-                        : "Subscription required"
-                  }
-                  status={
-                    isLoadingSub
-                      ? "loading"
-                      : hasActiveSub
-                        ? "success"
-                        : "error"
-                  }
-                  inverse
-                />
+                {hasPaymentIssue && (
+                  <p className="text-xs text-red-400 pl-9 -mt-1">
+                    <a
+                      href="https://business.facebook.com/billing_hub/payment_settings"
+                      target="_blank"
+                      className="underline"
+                      rel="noreferrer"
+                    >
+                      Add payment method on Meta →
+                    </a>
+                  </p>
+                )}
                 <CheckItem
                   label="Creative Selected"
                   status={selectedCreatives.length > 0 ? "success" : "error"}
@@ -492,37 +489,20 @@ export function BudgetLaunchStep() {
                 )}
               </div>
 
-              {/* ROAS Prediction */}
+              {/* Post-launch tracking text */}
               <div className="pt-3 border-t border-white/10 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground flex items-center gap-1.5">
-                    <StatUp className="h-3.5 w-3.5" /> Predicted ROAS
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-black text-primary text-lg">
-                      {roasPrediction.value.toFixed(1)}×
-                    </span>
-                    <span
-                      className={cn(
-                        "text-[10px] font-bold px-1.5 py-0.5 rounded-full border",
-                        gradeConfig.color,
-                      )}
-                    >
-                      {roasPrediction.grade}
-                    </span>
+                <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 flex gap-3 text-left">
+                  <div className="mt-0.5">
+                    <StatUp className="w-5 h-5 text-primary" />
                   </div>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Confidence</span>
-                  <div className="flex items-center gap-2">
-                    <div className="h-1.5 w-20 bg-white/10 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-primary rounded-full"
-                        style={{ width: `${roasPrediction.confidence * 100}%` }}
-                      />
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      {Math.round(roasPrediction.confidence * 100)}%
+                  <div>
+                    <span className="text-sm font-bold text-foreground block mb-1">
+                      Track Every Naira
+                    </span>
+                    <span className="text-xs text-muted-foreground inline-block">
+                      After launch, tap "Sold! 🎉" every time a customer buys.
+                      We'll show you exactly how much your ₦
+                      {budget.toLocaleString()}/day is making.
                     </span>
                   </div>
                 </div>
@@ -618,9 +598,7 @@ export function BudgetLaunchStep() {
           size="lg"
           className="w-full h-16 text-xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-soft rounded-2xl transition-all hover:scale-[1.01]"
           onClick={handleLaunch}
-          disabled={
-            isLaunching || !hasHealthyAccount || !hasActiveSub || needsPixel
-          }
+          disabled={!canLaunch}
         >
           {isLaunching ? (
             <>
@@ -698,10 +676,11 @@ export function BudgetLaunchStep() {
                   </div>
                   <div className="text-center">
                     <div className="text-xs text-muted-foreground">
-                      Predicted ROAS
+                      Expected{" "}
+                      {outcomeLabel.replace(/^[a-z]/, (c) => c.toUpperCase())}
                     </div>
                     <div className="text-lg font-bold text-primary">
-                      {roasPrediction.value.toFixed(1)}×
+                      {outcomeRange}
                     </div>
                   </div>
                 </div>
