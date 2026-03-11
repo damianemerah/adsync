@@ -25,7 +25,7 @@ sell fashion, beauty, food, and services primarily via WhatsApp.
 - **State:** TanStack Query (Server State) + Zustand (Client Wizard State)
 - **UI:** Tailwind CSS + Shadcn UI
 - **Validation:** Zod
-- **AI:** Anthropic Claude (copy/strategy/image schema) + Flux via Fal.ai (image generation)
+- **AI:** OpenAI (Responses API, strategy/copy) + Fal.ai/Flux (image generation)
 - **Payments:** Paystack (Naira billing)
 
 ---
@@ -104,47 +104,10 @@ sell fashion, beauty, food, and services primarily via WhatsApp.
 
 ## 4. Current Mission
 
-See .agent/skills/\*/references/ for full implementation specs per phase.
+See `.agent/AGENTS.md` for the authoritative phase status table.
+See `.agent/skills/*/references/` for full implementation specs per phase.
 
-**Phase 1A (IMPLEMENTED):** Attribution layer
-
-- ✅ Sellam smart link (sellam.app/l/[token])
-- ✅ attribution_links + link_clicks tables (with destination_type, pixel_token, event tracking)
-- ✅ WhatsApp URL wrapping at campaign launch in actions/campaigns.ts
-- ✅ /l/[token] redirect route
-- ⬜ Website URL wrapping at campaign launch (else branch in campaigns.ts)
-- ⬜ /api/pixel route (1x1 GIF endpoint for website owners)
-
-**Phase 1B (IMPLEMENTED):** Naira ROI dashboard
-
-- ✅ whatsapp_sales table + recordSale action
-- ✅ Mark as Sold button
-- ✅ ROI metrics card (₦ spent → chats → sales → revenue)
-- ✅ useCampaignROI hook
-
-**Phase 1C (IMPLEMENTED):** Org-level AI context
-
-- ✅ organizations.business_description, business_category, target_audience columns
-- ✅ useOrgContext hook
-- ✅ compileContextPrompt Layer 1 injection
-- ✅ updateOrgProfile action
-- ✅ Onboarding + settings page integration
-- ✅ category-playbooks.ts
-
-**Phase 2A (NEXT):** Naira ad budget wallet
-
-- Paystack top-up flow
-- Per-org virtual USD card (Grey/Geegpay)
-- Ad policy pre-screen
-
-**Phase 2B:** Creative intelligence
-
-- UGC video pipeline
-- Category playbooks injected into AI prompts
-
-**Phase 3:** AI optimizer from attribution data
-
-Always check .agent/rules/decisions.md before starting any phase.
+Always check `.agent/rules/decisions.md` before starting any phase.
 Always read the relevant skill reference file before writing code.
 
 ---

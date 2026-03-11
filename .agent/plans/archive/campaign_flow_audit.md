@@ -37,10 +37,9 @@ The `lib/intelligence/smart-defaults.ts` file exists and is well-written, but no
 
 - **Fix:** Call `computeSmartDefaults` in `GoalPlatformStep` on objective selection, and pipe results into `updateDraft()`.
 
-**B. `predictROAS` / `updateROAS` are completely unwired**
-Both exist in `roas-predictor.ts` and `campaign-store.ts` (`selectedTemplate`, `predictedROAS`, `roasHistory` fields). Zero callsites. The budget step doesn't show a ROAS estimate, only a static confidence meter.
+**B. `predictROAS` / `updateROAS` are completely unwired** ⚠️ **RESOLVED (Mar 2026) — ROAS prediction UI was intentionally removed from BudgetLaunchStep.** The `roas-predictor.ts` file still exists but is no longer wired to any UI. This was a deliberate product decision, not a bug. Do not re-add.
 
-- **Fix:** Call `predictROAS` in `BudgetLaunchStep` on budget change and display predicted ROAS + confidence.
+- ~~Fix: Call `predictROAS` in `BudgetLaunchStep` on budget change and display predicted ROAS + confidence.~~
 
 **C. `evaluatePostLaunchRules` is never triggered**
 `lib/intelligence/post-launch-rules.ts` is a fully designed engine that presumably generates suggestions and auto-actions (pause underperforming campaigns, scale good ones). But there's no cron job, no webhook handler, and no UI reading from it.

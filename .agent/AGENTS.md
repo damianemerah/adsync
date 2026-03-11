@@ -18,19 +18,19 @@
 
 ## Skill Directory
 
-| Skill                 | Trigger Phrases                                                                                  | SKILL.md                                                               |
-| --------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
-| **Attribution Layer** | attribution link, smart link, `/l/[token]`, pixel, WhatsApp clicks, ROI dashboard, `link_clicks` | [skills/attribution/SKILL.md](skills/attribution/SKILL.md)             |
-| **AI Context**        | org context, business description, `compileContextPrompt`, `useOrgContext`, category playbooks   | [skills/ai-context/SKILL.md](skills/ai-context/SKILL.md)               |
-| **Campaign Launch**   | launch campaign, Meta API, `campaigns.ts`, policy guard, ad copy check, 1:1:1 rule               | [skills/campaign-launch/SKILL.md](skills/campaign-launch/SKILL.md)     |
-| **Naira Payments**    | ad budget, top-up, virtual card, wallet, Paystack, Grey API, Geegpay                             | [skills/naira-payments/SKILL.md](skills/naira-payments/SKILL.md)       |
-| **Tier Strategy**     | tier, credits, Starter, Growth, Agency, `TIER_CONFIG`, feature gates, upgrade prompt             | [skills/tier-strategy/SKILL.md](skills/tier-strategy/SKILL.md)         |
-| **Marketing Copy**    | landing page, email, social post, copywriting, brand voice, competitive positioning              | [skills/marketing/SKILL.md](skills/marketing/SKILL.md)                 |
-| **Frontend Design**   | UI, dashboard, Soft Modern, Wask aesthetic, Shadcn, layout, `/remodel`                           | [skills/frontend-design/SKILL.md](skills/frontend-design/SKILL.md)     |
-| **OpenAI API**        | OpenAI, Responses API, structured output, skill upload, JSON schema                              | [skills/openai-api/SKILL.md](skills/openai-api/SKILL.md)               |
-| **Lead Scoring**      | lead prioritization, which ad to optimize, cost-per-chat, best performing ad                     | [skills/lead-scoring/SKILL.md](skills/lead-scoring/SKILL.md)           |
-| **Momentum Tracking** | stalled deal, no chats, ad went quiet, no sales, re-engagement prompt                            | [skills/momentum-tracking/SKILL.md](skills/momentum-tracking/SKILL.md) |
-| **Growth Strategy**   | free dashboard, read-only mode, `SubscriptionGate`, action gating, date range limit, upsell      | [skills/growth-strategy/SKILL.md](skills/growth-strategy/SKILL.md)     |
+| Skill                  | Trigger Phrases                                                                                                                                                                                                              | SKILL.md                                                                 |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| **Attribution Layer**  | attribution link, smart link, `/l/[token]`, pixel, WhatsApp clicks, ROI dashboard, `link_clicks`                                                                                                                             | [skills/attribution/SKILL.md](skills/attribution/SKILL.md)               |
+| **AI Context**         | org context, business description, `compileContextPrompt`, `useOrgContext`, category playbooks                                                                                                                               | [skills/ai-context/SKILL.md](skills/ai-context/SKILL.md)                 |
+| **Campaign Launch**    | launch campaign, Meta API, `campaigns.ts`, policy guard, ad copy check, 1:1:1 rule                                                                                                                                           | [skills/campaign-launch/SKILL.md](skills/campaign-launch/SKILL.md)       |
+| **Naira Payments**     | ad budget, top-up, virtual card, wallet, Paystack, Grey API, Geegpay                                                                                                                                                         | [skills/naira-payments/SKILL.md](skills/naira-payments/SKILL.md)         |
+| **Tier Strategy**      | tier, credits, Starter, Growth, Agency, `TIER_CONFIG`, feature gates, upgrade prompt                                                                                                                                         | [skills/tier-strategy/SKILL.md](skills/tier-strategy/SKILL.md)           |
+| **Marketing Copy**     | landing page, email, social post, copywriting, brand voice, competitive positioning                                                                                                                                          | [skills/marketing/SKILL.md](skills/marketing/SKILL.md)                   |
+| **Frontend Design**    | UI, dashboard, Soft Modern, Wask aesthetic, Shadcn, layout, `/remodel`                                                                                                                                                       | [skills/frontend-design/SKILL.md](skills/frontend-design/SKILL.md)       |
+| **OpenAI API**         | OpenAI, Responses API, structured output, skill upload, JSON schema                                                                                                                                                          | [skills/openai-api/SKILL.md](skills/openai-api/SKILL.md)                 |
+| **Lead Scoring**       | lead prioritization, which ad to optimize, cost-per-chat, best performing ad                                                                                                                                                 | [skills/lead-scoring/SKILL.md](skills/lead-scoring/SKILL.md)             |
+| **Momentum Tracking**  | stalled deal, no chats, ad went quiet, no sales, re-engagement prompt                                                                                                                                                        | [skills/momentum-tracking/SKILL.md](skills/momentum-tracking/SKILL.md)   |
+| **Growth Strategy**    | free dashboard, read-only mode, `SubscriptionGate`, action gating, date range limit, upsell                                                                                                                                  | [skills/growth-strategy/SKILL.md](skills/growth-strategy/SKILL.md)       |
 | **Audience Targeting** | language targeting, locales, income proxy, custom audiences, lookalike audiences, retargeting toggle, exclusions, Phase 1/2/3 targeting, meta_audiences table, `customAudienceIds`, `lookalikAudienceIds`, `targetLanguages` | [skills/audience-targeting/SKILL.md](skills/audience-targeting/SKILL.md) |
 
 ---
@@ -108,11 +108,10 @@ Payments:    Paystack (Naira subscriptions + top-ups)
 
 ## Archived / Deprecated Docs
 
-The following root-level files have been archived to `.agent/plans/archive/`. They are **historical context only** — do not use as implementation specs:
+The following files live in `.agent/plans/archive/`. They are **historical context only** — do not use as implementation specs:
 
-- `implementation_plan.md` → superseded by `skills/*/references/`
-- `Sellam-Claude-Skills-Migration.md` → deprecated (references Anthropic Assistants API, now removed)
-- `freemium.md` → content absorbed into `skills/tier-strategy/SKILL.md`
-- `sellam-copy-strategy.md` → content absorbed into `skills/marketing/SKILL.md`
-- `chat_ai_training.md`, `campaign_flow_audit.md`, `static_data_audit.md` → audit snapshots, archived
-- `summary.md` → replaced by this file + `rules/sellam-product.md`
+- `implementation_plan.md` → master 12-month plan, superseded phase-by-phase by `skills/*/references/`
+- `campaign_flow_audit.md` → audit of built-but-disconnected features (some items since resolved or intentionally removed)
+- `static_data_audit.md` → resolved dummy data audit
+- `adsync-creative-v2-prd.md` → creative pipeline Phase 2–4 roadmap (not started)
+- `summary.md` → project overview, largely replaced by this file + `rules/sellam-product.md`
