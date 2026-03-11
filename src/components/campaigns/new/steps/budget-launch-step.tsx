@@ -91,7 +91,6 @@ export function BudgetLaunchStep() {
     targetLifeEvents,
     destinationValue,
     aiPrompt,
-    updateROAS,
   } = useCampaignStore();
 
   const orgROI = useOrgROI();
@@ -176,13 +175,6 @@ export function BudgetLaunchStep() {
       orgROI.avgROIPercent,
     ],
   );
-
-  useEffect(() => {
-    updateROAS({
-      value: roasPrediction.value,
-      confidence: roasPrediction.confidence,
-    });
-  }, [roasPrediction.value, roasPrediction.confidence, updateROAS]);
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
 

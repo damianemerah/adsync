@@ -52,7 +52,6 @@ export default function NewCampaignPage() {
     setStep,
     resetDraft,
     hydrate,
-    predictedROAS,
     ...campaignState
   } = useCampaignStore();
   const [savingState, setSavingState] = useState<"none" | "save" | "exit">(
@@ -168,7 +167,6 @@ export default function NewCampaignPage() {
     setStep,
     resetDraft,
     hydrate,
-    predictedROAS,
   };
   const canGoToAudience = canAccessAudienceStep(fullState);
   const canGoToCreative = canAccessCreativeStep(fullState);
@@ -264,19 +262,6 @@ export default function NewCampaignPage() {
           </div>
 
           <div className="flex items-center gap-4">
-            {/* ROAS Badge (if available) */}
-            {predictedROAS && (
-              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-full">
-                <Sparks className="h-4 w-4" />
-                <span className="text-sm font-bold">
-                  Predicted Return: {predictedROAS.value.toFixed(1)}x
-                </span>
-                <span className="text-xs text-subtle-foreground">
-                  ({(predictedROAS.confidence * 100).toFixed(0)}% confidence)
-                </span>
-              </div>
-            )}
-
             {/* Completion Badge */}
             <Badge
               variant="outline"
