@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea"; // Added Textarea
+import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import {
   Select,
@@ -36,10 +36,18 @@ import {
   Bag,
   User,
   Coins,
+  Star,
+  Shield,
+  Sparks,
 } from "iconoir-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 import { createOrganization } from "@/actions/onboarding";
+import {
+  getPaymentContext,
+  initializePaystackTransaction,
+} from "@/actions/paystack";
 
 const INDUSTRIES = [
   "E-commerce (Fashion/Beauty)",
@@ -73,15 +81,15 @@ const SELLING_METHODS = [
 ];
 
 const PRICE_TIERS = [
-  { id: "budget", label: "Budget / Affordable", icon: Coins },
-  { id: "mid", label: "Mid-Range", icon: Coins },
-  { id: "premium", label: "Premium / Luxury", icon: Coins },
+  { id: "budget", label: "Budget / Affordable" },
+  { id: "mid", label: "Mid-Range" },
+  { id: "premium", label: "Premium / Luxury" },
 ];
 
 const GENDERS = [
-  { id: "female", label: "Women", icon: User },
-  { id: "male", label: "Men", icon: User },
-  { id: "both", label: "Everyone", icon: Group },
+  { id: "female", label: "Women" },
+  { id: "male", label: "Men" },
+  { id: "both", label: "Everyone" },
 ];
 
 const PLANS = [
@@ -89,26 +97,27 @@ const PLANS = [
     id: PLAN_IDS.STARTER,
     name: "Starter",
     price: formatCurrency(PLAN_PRICES.starter),
+    priceNum: PLAN_PRICES.starter,
     description: "Perfect for solo hustlers",
     features: [
       `${TIER_CONFIG.starter.limits.maxAdAccounts} Ad Account`,
       `${PLAN_CREDITS.starter} AI Credits/mo`,
-      "AI Copy & Images",
+      "AI Copy & Image Generation",
       "Email Support",
-      `${TIER_CONFIG.starter.limits.maxTeamMembers} User`,
     ],
   },
   {
     id: PLAN_IDS.GROWTH,
     name: "Growth",
     price: formatCurrency(PLAN_PRICES.growth),
+    priceNum: PLAN_PRICES.growth,
     description: "Best for growing brands",
     features: [
       `${TIER_CONFIG.growth.limits.maxAdAccounts} Ad Accounts`,
       `${PLAN_CREDITS.growth} AI Credits/mo`,
       "Advanced AI with Industry Skills",
       "WhatsApp Alerts",
-      `${TIER_CONFIG.growth.limits.maxTeamMembers} Users`,
+      `${TIER_CONFIG.growth.limits.maxTeamMembers} Team Members`,
     ],
     recommended: true,
   },
@@ -116,14 +125,51 @@ const PLANS = [
     id: PLAN_IDS.AGENCY,
     name: "Agency",
     price: formatCurrency(PLAN_PRICES.agency),
+    priceNum: PLAN_PRICES.agency,
     description: "For digital agencies",
     features: [
-      "Unlimited Accounts",
-      `${formatCurrency(PLAN_CREDITS.agency).replace("₦", "")} AI Credits/mo`, // formatting large number
-      "Premium AI + Reporting",
-      "Priority Support",
-      `${TIER_CONFIG.agency.limits.maxTeamMembers} Users`,
+      "Unlimited Ad Accounts",
+      `${PLAN_CREDITS.agency} AI Credits/mo`,
+      "Premium AI + Priority Support",
+      `${TIER_CONFIG.agency.limits.maxTeamMembers} Team Members`,
     ],
+  },
+];
+
+const LEFT_PANEL_CONTENT = [
+  {
+    title: "Create your workspace",
+    body: "Start by naming your business. This is where all your campaigns and sales data will live.",
+    quote: "Sellam helped me scale my shoe business to ₦5M monthly sales.",
+    author: "Chidi, Lagos",
+  },
+  {
+    title: "Business Details",
+    body: "Help our AI understand your business model so it can craft smarter campaigns for you.",
+    quote:
+      "The AI knows my customers better than I did after just one campaign.",
+    author: "Amaka, Abuja",
+  },
+  {
+    title: "Tell us about you",
+    body: "We'll tailor your dashboard and AI recommendations based on your role.",
+    quote:
+      "I manage 12 clients and Sellam cuts my campaign setup time in half.",
+    author: "Tunde, Port Harcourt",
+  },
+  {
+    title: "Start your free trial",
+    body: "14 days of full access. No credit card needed. Cancel anytime. Real results from day one.",
+    quote:
+      "Within the first week I saw a 3× ROAS on my first campaign. Incredible.",
+    author: "Chidinma, Enugu",
+  },
+  {
+    title: "Connect your ad accounts",
+    body: "Link Facebook, Instagram, or TikTok to pull in your ad history and launch your first campaign.",
+    quote:
+      "Setup took 5 minutes. My first campaign was live the same afternoon.",
+    author: "Seun, Lagos",
   },
 ];
 
@@ -131,6 +177,7 @@ export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [isPaymentLoading, setIsPaymentLoading] = useState(false);
 
   // Form State
   const [orgName, setOrgName] = useState("");
@@ -194,6 +241,21 @@ export default function OnboardingPage() {
   ]);
 
   const progress = (step / 5) * 100;
+  const panelContent = LEFT_PANEL_CONTENT[step - 1];
+  const activePlan = PLANS.find((p) => p.id === selectedPlan) ?? PLANS[1];
+
+  const buildFormData = () => {
+    const formData = new FormData();
+    formData.append("orgName", orgName);
+    formData.append("industry", industry);
+    formData.append("sellingMethod", sellingMethod);
+    formData.append("priceTier", priceTier);
+    formData.append("customerGender", customerGender);
+    formData.append("plan", selectedPlan);
+    formData.append("userRole", userRole);
+    formData.append("businessDescription", businessDescription);
+    return formData;
+  };
 
   const handleNext = () => {
     if (step < 5) setStep(step + 1);
@@ -205,60 +267,69 @@ export default function OnboardingPage() {
 
   const handleConnect = async (url: string) => {
     setIsLoading(true);
-
-    const formData = new FormData();
-    formData.append("orgName", orgName);
-    formData.append("industry", industry);
-    formData.append("sellingMethod", sellingMethod);
-    formData.append("priceTier", priceTier);
-    formData.append("customerGender", customerGender);
-    formData.append("plan", selectedPlan);
-    formData.append("userRole", userRole);
-    formData.append("businessDescription", businessDescription);
-
-    // Create the organization but don't redirect to dashboard
-    const result = await createOrganization(formData, false);
+    const result = await createOrganization(buildFormData(), false);
 
     if (result?.error) {
-      alert(result.error);
+      toast.error(result.error);
       setIsLoading(false);
       return;
     }
 
-    // After success, navigate to the provider connect URL
     window.location.href = url;
   };
 
   const handleFinish = async () => {
     setIsLoading(true);
     localStorage.removeItem("onboarding_state");
-
-    // Create FormData to pass to Server Action
-    const formData = new FormData();
-    formData.append("orgName", orgName);
-    formData.append("industry", industry);
-    formData.append("sellingMethod", sellingMethod);
-    formData.append("priceTier", priceTier);
-    formData.append("customerGender", customerGender);
-    formData.append("plan", selectedPlan);
-    formData.append("userRole", userRole);
-    formData.append("businessDescription", businessDescription);
-
-    // Call the Server Action
-    const result = await createOrganization(formData, true);
-
+    const result = await createOrganization(buildFormData(), true);
     if (result?.error) {
-      alert(result.error); // Or use a Toast
+      toast.error(result.error);
       setIsLoading(false);
     }
   };
 
+  const handleSubscribeNow = async () => {
+    setIsPaymentLoading(true);
+    try {
+      // 1. Create org first so getPaymentContext can read the cookie
+      const result = await createOrganization(buildFormData(), false);
+      if (result?.error) throw new Error(result.error);
+
+      // 2. Get authenticated email + org ID
+      const { email, orgId } = await getPaymentContext();
+
+      // 3. Initialize Paystack transaction
+      const callbackUrl = `${window.location.origin}/settings/subscription?success=true`;
+      const { authorization_url } = await initializePaystackTransaction(
+        email,
+        selectedPlan,
+        callbackUrl,
+        orgId,
+      );
+
+      localStorage.removeItem("onboarding_state");
+      window.location.href = authorization_url;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Could not start payment";
+      toast.error(msg);
+      setIsPaymentLoading(false);
+    }
+  };
+
+  const isNextDisabled =
+    (step === 1 && (!orgName || !industry)) ||
+    (step === 2 && (!sellingMethod || !priceTier || !customerGender)) ||
+    (step === 3 && !userRole);
+
+  const stepIcons = [Building, Bag, User, Flash, Group];
+  const StepIcon = stepIcons[step - 1];
+
   return (
-    <div className="min-h-screen bg-muted/30 flex flex-col items-center justify-center p-4 font-sans">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 flex flex-col items-center justify-center p-4 font-sans">
       {/* Top Logo */}
-      <div className="mb-8 flex items-center gap-2">
-        <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/20">
-          <Flash className="h-5 w-5 fill-current" />
+      <div className="mb-6 flex items-center gap-2">
+        <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shadow-lg shadow-primary/25">
+          <Flash className="h-4 w-4 text-white fill-current" />
         </div>
         <span className="font-heading font-bold text-xl text-foreground">
           Sellam
@@ -267,79 +338,87 @@ export default function OnboardingPage() {
 
       <div className="w-full max-w-4xl">
         {/* Progress Header */}
-        <div className="mb-8 px-4">
-          <div className="flex justify-between text-sm font-medium text-subtle-foreground mb-2">
+        <div className="mb-5 px-1">
+          <div className="flex justify-between text-xs font-medium text-muted-foreground mb-2">
             <span>Step {step} of 5</span>
-            <span>{Math.round(progress)}%</span>
+            <span>{Math.round(progress)}% complete</span>
           </div>
-          <Progress value={progress} className="h-2 bg-slate-200" />
+          <Progress value={progress} className="h-1.5 bg-slate-200" />
         </div>
 
-        {/* Main Content Card */}
-        <Card className="shadow-2xl shadow-slate-200/50 border-0 overflow-hidden bg-white">
-          <div className="grid lg:grid-cols-12 min-h-[600px]">
-            {/* Left Panel: Visual/Context */}
+        {/* Main Card */}
+        <Card className="shadow-2xl shadow-slate-300/30 border-0 overflow-hidden bg-white">
+          <div className="grid lg:grid-cols-12 min-h-[620px]">
+            {/* Left Panel */}
             <div className="hidden lg:flex lg:col-span-4 bg-foreground text-background p-10 flex-col justify-between relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-primary rounded-full blur-[100px] opacity-20 -mr-20 -mt-20"></div>
-              <div className="absolute bottom-0 left-0 w-64 h-64 bg-ai rounded-full blur-[100px] opacity-20 -ml-20 -mb-20"></div>
+              <div className="absolute top-0 right-0 w-72 h-72 bg-primary rounded-full blur-[120px] opacity-15 -mr-24 -mt-24 pointer-events-none" />
+              <div className="absolute bottom-0 left-0 w-72 h-72 bg-violet-500 rounded-full blur-[120px] opacity-10 -ml-24 -mb-24 pointer-events-none" />
 
               <div className="relative z-10">
-                <div className="h-12 w-12 rounded-2xl bg-white/10 flex items-center justify-center mb-6 backdrop-blur-sm border border-white/10">
-                  {step === 1 && <Building className="h-6 w-6 text-primary" />}
-                  {step === 2 && <Bag className="h-6 w-6 text-pink-400" />}
-                  {step === 3 && <User className="h-6 w-6 text-ai" />}
-                  {step === 4 && <Flash className="h-6 w-6 text-yellow-400" />}
-                  {step === 5 && <Group className="h-6 w-6 text-green-400" />}
+                <div className="h-11 w-11 rounded-2xl bg-white/10 flex items-center justify-center mb-5 border border-white/15">
+                  <StepIcon className="h-5 w-5 text-primary" />
                 </div>
-                <h2 className="text-2xl font-bold mb-2">
-                  {step === 1 && "Create your workspace"}
-                  {step === 2 && "Business Details"}
-                  {step === 3 && "Tell us about you"}
-                  {step === 4 && "Choose your membership"}
-                  {step === 5 && "Connect ad accounts"}
+                <h2 className="text-2xl font-bold mb-2.5 leading-tight">
+                  {panelContent.title}
                 </h2>
-                <p className="text-primary-foreground/70 leading-relaxed">
-                  {step === 1 &&
-                    "Start by naming your business. This is where you track your sales."}
-                  {step === 2 &&
-                    "Help our AI understand your business model so we can help you get more sales."}
-                  {step === 3 &&
-                    "We'll tailor your experience based on your role."}
-                  {step === 4 &&
-                    "Start your 14-day free access. No international card required. Cancel anytime."}
-                  {step === 5 &&
-                    "Link your Facebook, Instagram, or TikTok accounts to import your past ads instantly."}
+                <p className="text-white/65 leading-relaxed text-sm">
+                  {panelContent.body}
                 </p>
               </div>
 
-              {/* Testimonial Snippet */}
-              <div className="relative z-10 bg-white/5 p-5 rounded-3xl border border-white/10 backdrop-blur-md">
-                <div className="flex gap-1 mb-3">
+              {/* Step indicators */}
+              <div className="relative z-10 flex gap-1.5 my-6">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <div
+                    key={s}
+                    className={cn(
+                      "h-1 rounded-full transition-all duration-300",
+                      s === step
+                        ? "w-6 bg-primary"
+                        : s < step
+                          ? "w-3 bg-primary/50"
+                          : "w-3 bg-white/20",
+                    )}
+                  />
+                ))}
+              </div>
+
+              {/* Testimonial */}
+              <div className="relative z-10 bg-white/5 p-5 rounded-2xl border border-white/10">
+                <div className="flex gap-0.5 mb-3">
                   {[1, 2, 3, 4, 5].map((i) => (
-                    <div
+                    <Star
                       key={i}
-                      className="h-2.5 w-2.5 rounded-full bg-yellow-400"
+                      className="h-3 w-3 text-yellow-400 fill-current"
                     />
                   ))}
                 </div>
-                <p className="text-sm text-primary-foreground/90 italic mb-3">
-                  "Sellam helped me scale my shoe business to ₦5M monthly
-                  sales."
+                <p className="text-sm text-white/85 italic mb-3 leading-relaxed">
+                  &ldquo;{panelContent.quote}&rdquo;
                 </p>
-                <p className="text-xs font-bold text-primary-foreground">
-                  — Chidi, Lagos
+                <p className="text-xs font-semibold text-white/60">
+                  — {panelContent.author}
                 </p>
               </div>
             </div>
 
             {/* Right Panel: Form */}
             <div className="col-span-12 lg:col-span-8 p-8 lg:p-12 flex flex-col">
-              {/* STEP 1: IDENTITY */}
+              {/* ── STEP 1: WORKSPACE IDENTITY ── */}
               {step === 1 && (
-                <div className="flex-1 flex flex-col justify-center space-y-6 max-w-md mx-auto w-full">
+                <div className="flex-1 flex flex-col justify-center space-y-5 max-w-md mx-auto w-full">
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground mb-1">
+                      Name your workspace
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      This is how your business will appear in Sellam.
+                    </p>
+                  </div>
+
                   <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="orgName" className="text-base">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="orgName" className="text-sm font-medium">
                         Business Name
                       </Label>
                       <Input
@@ -347,18 +426,18 @@ export default function OnboardingPage() {
                         placeholder="e.g. Lagos Fashion Hub"
                         value={orgName}
                         onChange={(e) => setOrgName(e.target.value)}
-                        className="h-14 text-lg bg-muted/30 border-border"
+                        className="h-12 bg-slate-50 border-slate-200 focus:border-primary focus:ring-primary/20 text-base"
                         autoFocus
                       />
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="industry" className="text-base">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="industry" className="text-sm font-medium">
                         Industry
                       </Label>
                       <Select value={industry} onValueChange={setIndustry}>
-                        <SelectTrigger className="h-14 text-lg bg-muted/30 border-border">
-                          <SelectValue placeholder="Select industry" />
+                        <SelectTrigger className="h-12 bg-slate-50 border-slate-200 focus:border-primary text-base">
+                          <SelectValue placeholder="What best describes your business?" />
                         </SelectTrigger>
                         <SelectContent>
                           {INDUSTRIES.map((ind) => (
@@ -370,106 +449,136 @@ export default function OnboardingPage() {
                       </Select>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <Label
                         htmlFor="businessDescription"
-                        className="text-base flex justify-between items-center"
+                        className="text-sm font-medium flex justify-between"
                       >
-                        <span>What do you do?</span>
-                        <span className="text-xs text-subtle-foreground font-normal">
-                          Optional
+                        What do you sell?
+                        <span className="text-xs text-muted-foreground font-normal">
+                          Optional — helps our AI
                         </span>
                       </Label>
                       <Textarea
                         id="businessDescription"
-                        placeholder="Briefly describe your products, services, or business goals..."
+                        placeholder="Briefly describe your products or services..."
                         value={businessDescription}
                         onChange={(e) => setBusinessDescription(e.target.value)}
-                        className="h-24 resize-none bg-muted/30 border-border"
+                        className="h-24 resize-none bg-slate-50 border-slate-200 focus:border-primary"
                       />
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* STEP 2: BUSINESS DETAILS (NEW) */}
+              {/* ── STEP 2: BUSINESS DETAILS ── */}
               {step === 2 && (
-                <div className="flex-1 flex flex-col justify-center space-y-8 max-w-md mx-auto w-full">
-                  {/* Selling Method */}
-                  <div className="space-y-3">
-                    <Label className="text-base">How do you sell?</Label>
+                <div className="flex-1 flex flex-col justify-center space-y-7 max-w-md mx-auto w-full">
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground mb-1">
+                      How does your business work?
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Our AI uses this to build smarter targeting for your ads.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">
+                      How do you sell?
+                    </Label>
                     <div className="grid grid-cols-1 gap-2">
                       {SELLING_METHODS.map((method) => {
                         const Icon = method.icon;
+                        const isSelected = sellingMethod === method.id;
                         return (
                           <div
                             key={method.id}
                             onClick={() => setSellingMethod(method.id)}
                             className={cn(
-                              "cursor-pointer rounded-xl border p-3 flex items-center gap-3 transition-all",
-                              sellingMethod === method.id
-                                ? "border-primary bg-primary/10/50"
-                                : "border-border hover:bg-muted/30",
+                              "cursor-pointer rounded-xl border-2 p-3 flex items-center gap-3 transition-all",
+                              isSelected
+                                ? "border-primary bg-primary/5"
+                                : "border-slate-200 hover:border-slate-300 bg-white",
                             )}
                           >
-                            <div className="h-10 w-10 rounded-full bg-white border flex items-center justify-center text-subtle-foreground shrink-0">
-                              <Icon className="h-5 w-5" />
+                            <div
+                              className={cn(
+                                "h-9 w-9 rounded-lg flex items-center justify-center shrink-0 transition-colors",
+                                isSelected
+                                  ? "bg-primary/10 text-primary"
+                                  : "bg-slate-100 text-slate-500",
+                              )}
+                            >
+                              <Icon className="h-4 w-4" />
                             </div>
-                            <div>
-                              <div className="font-bold text-sm text-foreground">
+                            <div className="flex-1">
+                              <div className="font-semibold text-sm text-foreground">
                                 {method.label}
                               </div>
-                              <div className="text-xs text-subtle-foreground">
+                              <div className="text-xs text-muted-foreground">
                                 {method.desc}
                               </div>
                             </div>
-                            {sellingMethod === method.id && (
-                              <Check className="h-5 w-5 text-primary ml-auto" />
-                            )}
+                            <div
+                              className={cn(
+                                "h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
+                                isSelected
+                                  ? "border-primary bg-primary"
+                                  : "border-slate-300",
+                              )}
+                            >
+                              {isSelected && (
+                                <Check className="h-3 w-3 text-white" />
+                              )}
+                            </div>
                           </div>
                         );
                       })}
                     </div>
                   </div>
 
-                  {/* Price Tier & Gender Row */}
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-3">
-                      <Label className="text-base">Pricing?</Label>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Pricing tier
+                      </Label>
                       <div className="flex flex-col gap-2">
                         {PRICE_TIERS.map((pt) => (
-                          <div
+                          <button
                             key={pt.id}
                             onClick={() => setPriceTier(pt.id)}
                             className={cn(
-                              "cursor-pointer rounded-xl border p-2 text-center transition-all text-xs font-bold",
+                              "cursor-pointer rounded-lg border-2 px-3 py-2 text-center transition-all text-xs font-semibold",
                               priceTier === pt.id
-                                ? "border-primary bg-primary/10 text-blue-700"
-                                : "border-border text-subtle-foreground hover:bg-muted/30",
+                                ? "border-primary bg-primary/5 text-primary"
+                                : "border-slate-200 text-slate-500 hover:border-slate-300",
                             )}
                           >
                             {pt.label}
-                          </div>
+                          </button>
                         ))}
                       </div>
                     </div>
 
-                    <div className="space-y-3">
-                      <Label className="text-base">Audience?</Label>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Target audience
+                      </Label>
                       <div className="flex flex-col gap-2">
                         {GENDERS.map((g) => (
-                          <div
+                          <button
                             key={g.id}
                             onClick={() => setCustomerGender(g.id)}
                             className={cn(
-                              "cursor-pointer rounded-xl border p-2 text-center transition-all text-xs font-bold",
+                              "cursor-pointer rounded-lg border-2 px-3 py-2 text-center transition-all text-xs font-semibold",
                               customerGender === g.id
-                                ? "border-purple-600 bg-purple-50 text-purple-700"
-                                : "border-border text-subtle-foreground hover:bg-muted/30",
+                                ? "border-violet-500 bg-violet-50 text-violet-700"
+                                : "border-slate-200 text-slate-500 hover:border-slate-300",
                             )}
                           >
                             {g.label}
-                          </div>
+                          </button>
                         ))}
                       </div>
                     </div>
@@ -477,194 +586,286 @@ export default function OnboardingPage() {
                 </div>
               )}
 
-              {/* STEP 3: ROLE */}
+              {/* ── STEP 3: ROLE ── */}
               {step === 3 && (
-                <div className="flex-1 flex flex-col justify-center space-y-6 max-w-md mx-auto w-full">
-                  <div className="space-y-4">
-                    <Label className="text-base">
+                <div className="flex-1 flex flex-col justify-center space-y-5 max-w-md mx-auto w-full">
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground mb-1">
                       What describes you best?
-                    </Label>
-                    <div className="grid gap-3">
-                      {[
-                        {
-                          id: "owner",
-                          label: "Business Owner",
-                          desc: "I own the business I want to get sales for.",
-                        },
-                        {
-                          id: "marketer",
-                          label: "Marketer / Freelancer",
-                          desc: "I run ads for other businesses.",
-                        },
-                        {
-                          id: "creator",
-                          label: "Content Creator",
-                          desc: "I want to boost my own content.",
-                        },
-                      ].map((role) => (
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      We'll personalize your experience around your role.
+                    </p>
+                  </div>
+
+                  <div className="grid gap-3">
+                    {[
+                      {
+                        id: "owner",
+                        label: "Business Owner",
+                        desc: "I own the business I want to grow.",
+                        icon: Building,
+                      },
+                      {
+                        id: "marketer",
+                        label: "Marketer / Freelancer",
+                        desc: "I run ads for other businesses.",
+                        icon: Sparks,
+                      },
+                      {
+                        id: "creator",
+                        label: "Content Creator",
+                        desc: "I want to boost my own content.",
+                        icon: Star,
+                      },
+                    ].map((role) => {
+                      const Icon = role.icon;
+                      const isSelected = userRole === role.id;
+                      return (
                         <div
                           key={role.id}
                           onClick={() => setUserRole(role.id)}
                           className={cn(
-                            "cursor-pointer rounded-xl border-2 p-4 transition-all hover:bg-muted/30",
-                            userRole === role.id
-                              ? "border-primary bg-primary/10/50"
-                              : "border-border bg-white",
+                            "cursor-pointer rounded-xl border-2 p-4 transition-all",
+                            isSelected
+                              ? "border-primary bg-primary/5"
+                              : "border-slate-200 bg-white hover:border-slate-300",
                           )}
                         >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="font-bold text-foreground">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={cn(
+                                "h-10 w-10 rounded-xl flex items-center justify-center shrink-0 transition-colors",
+                                isSelected
+                                  ? "bg-primary/10 text-primary"
+                                  : "bg-slate-100 text-slate-400",
+                              )}
+                            >
+                              <Icon className="h-5 w-5" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="font-bold text-sm text-foreground">
                                 {role.label}
                               </div>
-                              <div className="text-xs text-subtle-foreground">
+                              <div className="text-xs text-muted-foreground">
                                 {role.desc}
                               </div>
                             </div>
-                            {userRole === role.id && (
-                              <Check className="h-5 w-5 text-primary" />
-                            )}
+                            <div
+                              className={cn(
+                                "h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
+                                isSelected
+                                  ? "border-primary bg-primary"
+                                  : "border-slate-300",
+                              )}
+                            >
+                              {isSelected && (
+                                <Check className="h-3 w-3 text-white" />
+                              )}
+                            </div>
                           </div>
                         </div>
-                      ))}
-                    </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
 
-              {/* STEP 4: PRICING */}
+              {/* ── STEP 4: FREE TRIAL ── */}
               {step === 4 && (
-                <div className="flex-1 flex flex-col gap-4 overflow-y-auto">
-                  <div className="grid gap-4">
-                    {PLANS.map((plan) => (
-                      <div
-                        key={plan.id}
-                        onClick={() => setSelectedPlan(plan.id)}
-                        className={cn(
-                          "relative flex cursor-pointer rounded-xl border-2 p-5 transition-all hover:shadow-md",
-                          selectedPlan === plan.id
-                            ? "border-primary bg-primary/10/50"
-                            : "border-border bg-white hover:border-border",
-                        )}
-                      >
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-1">
-                            <h3 className="font-bold text-foreground">
-                              {plan.name}
-                            </h3>
-                            {plan.recommended && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-primary text-white uppercase tracking-wide">
-                                Recommended
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-baseline gap-1 mb-2">
-                            <span className="text-2xl font-black text-foreground">
-                              {plan.price}
-                            </span>
-                            <span className="text-sm text-subtle-foreground font-medium">
-                              /mo
-                            </span>
-                          </div>
-                          <p className="text-sm text-subtle-foreground mb-3">
-                            {plan.description}
-                          </p>
-                          <div className="flex flex-wrap gap-x-4 gap-y-2">
-                            {plan.features.map((feature) => (
-                              <span
-                                key={feature}
-                                className="flex items-center text-xs text-slate-700 font-medium"
-                              >
-                                <Check className="w-3 h-3 text-green-500 mr-1.5 shrink-0" />
-                                {feature}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                        <div
+                <div className="flex-1 flex flex-col justify-center gap-5 max-w-md mx-auto w-full">
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground mb-1">
+                      Start your free trial
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      14 days of full access. No credit card required.
+                    </p>
+                  </div>
+
+                  {/* Trial Card */}
+                  <div className="relative rounded-2xl border-2 border-primary/20 bg-linear-to-br from-slate-900 to-slate-800 p-6 overflow-hidden text-white">
+                    {/* Glow */}
+                    <div className="absolute top-0 right-0 w-48 h-48 bg-primary rounded-full blur-[80px] opacity-20 -mr-16 -mt-16 pointer-events-none" />
+                    <div className="absolute bottom-0 left-0 w-48 h-48 bg-violet-500 rounded-full blur-[80px] opacity-15 -ml-16 -mb-16 pointer-events-none" />
+
+                    {/* Badge */}
+                    <div className="relative z-10 inline-flex items-center gap-1.5 bg-white/10 border border-white/20 rounded-full px-3 py-1 text-xs font-semibold mb-4">
+                      <Flash className="h-3 w-3 text-yellow-400 fill-current" />
+                      14-Day Free Trial
+                    </div>
+
+                    {/* Plan tabs */}
+                    <div className="relative z-10 flex gap-1 p-1 bg-white/10 rounded-xl mb-5">
+                      {PLANS.map((plan) => (
+                        <button
+                          key={plan.id}
+                          onClick={() => setSelectedPlan(plan.id)}
                           className={cn(
-                            "w-6 h-6 rounded-full border-2 flex items-center justify-center ml-4 mt-1 transition-colors",
+                            "relative flex-1 py-2 text-xs font-bold rounded-lg transition-all",
                             selectedPlan === plan.id
-                              ? "border-primary bg-primary"
-                              : "border-slate-300",
+                              ? "bg-white text-slate-900 shadow-md"
+                              : "text-white/60 hover:text-white",
                           )}
                         >
-                          {selectedPlan === plan.id && (
-                            <Check className="w-3 h-3 text-white" />
+                          {plan.recommended && selectedPlan !== plan.id && (
+                            <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 bg-primary text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold leading-none">
+                              Popular
+                            </span>
                           )}
-                        </div>
+                          {plan.name}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Plan details */}
+                    <div className="relative z-10">
+                      <div className="flex items-baseline gap-1 mb-0.5">
+                        <span className="text-3xl font-black">
+                          {activePlan.price}
+                        </span>
+                        <span className="text-white/50 text-sm">
+                          /mo after trial
+                        </span>
                       </div>
-                    ))}
+                      <p className="text-white/60 text-xs mb-4">
+                        {activePlan.description}
+                      </p>
+
+                      <div className="grid grid-cols-1 gap-2">
+                        {activePlan.features.map((feature) => (
+                          <div
+                            key={feature}
+                            className="flex items-center gap-2 text-sm"
+                          >
+                            <div className="h-4 w-4 rounded-full bg-green-400/20 flex items-center justify-center shrink-0">
+                              <Check className="h-2.5 w-2.5 text-green-400" />
+                            </div>
+                            <span className="text-white/85">{feature}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Subscribe now option */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 h-px bg-slate-200" />
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      or
+                    </span>
+                    <div className="flex-1 h-px bg-slate-200" />
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">
+                        Ready to subscribe now?
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Skip the trial, get instant full access.
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSubscribeNow}
+                      disabled={isPaymentLoading || isLoading}
+                      className="shrink-0 font-semibold border-primary/30 text-primary hover:bg-primary/5 hover:border-primary"
+                    >
+                      {isPaymentLoading ? (
+                        <SystemRestart className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          Pay {activePlan.price}/mo{" "}
+                          <ArrowRight className="h-3 w-3 ml-1" />
+                        </>
+                      )}
+                    </Button>
                   </div>
                 </div>
               )}
 
-              {/* STEP 5: CONNECT */}
+              {/* ── STEP 5: CONNECT ACCOUNTS ── */}
               {step === 5 && (
-                <div className="flex-1 flex flex-col justify-center space-y-6 max-w-md mx-auto w-full">
-                  <div className="grid gap-4">
+                <div className="flex-1 flex flex-col justify-center space-y-5 max-w-md mx-auto w-full">
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground mb-1">
+                      Connect your ad accounts
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Pull in your past ads and launch your first campaign
+                      instantly.
+                    </p>
+                  </div>
+
+                  <div className="grid gap-3">
                     <button
                       onClick={() => handleConnect("/api/connect/meta")}
                       disabled={isLoading}
-                      className="group relative flex items-center gap-4 p-5 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/10 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="group flex items-center gap-4 p-4 rounded-xl border-2 border-slate-200 hover:border-primary hover:bg-primary/5 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed bg-white"
                     >
-                      <div className="w-12 h-12 rounded-lg bg-primary flex items-center justify-center shrink-0">
+                      <div className="w-11 h-11 rounded-xl bg-blue-600 flex items-center justify-center shrink-0 shadow-md shadow-blue-600/25">
                         <svg
-                          className="w-6 h-6 text-white"
+                          className="w-5 h-5 text-white"
                           fill="currentColor"
                           viewBox="0 0 24 24"
                         >
                           <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
                         </svg>
                       </div>
-                      <div>
-                        <h3 className="font-bold text-foreground">
+                      <div className="flex-1">
+                        <h4 className="font-bold text-sm text-foreground">
                           Connect Meta
-                        </h3>
-                        <p className="text-sm text-subtle-foreground">
+                        </h4>
+                        <p className="text-xs text-muted-foreground">
                           Facebook & Instagram Ads
                         </p>
                       </div>
-                      <ArrowRight className="ml-auto w-5 h-5 text-slate-300 group-hover:text-primary transition-colors" />
+                      <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-primary transition-colors" />
                     </button>
 
                     <button
                       onClick={() => handleConnect("/api/connect/tiktok")}
                       disabled={isLoading}
-                      className="group relative flex items-center gap-4 p-5 rounded-xl border-2 border-border hover:border-black hover:bg-muted/30 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="group flex items-center gap-4 p-4 rounded-xl border-2 border-slate-200 hover:border-slate-800 hover:bg-slate-50 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed bg-white"
                     >
-                      <div className="w-12 h-12 rounded-lg bg-black flex items-center justify-center shrink-0">
-                        <span className="font-black text-white text-lg">
+                      <div className="w-11 h-11 rounded-xl bg-slate-900 flex items-center justify-center shrink-0 shadow-md shadow-slate-900/20">
+                        <span className="font-black text-white text-sm">
                           Tk
                         </span>
                       </div>
-                      <div>
-                        <h3 className="font-bold text-foreground">
+                      <div className="flex-1">
+                        <h4 className="font-bold text-sm text-foreground">
                           Connect TikTok
-                        </h3>
-                        <p className="text-sm text-subtle-foreground">
+                        </h4>
+                        <p className="text-xs text-muted-foreground">
                           TikTok Ads Manager
                         </p>
                       </div>
-                      <ArrowRight className="ml-auto w-5 h-5 text-slate-300 group-hover:text-black transition-colors" />
+                      <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-slate-700 transition-colors" />
                     </button>
                   </div>
 
-                  <p className="text-center text-xs text-muted-foreground">
-                    You can connect more accounts later in Settings.
-                  </p>
+                  <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                    <Shield className="h-4 w-4 text-slate-400 shrink-0" />
+                    <p className="text-xs text-muted-foreground">
+                      Read-only access. We never post or spend on your behalf.
+                      You can add more accounts later in Settings.
+                    </p>
+                  </div>
                 </div>
               )}
 
-              {/* Navigation Footer */}
-              <div className="mt-8 pt-6 border-t border-border flex items-center justify-between">
+              {/* ── Navigation Footer ── */}
+              <div className="mt-8 pt-5 border-t border-slate-100 flex items-center justify-between">
                 <Button
                   variant="ghost"
                   onClick={handleBack}
-                  disabled={step === 1 || isLoading}
-                  className="text-subtle-foreground hover:text-foreground"
+                  disabled={step === 1 || isLoading || isPaymentLoading}
+                  className="text-muted-foreground hover:text-foreground gap-1.5"
                 >
-                  <ArrowLeft className="w-4 h-4 mr-2" /> Back
+                  <ArrowLeft className="w-4 h-4" /> Back
                 </Button>
 
                 <div className="flex gap-3 items-center">
@@ -673,33 +874,35 @@ export default function OnboardingPage() {
                       variant="ghost"
                       onClick={handleFinish}
                       disabled={isLoading}
+                      className="text-muted-foreground hover:text-foreground text-sm"
                     >
                       Skip for now
                     </Button>
                   )}
                   <Button
                     onClick={step === 5 ? handleFinish : handleNext}
-                    disabled={
-                      (step === 1 && (!orgName || !industry)) ||
-                      (step === 2 &&
-                        (!sellingMethod || !priceTier || !customerGender)) ||
-                      (step === 3 && !userRole)
-                    }
-                    className="bg-slate-900 hover:bg-slate-800 text-white min-w-[140px] h-12 rounded-xl font-bold shadow-xl shadow-slate-900/10"
+                    disabled={isNextDisabled || isLoading || isPaymentLoading}
+                    className="bg-slate-900 hover:bg-slate-800 text-white min-w-[150px] h-11 rounded-xl font-bold shadow-lg shadow-slate-900/15 gap-2"
                   >
                     {isLoading ? (
                       <>
-                        <SystemRestart className="w-4 h-4 animate-spin mr-2" />{" "}
+                        <SystemRestart className="w-4 h-4 animate-spin" />
                         Setting up...
+                      </>
+                    ) : step === 5 ? (
+                      <>
+                        Finish Setup
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    ) : step === 4 ? (
+                      <>
+                        Start Free Trial
+                        <ArrowRight className="w-4 h-4" />
                       </>
                     ) : (
                       <>
-                        {step === 5
-                          ? "Finish Setup"
-                          : step === 4
-                            ? "Continue to Trial"
-                            : "Continue"}{" "}
-                        <ArrowRight className="w-4 h-4 ml-2" />
+                        Continue
+                        <ArrowRight className="w-4 h-4" />
                       </>
                     )}
                   </Button>
@@ -709,7 +912,7 @@ export default function OnboardingPage() {
           </div>
         </Card>
 
-        <p className="text-center mt-8 text-sm text-muted-foreground">
+        <p className="text-center mt-6 text-sm text-muted-foreground">
           Need help?{" "}
           <Link href="#" className="text-primary font-semibold hover:underline">
             Chat with support

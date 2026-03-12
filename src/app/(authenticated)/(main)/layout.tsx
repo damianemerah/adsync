@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
 import { VerificationBanner } from "@/components/dashboard/verification-banner";
+import { TrialBanner } from "@/components/dashboard/trial-banner";
 import { SubscriptionGate } from "@/components/dashboard/subscription-gate";
 import { StoreHydrator } from "@/components/dashboard/store-hydrator";
 import { getActiveOrgId } from "@/lib/active-org";
@@ -73,8 +74,9 @@ export default async function MainLayout({
         <div className="flex min-h-screen bg-slate-50 font-sans">
           <Sidebar activeOrgId={activeOrgId} />
           <ContentWrapper>
-            {/* Banner sits here */}
+            {/* Banners */}
             <VerificationBanner />
+            <TrialBanner />
             <StoreHydrator userId={user.id} />
 
             {/* The Gate handles the blocking logic */}

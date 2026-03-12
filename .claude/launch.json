@@ -2,10 +2,16 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "AdSync Dev",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "port": 3000
+      "name": "adsync-dev",
+      "runtimeExecutable": "wsl",
+      "runtimeArgs": [
+        "-d",
+        "Ubuntu-22.04",
+        "bash",
+        "-c",
+        "source ~/.nvm/nvm.sh && cd ~/projects/adsync/.claude/worktrees/fervent-ride && npm run dev -- --port 3001"
+      ],
+      "port": 3001
     }
   ]
 }
