@@ -8,6 +8,7 @@ const TABS = [
   { name: "General", href: "/settings/general" },
   { name: "Businesses", href: "/settings/business" },
   { name: "Subscription & Payment", href: "/settings/subscription" },
+  { name: "Invoices", href: "/settings/invoices" },
   { name: "Members", href: "/settings/team" },
   { name: "Notifications", href: "/settings/notifications" },
 ];

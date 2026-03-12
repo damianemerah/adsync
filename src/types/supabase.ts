@@ -135,6 +135,91 @@ export type Database = {
           },
         ]
       }
+      ad_budget_transactions: {
+        Row: {
+          amount_ngn: number
+          amount_usd: number | null
+          balance_after: number
+          created_at: string | null
+          description: string | null
+          fx_rate: number | null
+          id: string
+          metadata: Json | null
+          organization_id: string
+          reference: string | null
+          type: string
+        }
+        Insert: {
+          amount_ngn: number
+          amount_usd?: number | null
+          balance_after: number
+          created_at?: string | null
+          description?: string | null
+          fx_rate?: number | null
+          id?: string
+          metadata?: Json | null
+          organization_id: string
+          reference?: string | null
+          type: string
+        }
+        Update: {
+          amount_ngn?: number
+          amount_usd?: number | null
+          balance_after?: number
+          created_at?: string | null
+          description?: string | null
+          fx_rate?: number | null
+          id?: string
+          metadata?: Json | null
+          organization_id?: string
+          reference?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_budget_transactions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ad_budget_wallets: {
+        Row: {
+          balance_ngn: number
+          created_at: string | null
+          id: string
+          organization_id: string
+          reserved_ngn: number
+          updated_at: string | null
+        }
+        Insert: {
+          balance_ngn?: number
+          created_at?: string | null
+          id?: string
+          organization_id: string
+          reserved_ngn?: number
+          updated_at?: string | null
+        }
+        Update: {
+          balance_ngn?: number
+          created_at?: string | null
+          id?: string
+          organization_id?: string
+          reserved_ngn?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_budget_wallets_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ad_sets: {
         Row: {
           bid_amount_cents: number | null
@@ -262,61 +347,6 @@ export type Database = {
             columns: ["creative_id"]
             isOneToOne: false
             referencedRelation: "creatives"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      ai_chat_history: {
-        Row: {
-          created_at: string | null
-          creative_id: string | null
-          fal_cost_estimate: number | null
-          id: string
-          messages: Json
-          openai_tokens: number | null
-          organization_id: string | null
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          creative_id?: string | null
-          fal_cost_estimate?: number | null
-          id?: string
-          messages?: Json
-          openai_tokens?: number | null
-          organization_id?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          creative_id?: string | null
-          fal_cost_estimate?: number | null
-          id?: string
-          messages?: Json
-          openai_tokens?: number | null
-          organization_id?: string | null
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ai_chat_history_creative_id_fkey"
-            columns: ["creative_id"]
-            isOneToOne: false
-            referencedRelation: "creatives"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ai_chat_history_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ai_chat_history_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -1104,6 +1134,7 @@ export type Database = {
           id: string
           is_read: boolean | null
           message: string
+          organization_id: string | null
           title: string
           type: string
           user_id: string | null
@@ -1117,6 +1148,7 @@ export type Database = {
           id?: string
           is_read?: boolean | null
           message: string
+          organization_id?: string | null
           title: string
           type: string
           user_id?: string | null
@@ -1130,11 +1162,19 @@ export type Database = {
           id?: string
           is_read?: boolean | null
           message?: string
+          organization_id?: string | null
           title?: string
           type?: string
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "notifications_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "notifications_user_id_fkey"
             columns: ["user_id"]
@@ -1551,6 +1591,71 @@ export type Database = {
         }
         Relationships: []
       }
+      virtual_cards: {
+        Row: {
+          balance_usd: number | null
+          card_number_encrypted: string | null
+          created_at: string | null
+          cvv_encrypted: string | null
+          expiry_month: string | null
+          expiry_year: string | null
+          id: string
+          last_four: string | null
+          meta_account_id: string | null
+          organization_id: string
+          provider: string
+          provider_account_id: string | null
+          provider_card_id: string
+          provider_customer_id: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          balance_usd?: number | null
+          card_number_encrypted?: string | null
+          created_at?: string | null
+          cvv_encrypted?: string | null
+          expiry_month?: string | null
+          expiry_year?: string | null
+          id?: string
+          last_four?: string | null
+          meta_account_id?: string | null
+          organization_id: string
+          provider?: string
+          provider_account_id?: string | null
+          provider_card_id: string
+          provider_customer_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          balance_usd?: number | null
+          card_number_encrypted?: string | null
+          created_at?: string | null
+          cvv_encrypted?: string | null
+          expiry_month?: string | null
+          expiry_year?: string | null
+          id?: string
+          last_four?: string | null
+          meta_account_id?: string | null
+          organization_id?: string
+          provider?: string
+          provider_account_id?: string | null
+          provider_card_id?: string
+          provider_customer_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "virtual_cards_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_sales: {
         Row: {
           amount_ngn: number
@@ -1647,6 +1752,7 @@ export type Database = {
         }
         Returns: Json
       }
+      get_ad_budget_balance: { Args: { p_org_id: string }; Returns: number }
       get_campaign_context: { Args: { p_campaign_id: string }; Returns: Json }
       increment_campaign_clicks:
         | { Args: { p_campaign_id: string }; Returns: undefined }
@@ -1654,6 +1760,10 @@ export type Database = {
             Args: { p_campaign_id: string; p_destination_type?: string }
             Returns: undefined
           }
+      reserve_ad_budget: {
+        Args: { p_amount_ngn: number; p_campaign_id: string; p_org_id: string }
+        Returns: boolean
+      }
       update_campaign_sales_summary: {
         Args: { p_amount_ngn: number; p_campaign_id: string }
         Returns: undefined

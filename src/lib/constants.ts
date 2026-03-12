@@ -10,6 +10,12 @@ export const PLAN_PRICES: Record<string, number> = {
   agency: 60000,
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Platform fee configuration
+// ─────────────────────────────────────────────────────────────────────────────
+/** 5% platform processing fee on every ad budget top-up */
+export const PLATFORM_FEE_RATE = 0.05;
+
 // Monthly credit quotas per plan (must mirror plan_definitions DB table)
 export const PLAN_CREDITS: Record<string, number> = {
   free_trial: 50,

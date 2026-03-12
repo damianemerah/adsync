@@ -6,8 +6,6 @@ import { Database } from "@/types/supabase";
 import { TIER_CONFIG, TierId } from "@/lib/constants";
 import { useActiveOrgContext } from "@/components/providers/active-org-provider";
 
-type Transaction = Database["public"]["Tables"]["transactions"]["Row"];
-
 export function useSubscription() {
   const supabase = createClient();
   const { activeOrgId } = useActiveOrgContext();
@@ -59,16 +57,6 @@ export function useSubscription() {
         plan_credits_quota: number;
       };
 
-      // 2. Get Transaction History
-      const { data: transactions, error: txnError } = await supabase
-        .from("transactions")
-        .select("*")
-        .eq("organization_id", member.organization_id as string)
-        .order("created_at", { ascending: false })
-        .limit(50);
-
-      if (txnError) throw new Error("Failed to fetch transactions");
-
       return {
         org: {
           id: org?.id,
@@ -83,7 +71,6 @@ export function useSubscription() {
           creditsBalance: org?.credits_balance ?? 0,
           creditQuota: org?.plan_credits_quota ?? 0,
         },
-        transactions: (transactions as Transaction[]) || [],
       };
     },
   });

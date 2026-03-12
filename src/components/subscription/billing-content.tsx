@@ -37,17 +37,7 @@ import { verifyAndActivate } from "@/actions/verify-payment";
 import { toast } from "sonner";
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { DataTable, Column } from "@/components/ui/data-table";
-import { formatCurrency, formatKobo, formatDate } from "@/lib/utils";
-
-type Transaction = {
-  id: string;
-  reference: string;
-  amount_cents: number;
-  status: string;
-  description: string | null;
-  created_at: string;
-};
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 // Plan feature definitions
 const PLANS = [
@@ -167,37 +157,6 @@ export function BillingContent() {
     }
   }, [searchParams, refetch]);
 
-  const columns: Column<Transaction>[] = [
-    { key: "reference", title: "Reference" },
-    {
-      key: "description",
-      title: "Description",
-      render: (row) => row.description ?? "-",
-    },
-    {
-      key: "amount_cents",
-      title: "Amount",
-      render: (row) => formatKobo(row.amount_cents),
-    },
-    {
-      key: "status",
-      title: "Status",
-      render: (row) => (
-        <Badge
-          variant={row.status === "success" ? "default" : "destructive"}
-          className="capitalize"
-        >
-          {row.status}
-        </Badge>
-      ),
-    },
-    {
-      key: "created_at",
-      title: "Date",
-      render: (row) => formatDate(row.created_at),
-    },
-  ];
-
   const handleUpgrade = async (planId: string) => {
     setIsProcessing(planId);
     try {
@@ -255,8 +214,6 @@ export function BillingContent() {
   const creditsUsed = Math.max(0, creditQuota - creditsBalance);
   const creditsPercent =
     creditQuota > 0 ? Math.round((creditsUsed / creditQuota) * 100) : 0;
-  const transactions =
-    (subscription?.transactions as unknown as Transaction[]) || [];
 
   return (
     <div className="space-y-10">
@@ -503,12 +460,6 @@ export function BillingContent() {
             );
           })}
         </div>
-      </section>
-
-      {/* Payment History */}
-      <section>
-        <h2 className="text-lg font-heading font-bold mb-4">Payment History</h2>
-        <DataTable columns={columns} data={transactions} />
       </section>
     </div>
   );

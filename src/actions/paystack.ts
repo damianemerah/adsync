@@ -177,5 +177,16 @@ export async function grantFreeTrialCredits(orgId: string): Promise<void> {
   if (error) {
     console.error("Failed to grant trial credits:", error);
     // Non-fatal – log but don't throw, UI can still work
+  } else {
+    // Record a ₦0 invoice for the free trial so it shows in billing history
+    await supabase.from("transactions").insert({
+      organization_id: orgId,
+      amount_cents: 0,
+      currency: "NGN",
+      status: "success",
+      type: "subscription",
+      description: "Free Trial (14 Days)",
+      provider_reference: `trial_${Date.now()}`,
+    });
   }
 }
