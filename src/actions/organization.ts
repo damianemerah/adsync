@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ACTIVE_ORG_COOKIE } from "@/lib/active-org";
 import {
@@ -47,22 +48,104 @@ export async function setActiveOrganization(orgId: string): Promise<void> {
   revalidatePath("/", "layout");
 }
 
-// ─── Create New Organization ──────────────────────────────────────────────────
+// ─── Shared: insert org row + owner member + trial credits ────────────────────
+
+async function _insertOrgWithMember(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  params: {
+    name: string;
+    slug: string;
+    industry?: string | null;
+    businessDescription?: string | null;
+    sellingMethod?: string | null;
+    priceTier?: string | null;
+    customerGender?: string | null;
+    subscriptionTier: string;
+    userId: string;
+  },
+): Promise<{ orgId: string | null; error: string | null }> {
+  const {
+    name,
+    slug,
+    industry,
+    businessDescription,
+    sellingMethod,
+    priceTier,
+    customerGender,
+    subscriptionTier,
+    userId,
+  } = params;
+
+  const { data: org, error: orgError } = await supabase
+    .from("organizations")
+    .insert({
+      name,
+      slug,
+      industry: industry || null,
+      business_description: businessDescription || null,
+      selling_method: sellingMethod || null,
+      price_tier: priceTier || null,
+      customer_gender: customerGender || null,
+      subscription_tier: subscriptionTier,
+      subscription_status: SUBSCRIPTION_STATUS.TRIALING,
+      subscription_expires_at: new Date(
+        Date.now() + 14 * 24 * 60 * 60 * 1000,
+      ).toISOString(),
+    })
+    .select()
+    .single();
+
+  if (orgError || !org) {
+    console.error("Org insert error:", orgError);
+    return { orgId: null, error: "Failed to create organization" };
+  }
+
+  const { error: memberError } = await supabase
+    .from("organization_members")
+    .insert({ organization_id: org.id, user_id: userId, role: "owner" });
+
+  if (memberError) {
+    console.error("Member link error:", memberError);
+    return { orgId: null, error: "Failed to join organization" };
+  }
+
+  await grantFreeTrialCredits(org.id);
+
+  return { orgId: org.id, error: null };
+}
+
+// ─── Create Organization ──────────────────────────────────────────────────────
 
 /**
- * Creates a brand-new organization for the current user.
- * Respects maxOrganizations limit based on the user's highest tier.
- * Does NOT overwrite existing organizations.
+ * Unified createOrganization action.
+ *
+ * `isOnboarding: true` — first-run setup flow:
+ *   - Skips the org-count limit check (user is creating their first workspace)
+ *   - Updates an existing org if the user re-runs onboarding
+ *   - Locks the trial to the Growth plan (best feature exposure)
+ *   - Saves the user's job role and sets the active-org cookie
+ *   - Optionally redirects to /dashboard
+ *
+ * `isOnboarding: false` (default) — "Add Business" from settings:
+ *   - Enforces the maxOrganizations limit based on the user's highest tier
+ *   - Always inserts a new org (Starter trial)
+ *   - Switches the active workspace to the newly created org
  */
 export async function createOrganization(
   formData: FormData,
+  options: { isOnboarding?: boolean; shouldRedirect?: boolean } = {},
 ): Promise<{ error?: string; success?: boolean }> {
-  const supabase = await createClient();
+  const { isOnboarding = false, shouldRedirect = false } = options;
 
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { error: "Not authenticated" };
+
+  if (!user) {
+    if (shouldRedirect) redirect("/login");
+    return { error: "Not authenticated" };
+  }
 
   const orgName = (formData.get("orgName") as string)?.trim();
   if (!orgName) return { error: "Business name is required" };
@@ -72,8 +155,90 @@ export async function createOrganization(
   const priceTier = formData.get("priceTier") as string;
   const customerGender = formData.get("customerGender") as string;
   const businessDescription = formData.get("businessDescription") as string;
+  const userRole = formData.get("userRole") as string;
 
-  // 1. Count all orgs the user owns
+  // ── ONBOARDING PATH ─────────────────────────────────────────────────────────
+  if (isOnboarding) {
+    // Check if user already owns an org (re-run case)
+    const { data: ownedMemberships } = await supabase
+      .from("organization_members")
+      .select("organization_id")
+      .eq("user_id", user.id)
+      .eq("role", "owner")
+      .limit(1);
+
+    const existingOrgId = ownedMemberships?.[0]?.organization_id ?? null;
+    let activeOrgId: string | null = null;
+
+    if (existingOrgId) {
+      // Re-run: update the existing org's profile fields
+      // Trial plan stays Growth — do not override subscription_tier here
+      const { error: updateError } = await supabase
+        .from("organizations")
+        .update({
+          name: orgName,
+          industry: industry || null,
+          business_description: businessDescription || null,
+          selling_method: sellingMethod || null,
+          price_tier: priceTier || null,
+          customer_gender: customerGender || null,
+        })
+        .eq("id", existingOrgId);
+
+      if (updateError) {
+        console.error("Org update error:", updateError);
+        return { error: "Failed to update organization" };
+      }
+
+      activeOrgId = existingOrgId;
+    } else {
+      // First-time: insert org locked to Growth (best trial experience)
+      const slug =
+        orgName.toLowerCase().replace(/\s+/g, "-") +
+        "-" +
+        Math.floor(Math.random() * 10000);
+
+      const { orgId, error } = await _insertOrgWithMember(supabase, {
+        name: orgName,
+        slug,
+        industry,
+        businessDescription,
+        sellingMethod,
+        priceTier,
+        customerGender,
+        subscriptionTier: PLAN_IDS.GROWTH, // ← Trial always on Growth
+        userId: user.id,
+      });
+
+      if (error || !orgId) return { error: error ?? "Failed to create organization" };
+      activeOrgId = orgId;
+    }
+
+    // Persist job role in user metadata
+    if (userRole) {
+      await supabase.auth.updateUser({ data: { job_role: userRole } });
+    }
+
+    // Set active-org cookie so the layout picks up the right workspace
+    if (activeOrgId) {
+      const cookieStore = await cookies();
+      cookieStore.set(ACTIVE_ORG_COOKIE, activeOrgId, {
+        httpOnly: true,
+        path: "/",
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 365,
+      });
+    }
+
+    revalidatePath("/", "layout");
+
+    if (shouldRedirect) redirect("/dashboard");
+    return { success: true };
+  }
+
+  // ── ADD-BUSINESS PATH (settings) ────────────────────────────────────────────
+
+  // 1. Load all owned orgs to check limits
   const { data: ownedMemberships, error: countError } = await supabase
     .from("organization_members")
     .select("organization_id, organizations(subscription_tier)")
@@ -85,9 +250,7 @@ export async function createOrganization(
     return { error: "Failed to check organization limit" };
   }
 
-  const ownedCount = ownedMemberships?.length ?? 0;
-
-  // 2. Determine the user's highest tier among all their orgs
+  // 2. Determine highest tier across all owned orgs
   const tiers: TierId[] = (ownedMemberships ?? []).map((m) => {
     const org = m.organizations as { subscription_tier: string | null } | null;
     return (org?.subscription_tier || "starter") as TierId;
@@ -103,8 +266,8 @@ export async function createOrganization(
 
   const maxOrgs = TIER_CONFIG[highestTier]?.limits?.maxOrganizations ?? 1;
 
-  // 3. Check limit
-  if (ownedCount >= maxOrgs) {
+  // 3. Enforce limit
+  if ((ownedMemberships?.length ?? 0) >= maxOrgs) {
     const tierLabel =
       highestTier.charAt(0).toUpperCase() + highestTier.slice(1);
     return {
@@ -112,56 +275,33 @@ export async function createOrganization(
     };
   }
 
-  // 4. Generate a unique slug
+  // 4. Insert new org on Starter trial
   const slug =
     orgName.toLowerCase().replace(/\s+/g, "-") +
     "-" +
     Math.floor(Math.random() * 10000);
 
-  // 5. Insert new organization
-  const { data: newOrg, error: insertError } = await supabase
-    .from("organizations")
-    .insert({
+  const { orgId: newOrgId, error: insertError } = await _insertOrgWithMember(
+    supabase,
+    {
       name: orgName,
       slug,
-      industry: industry || null,
-      business_description: businessDescription || null,
-      selling_method: sellingMethod || null,
-      price_tier: priceTier || null,
-      customer_gender: customerGender || null,
-      subscription_tier: PLAN_IDS.STARTER,
-      subscription_status: SUBSCRIPTION_STATUS.TRIALING,
-      subscription_expires_at: new Date(
-        Date.now() + 14 * 24 * 60 * 60 * 1000,
-      ).toISOString(),
-    })
-    .select()
-    .single();
+      industry,
+      businessDescription,
+      sellingMethod,
+      priceTier,
+      customerGender,
+      subscriptionTier: PLAN_IDS.STARTER, // ← New additional orgs start on Starter
+      userId: user.id,
+    },
+  );
 
-  if (insertError || !newOrg) {
-    console.error("Org insert error:", insertError);
-    return { error: "Failed to create business. Please try again." };
+  if (insertError || !newOrgId) {
+    return { error: insertError ?? "Failed to create business. Please try again." };
   }
 
-  // 6. Link user as owner
-  const { error: memberError } = await supabase
-    .from("organization_members")
-    .insert({
-      organization_id: newOrg.id,
-      user_id: user.id,
-      role: "owner",
-    });
-
-  if (memberError) {
-    console.error("Member link error:", memberError);
-    return { error: "Failed to complete business setup" };
-  }
-
-  // 7. Grant free trial credits
-  await grantFreeTrialCredits(newOrg.id);
-
-  // 8. Switch active workspace to the new org
-  await setActiveOrganization(newOrg.id);
+  // 5. Switch active workspace to the new org
+  await setActiveOrganization(newOrgId);
 
   revalidatePath("/", "layout");
   return { success: true };

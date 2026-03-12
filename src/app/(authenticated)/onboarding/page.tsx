@@ -43,7 +43,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-import { createOrganization } from "@/actions/onboarding";
+import { createOrganization } from "@/actions/organization";
 import {
   getPaymentContext,
   initializePaystackTransaction,
@@ -251,9 +251,10 @@ export default function OnboardingPage() {
     formData.append("sellingMethod", sellingMethod);
     formData.append("priceTier", priceTier);
     formData.append("customerGender", customerGender);
-    formData.append("plan", selectedPlan);
     formData.append("userRole", userRole);
     formData.append("businessDescription", businessDescription);
+    // Note: plan is NOT sent here — trial is always Growth (locked server-side).
+    // selectedPlan is only used client-side for the "subscribe now" payment path.
     return formData;
   };
 
@@ -267,7 +268,10 @@ export default function OnboardingPage() {
 
   const handleConnect = async (url: string) => {
     setIsLoading(true);
-    const result = await createOrganization(buildFormData(), false);
+    const result = await createOrganization(buildFormData(), {
+      isOnboarding: true,
+      shouldRedirect: false,
+    });
 
     if (result?.error) {
       toast.error(result.error);
@@ -281,7 +285,10 @@ export default function OnboardingPage() {
   const handleFinish = async () => {
     setIsLoading(true);
     localStorage.removeItem("onboarding_state");
-    const result = await createOrganization(buildFormData(), true);
+    const result = await createOrganization(buildFormData(), {
+      isOnboarding: true,
+      shouldRedirect: true,
+    });
     if (result?.error) {
       toast.error(result.error);
       setIsLoading(false);
@@ -292,7 +299,10 @@ export default function OnboardingPage() {
     setIsPaymentLoading(true);
     try {
       // 1. Create org first so getPaymentContext can read the cookie
-      const result = await createOrganization(buildFormData(), false);
+      const result = await createOrganization(buildFormData(), {
+        isOnboarding: true,
+        shouldRedirect: false,
+      });
       if (result?.error) throw new Error(result.error);
 
       // 2. Get authenticated email + org ID
@@ -672,119 +682,128 @@ export default function OnboardingPage() {
               )}
 
               {/* ── STEP 4: FREE TRIAL ── */}
-              {step === 4 && (
-                <div className="flex-1 flex flex-col justify-center gap-5 max-w-md mx-auto w-full">
-                  <div>
-                    <h3 className="text-xl font-bold text-foreground mb-1">
-                      Start your free trial
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      14 days of full access. No credit card required.
-                    </p>
-                  </div>
-
-                  {/* Trial Card */}
-                  <div className="relative rounded-2xl border-2 border-primary/20 bg-linear-to-br from-slate-900 to-slate-800 p-6 overflow-hidden text-white">
-                    {/* Glow */}
-                    <div className="absolute top-0 right-0 w-48 h-48 bg-primary rounded-full blur-[80px] opacity-20 -mr-16 -mt-16 pointer-events-none" />
-                    <div className="absolute bottom-0 left-0 w-48 h-48 bg-violet-500 rounded-full blur-[80px] opacity-15 -ml-16 -mb-16 pointer-events-none" />
-
-                    {/* Badge */}
-                    <div className="relative z-10 inline-flex items-center gap-1.5 bg-white/10 border border-white/20 rounded-full px-3 py-1 text-xs font-semibold mb-4">
-                      <Flash className="h-3 w-3 text-yellow-400 fill-current" />
-                      14-Day Free Trial
+              {step === 4 && (() => {
+                const growthPlan = PLANS.find((p) => p.id === PLAN_IDS.GROWTH)!;
+                return (
+                  <div className="flex-1 flex flex-col justify-center gap-5 max-w-md mx-auto w-full">
+                    <div>
+                      <h3 className="text-xl font-bold text-foreground mb-1">
+                        Start your free trial
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        14 days of full Growth access. No credit card required.
+                      </p>
                     </div>
 
-                    {/* Plan tabs */}
-                    <div className="relative z-10 flex gap-1 p-1 bg-white/10 rounded-xl mb-5">
-                      {PLANS.map((plan) => (
-                        <button
-                          key={plan.id}
-                          onClick={() => setSelectedPlan(plan.id)}
-                          className={cn(
-                            "relative flex-1 py-2 text-xs font-bold rounded-lg transition-all",
-                            selectedPlan === plan.id
-                              ? "bg-white text-slate-900 shadow-md"
-                              : "text-white/60 hover:text-white",
-                          )}
-                        >
-                          {plan.recommended && selectedPlan !== plan.id && (
-                            <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 bg-primary text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold leading-none">
-                              Popular
-                            </span>
-                          )}
-                          {plan.name}
-                        </button>
-                      ))}
-                    </div>
+                    {/* Trial Card — always Growth, no plan switching */}
+                    <div className="relative rounded-2xl border-2 border-primary/20 bg-linear-to-br from-slate-900 to-slate-800 p-6 overflow-hidden text-white">
+                      {/* Glow */}
+                      <div className="absolute top-0 right-0 w-48 h-48 bg-primary rounded-full blur-[80px] opacity-20 -mr-16 -mt-16 pointer-events-none" />
+                      <div className="absolute bottom-0 left-0 w-48 h-48 bg-violet-500 rounded-full blur-[80px] opacity-15 -ml-16 -mb-16 pointer-events-none" />
 
-                    {/* Plan details */}
-                    <div className="relative z-10">
-                      <div className="flex items-baseline gap-1 mb-0.5">
-                        <span className="text-3xl font-black">
-                          {activePlan.price}
-                        </span>
-                        <span className="text-white/50 text-sm">
-                          /mo after trial
+                      {/* Badge row */}
+                      <div className="relative z-10 flex items-center justify-between mb-4">
+                        <div className="inline-flex items-center gap-1.5 bg-white/10 border border-white/20 rounded-full px-3 py-1 text-xs font-semibold">
+                          <Flash className="h-3 w-3 text-yellow-400 fill-current" />
+                          Growth Plan — 14-Day Free Trial
+                        </div>
+                        <span className="text-[11px] text-white/50 font-medium">
+                          No card needed
                         </span>
                       </div>
-                      <p className="text-white/60 text-xs mb-4">
-                        {activePlan.description}
-                      </p>
 
-                      <div className="grid grid-cols-1 gap-2">
-                        {activePlan.features.map((feature) => (
-                          <div
-                            key={feature}
-                            className="flex items-center gap-2 text-sm"
-                          >
-                            <div className="h-4 w-4 rounded-full bg-green-400/20 flex items-center justify-center shrink-0">
-                              <Check className="h-2.5 w-2.5 text-green-400" />
+                      {/* Price */}
+                      <div className="relative z-10">
+                        <div className="flex items-baseline gap-1 mb-0.5">
+                          <span className="text-3xl font-black">
+                            {growthPlan.price}
+                          </span>
+                          <span className="text-white/50 text-sm">
+                            /mo after trial
+                          </span>
+                        </div>
+                        <p className="text-white/60 text-xs mb-4">
+                          {growthPlan.description}
+                        </p>
+
+                        <div className="grid grid-cols-1 gap-2">
+                          {growthPlan.features.map((feature) => (
+                            <div
+                              key={feature}
+                              className="flex items-center gap-2 text-sm"
+                            >
+                              <div className="h-4 w-4 rounded-full bg-green-400/20 flex items-center justify-center shrink-0">
+                                <Check className="h-2.5 w-2.5 text-green-400" />
+                              </div>
+                              <span className="text-white/85">{feature}</span>
                             </div>
-                            <span className="text-white/85">{feature}</span>
-                          </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Subscribe now option */}
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 h-px bg-slate-200" />
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        or
+                      </span>
+                      <div className="flex-1 h-px bg-slate-200" />
+                    </div>
+
+                    <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-4 space-y-3">
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">
+                          Ready to subscribe now?
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Skip the trial — pick a plan and get instant access.
+                        </p>
+                      </div>
+
+                      {/* Plan picker (only used for the subscribe-now path) */}
+                      <div className="flex gap-1.5">
+                        {PLANS.map((plan) => (
+                          <button
+                            key={plan.id}
+                            onClick={() => setSelectedPlan(plan.id)}
+                            className={cn(
+                              "flex-1 py-2 text-xs font-bold rounded-lg border-2 transition-all",
+                              selectedPlan === plan.id
+                                ? "border-primary bg-primary/5 text-primary"
+                                : "border-slate-200 text-slate-500 hover:border-slate-300",
+                            )}
+                          >
+                            {plan.name}
+                          </button>
                         ))}
                       </div>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-bold text-foreground">
+                          {activePlan.price}/mo
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleSubscribeNow}
+                          disabled={isPaymentLoading || isLoading}
+                          className="shrink-0 font-semibold border-primary/30 text-primary hover:bg-primary/5 hover:border-primary"
+                        >
+                          {isPaymentLoading ? (
+                            <SystemRestart className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              Pay now{" "}
+                              <ArrowRight className="h-3 w-3 ml-1" />
+                            </>
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   </div>
-
-                  {/* Subscribe now option */}
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 h-px bg-slate-200" />
-                    <span className="text-xs text-muted-foreground shrink-0">
-                      or
-                    </span>
-                    <div className="flex-1 h-px bg-slate-200" />
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50">
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">
-                        Ready to subscribe now?
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Skip the trial, get instant full access.
-                      </p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleSubscribeNow}
-                      disabled={isPaymentLoading || isLoading}
-                      className="shrink-0 font-semibold border-primary/30 text-primary hover:bg-primary/5 hover:border-primary"
-                    >
-                      {isPaymentLoading ? (
-                        <SystemRestart className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <>
-                          Pay {activePlan.price}/mo{" "}
-                          <ArrowRight className="h-3 w-3 ml-1" />
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* ── STEP 5: CONNECT ACCOUNTS ── */}
               {step === 5 && (
