@@ -7,6 +7,8 @@ import { DashboardEmptyState } from "@/components/dashboard/empty-state";
 import { Sidebar } from "@/components/layout/sidebar";
 import { HelpCenterSheet } from "@/components/layout/help-center-sheet";
 
+import { getActiveOrgId } from "@/lib/active-org";
+
 export default async function DashboardPage() {
   // 1. Auth check
   const supabase = await createClient();
@@ -19,12 +21,22 @@ export default async function DashboardPage() {
     redirect("/login?next=/dashboard");
   }
 
-  // 2. Get the user's org membership
-  const { data: member } = await supabase
+  // Resolve active org context
+  const activeOrgId = await getActiveOrgId();
+
+  // 2. Get the user's org membership for the active org
+  let memberQuery = supabase
     .from("organization_members")
     .select("organization_id")
     .eq("user_id", user.id)
-    .single();
+    .limit(1);
+
+  if (activeOrgId) {
+    memberQuery = memberQuery.eq("organization_id", activeOrgId);
+  }
+
+  const { data: members } = await memberQuery;
+  const member = members?.[0];
 
   // 3. Determine real onboarding completion states in parallel
   const [accountsRes, whatsappRes, campaignsRes] = await Promise.all([

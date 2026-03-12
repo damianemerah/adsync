@@ -33,6 +33,8 @@ Load this skill when working on:
 | Settings business page fields                                                     | ✅ Built    |
 | `category-playbooks.ts`                                                           | ✅ Built    |
 | Wire org context into campaign wizard (`GoalPlatformStep`)                        | ✅ Built    |
+| `organizations.design_insights` JSONB column + `analyze-assets` vision cron       | ⬜ Phase 3  |
+| `insightsContext` parameter injection into `generateAdCreative()`                 | ⬜ Phase 3  |
 
 ## Reference Implementation
 
@@ -74,6 +76,12 @@ Layer 3 — Campaign Context (EXISTS)
 
 Layer 4 — User Message (EXISTS)
   Real-time chat input, overrides above where explicit
+
+Layer 5 — Design Insights (Phase 3 — Planned)
+  organizations.design_insights JSONB  → {"successful_patterns": [...], "visual_themes": [...]}
+  Populated by analyze-assets cron → GPT-4o Vision analysis of winning ad images
+  Injected as insightsContext parameter into generateAdCreative() (optional enhancement)
+  See: momentum-tracking/SKILL.md (winner detection) + openai-api/SKILL.md (vision pattern)
 ```
 
 ## CampaignContext Extension Pattern
@@ -140,3 +148,39 @@ Injected into compileContextPrompt() when org.businessCategory is available.
 - org context is optional in CampaignContext — never break existing flows
 - updateOrgProfile goes in src/actions/onboarding.ts (existing file, same domain)
 - Track impact via ai_requests.context_source — 'org_profile' hits should grow over time
+- `insightsContext` (Phase 3) is strictly optional — `generateAdCreative()` must work identically without it
+
+## Phase 3 Roadmap — AI Vision Feedback Loop (Planned)
+
+The org-level AI context layer is designed to grow. Once attribution data accumulates, winning ad images can be analysed automatically to close the loop between ad performance and the next creative.
+
+### How It Works
+
+1. **Identify winners** — `lead-scoring` model detects campaigns with score ≥ 75 (🔥 Hot)
+2. **Analyse assets** — `analyze-assets` cron calls `src/lib/ai/vision-analyzer.ts`
+   - Uses GPT-4o Vision to extract visual traits from the winning ad image
+   - Returns structured JSON: `{ successful_patterns, color_palette, visual_themes, copy_hooks }`
+3. **Store insights** — writes to `organizations.design_insights JSONB`
+4. **Inject context** — `compileContextPrompt()` includes `design_insights` as `insightsContext`
+5. **Better creatives** — next Flux generation is guided by proven-winning visual traits
+
+### Key Files (Phase 3 — Not Yet Built)
+
+- `src/lib/ai/vision-analyzer.ts` — GPT-4o Vision analysis function (NEW)
+- `src/lib/ai/context-compiler.ts` — extend `compileContextPrompt()` with `insightsContext`
+- `organizations.design_insights JSONB` — new column (migration needed)
+- `cron/analyze-assets.ts` or Supabase Edge Function — scheduled runner
+
+### Design Insight Schema (Planned)
+
+```typescript
+interface DesignInsights {
+  successful_patterns: string[]; // e.g. ["before/after layout", "product close-up"]
+  color_palette: string[]; // e.g. ["#FF6B35", "#FFF8F0"] dominant colours
+  visual_themes: string[]; // e.g. ["outdoor lifestyle", "premium packaging"]
+  copy_hooks: string[]; // e.g. ["urgency", "social proof", "price anchor"]
+  last_analyzed_at: string; // ISO timestamp
+}
+```
+
+The `insightsContext` parameter is an enhancement, not a dependency — `generateAdCreative()` must produce valid results with or without it.

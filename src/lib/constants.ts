@@ -49,6 +49,7 @@ export const TIER_CONFIG = {
     },
     credits: { monthly: 150, imageCost: 3, premiumImageCost: null },
     limits: {
+      maxOrganizations: 1,
       maxAdAccounts: 1,
       maxTeamMembers: 1,
       linkAnalyticsDays: 7,
@@ -67,6 +68,7 @@ export const TIER_CONFIG = {
     },
     credits: { monthly: 400, imageCost: 3, premiumImageCost: null },
     limits: {
+      maxOrganizations: 3,
       maxAdAccounts: 3,
       maxTeamMembers: 3,
       linkAnalyticsDays: 30,
@@ -85,6 +87,7 @@ export const TIER_CONFIG = {
     },
     credits: { monthly: 1200, imageCost: 3, premiumImageCost: 8 },
     limits: {
+      maxOrganizations: 999,
       maxAdAccounts: 999,
       maxTeamMembers: 10,
       linkAnalyticsDays: 36500, // "Lifetime"

@@ -2,19 +2,27 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client"; // Update path if needed
+import { useActiveOrgContext } from "@/components/providers/active-org-provider";
 
 export function useCreatives() {
   const queryClient = useQueryClient();
   const supabase = createClient();
+  const { activeOrgId } = useActiveOrgContext();
 
   // 1. Fetch Creatives
   const query = useQuery({
-    queryKey: ["creatives"],
+    queryKey: ["creatives", activeOrgId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("creatives")
         .select("*")
         .order("created_at", { ascending: false });
+
+      if (activeOrgId) {
+        query = query.eq("organization_id", activeOrgId);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       return data;
@@ -38,17 +46,23 @@ export function useCreatives() {
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { data: member } = await supabase
-        .from("organization_members")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .single();
+      let orgId = activeOrgId;
 
-      if (!member) throw new Error("No organization found");
+      if (!orgId) {
+        const { data: member } = await supabase
+          .from("organization_members")
+          .select("organization_id")
+          .eq("user_id", user.id)
+          .limit(1);
+
+        if (!member || member.length === 0)
+          throw new Error("No organization found");
+        orgId = member[0].organization_id as string;
+      }
 
       // B. Upload to Storage
       const fileExt = file.name.split(".").pop();
-      const fileName = `${member.organization_id}/${Math.random()
+      const fileName = `${orgId}/${Math.random()
         .toString(36)
         .slice(2)}.${fileExt}`;
 
@@ -72,7 +86,7 @@ export function useCreatives() {
           const thumbRes = await fetch(thumbnailDataUrl);
           const thumbBlob = await thumbRes.blob();
 
-          const thumbFileName = `${member.organization_id}/${Math.random()
+          const thumbFileName = `${orgId}/${Math.random()
             .toString(36)
             .slice(2)}_thumb.jpg`;
 
@@ -93,7 +107,7 @@ export function useCreatives() {
 
       // E. Insert into DB
       const creativeData = {
-        organization_id: member.organization_id,
+        organization_id: orgId,
         name: file.name,
         media_type: file.type.startsWith("video") ? "video" : "image",
         original_url: publicUrl,
@@ -115,7 +129,7 @@ export function useCreatives() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["creatives"] });
+      queryClient.invalidateQueries({ queryKey: ["creatives", activeOrgId] });
     },
   });
 

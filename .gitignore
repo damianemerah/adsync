@@ -15,7 +15,8 @@
 
 # next.js
 /.next/
-/.agent/
+# /.agent/
+# /.claude/
 /out/
 
 # production

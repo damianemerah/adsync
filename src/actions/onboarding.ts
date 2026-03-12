@@ -1,10 +1,12 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { PLAN_IDS, SUBSCRIPTION_STATUS } from "@/lib/constants";
 import { grantFreeTrialCredits } from "@/actions/paystack";
+import { ACTIVE_ORG_COOKIE } from "@/lib/active-org";
 
 export async function createOrganization(
   formData: FormData,
@@ -36,15 +38,19 @@ export async function createOrganization(
   const userRole = formData.get("userRole") as string;
 
   // 1.5 Check if user already owns an organization
-  const { data: existingMember } = await supabase
+  const { data: existingMembers } = await supabase
     .from("organization_members")
     .select("organization_id")
     .eq("user_id", user.id)
     .eq("role", "owner")
-    .maybeSingle();
+    .limit(1);
+
+  const existingMember = existingMembers?.[0];
+
+  let activeOrgId: string | null = null;
 
   if (existingMember?.organization_id) {
-    // 2a. Update existing organization
+    // 2a. Update existing organization (onboarding re-run)
     const { error: updateError } = await supabase
       .from("organizations")
       .update({
@@ -62,6 +68,8 @@ export async function createOrganization(
       console.error("Org Update Error:", updateError);
       return { error: "Failed to update organization" };
     }
+
+    activeOrgId = existingMember.organization_id;
   } else {
     // 2b. Create Organization
     const { data: org, error: orgError } = await supabase
@@ -104,6 +112,8 @@ export async function createOrganization(
 
     // Grant free trial credits (50) to new organizations
     await grantFreeTrialCredits(org.id);
+
+    activeOrgId = org.id;
   }
 
   // 4. Update User Metadata (Job Role)
@@ -113,8 +123,16 @@ export async function createOrganization(
     });
   }
 
-  // 4. Update User Metadata (Optional but helpful)
-  // You might want to store the industry in the user or org table if you added that column
+  // 5. Set the active org cookie so the sidebar shows the correct business immediately
+  if (activeOrgId) {
+    const cookieStore = await cookies();
+    cookieStore.set(ACTIVE_ORG_COOKIE, activeOrgId, {
+      httpOnly: true,
+      path: "/",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 365, // 1 year
+    });
+  }
 
   revalidatePath("/", "layout");
 

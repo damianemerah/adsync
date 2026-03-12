@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 
 export function SocialButtons({ action }: { action: "Sign in" | "Sign up" }) {
   const handleSocialLogin = async (
-    provider: "google" | "facebook" | "twitter"
+    provider: "google" | "facebook" | "twitter",
   ) => {
     const supabase = createClient();
     await supabase.auth.signInWithOAuth({
@@ -19,8 +19,9 @@ export function SocialButtons({ action }: { action: "Sign in" | "Sign up" }) {
   return (
     <div className="grid grid-cols-3 gap-3">
       <Button
+        type="button"
         variant="outline"
-        className="h-12 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
+        className="h-14 rounded-2xl border-border/50 bg-background hover:bg-muted/50 hover:border-border transition-all shadow-soft"
         onClick={() => handleSocialLogin("google")}
       >
         <svg className="h-5 w-5" viewBox="0 0 24 24">
@@ -44,12 +45,13 @@ export function SocialButtons({ action }: { action: "Sign in" | "Sign up" }) {
       </Button>
 
       <Button
+        type="button"
         variant="outline"
-        className="h-12 border-slate-200 hover:bg-[#1877F2] hover:border-[#1877F2] hover:text-white transition-colors group"
+        className="h-14 rounded-2xl border-border/50 bg-background hover:bg-facebook hover:border-facebook hover:text-white transition-colors group shadow-soft"
         onClick={() => handleSocialLogin("facebook")}
       >
         <svg
-          className="h-5 w-5 fill-[#1877F2] group-hover:fill-white"
+          className="h-5 w-5 fill-facebook group-hover:fill-white transition-colors"
           viewBox="0 0 24 24"
         >
           <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
@@ -57,12 +59,13 @@ export function SocialButtons({ action }: { action: "Sign in" | "Sign up" }) {
       </Button>
 
       <Button
+        type="button"
         variant="outline"
-        className="h-12 border-slate-200 hover:bg-black hover:border-black hover:text-white transition-colors group"
+        className="h-14 rounded-2xl border-border/50 bg-background hover:bg-foreground hover:border-foreground transition-colors group shadow-soft"
         onClick={() => handleSocialLogin("twitter")}
       >
         <svg
-          className="h-4 w-4 fill-black group-hover:fill-white"
+          className="h-4 w-4 fill-foreground group-hover:fill-background transition-colors"
           viewBox="0 0 24 24"
         >
           <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />

@@ -122,10 +122,29 @@ function scoreCampaign(campaign: Campaign, allCampaigns: Campaign[]): number {
 
 ## Implementation Status
 
-| Item                                              | Status         |
-| ------------------------------------------------- | -------------- |
-| `scoreCampaign()` utility                         | ⬜ Not Started |
-| Score badge on campaign list                      | ⬜ Not Started |
-| Score interpretation in campaign detail           | ⬜ Not Started |
-| "Best Audience" pre-fill from top-scored campaign | ⬜ Not Started |
-| ROI overview ranked list                          | ⬜ Not Started |
+| Item                                                                       | Status         |
+| -------------------------------------------------------------------------- | -------------- |
+| `scoreCampaign()` utility                                                  | ⬜ Not Started |
+| Score badge on campaign list                                               | ⬜ Not Started |
+| Score interpretation in campaign detail                                    | ⬜ Not Started |
+| "Best Audience" pre-fill from top-scored campaign                          | ⬜ Not Started |
+| ROI overview ranked list                                                   | ⬜ Not Started |
+| Feed 🔥 Hot campaigns (score ≥ 75) to `analyze-assets` cron (Phase 3)     | ⬜ Phase 3     |
+
+## Phase 3 Connection — Score as Vision Loop Trigger
+
+The 🔥 Hot tier (score ≥ 75) is the entry condition for the Phase 3 AI Vision Feedback Loop.
+
+When a campaign scores Hot, the `analyze-assets` cron job picks it up, retrieves its ad
+creative from Supabase Storage, and passes it to `src/lib/ai/vision-analyzer.ts` for
+GPT-4o Vision analysis. The extracted visual traits (patterns, colour palette, copy hooks)
+are written to `organizations.design_insights JSONB` and injected into future Flux image
+generation calls via `compileContextPrompt()`.
+
+Think of this as: **"your winning ad teaches Sellam how to make the next winning ad."**
+
+The scoring model itself does not change for Phase 3 — the phase simply adds a consumer
+of the existing score output. The `scoreCampaign()` function can be reused as-is.
+
+See `ai-context/SKILL.md` (Phase 3 Roadmap) and `openai-api/SKILL.md` (GPT-4o Vision
+pattern) for the full implementation plan.

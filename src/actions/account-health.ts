@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getActiveOrgId } from "@/lib/active-org";
 
 export type CheckStatus = "healthy" | "warning" | "critical" | "loading";
 
@@ -29,16 +30,18 @@ export async function getAccountHealth(): Promise<AccountHealthResult> {
   if (!user) throw new Error("Unauthorized");
 
   // Get the user's organization
-  const { data: membership } = await supabase
-    .from("organization_members")
-    .select("organization_id, organizations(*)")
-    .eq("user_id", user.id)
+  const orgId = await getActiveOrgId();
+  if (!orgId) throw new Error("No organization found");
+
+  const { data: orgData } = await supabase
+    .from("organizations")
+    .select("*")
+    .eq("id", orgId)
     .single();
 
-  if (!membership) throw new Error("No organization found");
+  if (!orgData) throw new Error("No organization found");
 
-  const orgId = membership.organization_id!;
-  const org = membership.organizations as any;
+  const org = orgData as any;
 
   // Fetch all connected ad accounts for this org
   const { data: adAccounts } = await supabase

@@ -1,6 +1,6 @@
 ---
 name: attribution
-description: Manages Sellam's smart link attribution system. Use when working on `/l/[token]` redirect route, `/api/pixel` endpoint, `attribution_links` or `link_clicks` tables, `generateAttributionToken`, `buildAttributionUrl`, WhatsApp/website click counters on campaigns, ROI dashboard, `useCampaignROI` hook, Mark as Sold, or `whatsapp_sales` table.
+description: Manages Sellam's smart link attribution system and Meta Conversions API (CAPI) offline conversion integration. Use when working on `/l/[token]` redirect route, `/api/pixel` endpoint, `attribution_links` or `link_clicks` tables, `generateAttributionToken`, `buildAttributionUrl`, WhatsApp/website click counters on campaigns, ROI dashboard, `useCampaignROI` hook, Mark as Sold, `whatsapp_sales` table, `fbclid` capture, `updateAdAccountCapi`, CAPI event firing, Meta Pixel ID, or CAPI access token settings.
 ---
 
 # Attribution Layer Skill
@@ -20,6 +20,11 @@ Load this skill when working on:
 - `src/hooks/use-campaign-roi.ts`
 - `src/components/campaigns/roi-metrics-card.tsx`
 - `src/components/campaigns/mark-as-sold-button.tsx`
+- `src/actions/ad-accounts.ts` — `updateAdAccountCapi()` action (CAPI credential management)
+- `src/app/(authenticated)/(main)/settings/business-tab.tsx` — `CapiConfigPanel` component
+- `src/lib/api/meta.ts` — `MetaService.sendCAPIEvent()` method
+- `link_clicks.fbclid` — Meta click ID captured at redirect for CAPI matching
+- `ad_accounts.meta_pixel_id`, `ad_accounts.capi_access_token` — CAPI credentials (encrypted)
 
 ## Implementation Status
 
@@ -37,6 +42,13 @@ Load this skill when working on:
 | `useCampaignROI` hook                                                                           | ✅ Built    |
 | `increment_campaign_clicks` RPC (multi-destination)                                             | ✅ Migrated |
 | `update_campaign_sales_summary` RPC                                                             | ✅ Migrated |
+| `link_clicks.fbclid` column (capture Meta click IDs at redirect time)                           | ✅ Migrated |
+| `ad_accounts.meta_pixel_id` + `capi_access_token` columns                                       | ✅ Migrated |
+| `fbclid` capture in `/l/[token]` redirect route                                                  | ✅ Built    |
+| `updateAdAccountCapi()` server action + `CapiConfigPanel` settings UI                           | ✅ Built    |
+| `MetaService.sendCAPIEvent()` — server-to-server CAPI event helper                              | ✅ Built    |
+| `fireCAPIWhatsAppSale()` in `sales.ts` — offline Purchase event after WhatsApp sale             | ✅ Built    |
+| `fireCAPIWebsitePurchase()` in `pixel/route.ts` — website Purchase event via CAPI               | ✅ Built    |
 
 ## Reference Implementation
 
@@ -92,8 +104,9 @@ Website owner (optional)
 ## Key Tables
 
 - `attribution_links`: token, campaign_id, organization_id, destination_url, destination_type, pixel_token
-- `link_clicks`: link_id, campaign_id, organization_id, clicked_at, device_type, destination_type, event_type, event_value_ngn
+- `link_clicks`: link_id, campaign_id, organization_id, clicked_at, device_type, destination_type, event_type, event_value_ngn, **fbclid** (Meta click ID for CAPI match quality)
 - `whatsapp_sales`: campaign_id, organization_id, amount_ngn, note, recorded_by
+- `ad_accounts`: ..., **meta_pixel_id** (Meta Pixel / Dataset ID for CAPI), **capi_access_token** (AES-256-CBC encrypted, same helper as OAuth token)
 
 ## Campaigns Table Columns Added
 
@@ -107,6 +120,48 @@ sales_count       INTEGER DEFAULT 0
 revenue_ngn       INTEGER DEFAULT 0
 ```
 
+## CAPI Integration (Phase 2)
+
+Meta Conversions API lets Sellam send conversion signals **server-to-server**, bypassing browser limitations. This is especially important for Nigerian SMEs because most sales happen on WhatsApp (offline), not on a website.
+
+### How It Works
+
+```
+User clicks Meta ad → sellam.app/l/[token]?fbclid=XXXXX
+  → fbclid saved in link_clicks row (fire-and-forget)
+  → redirect to WhatsApp/website
+
+[WhatsApp sale] SME taps "Sold! 🎉"
+  → recordSale() inserts whatsapp_sales row
+  → fireCAPIWhatsAppSale() fires in background:
+      - looks up campaign's ad account CAPI credentials
+      - fetches most recent fbclid for this campaign (for match quality)
+      - POSTs Purchase event to Meta CAPI (action_source: "other")
+      - Meta algorithm now knows this click led to a real sale
+
+[Website pixel fire] /api/pixel?t=TOKEN&e=purchase&v=15000
+  → auto-credits revenue (same as Mark as Sold)
+  → fireCAPIWebsitePurchase() fires in background:
+      - same CAPI credential lookup pattern
+      - POSTs Purchase event to Meta CAPI (action_source: "website")
+```
+
+### CAPI Setup (Settings → Business)
+
+Each Meta ad account row in Settings → Business has a collapsible `CapiConfigPanel`:
+- **Meta Pixel ID (Dataset ID):** Found in Meta Events Manager. Required even for WhatsApp-only sellers — just create a pixel, no website needed.
+- **CAPI Access Token:** Generated in Meta Events Manager → Settings → Generate access token.
+
+### Why `createAdminClient()` Is Used for CAPI
+
+CAPI credential reads happen inside public routes (`/api/pixel`) and server actions (`sales.ts`) that may not have a user session. The admin client (service role) bypasses RLS to read `ad_accounts.capi_access_token` safely — this is intentional and the only acceptable use of the admin client in this codebase.
+
+### CAPI Event Deduplication
+
+- WhatsApp sales use `whatsapp_sales.id` as the `event_id` deduplication key
+- Website pixel fires rely on Meta's default deduplication (no explicit event_id)
+- The `fbclid` creates an `fbc` cookie value in the format `fb.1.{click_ts_ms}.{fbclid}` for better match quality
+
 ## Critical Rules
 
 - Attribution link creation failure → fall back to raw URL, never block launch
@@ -117,3 +172,7 @@ revenue_ngn       INTEGER DEFAULT 0
 - ALL destination types (WhatsApp AND website) must be wrapped — no raw URLs to Meta
 - Website attribution links get a `pixel_token` (12-char nanoid) for the pixel snippet
 - WhatsApp attribution links do NOT get a `pixel_token`
+- CAPI fires are always fire-and-forget — they must never block sale recording or redirect
+- CAPI silently skips if `meta_pixel_id` or `capi_access_token` is null — most users initially
+- `capi_access_token` is encrypted at rest with `encrypt()` — always `decrypt()` before use
+- Never expose `createAdminClient()` or its key to the browser — server-side only

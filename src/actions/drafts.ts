@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { CampaignState } from "@/stores/campaign-store";
 import { Database } from "@/types/supabase";
+import { getActiveOrgId } from "@/lib/active-org";
 
 type CampaignRow = Database["public"]["Tables"]["campaigns"]["Row"];
 
@@ -105,13 +106,7 @@ function mapDbToState(campaign: CampaignRow): Partial<CampaignState> {
 
 // Helper to get organization
 async function getOrganization(userId: string) {
-  const supabase = await createClient();
-  const { data: member } = await supabase
-    .from("organization_members")
-    .select("organization_id")
-    .eq("user_id", userId)
-    .single();
-  return member?.organization_id;
+  return await getActiveOrgId();
 }
 
 export async function saveDraft(

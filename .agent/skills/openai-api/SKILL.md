@@ -88,6 +88,77 @@ With OpenAI, prompt caching is handled completely automatically for prompts over
 - Keep dynamic, uniquely varied context (like the precise user query) at the _very end_ of your request.
 - You do _not_ need explicit `cache_control` headers.
 
+## 5. GPT-4o Vision — vision-analyzer.ts (Phase 3 Planned)
+
+The Phase 3 `analyze-assets` cron uses `gpt-4o` with vision to extract winning creative
+traits from high-performing campaign images. This is **separate** from the Responses API
+workflow above — it uses the Chat Completions endpoint because vision lives there.
+
+### File: src/lib/ai/vision-analyzer.ts (Phase 3 — Not Yet Built)
+
+```typescript
+// Pattern for vision-based ad creative analysis
+const response = await openai.chat.completions.create({
+  model: "gpt-4o",  // Use gpt-4o for vision, not gpt-5.2
+  messages: [
+    {
+      role: "system",
+      content:
+        "You are an expert Nigerian digital marketing creative analyst. " +
+        "Analyse this ad image and extract visual traits that drove performance.",
+    },
+    {
+      role: "user",
+      content: [
+        {
+          type: "image_url",
+          image_url: { url: imageUrl }, // Supabase Storage public URL
+        },
+        {
+          type: "text",
+          text: "Analyse this ad creative and extract its visual traits as JSON.",
+        },
+      ],
+    },
+  ],
+  response_format: {
+    type: "json_schema",
+    json_schema: {
+      name: "ad_creative_analysis",
+      strict: true,
+      schema: {
+        type: "object",
+        properties: {
+          successful_patterns: { type: "array", items: { type: "string" } },
+          color_palette:       { type: "array", items: { type: "string" } },
+          visual_themes:       { type: "array", items: { type: "string" } },
+          copy_hooks:          { type: "array", items: { type: "string" } },
+        },
+        required: ["successful_patterns", "color_palette", "visual_themes", "copy_hooks"],
+        additionalProperties: false,
+      },
+    },
+  },
+});
+
+const insights = JSON.parse(response.choices[0].message.content!);
+// → write to organizations.design_insights JSONB
+```
+
+### Key Differences from the Responses API Pattern
+
+| | Responses API (`responses.create`) | Vision analysis (`chat.completions.create`) |
+|---|---|---|
+| Use case | Strategy/copy generation with skills | Image analysis |
+| Model | `gpt-5.2` | `gpt-4o` |
+| Image input | Not applicable | `image_url` content part |
+| Skills/tools | `skill_reference` in shell env | Not used |
+| Output | `response.output_text` | `response.choices[0].message.content` |
+
+Ensure the image URL is publicly accessible or a valid signed URL from Supabase Storage.
+The result feeds `organizations.design_insights` — see `ai-context/SKILL.md` for how it
+is injected back into future creative generation.
+
 ## Best Practices Checklist
 
 - [ ] Are you using `openai.responses.create` for skill-based generation?
@@ -95,3 +166,4 @@ With OpenAI, prompt caching is handled completely automatically for prompts over
 - [ ] Are skills passed correctly as `skill_reference` objects in a `shell` tool environment?
 - [ ] Have you run `upload-skills.ts` if you modified any `.md` files in `src/lib/ai/skill-definitions/`?
 - [ ] For caching, is static context placed at the beginning of the prompt/request?
+- [ ] For vision analysis (Phase 3), using `chat.completions.create` + `gpt-4o` (not Responses API)?

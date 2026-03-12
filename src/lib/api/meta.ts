@@ -464,4 +464,85 @@ export const MetaService = {
       token,
     );
   },
+
+  /**
+   * Send a server-side conversion event to Meta via the Conversions API (CAPI).
+   *
+   * This is the mechanism that trains Andromeda with Sellam's offline WhatsApp
+   * sales — events Meta would otherwise never see. It runs server-to-server so
+   * no browser pixel is required.
+   *
+   * For WhatsApp sales:  action_source = "other"   (offline conversion)
+   * For website sales:   action_source = "website"  (supplements browser pixel)
+   *
+   * @param pixelId         - The Meta Pixel / Dataset ID (from ad_accounts)
+   * @param capiAccessToken - Decrypted CAPI system user access token
+   * @param payload         - Conversion event data
+   */
+  sendCAPIEvent: async (
+    pixelId: string,
+    capiAccessToken: string,
+    payload: {
+      eventName: "Purchase" | "Lead" | "ViewContent";
+      actionSource: "website" | "other";
+      valueNgn?: number;
+      eventSourceUrl?: string;
+      fbclid?: string | null;
+      fbclidClickedAt?: string | null; // ISO timestamp of the original click
+      eventId?: string; // Dedup key — use sale row ID or pixel event ID
+    },
+  ): Promise<void> => {
+    const eventTime = Math.floor(Date.now() / 1000);
+
+    const userData: Record<string, string> = {};
+
+    // Build fbc cookie value when we have a Meta click ID.
+    // Format: fb.{version}.{click_timestamp_ms}.{fbclid}
+    // Meta uses this server-side to match the conversion back to the ad click.
+    if (payload.fbclid) {
+      const clickTs = payload.fbclidClickedAt
+        ? new Date(payload.fbclidClickedAt).getTime()
+        : Date.now();
+      userData.fbc = `fb.1.${clickTs}.${payload.fbclid}`;
+    }
+
+    const eventData: Record<string, any> = {
+      event_name: payload.eventName,
+      event_time: eventTime,
+      action_source: payload.actionSource,
+      user_data: userData,
+      custom_data: {
+        currency: "NGN",
+        ...(payload.valueNgn != null && { value: payload.valueNgn }),
+      },
+    };
+
+    if (payload.eventId) {
+      eventData.event_id = payload.eventId;
+    }
+
+    if (payload.actionSource === "website" && payload.eventSourceUrl) {
+      eventData.event_source_url = payload.eventSourceUrl;
+    }
+
+    const res = await fetch(
+      `${BASE_URL}/${pixelId}/events?access_token=${capiAccessToken}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: [eventData] }),
+      },
+    );
+
+    const result = await res.json();
+
+    if (result.error) {
+      // Log but never throw — CAPI failures must never block a sale from recording
+      console.error("⚠️ [CAPI] Event send failed:", result.error);
+    } else {
+      console.log(
+        `✅ [CAPI] ${payload.eventName} sent — events_received: ${result.events_received ?? 0}`,
+      );
+    }
+  },
 };

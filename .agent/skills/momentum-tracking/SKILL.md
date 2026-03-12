@@ -184,12 +184,36 @@ Check `tierConfig.features.whatsappAlerts` before sending. See `tier-strategy/SK
 
 ---
 
+## Phase 3 Connection — Winning Ad Visual Analysis
+
+Momentum tracking detects both stalled campaigns (problems) and high-velocity campaigns
+(winners). The Phase 3 vision feedback loop consumes the **winner** signal.
+
+A campaign is a candidate for the `analyze-assets` cron job when it meets all of:
+
+- Status = `ACTIVE`
+- `revenue_ngn > 0` (at least one sale recorded)
+- `lead-scoring` score ≥ 75 (🔥 Hot — see `lead-scoring/SKILL.md`)
+- Has an associated ad creative image in Supabase Storage
+
+The cron job passes the winning ad image to `vision-analyzer.ts` (GPT-4o Vision), extracts
+visual traits (patterns, palette, themes, copy hooks), and writes them to
+`organizations.design_insights JSONB`. Future Flux image generations use these traits as
+additional context — the loop from "ad performed well" to "next ad looks more like that."
+
+This means the same attribution data that powers stall detection also powers creative
+improvement — the feedback loop closes here.
+
+See `ai-context/SKILL.md` (Phase 3 Roadmap) and `openai-api/SKILL.md` (vision-analyzer
+pattern) for the full implementation plan.
+
 ## Implementation Status
 
-| Item                                              | Status         |
-| ------------------------------------------------- | -------------- |
-| `detectStalls()` utility in `src/lib/momentum.ts` | ⬜ Not Started |
-| Stall badge on campaign list                      | ⬜ Not Started |
-| Momentum alert banner in campaign detail          | ⬜ Not Started |
-| "Needs Attention" dashboard section               | ⬜ Not Started |
-| WhatsApp notification for stalls (Growth+)        | ⬜ Phase 3     |
+| Item                                                                      | Status         |
+| ------------------------------------------------------------------------- | -------------- |
+| `detectStalls()` utility in `src/lib/momentum.ts`                         | ⬜ Not Started |
+| Stall badge on campaign list                                               | ⬜ Not Started |
+| Momentum alert banner in campaign detail                                   | ⬜ Not Started |
+| "Needs Attention" dashboard section                                        | ⬜ Not Started |
+| WhatsApp notification for stalls (Growth+)                                 | ⬜ Phase 3     |
+| Feed 🔥 Hot campaigns to `analyze-assets` cron (Phase 3 vision loop)      | ⬜ Phase 3     |

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { sendTeamInviteEmail } from "@/lib/resend";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
+import { getActiveOrgId } from "@/lib/active-org";
 
 export async function inviteTeamMember(
   email: string,
@@ -17,18 +18,18 @@ export async function inviteTeamMember(
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
-  const { data: member } = await supabase
-    .from("organization_members")
-    .select("organization_id, organizations(name)")
-    .eq("user_id", user.id)
+  const orgId = await getActiveOrgId();
+  if (!orgId) throw new Error("No organization found");
+
+  const { data: org } = await supabase
+    .from("organizations")
+    .select("name")
+    .eq("id", orgId)
     .single();
 
-  if (!member || !member.organizations)
-    throw new Error("No organization found");
+  if (!org) throw new Error("No organization found");
 
-  const orgId = member.organization_id;
-  // @ts-ignore
-  const orgName = member.organizations.name;
+  const orgName = org.name;
   const inviterName = user.user_metadata.full_name || user.email;
 
   // 2. Check Plan Limits (Optional Gatekeeper)

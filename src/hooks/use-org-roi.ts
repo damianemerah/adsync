@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
+import { useActiveOrgContext } from "@/components/providers/active-org-provider";
 
 export interface OrgROI {
   hasPreviousCampaigns: boolean;
@@ -12,15 +13,22 @@ export interface OrgROI {
 
 export function useOrgROI(): OrgROI {
   const supabase = createClient();
+  const { activeOrgId } = useActiveOrgContext();
 
   const { data } = useQuery({
-    queryKey: ["org-roi"],
+    queryKey: ["org-roi", activeOrgId],
     queryFn: async (): Promise<OrgROI> => {
-      const { data: campaigns } = await supabase
+      let q = supabase
         .from("campaigns")
         .select("spend_cents, revenue_ngn")
         .gt("spend_cents", 0) // only campaigns that actually ran
         .not("status", "eq", "draft");
+
+      if (activeOrgId) {
+        q = q.eq("organization_id", activeOrgId);
+      }
+
+      const { data: campaigns } = await q;
 
       if (!campaigns || campaigns.length === 0) {
         return {

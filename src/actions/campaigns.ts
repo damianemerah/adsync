@@ -15,6 +15,7 @@ import {
 } from "@/lib/attribution";
 import { validatePreLaunch, validateDestinationUrl } from "@/lib/intelligence";
 import { pickGeoStrategy } from "@/lib/utils/geo-strategy";
+import { getActiveOrgId } from "@/lib/active-org";
 import type { CTAData } from "@/types/cta-types";
 import type { Database } from "@/types/supabase";
 
@@ -75,18 +76,20 @@ export async function launchCampaign(config: LaunchConfig) {
   if (!user) throw new Error("Unauthorized");
 
   // 2. Organization & Subscription Check
-  const { data: member } = await supabase
-    .from("organization_members")
-    .select("organization_id, organizations(subscription_status)")
-    .eq("user_id", user.id)
+  const orgId = await getActiveOrgId();
+  if (!orgId) throw new Error("No organization found");
+
+  const { data: org } = await supabase
+    .from("organizations")
+    .select("subscription_status")
+    .eq("id", orgId)
     .single();
 
-  if (!member || !member.organizations) {
+  if (!org) {
     throw new Error("No organization found");
   }
 
-  // @ts-ignore - Types might need regeneration for join, but logic is valid
-  const subStatus = member.organizations.subscription_status;
+  const subStatus = org.subscription_status;
 
   // 🛑 GATEKEEPER: Check Subscription
   if (subStatus !== "active" && subStatus !== "trialing") {
@@ -102,7 +105,7 @@ export async function launchCampaign(config: LaunchConfig) {
   const { data: campaignHistory } = await supabase
     .from("campaigns")
     .select("id, summary" as any) // Cast to avoid typed string validation error if types are stale
-    .eq("organization_id", member.organization_id as string);
+    .eq("organization_id", orgId);
 
   const campaignCount = campaignHistory?.length || 0;
 
@@ -150,8 +153,6 @@ export async function launchCampaign(config: LaunchConfig) {
       console.warn("⚠️ [URL Validation Warning]:", urlIssue.message);
     }
   }
-
-  const orgId = member.organization_id;
 
   // 🚧 PHASE 2 GATE: TikTok is not yet supported.
   // The UI allows selecting TikTok but the backend only has MetaService.
@@ -618,13 +619,13 @@ export async function launchCampaign(config: LaunchConfig) {
         const { data: owner } = await supabase
           .from("organization_members")
           .select("user_id")
-          .eq("organization_id", orgId as string)
+          .eq("organization_id", orgId)
           .eq("role", "owner")
-          .single();
+          .limit(1);
 
-        if (owner) {
+        if (owner && owner.length > 0) {
           await sendNotification({
-            userId: owner.user_id as string,
+            userId: owner[0].user_id as string,
             organizationId: orgId as string,
             title: "Payment Method Required",
             message:

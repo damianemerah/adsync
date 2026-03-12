@@ -52,6 +52,11 @@ export async function GET(
   const country = request.headers.get("cf-ipcountry") || "NG";
   const referrer = request.headers.get("referer") || null;
 
+  // Capture Meta's fbclid — appended by Meta when someone clicks a Meta ad.
+  // This is the match key that links a "Mark as Sold" CAPI event back to the
+  // exact ad click that drove it, improving Andromeda's conversion optimisation.
+  const fbclid = request.nextUrl.searchParams.get("fbclid") || null;
+
   // 3. Fire-and-forget: record the click (never block the redirect)
   supabase
     .from("link_clicks")
@@ -64,6 +69,7 @@ export async function GET(
       country,
       referrer,
       event_type: "click",
+      fbclid,
     })
     .then(() => {
       // Increment the correct counter based on destination type

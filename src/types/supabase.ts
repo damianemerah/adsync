@@ -60,6 +60,7 @@ export type Database = {
           access_token: string
           account_name: string | null
           auto_paused_at: string | null
+          capi_access_token: string | null
           connected_at: string | null
           currency: string | null
           funding_source_details: Json | null
@@ -69,6 +70,7 @@ export type Database = {
           last_health_check: string | null
           last_known_balance_cents: number | null
           last_synced_at: string | null
+          meta_pixel_id: string | null
           nickname: string | null
           organization_id: string | null
           paused_by_system: boolean | null
@@ -81,6 +83,7 @@ export type Database = {
           access_token: string
           account_name?: string | null
           auto_paused_at?: string | null
+          capi_access_token?: string | null
           connected_at?: string | null
           currency?: string | null
           funding_source_details?: Json | null
@@ -90,6 +93,7 @@ export type Database = {
           last_health_check?: string | null
           last_known_balance_cents?: number | null
           last_synced_at?: string | null
+          meta_pixel_id?: string | null
           nickname?: string | null
           organization_id?: string | null
           paused_by_system?: boolean | null
@@ -102,6 +106,7 @@ export type Database = {
           access_token?: string
           account_name?: string | null
           auto_paused_at?: string | null
+          capi_access_token?: string | null
           connected_at?: string | null
           currency?: string | null
           funding_source_details?: Json | null
@@ -111,6 +116,7 @@ export type Database = {
           last_health_check?: string | null
           last_known_balance_cents?: number | null
           last_synced_at?: string | null
+          meta_pixel_id?: string | null
           nickname?: string | null
           organization_id?: string | null
           paused_by_system?: boolean | null
@@ -926,6 +932,7 @@ export type Database = {
           device_type: string | null
           event_type: string | null
           event_value_ngn: number | null
+          fbclid: string | null
           id: string
           link_id: string
           organization_id: string
@@ -939,6 +946,7 @@ export type Database = {
           device_type?: string | null
           event_type?: string | null
           event_value_ngn?: number | null
+          fbclid?: string | null
           id?: string
           link_id: string
           organization_id: string
@@ -952,6 +960,7 @@ export type Database = {
           device_type?: string | null
           event_type?: string | null
           event_value_ngn?: number | null
+          fbclid?: string | null
           id?: string
           link_id?: string
           organization_id?: string

@@ -5,17 +5,19 @@ import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { launchCampaign, updateCampaignStatus } from "@/actions/campaigns";
+import { useActiveOrgContext } from "@/components/providers/active-org-provider";
 
 export function useCampaigns() {
   const supabase = createClient();
   const queryClient = useQueryClient();
   const router = useRouter();
+  const { activeOrgId } = useActiveOrgContext();
 
   // 1. Fetch Campaigns
   const query = useQuery({
-    queryKey: ["campaigns"],
+    queryKey: ["campaigns", activeOrgId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("campaigns")
         .select(
           `
@@ -25,9 +27,15 @@ export function useCampaigns() {
         )
         .order("created_at", { ascending: false });
 
+      if (activeOrgId) {
+        q = q.eq("organization_id", activeOrgId);
+      }
+
+      const { data, error } = await q;
+
       if (error) throw error;
 
-      // Map DB fields to UI friendly format
+      // Map DB fields to UI-friendly format
       return data.map((c: any) => ({
         id: c.id,
         name: c.name,
@@ -72,7 +80,7 @@ export function useCampaigns() {
       return results;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["campaigns", activeOrgId] });
       toast.success("Campaigns synced from Meta");
       router.refresh();
     },
@@ -114,7 +122,7 @@ export function useCampaigns() {
       return result;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["campaigns", activeOrgId] });
       queryClient.invalidateQueries({ queryKey: ["campaign", variables.id] });
       toast.success(`Campaign ${variables.action.toLowerCase()} successfully`);
       router.refresh();

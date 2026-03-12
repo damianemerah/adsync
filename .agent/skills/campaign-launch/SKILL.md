@@ -24,6 +24,7 @@ Load this skill when working on:
 | Policy guard (`checkAdPolicy`) integration         | ✅ Built                                                     |
 | Post-insert `attribution_links.campaign_id` update | ✅ Built                                                     |
 | 1:1:1 campaign/adset/ad structure                  | ✅ Enforced                                                  |
+| Phase 4 creative testing (1:1:N, Meta Creative Testing API)                | ⬜ Phase 4 Future |
 
 ## Reference Implementation
 
@@ -140,4 +141,34 @@ LOW → pass silently
 
 1 Campaign → 1 Ad Set → 1 Ad
 Budget set at Ad Set level only (`is_adset_budget_sharing_enabled: false`)
-Never break this structure regardless of feature requests.
+Never break this structure for standard launches.
+
+**Phase 4 Exception (Future — Not MVP):** Creative testing will introduce a controlled
+1:1:N launch path (1 Campaign → 1 Ad Set → multiple Ads) via Meta's Creative Testing API.
+This is a planned future feature gated behind a `creative_testing_enabled` flag. Do not
+implement this speculatively. Until that flag exists, the rule is absolute.
+
+## Phase 4 Roadmap — Creative Testing (Future)
+
+Sellam's response to Meta's Andromeda update: let Meta's algorithm evaluate multiple
+creatives and auto-optimise toward the best performer.
+
+### The Idea
+
+- Launch 2–4 ad creatives into the same ad set (controlled 1:1:N relaxation)
+- Meta Creative Testing API distributes spend fairly across variations
+- After a learning period (~7 days), underperforming creatives are paused
+- CAPI offline conversion signals train Meta's evaluation against real WhatsApp sales
+
+### When to Implement
+
+Only when a `creative_testing_enabled` feature flag exists in tier config AND the user
+explicitly opts into creative testing mode in the launch wizard. The default 1:1:1 path
+stays unchanged.
+
+### CAPI Prerequisite
+
+Creative testing is only valuable with CAPI configured. Without offline conversion
+signals, Meta optimises on clicks alone — not actual sales. Prompt users to set up CAPI
+(Settings → Business → Meta Pixel + CAPI token) before enabling creative testing.
+See `attribution/SKILL.md` for CAPI setup details.

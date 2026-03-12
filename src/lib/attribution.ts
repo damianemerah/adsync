@@ -18,11 +18,11 @@ export function generatePixelToken(): string {
 }
 
 /**
- * Builds the full Adsync redirect URL for an attribution token.
- * Example: "https://adsync.app/l/xK9mZ2pR"
+ * Builds the full Sellam redirect URL for an attribution token.
+ * Example: "https://sellam.app/l/xK9mZ2pR"
  */
 export function buildAttributionUrl(token: string, baseUrl?: string): string {
   const base =
-    baseUrl || process.env.NEXT_PUBLIC_APP_URL || "https://adsync.app";
+    baseUrl || process.env.NEXT_PUBLIC_APP_URL || "https://sellam.app";
   return `${base}/l/${token}`;
 }

@@ -4,10 +4,12 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { VerificationBanner } from "@/components/dashboard/verification-banner";
 import { SubscriptionGate } from "@/components/dashboard/subscription-gate";
 import { StoreHydrator } from "@/components/dashboard/store-hydrator";
+import { getActiveOrgId } from "@/lib/active-org";
 import {
   SidebarProvider,
   useSidebar,
 } from "@/components/providers/sidebar-provider";
+import { ActiveOrgProvider } from "@/components/providers/active-org-provider";
 import { ContentWrapper } from "./content-wrapper";
 
 function MainContent({ children }: { children: React.ReactNode }) {
@@ -38,14 +40,24 @@ export default async function MainLayout({
     redirect("/login");
   }
 
-  // 2. Check Organization Membership
-  const { data: membership } = await supabase
+  // Resolve the active org from cookie (server-side)
+  const activeOrgId = await getActiveOrgId();
+
+  // 2. Check Organization Membership (for the active org, or any org if none is active)
+  let membershipQuery = supabase
     .from("organization_members")
     .select("organization_id, organizations(subscription_status)")
     .eq("user_id", user.id)
-    .maybeSingle();
+    .limit(1);
 
-  // 🔴 LOCK: If no organization, force them to onboarding
+  if (activeOrgId) {
+    membershipQuery = membershipQuery.eq("organization_id", activeOrgId);
+  }
+
+  const { data } = await membershipQuery;
+  const membership = data?.[0];
+
+  // 🔴 LOCK: If no organization at all, force them to onboarding
   if (!membership) {
     console.log("No membership found2");
     redirect("/onboarding");
@@ -57,17 +69,19 @@ export default async function MainLayout({
   // 🟢 PASS: Render the dashboard with the Gate wrapper
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen bg-slate-50 font-sans">
-        <Sidebar />
-        <ContentWrapper>
-          {/* Banner sits here */}
-          <VerificationBanner />
-          <StoreHydrator userId={user.id} />
+      <ActiveOrgProvider activeOrgId={activeOrgId}>
+        <div className="flex min-h-screen bg-slate-50 font-sans">
+          <Sidebar activeOrgId={activeOrgId} />
+          <ContentWrapper>
+            {/* Banner sits here */}
+            <VerificationBanner />
+            <StoreHydrator userId={user.id} />
 
-          {/* The Gate handles the blocking logic */}
-          <SubscriptionGate status={subStatus}>{children}</SubscriptionGate>
-        </ContentWrapper>
-      </div>
+            {/* The Gate handles the blocking logic */}
+            <SubscriptionGate status={subStatus}>{children}</SubscriptionGate>
+          </ContentWrapper>
+        </div>
+      </ActiveOrgProvider>
     </SidebarProvider>
   );
 }

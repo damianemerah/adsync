@@ -18,6 +18,7 @@ import {
 import { isPermanentCreativeUrl, isTempUploadUrl } from "@/lib/creative-utils";
 import { requireCredits, spendCredits } from "@/lib/credits";
 import { CREDIT_COSTS } from "@/lib/constants";
+import { getActiveOrgId } from "@/lib/active-org";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
@@ -520,12 +521,8 @@ export async function stashGeneratedImage(falUrl: string): Promise<string> {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
-  const { data: member } = await supabase
-    .from("organization_members")
-    .select("organization_id")
-    .eq("user_id", user.id)
-    .single();
-  if (!member) throw new Error("No organization found");
+  const orgId = await getActiveOrgId();
+  if (!orgId) throw new Error("No organization found");
 
   const imageRes = await fetch(falUrl);
   if (!imageRes.ok)
@@ -534,7 +531,7 @@ export async function stashGeneratedImage(falUrl: string): Promise<string> {
 
   // Store under a `generated/` prefix so it's easy to distinguish from
   // user-uploaded reference images and easy to bulk-clean with a cron.
-  const filePath = `${member.organization_id}/generated/${Date.now()}_${Math.random().toString(36).slice(2)}.jpeg`;
+  const filePath = `${orgId}/generated/${Date.now()}_${Math.random().toString(36).slice(2)}.jpeg`;
 
   const { error } = await supabase.storage
     .from("temp-uploads")
@@ -575,14 +572,8 @@ export async function saveCreativeToLibrary({
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
-  const { data: member } = await supabase
-    .from("organization_members")
-    .select("organization_id")
-    .eq("user_id", user.id)
-    .single();
-  if (!member) throw new Error("No organization found");
-
-  const orgId = member.organization_id;
+  const orgId = await getActiveOrgId();
+  if (!orgId) throw new Error("No organization found");
 
   // ── Dedup guard ──────────────────────────────────────────────────────────────────
   // If the URL already points to the permanent creatives bucket, look up the
@@ -674,13 +665,7 @@ export async function getCreativeHistory(creativeId: string) {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
-  const { data: member } = await supabase
-    .from("organization_members")
-    .select("organization_id")
-    .eq("user_id", user.id)
-    .single();
-
-  const orgId = member?.organization_id;
+  const orgId = await getActiveOrgId();
   if (!orgId) throw new Error("No organization found");
 
   // 1. Get the target creative — scoped to this org
@@ -761,18 +746,14 @@ export async function uploadTempImage(formData: FormData): Promise<string> {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
-  const { data: member } = await supabase
-    .from("organization_members")
-    .select("organization_id")
-    .eq("user_id", user.id)
-    .single();
-  if (!member) throw new Error("No organization found");
+  const orgId = await getActiveOrgId();
+  if (!orgId) throw new Error("No organization found");
 
   const file = formData.get("file") as File;
   if (!file) throw new Error("No file provided");
 
   const fileExt = file.name.split(".").pop() || "png";
-  const filePath = `${member.organization_id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
+  const filePath = `${orgId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
 
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);

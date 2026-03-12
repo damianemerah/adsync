@@ -46,8 +46,9 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { WorkspaceSwitcher } from "@/components/layout/workspace-switcher";
 
-export function Sidebar() {
+export function Sidebar({ activeOrgId }: { activeOrgId?: string | null }) {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
   const { data: subscription } = useSubscription();
@@ -132,48 +133,7 @@ export function Sidebar() {
           !isOpen && "flex-col gap-4",
         )}
       >
-        {isOpen && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild className="p-1.5">
-              <button className="flex items-center gap-2 p-2 rounded-xl hover:bg-muted hover:text-foreground transition-colors text-left group flex-1 border border-border shadow-soft bg-background">
-                {" "}
-                {/* [UPDATED] shadow-soft, bg-background */}
-                <div className="flex h-5 w-5 items-center justify-center rounded-lg bg-primary/20 text-primary font-medium text-lg shrink-0">
-                  {(subscription?.org?.name?.[0] || "A").toUpperCase()}
-                </div>
-                <span className="text-sm font-medium truncate flex-1 text-foreground">
-                  {subscription?.org?.name || "AdSync"}
-                </span>
-                <NavArrowDown className="h-4 w-4 text-muted-foreground" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="start"
-              className="bg-popover rounded-xl shadow-soft border-border w-56 p-2" // [UPDATED] bg-popover
-            >
-              <DropdownMenuItem className="flex items-center gap-3 p-2 focus:bg-muted/50 rounded-lg cursor-pointer mb-2">
-                <div className="flex h-5 w-5 items-center justify-center rounded-lg bg-primary/20 text-primary font-medium text-lg shrink-0">
-                  {(subscription?.org?.name?.[0] || "A").toUpperCase()}
-                </div>
-                <span className="text-sm font-medium text-foreground truncate flex-1">
-                  {subscription?.org?.name || "AdSync"}
-                </span>
-                <Check className="h-4 w-4 text-primary" />
-              </DropdownMenuItem>
-
-              <div className="px-1">
-                <Link href="/settings/business" className="w-full block">
-                  <Button
-                    variant="outline"
-                    className="w-full justify-center gap-2 h-10 hover:text-foreground border-dashed border-border text-muted-foreground hover:bg-muted"
-                  >
-                    <Plus className="h-4 w-4" /> Add Businesses
-                  </Button>
-                </Link>
-              </div>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+        {isOpen && <WorkspaceSwitcher activeOrgId={activeOrgId} />}
 
         {/* Collapsed Logo View */}
         {!isOpen && (

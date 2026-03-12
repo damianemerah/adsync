@@ -4,22 +4,23 @@ import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { Database } from "@/types/supabase";
 import { TIER_CONFIG, TierId } from "@/lib/constants";
+import { useActiveOrgContext } from "@/components/providers/active-org-provider";
 
 type Transaction = Database["public"]["Tables"]["transactions"]["Row"];
 
 export function useSubscription() {
   const supabase = createClient();
+  const { activeOrgId } = useActiveOrgContext();
 
   return useQuery({
-    queryKey: ["subscription"],
+    queryKey: ["subscription", activeOrgId],
     queryFn: async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // 1. Get Organisation + credit balance
-      const { data: member, error: memberError } = await supabase
+      let query = supabase
         .from("organization_members")
         .select(
           `
@@ -35,10 +36,17 @@ export function useSubscription() {
             )
           `,
         )
-        .eq("user_id", user.id)
-        .single();
+        .eq("user_id", user.id);
 
-      if (memberError || !member) throw new Error("No organization found");
+      if (activeOrgId) {
+        query = query.eq("organization_id", activeOrgId);
+      }
+
+      const { data: members, error: memberError } = await query.limit(1);
+
+      if (memberError || !members || members.length === 0)
+        throw new Error("No organization found");
+      const member = members[0];
 
       // @ts-ignore – nested join typing is loose in generated types
       const org = member.organizations as {

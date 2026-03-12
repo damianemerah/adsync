@@ -29,13 +29,19 @@ import {
   Trash,
   Plus,
   WarningTriangle,
+  Settings,
+  CheckCircle,
+  NavArrowDown,
+  NavArrowUp,
 } from "iconoir-react";
 import { updateOrganization } from "@/actions/settings";
+import { updateAdAccountCapi } from "@/actions/ad-accounts";
 import { toast } from "sonner";
 import { useAdAccounts } from "@/hooks/use-ad-account";
 import { useSubscription } from "@/hooks/use-subscription";
 import { TIER_CONFIG, TierId } from "@/lib/constants";
 import { ConnectAccountDialog } from "@/components/ad-accounts/connect-account-dialog";
+import { CreateBusinessDialog } from "@/components/settings/create-business-dialog";
 
 const INDUSTRIES = [
   "E-commerce (Fashion/Beauty)",
@@ -47,11 +53,162 @@ const INDUSTRIES = [
   "Other",
 ];
 
-export function BusinessTab({ organization }: { organization: any }) {
+// Per-account CAPI configuration panel
+function CapiConfigPanel({ account }: { account: any }) {
+  const [open, setOpen] = useState(false);
+  const [pixelId, setPixelId] = useState("");
+  const [capiToken, setCapiToken] = useState("");
+  const [isPending, startTransition] = useTransition();
+
+  const hasCapi = !!account.meta_pixel_id;
+
+  const handleSave = () => {
+    startTransition(async () => {
+      try {
+        await updateAdAccountCapi(account.id, {
+          metaPixelId: pixelId,
+          capiAccessToken: capiToken,
+        });
+        toast.success("Conversion tracking saved!");
+        setOpen(false);
+        setPixelId("");
+        setCapiToken("");
+      } catch (e: any) {
+        toast.error("Failed to save", { description: e.message });
+      }
+    });
+  };
+
+  const handleClear = () => {
+    startTransition(async () => {
+      try {
+        await updateAdAccountCapi(account.id, {
+          metaPixelId: "",
+          capiAccessToken: "",
+        });
+        toast.success("Conversion tracking removed.");
+        setOpen(false);
+      } catch (e: any) {
+        toast.error("Failed to clear", { description: e.message });
+      }
+    });
+  };
+
+  return (
+    <div className="border-t border-border/60 bg-muted/20">
+      {/* Toggle row */}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-5 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+      >
+        <span className="flex items-center gap-2">
+          <Settings className="w-3.5 h-3.5" />
+          <span className="font-medium">Conversion Tracking (CAPI)</span>
+          {hasCapi && (
+            <span className="flex items-center gap-1 text-emerald-600 font-semibold">
+              <CheckCircle className="w-3 h-3" />
+              Active
+            </span>
+          )}
+        </span>
+        {open ? (
+          <NavArrowUp className="w-3.5 h-3.5" />
+        ) : (
+          <NavArrowDown className="w-3.5 h-3.5" />
+        )}
+      </button>
+
+      {open && (
+        <div className="px-5 pb-4 pt-1 space-y-4">
+          {/* Explainer */}
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Connect Meta&apos;s Conversions API so every WhatsApp sale recorded
+            in Sellam is sent back to Meta server-side. This teaches Andromeda
+            to find more buyers — no website pixel needed.
+            <a
+              href="https://www.facebook.com/business/help/2041148702652965"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ml-1 underline hover:text-foreground"
+            >
+              How to get your Pixel ID and token →
+            </a>
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">
+                Meta Pixel ID (Dataset ID)
+              </Label>
+              <Input
+                placeholder={
+                  hasCapi ? "••••••••••• (saved)" : "e.g. 1234567890123456"
+                }
+                value={pixelId}
+                onChange={(e) => setPixelId(e.target.value)}
+                className="text-sm font-mono"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">CAPI Access Token</Label>
+              <Input
+                type="password"
+                placeholder={
+                  hasCapi ? "••••••••••• (saved)" : "Paste your token here"
+                }
+                value={capiToken}
+                onChange={(e) => setCapiToken(e.target.value)}
+                className="text-sm font-mono"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 justify-end">
+            {hasCapi && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClear}
+                disabled={isPending}
+                className="text-destructive hover:text-destructive hover:bg-destructive/10 text-xs"
+              >
+                Remove
+              </Button>
+            )}
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={isPending || (!pixelId.trim() && !capiToken.trim())}
+              className="text-xs"
+            >
+              {isPending ? (
+                <>
+                  <SystemRestart className="w-3 h-3 mr-1.5 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save Credentials"
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function BusinessTab({
+  organization,
+  activeOrgId,
+}: {
+  organization: any;
+  activeOrgId?: string | null;
+}) {
   const [isEditing, setIsEditing] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [activeTab, setActiveTab] = useState("accounts");
   const [connectOpen, setConnectOpen] = useState(false);
+  const [createBizOpen, setCreateBizOpen] = useState(false);
 
   const {
     data: accounts,
@@ -62,6 +219,7 @@ export function BusinessTab({ organization }: { organization: any }) {
 
   const currentTier = (subscription?.org?.tier || "starter") as TierId;
   const maxAccounts = TIER_CONFIG[currentTier]?.limits?.maxAdAccounts ?? 1;
+  const maxOrgs = TIER_CONFIG[currentTier]?.limits?.maxOrganizations ?? 1;
   const currentCount = accounts?.length ?? 0;
   const canConnect = currentCount < maxAccounts;
 
@@ -124,15 +282,40 @@ export function BusinessTab({ organization }: { organization: any }) {
                 generate more relevant ads.
               </CardDescription>
             </div>
-            {!isEditing && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsEditing(true)}
-              >
-                <EditPencil className="mr-2 h-4 w-4" /> Edit Details
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {/* Add Business button — tier-gated */}
+              {maxOrgs > 1 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCreateBizOpen(true)}
+                >
+                  <Plus className="mr-1.5 h-3.5 w-3.5" /> Add Business
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    window.location.href = "/settings/subscription";
+                  }}
+                  className="text-muted-foreground border-dashed"
+                >
+                  <Plus className="mr-1.5 h-3.5 w-3.5" /> Add Business
+                </Button>
+              )}
+              {!isEditing && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsEditing(true)}
+                >
+                  <EditPencil className="mr-2 h-4 w-4" /> Edit Details
+                </Button>
+              )}
+            </div>
           </CardHeader>
 
           <CardContent className="space-y-6">
@@ -432,42 +615,50 @@ export function BusinessTab({ organization }: { organization: any }) {
                   {accounts.map((account) => (
                     <div
                       key={account.id}
-                      className="grid grid-cols-[1fr_auto_auto] items-center gap-4 px-5 py-4 border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
+                      className="border-b border-border last:border-0"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 bg-primary/10 rounded-lg flex items-center justify-center">
-                          <Building className="h-4 w-4 text-primary" />
+                      {/* Account row */}
+                      <div className="grid grid-cols-[1fr_auto_auto] items-center gap-4 px-5 py-4 hover:bg-muted/30 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="h-9 w-9 bg-primary/10 rounded-lg flex items-center justify-center">
+                            <Building className="h-4 w-4 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm text-foreground">
+                              {account.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {account.accountId} •{" "}
+                              {account.platform === "meta" ? "Meta" : "TikTok"}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-sm text-foreground">
-                            {account.name}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {account.accountId} •{" "}
-                            {account.platform === "meta" ? "Meta" : "TikTok"}
-                          </p>
-                        </div>
-                      </div>
-                      <Badge
-                        variant={
-                          account.status === "healthy"
-                            ? "default"
-                            : "destructive"
-                        }
-                        className="w-24 justify-center capitalize text-xs"
-                      >
-                        {account.status || "Unknown"}
-                      </Badge>
-                      <div className="w-16 flex justify-end">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDisconnect(account.id)}
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
+                        <Badge
+                          variant={
+                            account.status === "healthy"
+                              ? "default"
+                              : "destructive"
+                          }
+                          className="w-24 justify-center capitalize text-xs"
                         >
-                          <Trash className="w-4 h-4" />
-                        </Button>
+                          {account.status || "Unknown"}
+                        </Badge>
+                        <div className="w-16 flex justify-end">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDisconnect(account.id)}
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
+                          >
+                            <Trash className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
+
+                      {/* CAPI config — only for Meta accounts */}
+                      {account.platform === "meta" && (
+                        <CapiConfigPanel account={account} />
+                      )}
                     </div>
                   ))}
                 </div>
@@ -479,6 +670,12 @@ export function BusinessTab({ organization }: { organization: any }) {
 
       {/* Connect Account Dialog */}
       <ConnectAccountDialog open={connectOpen} onOpenChange={setConnectOpen} />
+
+      {/* Create Business Dialog */}
+      <CreateBusinessDialog
+        open={createBizOpen}
+        onOpenChange={setCreateBizOpen}
+      />
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { PLAN_PRICES } from "@/lib/constants";
+import { getActiveOrgId } from "@/lib/active-org";
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 
@@ -84,43 +85,43 @@ export async function getPaymentContext(): Promise<{
 
   if (!user?.email) throw new Error("Unauthorized");
 
-  const { data: member } = await supabase
-    .from("organization_members")
-    .select("organization_id")
-    .eq("user_id", user.id)
-    .single();
+  const orgId = await getActiveOrgId();
+  if (!orgId) throw new Error("No organization found");
 
-  if (!member) throw new Error("No organization found");
-
-  return { email: user.email, orgId: member.organization_id as string };
+  return { email: user.email, orgId };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Purchase a credit pack (one-off top-up, no plan change)
 // ─────────────────────────────────────────────────────────────────────────────
 export async function initializeCreditPackPurchase(
-  packId: string,        // 'small' | 'medium' | 'large'
+  packId: string, // 'small' | 'medium' | 'large'
   callbackUrl: string,
 ): Promise<{ authorization_url: string; reference: string }> {
   if (!PAYSTACK_SECRET_KEY) throw new Error("Missing Paystack Secret Key");
 
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user?.email) throw new Error("Unauthorized");
 
   // Resolve org
-  const { data: member } = await supabase
-    .from("organization_members")
-    .select("organization_id")
-    .eq("user_id", user.id)
-    .single();
-  if (!member) throw new Error("No organization found");
+  const orgId = await getActiveOrgId();
+  if (!orgId) throw new Error("No organization found");
 
   // Fetch pack details from DB
   const { data: pack, error: packError } = await supabase
     .from("credit_packs")
     .select("id, name, credits, price_ngn")
-    .eq("name", packId === "small" ? "Small Pack" : packId === "medium" ? "Medium Pack" : "Large Pack")
+    .eq(
+      "name",
+      packId === "small"
+        ? "Small Pack"
+        : packId === "medium"
+          ? "Medium Pack"
+          : "Large Pack",
+    )
     .eq("is_active", true)
     .single();
 
@@ -141,11 +142,11 @@ export async function initializeCreditPackPurchase(
       reference,
       callback_url: callbackUrl,
       metadata: {
-        org_id:      member.organization_id,
-        pack_id:     pack.id,
-        pack_name:   pack.name,
-        credits:     pack.credits,
-        tx_type:     "credit_pack",  // Webhook uses this to branch logic
+        org_id: orgId,
+        pack_id: pack.id,
+        pack_name: pack.name,
+        credits: pack.credits,
+        tx_type: "credit_pack", // Webhook uses this to branch logic
       },
     }),
   });
@@ -155,7 +156,7 @@ export async function initializeCreditPackPurchase(
 
   return {
     authorization_url: data.data.authorization_url as string,
-    reference:         data.data.reference as string,
+    reference: data.data.reference as string,
   };
 }
 

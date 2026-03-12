@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { Database } from "@/types/supabase";
 
@@ -26,5 +27,21 @@ export async function createClient() {
         },
       },
     },
+  );
+}
+
+/**
+ * Service-role Supabase client — bypasses RLS.
+ *
+ * ONLY use server-side for trusted reads/writes that cannot be performed
+ * with the anon or user-scoped client (e.g. reading encrypted CAPI
+ * credentials from ad_accounts inside a public API route).
+ *
+ * Never expose this client or its key to the browser.
+ */
+export function createAdminClient() {
+  return createSupabaseClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
 }

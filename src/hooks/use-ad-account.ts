@@ -7,6 +7,7 @@ import {
   disconnectAdAccount,
   setAsDefaultAccount,
 } from "@/actions/ad-accounts";
+import { useActiveOrgContext } from "@/components/providers/active-org-provider";
 
 // --- TYPES ---
 
@@ -45,7 +46,9 @@ const formatCurrency = (cents: number | null, currency: string | null) => {
 
 // --- FETCHER ---
 
-const fetchAdAccounts = async (): Promise<AdAccountUI[]> => {
+const fetchAdAccounts = async (
+  activeOrgId: string | null,
+): Promise<AdAccountUI[]> => {
   const supabase = createClient();
 
   // 1. Get Current User
@@ -54,20 +57,25 @@ const fetchAdAccounts = async (): Promise<AdAccountUI[]> => {
   } = await supabase.auth.getUser();
   if (!user) return [];
 
-  // 2. Get User's Organization ID
-  const { data: member } = await supabase
-    .from("organization_members")
-    .select("organization_id")
-    .eq("user_id", user.id)
-    .single();
+  let orgId = activeOrgId;
 
-  if (!member) return [];
+  if (!orgId) {
+    // 2. Fallback: Get User's First Organization ID
+    const { data: member } = await supabase
+      .from("organization_members")
+      .select("organization_id")
+      .eq("user_id", user.id)
+      .limit(1);
+
+    if (!member || member.length === 0) return [];
+    orgId = member[0].organization_id as string;
+  }
 
   // 3. Fetch Accounts (Explicitly scoped to Org)
   const { data, error } = await supabase
     .from("ad_accounts")
     .select("*")
-    .eq("organization_id", member.organization_id as string)
+    .eq("organization_id", orgId)
     .order("connected_at", { ascending: false });
 
   if (error) throw new Error(error.message);
@@ -98,7 +106,7 @@ const fetchAdAccounts = async (): Promise<AdAccountUI[]> => {
         // Formatting
         balance: formatCurrency(
           account.last_known_balance_cents,
-          account.currency
+          account.currency,
         ),
         currency: account.currency || "NGN",
         spendCap: "Unlimited", // Placeholder until we fetch snapshot data
@@ -108,10 +116,10 @@ const fetchAdAccounts = async (): Promise<AdAccountUI[]> => {
         isDefault: account.is_default || false,
 
         lastSynced: new Date(
-          account.last_health_check || account.connected_at || Date.now()
+          account.last_health_check || account.connected_at || Date.now(),
         ).toLocaleDateString(),
       };
-    }
+    },
   );
 };
 
@@ -119,16 +127,17 @@ const fetchAdAccounts = async (): Promise<AdAccountUI[]> => {
 
 export function useAdAccounts() {
   const queryClient = useQueryClient();
+  const { activeOrgId } = useActiveOrgContext();
 
   const query = useQuery({
-    queryKey: ["ad_accounts"],
-    queryFn: fetchAdAccounts,
+    queryKey: ["ad_accounts", activeOrgId],
+    queryFn: () => fetchAdAccounts(activeOrgId),
   });
 
   const disconnectMutation = useMutation({
     mutationFn: disconnectAdAccount,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ad_accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["ad_accounts", activeOrgId] });
     },
   });
 
@@ -136,7 +145,7 @@ export function useAdAccounts() {
   const defaultMutation = useMutation({
     mutationFn: setAsDefaultAccount,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ad_accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["ad_accounts", activeOrgId] });
     },
   });
 
@@ -151,7 +160,7 @@ export function useAdAccounts() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ad_accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["ad_accounts", activeOrgId] });
     },
   });
 
@@ -171,7 +180,7 @@ export function useAdAccounts() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ad_accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["ad_accounts", activeOrgId] });
     },
   });
 

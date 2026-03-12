@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
+import { useActiveOrgContext } from "@/components/providers/active-org-provider";
 
 // Define the shape of the data returned by the Supabase query
 interface AdData {
@@ -11,6 +12,7 @@ interface AdData {
   creative_snapshot: any; // We'll type check this manually or use a more specific type if available
   campaigns: {
     name: string;
+    organization_id: string | null;
   } | null; // Join returns an object or null
   clicks: number | null;
   impressions: number | null;
@@ -20,13 +22,13 @@ interface AdData {
 
 export function useAdAnalysis() {
   const supabase = createClient();
+  const { activeOrgId } = useActiveOrgContext();
 
   return useQuery({
-    queryKey: ["ad-analysis"],
+    queryKey: ["ad-analysis", activeOrgId],
     queryFn: async () => {
-      // Fetch Ads with metrics
-      // Note: We need to cast the result because Supabase types might not be fully up to date with the new migration yet
-      const { data, error } = await supabase
+      // Fetch Ads with metrics, scoped to the active org via the campaigns join
+      let q = supabase
         .from("ads")
         .select(
           `
@@ -34,7 +36,7 @@ export function useAdAnalysis() {
           name,
           status,
           creative_snapshot,
-          campaigns(name),
+          campaigns!inner(name, organization_id),
           clicks,
           impressions,
           spend_cents,
@@ -42,6 +44,12 @@ export function useAdAnalysis() {
         `,
         )
         .order("spend_cents", { ascending: false });
+
+      if (activeOrgId) {
+        q = q.eq("campaigns.organization_id", activeOrgId);
+      }
+
+      const { data, error } = await q;
 
       if (error) throw error;
 

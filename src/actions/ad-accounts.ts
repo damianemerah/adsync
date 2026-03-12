@@ -1,6 +1,6 @@
 "use server";
 
-import { decrypt } from "@/lib/crypto";
+import { decrypt, encrypt } from "@/lib/crypto";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
@@ -46,6 +46,49 @@ export async function disconnectAdAccount(id: string) {
   if (error) throw new Error(error.message);
 
   revalidatePath("/ad-accounts");
+}
+
+/**
+ * Save (or clear) Meta CAPI credentials for a connected ad account.
+ *
+ * The CAPI access token is encrypted at rest using the same encrypt() helper
+ * used for the ad account's OAuth access_token — consistent security posture.
+ *
+ * Passing empty strings for both fields clears the CAPI setup (opt-out).
+ */
+export async function updateAdAccountCapi(
+  adAccountId: string,
+  { metaPixelId, capiAccessToken }: { metaPixelId: string; capiAccessToken: string },
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  // Verify this ad account belongs to the user's org before updating
+  const { data: account } = await supabase
+    .from("ad_accounts")
+    .select("organization_id")
+    .eq("id", adAccountId)
+    .single();
+
+  if (!account) throw new Error("Ad account not found");
+
+  const { error } = await supabase
+    .from("ad_accounts")
+    .update({
+      meta_pixel_id: metaPixelId.trim() || null,
+      // Encrypt the token before storing — or null if clearing
+      capi_access_token: capiAccessToken.trim()
+        ? encrypt(capiAccessToken.trim())
+        : null,
+    })
+    .eq("id", adAccountId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/settings/business");
 }
 
 export async function setAsDefaultAccount(id: string) {
