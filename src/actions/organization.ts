@@ -45,7 +45,9 @@ export async function setActiveOrganization(orgId: string): Promise<void> {
     maxAge: 60 * 60 * 24 * 365, // 1 year
   });
 
+  // Revalidate layout and all pages to ensure they pick up the new active org
   revalidatePath("/", "layout");
+  revalidatePath("/", "page");
 }
 
 // ─── Shared: insert org row + owner member + trial credits ────────────────────
@@ -251,7 +253,9 @@ export async function createOrganization(
       });
     }
 
+    // Revalidate layout and all pages
     revalidatePath("/", "layout");
+    revalidatePath("/", "page");
 
     if (shouldRedirect) redirect("/dashboard");
     return { success: true };
@@ -374,7 +378,9 @@ export async function createOrganization(
   // 5. Switch active workspace to the new org
   await setActiveOrganization(newOrgId);
 
+  // Revalidate all pages to ensure dashboard and other pages pick up the new org
   revalidatePath("/", "layout");
+  revalidatePath("/dashboard", "page");
   return { success: true };
 }
 

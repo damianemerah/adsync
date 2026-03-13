@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { MetaService } from "@/lib/api/meta";
 import { decrypt } from "@/lib/crypto";
+import { getActiveOrgId } from "@/lib/active-org";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -21,14 +22,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Fetch tokens
-  const { data: member } = await supabase
-    .from("organization_members")
-    .select("organization_id")
-    .eq("user_id", user.id)
-    .single();
-
-  if (!member || !member.organization_id) {
+  // Get active organization
+  const activeOrgId = await getActiveOrgId();
+  if (!activeOrgId) {
     return NextResponse.json(
       { error: "No organization found" },
       { status: 404 },
@@ -39,7 +35,7 @@ export async function GET(request: Request) {
   const { data: adAccount } = await supabase
     .from("ad_accounts")
     .select("access_token")
-    .eq("organization_id", member.organization_id)
+    .eq("organization_id", activeOrgId)
     .eq("platform", "meta")
     .eq("health_status", "healthy")
     .order("is_default", { ascending: false })

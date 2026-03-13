@@ -24,30 +24,18 @@ export default async function DashboardPage() {
   // Resolve active org context
   const activeOrgId = await getActiveOrgId();
 
-  // 2. Get the user's org membership for the active org
-  let memberQuery = supabase
-    .from("organization_members")
-    .select("organization_id")
-    .eq("user_id", user.id)
-    .limit(1);
-
-  if (activeOrgId) {
-    memberQuery = memberQuery.eq("organization_id", activeOrgId);
+  if (!activeOrgId) {
+    redirect("/onboarding");
   }
 
-  const { data: members } = await memberQuery;
-  const member = members?.[0];
-
-  // 3. Determine real onboarding completion states in parallel
+  // 2. Determine real onboarding completion states in parallel
   const [accountsRes, whatsappRes, campaignsRes] = await Promise.all([
     // Has at least one connected ad account?
-    member
-      ? supabase
-          .from("ad_accounts")
-          .select("id")
-          .eq("organization_id", member.organization_id as string)
-          .limit(1)
-      : Promise.resolve({ data: [] }),
+    supabase
+      .from("ad_accounts")
+      .select("id")
+      .eq("organization_id", activeOrgId)
+      .limit(1),
 
     // Has verified WhatsApp?
     supabase
@@ -58,14 +46,12 @@ export default async function DashboardPage() {
       .limit(1),
 
     // Has at least one launched (non-draft) campaign?
-    member
-      ? supabase
-          .from("campaigns")
-          .select("id")
-          .eq("organization_id", member.organization_id as string)
-          .in("status", ["active", "paused", "completed"])
-          .limit(1)
-      : Promise.resolve({ data: [] }),
+    supabase
+      .from("campaigns")
+      .select("id")
+      .eq("organization_id", activeOrgId)
+      .in("status", ["active", "paused", "completed"])
+      .limit(1),
   ]);
 
   const hasAdAccount = !!(accountsRes.data && accountsRes.data.length > 0);
@@ -76,7 +62,7 @@ export default async function DashboardPage() {
     campaignsRes.data && campaignsRes.data.length > 0
   );
 
-  // 4. Show empty/onboarding state if no ad accounts connected
+  // 3. Show empty/onboarding state if no ad accounts connected
   if (!hasAdAccount) {
     // Resolve display name from user metadata
     const userName =
@@ -109,7 +95,7 @@ export default async function DashboardPage() {
     );
   }
 
-  // 5. Fetch dashboard data + campaigns in parallel
+  // 4. Fetch dashboard data + campaigns in parallel
   const [dashboardData, campaigns] = await Promise.all([
     getDashboardData(supabase, user.id, { campaignId: "all" }),
     getCampaigns(supabase),
@@ -128,7 +114,7 @@ export default async function DashboardPage() {
     demographics: { age: [], gender: [], region: [] },
   };
 
-  // 6. Render full dashboard
+  // 5. Render full dashboard
   return (
     <div className="flex min-h-screen bg-muted/30 font-sans">
       <div className="flex flex-1 flex-col min-w-0 w-full">

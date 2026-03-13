@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { decrypt } from "@/lib/crypto";
+import { getActiveOrgId } from "@/lib/active-org";
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
@@ -11,20 +12,15 @@ export async function GET(request: NextRequest) {
   } = await supabase.auth.getUser();
   if (!user) return new Response("Unauthorized", { status: 401 });
 
-  // 2. Get the Meta Access Token from DB
-  // We look for a connected Meta account for this user's organization
-  const { data: member } = await supabase
-    .from("organization_members")
-    .select("organization_id")
-    .eq("user_id", user.id)
-    .single();
+  // 2. Get active organization
+  const activeOrgId = await getActiveOrgId();
+  if (!activeOrgId) return new Response("No Org", { status: 400 });
 
-  if (!member) return new Response("No Org", { status: 400 });
-
+  // 3. Get the Meta Access Token from DB
   const { data: account } = await supabase
     .from("ad_accounts")
     .select("access_token")
-    .eq("organization_id", member.organization_id as string)
+    .eq("organization_id", activeOrgId)
     .eq("platform", "meta")
     .eq("health_status", "healthy") // Only use working tokens
     .limit(1)
@@ -37,7 +33,7 @@ export async function GET(request: NextRequest) {
   try {
     const accessToken = decrypt(account.access_token);
 
-    // 3. Find the Instagram Business ID
+    // 4. Find the Instagram Business ID
     // User -> Facebook Pages -> Linked Instagram Account
     const pagesUrl = `https://graph.facebook.com/v22.0/me/accounts?fields=instagram_business_account{id,username,profile_picture_url}&access_token=${accessToken}`;
     const pagesRes = await fetch(pagesUrl);

@@ -5,6 +5,7 @@ import {
 } from "@/lib/ai/service";
 import { createClient } from "@/lib/supabase/server";
 import { OBJECTIVE_INTENT_MAP, AdSyncObjective } from "@/lib/constants";
+import { getActiveOrgId } from "@/lib/active-org";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -15,29 +16,30 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
   if (!user) return new Response("Unauthorized", { status: 401 });
 
-  // 2. Subscription guard — strategy generation is FREE but requires active account
-  const { data: member } = await supabase
-    .from("organization_members")
+  // 2. Get active organization
+  const activeOrgId = await getActiveOrgId();
+  if (!activeOrgId) {
+    return new Response("No organization found", { status: 403 });
+  }
+
+  // 3. Subscription guard — strategy generation is FREE but requires active account
+  const { data: org } = await supabase
+    .from("organizations")
     .select(
       `
-      organization_id,
-      organizations (
-        subscription_status,
-        subscription_expires_at,
-        industry,
-        selling_method,
-        price_tier,
-        customer_gender
-      )
+      id,
+      subscription_status,
+      subscription_expires_at,
+      industry,
+      selling_method,
+      price_tier,
+      customer_gender
     `,
     )
-    .eq("user_id", user.id)
+    .eq("id", activeOrgId)
     .single();
 
-  if (!member) return new Response("No organization found", { status: 403 });
-
-  // @ts-ignore — nested join typing
-  const org = member.organizations;
+  if (!org) return new Response("No organization found", { status: 403 });
   const status = org?.subscription_status as string | undefined;
   const expiresAt = org?.subscription_expires_at as string | undefined;
 
@@ -122,7 +124,7 @@ export async function POST(request: Request) {
         .from("ai_requests")
         .insert({
           user_id: user.id,
-          organization_id: member.organization_id as string,
+          organization_id: activeOrgId,
           request_type: "copy_refinement",
           input_json: {
             type: "copy_refinement",
@@ -219,7 +221,7 @@ export async function POST(request: Request) {
       .from("ai_requests")
       .insert({
         user_id: user.id,
-        organization_id: member.organization_id as string,
+        organization_id: activeOrgId,
         request_type: "text_generation",
         input_json: {
           type: "campaign_strategy",

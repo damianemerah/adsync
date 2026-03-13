@@ -1,6 +1,7 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { decrypt } from "@/lib/crypto";
 import { MetaService } from "@/lib/api/meta";
+import { getActiveOrgId } from "@/lib/active-org";
 
 /**
  * Server-side fetcher for a single campaign by ID with real-time Meta insights
@@ -230,23 +231,11 @@ export async function getCampaignById(supabase: SupabaseClient, id: string) {
  * Note: Relies on RLS policies to filter campaigns by organization/user
  */
 export async function getCampaigns(supabase: SupabaseClient) {
-  // 1. Get Current User
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return [];
+  // 1. Get active org ID from cookie
+  const activeOrgId = await getActiveOrgId();
+  if (!activeOrgId) return [];
 
-  // 2. Get User's Organization ID
-  // (In a full app, this might come from a context/cookie if they have multiple orgs)
-  const { data: member } = await supabase
-    .from("organization_members")
-    .select("organization_id")
-    .eq("user_id", user.id)
-    .single();
-
-  if (!member) return [];
-
-  // 3. Fetch Campaigns for that Organization
+  // 2. Fetch Campaigns for that Organization
   const { data, error } = await supabase
     .from("campaigns")
     .select(
@@ -259,7 +248,7 @@ export async function getCampaigns(supabase: SupabaseClient) {
       )
     `,
     )
-    .eq("organization_id", member.organization_id) // 👈 Explicit Filter
+    .eq("organization_id", activeOrgId) // 👈 Explicit Filter by active org
     .order("created_at", { ascending: false });
 
   if (error) throw error;

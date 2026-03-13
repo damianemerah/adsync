@@ -1,6 +1,7 @@
 import { decrypt } from "@/lib/crypto";
 import { MetaService } from "@/lib/api/meta";
 import { SupabaseClient } from "@supabase/supabase-js";
+import { getActiveOrgId } from "@/lib/active-org";
 
 // Interface removed as we return a dynamic object now
 
@@ -21,20 +22,15 @@ export async function getDashboardData(
     accountId?: string;
   },
 ) {
-  // 1. Get Org & Ad Account
-  const { data: member } = await supabase
-    .from("organization_members")
-    .select("organization_id")
-    .eq("user_id", userId)
-    .single();
-
-  if (!member) return null;
+  // 1. Get active org ID from cookie
+  const activeOrgId = await getActiveOrgId();
+  if (!activeOrgId) return null;
 
   // Build query for ad accounts
   let query = supabase
     .from("ad_accounts")
     .select("*")
-    .eq("organization_id", member.organization_id as string)
+    .eq("organization_id", activeOrgId)
     .eq("platform", "meta") // Currently supporting Meta
     .eq("health_status", "healthy");
 
@@ -61,7 +57,7 @@ export async function getDashboardData(
     .select(
       "revenue_ngn, sales_count, whatsapp_clicks, website_clicks, spend_cents, impressions, clicks",
     )
-    .eq("organization_id", member.organization_id);
+    .eq("organization_id", activeOrgId);
 
   if (filter?.accountId) {
     campaignQuery = campaignQuery.eq("ad_account_id", filter.accountId);
@@ -254,22 +250,11 @@ export async function getRecentCampaigns(
   supabase: SupabaseClient,
   limit: number = 5,
 ) {
-  // 1. Get Current User
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return [];
+  // 1. Get active org ID from cookie
+  const activeOrgId = await getActiveOrgId();
+  if (!activeOrgId) return [];
 
-  // 2. Get User's Organization ID
-  const { data: member } = await supabase
-    .from("organization_members")
-    .select("organization_id")
-    .eq("user_id", user.id)
-    .single();
-
-  if (!member) return [];
-
-  // 3. Fetch Recent Campaigns for that Organization
+  // 2. Fetch Recent Campaigns for that Organization
   const { data, error } = await supabase
     .from("campaigns")
     .select(
@@ -281,7 +266,7 @@ export async function getRecentCampaigns(
       )
     `,
     )
-    .eq("organization_id", member.organization_id) // 👈 Explicit Filter
+    .eq("organization_id", activeOrgId) // 👈 Explicit Filter by active org
     .order("created_at", { ascending: false })
     .limit(limit);
 
