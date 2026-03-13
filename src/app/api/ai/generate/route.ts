@@ -23,6 +23,7 @@ export async function POST(request: Request) {
       organization_id,
       organizations (
         subscription_status,
+        subscription_expires_at,
         industry,
         selling_method,
         price_tier,
@@ -38,12 +39,23 @@ export async function POST(request: Request) {
   // @ts-ignore — nested join typing
   const org = member.organizations;
   const status = org?.subscription_status as string | undefined;
+  const expiresAt = org?.subscription_expires_at as string | undefined;
+
   const allowedStatuses = ["active", "trialing"];
   if (status && !allowedStatuses.includes(status)) {
     return NextResponse.json(
       { error: "Your subscription is inactive. Please renew to continue." },
       { status: 403 },
     );
+  }
+
+  if (status === "trialing" && expiresAt) {
+    if (new Date(expiresAt).getTime() < Date.now()) {
+      return NextResponse.json(
+        { error: "Your free trial has expired. Please upgrade to continue." },
+        { status: 403 },
+      );
+    }
   }
 
   // 3. Parse input

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getActiveOrgId } from "@/lib/active-org";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -11,9 +12,16 @@ export async function GET(request: Request) {
     return new Response("Unauthorized", { status: 401 });
   }
 
+  const activeOrgId = await getActiveOrgId();
+  if (!activeOrgId) {
+    return new Response("No active organization found", { status: 400 });
+  }
+
   const appId = process.env.META_APP_ID;
   const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/connect/meta/callback`;
-  const state = user.id;
+
+  // Combine user ID and active org ID so the callback knows which business context this is
+  const state = `${user.id}:${activeOrgId}`;
 
   // UPDATED SCOPES: Added Pages & Instagram permissions
   const scopes = [

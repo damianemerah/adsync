@@ -47,7 +47,9 @@ export default async function MainLayout({
   // 2. Check Organization Membership (for the active org, or any org if none is active)
   let membershipQuery = supabase
     .from("organization_members")
-    .select("organization_id, organizations(subscription_status)")
+    .select(
+      "organization_id, organizations(subscription_status, subscription_expires_at)",
+    )
     .eq("user_id", user.id)
     .limit(1);
 
@@ -56,6 +58,8 @@ export default async function MainLayout({
   }
 
   const { data } = await membershipQuery;
+
+  console.log("Membership data🔥🔥", data);
   const membership = data?.[0];
 
   // 🔴 LOCK: If no organization at all, force them to onboarding
@@ -64,8 +68,15 @@ export default async function MainLayout({
     redirect("/onboarding");
   }
 
-  const subStatus =
+  let subStatus =
     (membership?.organizations as any)?.subscription_status || "expired";
+
+  const expiresAt = (membership?.organizations as any)?.subscription_expires_at;
+  if (subStatus === "trialing" && expiresAt) {
+    if (new Date(expiresAt).getTime() < Date.now()) {
+      subStatus = "expired";
+    }
+  }
 
   // 🟢 PASS: Render the dashboard with the Gate wrapper
   return (

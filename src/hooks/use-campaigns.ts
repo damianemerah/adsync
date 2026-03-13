@@ -22,7 +22,7 @@ export function useCampaigns() {
         .select(
           `
           *,
-          ad_accounts ( platform, currency )
+          ad_accounts ( platform, currency, account_name )
         `,
         )
         .order("created_at", { ascending: false });
@@ -47,10 +47,23 @@ export function useCampaigns() {
         createdAt: new Date(c.created_at || Date.now()).toLocaleDateString(),
         clicks: c.clicks || 0,
         spend_cents: c.spend_cents || 0,
-        ctr: c.ctr || 0,
+        spend: (c.spend_cents || 0) / 100,
+        ctr: Number(c.ctr || 0),
         ad_account_id: c.ad_account_id,
         objective: c.objective,
         created_at: c.created_at,
+        revenueNgn: c.revenue_ngn || 0,
+        salesCount: c.sales_count || 0,
+        whatsappClicks: c.whatsapp_clicks || 0,
+        websiteClicks: c.website_clicks || 0,
+        whatsappClickRate: c.whatsapp_click_rate || 0,
+        adAccount: c.ad_accounts
+          ? {
+              platform: c.ad_accounts.platform,
+              currency: c.ad_accounts.currency || "NGN",
+              accountName: c.ad_accounts.account_name,
+            }
+          : null,
       }));
     },
   });

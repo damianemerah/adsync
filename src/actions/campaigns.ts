@@ -81,7 +81,7 @@ export async function launchCampaign(config: LaunchConfig) {
 
   const { data: org } = await supabase
     .from("organizations")
-    .select("subscription_status")
+    .select("subscription_status, subscription_expires_at")
     .eq("id", orgId)
     .single();
 
@@ -96,6 +96,14 @@ export async function launchCampaign(config: LaunchConfig) {
     throw new Error(
       "Your subscription has expired. Please renew to launch campaigns.",
     );
+  }
+
+  if (subStatus === "trialing" && org.subscription_expires_at) {
+    if (new Date(org.subscription_expires_at).getTime() < Date.now()) {
+      throw new Error(
+        "Your free trial has expired. Please upgrade to launch campaigns.",
+      );
+    }
   }
 
   // 🛑 INTEGRATION: Pre-Launch Validation (Intelligence Layer)

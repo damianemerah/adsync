@@ -364,7 +364,7 @@ export function Sidebar({ activeOrgId }: { activeOrgId?: string | null }) {
                       {user?.user_metadata?.full_name || "User"}
                     </p>
                     <p className="text-[11px] text-muted-foreground truncate font-medium">
-                      {subscription?.org?.tier || "Basic Plan"}
+                      {subscription?.org?.tier || ""}
                     </p>
                   </div>
                   <MoreVert className="h-5 w-5 text-muted-foreground" />

@@ -41,6 +41,7 @@ export async function requireCredits(
        organizations (
          id,
          subscription_status,
+         subscription_expires_at,
          credits_balance
        )`,
     )
@@ -53,6 +54,7 @@ export async function requireCredits(
   const org = member.organizations as {
     id: string;
     subscription_status: string;
+    subscription_expires_at: string | null;
     credits_balance: number;
   };
 
@@ -61,6 +63,16 @@ export async function requireCredits(
   if (!allowedStatuses.includes(org.subscription_status)) {
     throw new Error(
       "Your subscription is inactive. Please renew to continue generating.",
+    );
+  }
+
+  if (
+    org.subscription_status === "trialing" &&
+    org.subscription_expires_at &&
+    new Date(org.subscription_expires_at).getTime() < Date.now()
+  ) {
+    throw new Error(
+      "Your free trial has expired. Please upgrade to continue generating.",
     );
   }
 

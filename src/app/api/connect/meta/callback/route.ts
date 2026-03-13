@@ -6,7 +6,8 @@ import { TIER_CONFIG, TierId } from "@/lib/constants";
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get("code");
-  const state = searchParams.get("state"); // This is the User ID
+  const state = searchParams.get("state"); // Expected format: "userId:orgId"
+  const [userId, orgId] = (state || "").split(":");
   const error = searchParams.get("error");
 
   console.log("🚀🔥Meta Callback Params:", { code, state, error });
@@ -57,11 +58,11 @@ export async function GET(request: NextRequest) {
 
   // 3. Get User's Organization
   const supabase = await createClient(); // Await not needed for creating client, but needed for DB calls
-  console.debug("[Meta Callback] Querying users table for id", { state });
+  console.debug("[Meta Callback] Querying users table for id", { userId });
   const { data: userData, error: userQueryError } = await supabase
     .from("users")
     .select("id")
-    .eq("id", state as string)
+    .eq("id", userId as string)
     .maybeSingle();
 
   if (userQueryError) {
@@ -75,26 +76,50 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/login`);
   }
 
-  // Get the Organization ID
-  console.debug("[Meta Callback] Querying organization_members for user", {
-    user_id: userData.id,
-  });
-  const { data: memberData, error: orgQueryError } = await supabase
-    .from("organization_members")
-    .select("organization_id")
-    .eq("user_id", userData.id)
-    .single();
+  // targetOrgId to use
+  let targetOrgId = orgId;
 
-  if (orgQueryError) {
-    console.error(
-      "[Meta Callback] Organization member query error",
-      orgQueryError,
+  if (!targetOrgId) {
+    console.debug(
+      "[Meta Callback] No orgId in state, querying organization_members for user",
+      {
+        user_id: userData.id,
+      },
     );
-  }
-  console.debug("[Meta Callback] Organization Membership Data:", memberData);
+    // Fallback if missing
+    const { data: memberData, error: orgQueryError } = await supabase
+      .from("organization_members")
+      .select("organization_id")
+      .eq("user_id", userData.id)
+      .limit(1)
+      .maybeSingle();
 
-  if (!memberData) {
-    console.warn("[Meta Callback] No organization member found");
+    if (orgQueryError) {
+      console.error(
+        "[Meta Callback] Organization member query error",
+        orgQueryError,
+      );
+    }
+    targetOrgId = memberData?.organization_id as string;
+  } else {
+    // Verify membership
+    const { data: memberData, error: orgQueryError } = await supabase
+      .from("organization_members")
+      .select("organization_id")
+      .eq("user_id", userData.id)
+      .eq("organization_id", targetOrgId)
+      .maybeSingle();
+
+    if (!memberData) {
+      console.error(
+        "[Meta Callback] User is not a member of the requested org",
+      );
+      targetOrgId = undefined as any;
+    }
+  }
+
+  if (!targetOrgId) {
+    console.warn("[Meta Callback] No valid organization member found");
     return NextResponse.redirect(
       `${process.env.NEXT_PUBLIC_APP_URL}/onboarding?error=no_org`,
     );
@@ -104,7 +129,7 @@ export async function GET(request: NextRequest) {
   const { data: orgData } = await supabase
     .from("organizations")
     .select("subscription_tier")
-    .eq("id", memberData.organization_id as string)
+    .eq("id", targetOrgId)
     .single();
 
   const tier = (orgData?.subscription_tier || "starter") as TierId;
@@ -113,7 +138,7 @@ export async function GET(request: NextRequest) {
   const { count: existingCount } = await supabase
     .from("ad_accounts")
     .select("id", { count: "exact", head: true })
-    .eq("organization_id", memberData.organization_id as string);
+    .eq("organization_id", targetOrgId);
 
   if ((existingCount ?? 0) >= maxAccounts) {
     console.warn(
@@ -142,7 +167,7 @@ export async function GET(request: NextRequest) {
     const acc = accountsData.data[0];
 
     console.debug("[Meta Callback] Upserting ad account", {
-      organization_id: memberData.organization_id,
+      organization_id: targetOrgId,
       platform: "meta",
       platform_account_id: acc.account_id,
       account_name: acc.name,
@@ -151,7 +176,7 @@ export async function GET(request: NextRequest) {
 
     const { error: upsertError } = await supabase.from("ad_accounts").upsert(
       {
-        organization_id: memberData.organization_id,
+        organization_id: targetOrgId,
         platform: "meta",
         platform_account_id: acc.account_id,
         account_name: acc.name,
@@ -179,7 +204,7 @@ export async function GET(request: NextRequest) {
       const { data: newAccount } = await supabase
         .from("ad_accounts")
         .select("id")
-        .eq("organization_id", memberData.organization_id as string)
+        .eq("organization_id", targetOrgId)
         .eq("platform_account_id", acc.account_id)
         .single();
 

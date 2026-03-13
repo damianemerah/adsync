@@ -103,7 +103,7 @@ export function CreateBusinessDialog({
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2.5">
+          <div className="space-y-2.5 min-w-0">
             <Label
               htmlFor="industry"
               className="text-sm font-semibold text-foreground"
@@ -111,7 +111,7 @@ export function CreateBusinessDialog({
               Industry
             </Label>
             <Select name="industry" defaultValue={INDUSTRIES[0]}>
-              <SelectTrigger className="h-12 rounded-2xl bg-muted/40 border-transparent hover:bg-muted/60 focus:bg-background focus:border-ring transition-all px-4">
+              <SelectTrigger className="w-full h-12 rounded-2xl bg-muted/40 border-transparent hover:bg-muted/60 focus:bg-background focus:border-ring transition-all px-4 [&>span]:line-clamp-1 text-left">
                 <SelectValue placeholder="Select industry" />
               </SelectTrigger>
               <SelectContent className="rounded-2xl border-border/50 shadow-soft">
@@ -128,7 +128,7 @@ export function CreateBusinessDialog({
             </Select>
           </div>
 
-          <div className="space-y-2.5">
+          <div className="space-y-2.5 min-w-0">
             <Label
               htmlFor="sellingMethod"
               className="text-sm font-semibold text-foreground"
@@ -136,7 +136,7 @@ export function CreateBusinessDialog({
               Selling Method
             </Label>
             <Select name="sellingMethod" defaultValue="online">
-              <SelectTrigger className="h-12 rounded-2xl bg-muted/40 border-transparent hover:bg-muted/60 focus:bg-background focus:border-ring transition-all px-4">
+              <SelectTrigger className="w-full h-12 rounded-2xl bg-muted/40 border-transparent hover:bg-muted/60 focus:bg-background focus:border-ring transition-all px-4 [&>span]:line-clamp-1 text-left">
                 <SelectValue placeholder="Select method" />
               </SelectTrigger>
               <SelectContent className="rounded-2xl border-border/50 shadow-soft">
@@ -196,7 +196,7 @@ export function CreateBusinessDialog({
               </>
             ) : (
               <>
-                <Plus className="w-4 h-4 mr-2 stroke-[3]" />
+                <Plus className="w-4 h-4 mr-2 stroke-3" />
                 Create & Switch
               </>
             )}
@@ -227,7 +227,7 @@ export function CreateBusinessDialog({
       >
         {trigger ?? (
           <Button className="rounded-3xl shadow-sm px-5 font-semibold">
-            <Plus className="w-4 h-4 mr-2 stroke-[3]" /> Create Business
+            <Plus className="w-4 h-4 mr-2 stroke-3" /> Create Business
           </Button>
         )}
       </div>

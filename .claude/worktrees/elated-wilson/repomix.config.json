@@ -1,5 +1,0 @@
-{
-  "ignore": {
-    "customPatterns": ["**/components/ui/**", ".agent/**"]
-  }
-}

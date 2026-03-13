@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { useActiveOrgContext } from "@/components/providers/active-org-provider";
 import { GlobalContextBar } from "@/components/layout/global-context-bar";
 import { MetricCards } from "@/components/dashboard/metric-cards";
 import {
@@ -15,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CampaignMetrics } from "@/lib/utils/campaign-metrics";
 import { useDashboardStore } from "@/store/dashboard-store";
 import { useInsights } from "@/hooks/use-insights";
+import { useCampaigns } from "@/hooks/use-campaigns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AccountHealthDialog } from "@/components/dashboard/account-health-dialog";
 import { getAccountHealth } from "@/actions/account-health";
@@ -44,21 +47,50 @@ export function UnifiedDashboard({
     useDashboardStore();
   const router = useRouter();
 
+  // Handle auto-refresh after connecting Meta account
+  const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
+  const { activeOrgId } = useActiveOrgContext();
+
+  // Live-fetch campaigns from DB
+  const { data: liveCampaigns } = useCampaigns();
+  const displayCampaigns = liveCampaigns ?? campaigns;
+
   // Track which metric cards the user has toggled ON
   const [healthDialogOpen, setHealthDialogOpen] = useState(false);
   const [hasProblems, setHasProblems] = useState(false);
 
   // Run a quick health check on mount to know if we should flash the button
   useEffect(() => {
-    getAccountHealth().then((result) => {
-      setHasProblems(result.totalProblems > 0);
-    }).catch(() => {});
+    getAccountHealth()
+      .then((result) => {
+        setHasProblems(result.totalProblems > 0);
+      })
+      .catch(() => {});
   }, []);
 
   const [selectedMetricLabels, setSelectedMetricLabels] = useState<string[]>([
     "Total Spend",
     "Impressions",
   ]);
+
+  useEffect(() => {
+    if (searchParams.get("success") === "meta_connected") {
+      // The background sync takes a moment. Refetch after 3 seconds.
+      const timer = setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["campaigns", activeOrgId] });
+        queryClient.invalidateQueries({
+          queryKey: ["insights", selectedPlatform],
+        });
+
+        // Clean up URL without reloading
+        const url = new URL(window.location.href);
+        url.searchParams.delete("success");
+        window.history.replaceState({}, "", url.pathname + url.search);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams, queryClient, activeOrgId, selectedPlatform]);
 
   // Live-fetch from /api/insights whenever filters change
   const { data: liveData, isLoading: isLoadingInsights } = useInsights({
@@ -85,12 +117,12 @@ export function UnifiedDashboard({
   // Calculate Revenue Breakdown from Campaigns
   // Heuristic: If WhatsApp clicks > Website clicks, assign revenue to WhatsApp, else Website.
   // In future, this should be precise based on where the conversion happened.
-  const revenueBreakdown = campaigns.reduce(
-    (acc, campaign) => {
-      const rev = campaign.revenueNgn || 0;
-      const sales = campaign.salesCount || 0;
-      const wa = campaign.whatsappClicks || 0;
-      const web = campaign.websiteClicks || 0;
+  const revenueBreakdown = displayCampaigns.reduce(
+    (acc: any, campaign: any) => {
+      const rev = campaign.revenueNgn || campaign.revenue_ngn || 0;
+      const sales = campaign.salesCount || campaign.sales_count || 0;
+      const wa = campaign.whatsappClicks || campaign.whatsapp_clicks || 0;
+      const web = campaign.websiteClicks || campaign.website_clicks || 0;
 
       if (wa >= web) {
         acc.whatsappRevenue += rev;
@@ -195,7 +227,7 @@ export function UnifiedDashboard({
               </h2>
             </div>
             <CampaignsView
-              campaigns={campaigns}
+              campaigns={displayCampaigns}
               pageSize={5}
               onRowClick={(id) => router.push(`/campaigns?id=${id}`)}
             />

@@ -35,7 +35,9 @@ import {
   NavArrowUp,
 } from "iconoir-react";
 import { updateOrganization } from "@/actions/settings";
+import { deleteOrganization } from "@/actions/organization";
 import { updateAdAccountCapi } from "@/actions/ad-accounts";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useAdAccounts } from "@/hooks/use-ad-account";
 import { useSubscription } from "@/hooks/use-subscription";
@@ -209,6 +211,8 @@ export function BusinessTab({
   const [activeTab, setActiveTab] = useState("accounts");
   const [connectOpen, setConnectOpen] = useState(false);
   const [createBizOpen, setCreateBizOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const router = useRouter();
 
   const {
     data: accounts,
@@ -266,6 +270,33 @@ export function BusinessTab({
       } catch (e: any) {
         toast.error("Failed to disconnect", { description: e.message });
       }
+    }
+  };
+
+  const handleDeleteBusiness = async () => {
+    if (
+      !confirm(
+        "Are you absolutely sure you want to delete this business? This action cannot be undone and will permanently delete all associated campaigns, ad accounts, and data.",
+      )
+    ) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const result = await deleteOrganization(organization.id);
+      if (result.error) {
+        toast.error(result.error);
+        setIsDeleting(false);
+      } else {
+        toast.success("Business deleted successfully");
+        // Layout handles the redirect if no orgs left, or switches active org.
+        // We just need to hard reload or push to dashboard to trigger a fresh Server Component render
+        window.location.href = "/dashboard";
+      }
+    } catch (e: any) {
+      toast.error("Failed to delete business", { description: e.message });
+      setIsDeleting(false);
     }
   };
 
@@ -352,13 +383,13 @@ export function BusinessTab({
                     required
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 min-w-0">
                   <Label htmlFor="industry">Industry</Label>
                   <Select
                     name="industry"
                     defaultValue={organization.industry || INDUSTRIES[0]}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full [&>span]:line-clamp-1 text-left">
                       <SelectValue placeholder="Select industry" />
                     </SelectTrigger>
                     <SelectContent>
@@ -371,13 +402,13 @@ export function BusinessTab({
                   </Select>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2 min-w-0">
                   <Label htmlFor="sellingMethod">Selling Method</Label>
                   <Select
                     name="sellingMethod"
                     defaultValue={organization.selling_method || "online"}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full [&>span]:line-clamp-1 text-left">
                       <SelectValue placeholder="Select method" />
                     </SelectTrigger>
                     <SelectContent>
@@ -389,13 +420,13 @@ export function BusinessTab({
                 </div>
 
                 <div className="space-y-2 flex gap-4">
-                  <div className="flex-1 space-y-2">
+                  <div className="flex-1 space-y-2 min-w-0">
                     <Label htmlFor="priceTier">Price Tier</Label>
                     <Select
                       name="priceTier"
                       defaultValue={organization.price_tier || "mid"}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="w-full [&>span]:line-clamp-1 text-left">
                         <SelectValue placeholder="Select tier" />
                       </SelectTrigger>
                       <SelectContent>
@@ -405,13 +436,13 @@ export function BusinessTab({
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="flex-1 space-y-2">
+                  <div className="flex-1 space-y-2 min-w-0">
                     <Label htmlFor="customerGender">Target Audience</Label>
                     <Select
                       name="customerGender"
                       defaultValue={organization.customer_gender || "both"}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="w-full [&>span]:line-clamp-1 text-left">
                         <SelectValue placeholder="Select audience" />
                       </SelectTrigger>
                       <SelectContent>
@@ -666,6 +697,46 @@ export function BusinessTab({
             </CardContent>
           </TabsContent>
         </Tabs>
+      </Card>
+
+      {/* Danger Zone */}
+      <Card className="border-destructive/20 bg-destructive/5">
+        <CardHeader>
+          <CardTitle className="text-destructive flex items-center gap-2">
+            <WarningTriangle className="h-5 w-5" />
+            Danger Zone
+          </CardTitle>
+          <CardDescription className="text-destructive/80">
+            Irreversible and destructive actions for this business.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 border border-destructive/20 rounded-lg bg-background/50">
+            <div>
+              <p className="font-semibold text-foreground">Delete Business</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Permanently remove <strong>{organization.name}</strong>, along
+                with all its campaigns, ad accounts, and data from Sellam. This
+                action cannot be undone.
+              </p>
+            </div>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteBusiness}
+              disabled={isDeleting}
+              className="shrink-0"
+            >
+              {isDeleting ? (
+                <>
+                  <SystemRestart className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Business"
+              )}
+            </Button>
+          </div>
+        </CardContent>
       </Card>
 
       {/* Connect Account Dialog */}

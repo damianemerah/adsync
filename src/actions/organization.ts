@@ -61,7 +61,10 @@ async function _insertOrgWithMember(
     priceTier?: string | null;
     customerGender?: string | null;
     subscriptionTier: string;
+    subscriptionStatus: string;
+    subscriptionExpiresAt: string | null;
     userId: string;
+    grantTrialCredits: boolean;
   },
 ): Promise<{ orgId: string | null; error: string | null }> {
   const {
@@ -73,7 +76,10 @@ async function _insertOrgWithMember(
     priceTier,
     customerGender,
     subscriptionTier,
+    subscriptionStatus,
+    subscriptionExpiresAt,
     userId,
+    grantTrialCredits,
   } = params;
 
   const { data: org, error: orgError } = await supabase
@@ -87,10 +93,8 @@ async function _insertOrgWithMember(
       price_tier: priceTier || null,
       customer_gender: customerGender || null,
       subscription_tier: subscriptionTier,
-      subscription_status: SUBSCRIPTION_STATUS.TRIALING,
-      subscription_expires_at: new Date(
-        Date.now() + 14 * 24 * 60 * 60 * 1000,
-      ).toISOString(),
+      subscription_status: subscriptionStatus,
+      subscription_expires_at: subscriptionExpiresAt,
     })
     .select()
     .single();
@@ -109,7 +113,9 @@ async function _insertOrgWithMember(
     return { orgId: null, error: "Failed to join organization" };
   }
 
-  await grantFreeTrialCredits(org.id);
+  if (grantTrialCredits) {
+    await grantFreeTrialCredits(org.id);
+  }
 
   return { orgId: org.id, error: null };
 }
@@ -198,6 +204,17 @@ export async function createOrganization(
         "-" +
         Math.floor(Math.random() * 10000);
 
+      const trialExpiresAt =
+        user.user_metadata?.trial_expires_at ||
+        new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+      const isNewTrial = !user.user_metadata?.trial_expires_at;
+
+      if (isNewTrial) {
+        await supabase.auth.updateUser({
+          data: { trial_expires_at: trialExpiresAt },
+        });
+      }
+
       const { orgId, error } = await _insertOrgWithMember(supabase, {
         name: orgName,
         slug,
@@ -207,10 +224,14 @@ export async function createOrganization(
         priceTier,
         customerGender,
         subscriptionTier: PLAN_IDS.GROWTH, // ← Trial always on Growth
+        subscriptionStatus: SUBSCRIPTION_STATUS.TRIALING,
+        subscriptionExpiresAt: trialExpiresAt,
         userId: user.id,
+        grantTrialCredits: isNewTrial,
       });
 
-      if (error || !orgId) return { error: error ?? "Failed to create organization" };
+      if (error || !orgId)
+        return { error: error ?? "Failed to create organization" };
       activeOrgId = orgId;
     }
 
@@ -241,7 +262,9 @@ export async function createOrganization(
   // 1. Load all owned orgs to check limits
   const { data: ownedMemberships, error: countError } = await supabase
     .from("organization_members")
-    .select("organization_id, organizations(subscription_tier)")
+    .select(
+      "organization_id, organizations(subscription_tier, subscription_status, subscription_expires_at)",
+    )
     .eq("user_id", user.id)
     .eq("role", "owner");
 
@@ -250,19 +273,31 @@ export async function createOrganization(
     return { error: "Failed to check organization limit" };
   }
 
-  // 2. Determine highest tier across all owned orgs
-  const tiers: TierId[] = (ownedMemberships ?? []).map((m) => {
-    const org = m.organizations as { subscription_tier: string | null } | null;
-    return (org?.subscription_tier || "starter") as TierId;
-  });
-
+  // 2. Determine highest tier and its attributes across all owned orgs
   const tierOrder: TierId[] = ["starter", "growth", "agency"];
-  const highestTier: TierId =
-    tiers.length > 0
-      ? tiers.reduce((best, t) =>
-          tierOrder.indexOf(t) > tierOrder.indexOf(best) ? t : best,
-        )
-      : "starter";
+  const bestOrg = (ownedMemberships ?? []).reduce((best, current) => {
+    if (!best) return current;
+    const bestTier: TierId = ((best.organizations as any)?.subscription_tier ||
+      "starter") as TierId;
+    const currentTier: TierId = ((current.organizations as any)
+      ?.subscription_tier || "starter") as TierId;
+    return tierOrder.indexOf(currentTier) > tierOrder.indexOf(bestTier)
+      ? current
+      : best;
+  }, null as any);
+
+  const highestTier: TierId = ((bestOrg?.organizations as any)
+    ?.subscription_tier || "starter") as TierId;
+  const inheritedStatus =
+    (bestOrg?.organizations as any)?.subscription_status ||
+    SUBSCRIPTION_STATUS.TRIALING;
+  let inheritedExpiresAt =
+    (bestOrg?.organizations as any)?.subscription_expires_at || null;
+
+  // Fallback to auth metadata if it's trialing and missing for some reason
+  if (inheritedStatus === SUBSCRIPTION_STATUS.TRIALING && !inheritedExpiresAt) {
+    inheritedExpiresAt = user.user_metadata?.trial_expires_at || null;
+  }
 
   const maxOrgs = TIER_CONFIG[highestTier]?.limits?.maxOrganizations ?? 1;
 
@@ -291,18 +326,84 @@ export async function createOrganization(
       sellingMethod,
       priceTier,
       customerGender,
-      subscriptionTier: PLAN_IDS.STARTER, // ← New additional orgs start on Starter
+      subscriptionTier: highestTier, // ← Inherit highest tier
+      subscriptionStatus: inheritedStatus,
+      subscriptionExpiresAt: inheritedExpiresAt,
       userId: user.id,
+      grantTrialCredits: false, // New additional orgs don't get free credits again
     },
   );
 
   if (insertError || !newOrgId) {
-    return { error: insertError ?? "Failed to create business. Please try again." };
+    return {
+      error: insertError ?? "Failed to create business. Please try again.",
+    };
   }
 
   // 5. Switch active workspace to the new org
   await setActiveOrganization(newOrgId);
 
   revalidatePath("/", "layout");
+  return { success: true };
+}
+
+// ─── Delete Organization ──────────────────────────────────────────────────────
+
+/**
+ * Permanently deletes an organization and strictly requires the user to be an owner.
+ * All related data (campaigns, ad accounts, etc.) is cascaded on the database level.
+ * If the deleted organization was the currently active one, the cookie is cleared.
+ */
+export async function deleteOrganization(orgId: string): Promise<{
+  error?: string;
+  success?: boolean;
+}> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Not authenticated" };
+  }
+
+  // 1. Verify ownership
+  const { data: membership, error: membershipError } = await supabase
+    .from("organization_members")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("organization_id", orgId)
+    .maybeSingle();
+
+  if (membershipError || !membership) {
+    return { error: "Organization not found or access denied" };
+  }
+
+  if (membership.role !== "owner") {
+    return { error: "Only the business owner can delete the organization" };
+  }
+
+  // 2. Perform deletion
+  const { error: deleteError } = await supabase
+    .from("organizations")
+    .delete()
+    .eq("id", orgId);
+
+  if (deleteError) {
+    console.error("Failed to delete organization:", deleteError);
+    return { error: "Failed to delete the business" };
+  }
+
+  // 3. Clear active org cookie if it was the deleted one
+  const cookieStore = await cookies();
+  const activeOrgFromCookie = cookieStore.get(ACTIVE_ORG_COOKIE)?.value;
+
+  if (activeOrgFromCookie === orgId) {
+    cookieStore.delete(ACTIVE_ORG_COOKIE);
+  }
+
+  // 4. Force layout refresh
+  revalidatePath("/", "layout");
+
   return { success: true };
 }
