@@ -363,7 +363,7 @@ export function Sidebar({ activeOrgId }: { activeOrgId?: string | null }) {
                     <p className="text-sm font-medium text-foreground truncate">
                       {user?.user_metadata?.full_name || "User"}
                     </p>
-                    <p className="text-[11px] text-muted-foreground truncate font-medium">
+                    <p className="text-[11px] text-muted-foreground capitalize truncate font-medium">
                       {subscription?.org?.tier || ""}
                     </p>
                   </div>

@@ -59,7 +59,6 @@ export default async function MainLayout({
 
   const { data } = await membershipQuery;
 
-  console.log("Membership data🔥🔥", data);
   const membership = data?.[0];
 
   // 🔴 LOCK: If no organization at all, force them to onboarding

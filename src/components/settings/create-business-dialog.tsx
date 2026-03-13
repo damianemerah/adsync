@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -50,6 +52,8 @@ export function CreateBusinessDialog({
   const isControlled = open !== undefined;
   const [internalOpen, setInternalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const queryClient = useQueryClient();
+  const router = useRouter();
 
   const isOpen = isControlled ? open : internalOpen;
   const setIsOpen = isControlled
@@ -64,6 +68,10 @@ export function CreateBusinessDialog({
         toast.error(result.error);
       } else {
         toast.success("Business created! Switching workspace…");
+        // Invalidate organizations query to refresh the sidebar dropdown
+        queryClient.invalidateQueries({ queryKey: ["organizations"] });
+        queryClient.invalidateQueries({ queryKey: ["organization"] });
+        router.refresh();
         setIsOpen(false);
       }
     } catch {

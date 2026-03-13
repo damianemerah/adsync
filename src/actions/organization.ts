@@ -275,24 +275,55 @@ export async function createOrganization(
 
   // 2. Determine highest tier and its attributes across all owned orgs
   const tierOrder: TierId[] = ["starter", "growth", "agency"];
-  const bestOrg = (ownedMemberships ?? []).reduce((best, current) => {
-    if (!best) return current;
-    const bestTier: TierId = ((best.organizations as any)?.subscription_tier ||
-      "starter") as TierId;
-    const currentTier: TierId = ((current.organizations as any)
-      ?.subscription_tier || "starter") as TierId;
-    return tierOrder.indexOf(currentTier) > tierOrder.indexOf(bestTier)
-      ? current
-      : best;
-  }, null as any);
 
-  const highestTier: TierId = ((bestOrg?.organizations as any)
-    ?.subscription_tier || "starter") as TierId;
+  // Type guard helper for the joined organizations data
+  type OrgMembership = {
+    organization_id: string;
+    organizations: {
+      subscription_tier: string;
+      subscription_status: string;
+      subscription_expires_at: string | null;
+    } | null;
+  };
+
+  const bestOrg = (ownedMemberships ?? []).reduce<OrgMembership | null>(
+    (best, current) => {
+      const currentOrg = (current as OrgMembership).organizations;
+
+      // Skip if no org data (shouldn't happen but be defensive)
+      if (!currentOrg) {
+        console.warn("Missing org data for membership:", current);
+        return best;
+      }
+
+      if (!best || !best.organizations) return current as OrgMembership;
+
+      const bestTier: TierId = (best.organizations.subscription_tier ||
+        "starter") as TierId;
+      const currentTier: TierId = (currentOrg.subscription_tier ||
+        "starter") as TierId;
+
+      return tierOrder.indexOf(currentTier) > tierOrder.indexOf(bestTier)
+        ? (current as OrgMembership)
+        : best;
+    },
+    null,
+  );
+
+  // Extract tier and status with fallbacks
+  const orgData = bestOrg?.organizations;
+  const highestTier: TierId = (orgData?.subscription_tier ||
+    "starter") as TierId;
   const inheritedStatus =
-    (bestOrg?.organizations as any)?.subscription_status ||
-    SUBSCRIPTION_STATUS.TRIALING;
-  let inheritedExpiresAt =
-    (bestOrg?.organizations as any)?.subscription_expires_at || null;
+    orgData?.subscription_status || SUBSCRIPTION_STATUS.TRIALING;
+  let inheritedExpiresAt = orgData?.subscription_expires_at || null;
+
+  console.log("[createOrganization] Add Business - Tier inheritance:", {
+    highestTier,
+    inheritedStatus,
+    inheritedExpiresAt,
+    ownedOrgsCount: ownedMemberships?.length ?? 0,
+  });
 
   // Fallback to auth metadata if it's trialing and missing for some reason
   if (inheritedStatus === SUBSCRIPTION_STATUS.TRIALING && !inheritedExpiresAt) {

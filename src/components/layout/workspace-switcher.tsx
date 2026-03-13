@@ -45,6 +45,8 @@ export function WorkspaceSwitcher({ activeOrgId }: WorkspaceSwitcherProps) {
     useOrganization(activeOrgId);
   const { data: subscription } = useSubscription();
   const [createOpen, setCreateOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [switchingToId, setSwitchingToId] = useState<string | null>(null);
 
   const currentTier = (subscription?.org?.tier || "starter") as TierId;
   const maxOrgs = TIER_CONFIG[currentTier]?.limits?.maxOrganizations ?? 1;
@@ -52,17 +54,32 @@ export function WorkspaceSwitcher({ activeOrgId }: WorkspaceSwitcherProps) {
 
   const handleSwitch = async (org: Organization) => {
     if (org.id === organization?.id) return;
-    await switchOrganization(org.id);
+    setSwitchingToId(org.id);
+    setDropdownOpen(false); // Close dropdown immediately for better UX
+    try {
+      await switchOrganization(org.id);
+    } catch (error) {
+      console.error("Failed to switch organization:", error);
+      // Reopen dropdown on error so user can retry
+      setDropdownOpen(true);
+    } finally {
+      setSwitchingToId(null);
+    }
   };
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
         <DropdownMenuTrigger asChild>
-          <button className="flex items-center gap-2 p-2 rounded-xl hover:bg-muted hover:text-foreground transition-colors text-left group flex-1 border border-border shadow-soft bg-background">
+          <button
+            className="flex items-center gap-2 p-2 rounded-xl hover:bg-muted hover:text-foreground transition-colors text-left group flex-1 border border-border shadow-soft bg-background disabled:opacity-60 disabled:cursor-not-allowed"
+            disabled={isSwitching}
+          >
             <OrgAvatar name={organization?.name || "B"} size="sm" />
             <span className="text-sm font-medium truncate flex-1 text-foreground">
-              {organization?.name || "Loading..."}
+              {isSwitching && switchingToId
+                ? `Switching to ${organizations.find((o) => o.id === switchingToId)?.name || "workspace"}...`
+                : organization?.name || "Loading..."}
             </span>
             {isSwitching ? (
               <SystemRestart className="h-4 w-4 text-muted-foreground animate-spin" />
@@ -80,14 +97,17 @@ export function WorkspaceSwitcher({ activeOrgId }: WorkspaceSwitcherProps) {
           <div className="space-y-0.5">
             {organizations.map((org) => {
               const isActive = org.id === organization?.id;
+              const isSwitchingToThis = switchingToId === org.id;
               return (
                 <DropdownMenuItem
                   key={org.id}
                   className={cn(
-                    "flex items-center gap-3 p-2 focus:bg-muted/50 rounded-lg cursor-pointer",
+                    "flex items-center gap-3 p-2 focus:bg-muted/50 rounded-lg cursor-pointer transition-opacity",
                     isActive && "bg-primary/5 text-primary",
+                    isSwitching && "opacity-50 pointer-events-none",
                   )}
                   onClick={() => handleSwitch(org)}
+                  disabled={isSwitching}
                 >
                   <OrgAvatar name={org.name} size="sm" />
                   <div className="flex-1 min-w-0">
@@ -96,8 +116,11 @@ export function WorkspaceSwitcher({ activeOrgId }: WorkspaceSwitcherProps) {
                       {org.subscription_tier || "starter"}
                     </p>
                   </div>
-                  {isActive && (
+                  {isActive && !isSwitchingToThis && (
                     <Check className="h-4 w-4 text-primary shrink-0" />
+                  )}
+                  {isSwitchingToThis && (
+                    <SystemRestart className="h-4 w-4 text-muted-foreground animate-spin shrink-0" />
                   )}
                 </DropdownMenuItem>
               );
