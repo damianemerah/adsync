@@ -62,6 +62,17 @@ export interface CampaignState {
   // NEW: Store Name & Interests here to survive refresh
   campaignName: string;
   targetInterests: TargetingOption[];
+
+  // Optional fields for specific stages
+  adSetName?: string;
+  platformCampaignId?: string; // Set after launch
+  pageId?: string; // Meta specific Page ID
+  platformAccountId?: string; // Ad account ID being used
+
+  // Objective-specific fields
+  leadGenFormId: string | null; // leads objective: Meta Lead Gen Form ID
+  appStoreUrl: string; // app_promotion: Play Store / App Store URL
+  metaApplicationId: string; // app_promotion: Meta App ID from App Dashboard
   targetBehaviors: TargetingOption[]; // NEW
   ageRange: { min: number; max: number }; // NEW
   gender: "all" | "male" | "female"; // NEW
@@ -149,6 +160,9 @@ export const useCampaignStore = create<CampaignState>()((set, get) => ({
   exclusionAudienceIds: [],
   targetLifeEvents: [],
   destinationValue: "",
+  leadGenFormId: null,
+  appStoreUrl: "",
+  metaApplicationId: "",
 
   aiPrompt: "",
   latestAiSummary: null, // NEW
@@ -215,6 +229,21 @@ export const useCampaignStore = create<CampaignState>()((set, get) => ({
             platformCode: "LEARN_MORE",
             displayLabel: "Learn more",
           },
+          leads: {
+            intent: "sign_up",
+            platformCode: "SIGN_UP",
+            displayLabel: "Sign up",
+          },
+          sales: {
+            intent: "buy_now",
+            platformCode: "SHOP_NOW",
+            displayLabel: "Shop now",
+          },
+          app_promotion: {
+            intent: "download",
+            platformCode: "DOWNLOAD",
+            displayLabel: "Download",
+          },
         };
 
         const defaultCTA = ctaDefaults[data.objective];
@@ -268,6 +297,9 @@ export const useCampaignStore = create<CampaignState>()((set, get) => ({
       exclusionAudienceIds: [],
       targetLifeEvents: [],
       destinationValue: "",
+      leadGenFormId: null,
+      appStoreUrl: "",
+      metaApplicationId: "",
       aiPrompt: "",
       latestAiSummary: null,
       lastGeneratedObjective: null,

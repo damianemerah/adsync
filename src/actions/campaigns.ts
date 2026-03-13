@@ -62,6 +62,10 @@ interface LaunchConfig {
   aiContext: any; // Using any for now to avoid circular dependency, but should match CampaignContext
   businessDescription?: string; // [NEW] For AI context building
   campaignId?: string; // [NEW] Draft ID to update instead of creating a new row
+  // Objective-specific fields
+  leadGenFormId?: string; // leads: Meta Lead Gen Form ID
+  appStoreUrl?: string; // app_promotion: Play Store or App Store URL
+  metaApplicationId?: string; // app_promotion: Meta App ID
 }
 
 export async function launchCampaign(config: LaunchConfig) {
@@ -198,12 +202,7 @@ export async function launchCampaign(config: LaunchConfig) {
   let finalUrl = config.destinationValue;
 
   if (config.objective === "whatsapp") {
-    // Generate deep link: https://wa.me/23480...?text=...
-    // Normalise the phone number before generating the link:
-    // - Strip all non-numeric characters
-    // - If it starts with "0" (local Nigerian format), replace with "234"
-    // - If it starts with "+", remove the "+"
-    // - If it already starts with "234", leave it
+    // ... existing whatsapp attribution block unchanged ...
     let rawPhone = config.destinationValue || "2348012345678";
     rawPhone = rawPhone.replace(/\D/g, ""); // strip spaces, dashes, +
     if (rawPhone.startsWith("0")) {
@@ -215,8 +214,6 @@ export async function launchCampaign(config: LaunchConfig) {
     const whatsappUrl = generateWhatsAppLink(rawPhone, defaultMessage);
     finalUrl = whatsappUrl;
 
-    // -- Attribution: wrap the WhatsApp link in a trackable redirect --
-    // If this fails, we silently fall back to the raw wa.me link (per code-conventions.md)
     try {
       const attrToken = generateAttributionToken();
       const { data: attrLink } = await supabase
@@ -226,13 +223,11 @@ export async function launchCampaign(config: LaunchConfig) {
           organization_id: orgId as string,
           destination_url: whatsappUrl,
           destination_type: "whatsapp",
-          // campaign_id will be linked after the campaign DB row is created
         })
         .select("id, token")
         .single();
 
       if (attrLink) {
-        // Skip replacing finalUrl in local dev because Meta API rejects localhost URLs
         const isLocalhost =
           process.env.NODE_ENV === "development" ||
           process.env.NEXT_PUBLIC_APP_URL?.includes("localhost");
@@ -245,7 +240,6 @@ export async function launchCampaign(config: LaunchConfig) {
             "⏭️ Skipping attribution URL replacement in local dev to avoid Meta API rejection.",
           );
         }
-        // Stash the link ID so we can attach campaign_id later
         (config as any)._attributionLinkId = attrLink.id;
       }
     } catch (attrError) {
@@ -253,14 +247,18 @@ export async function launchCampaign(config: LaunchConfig) {
         "⚠️ Attribution link creation failed (non-critical):",
         attrError,
       );
-      // finalUrl remains the raw whatsappUrl — zero impact on launch
     }
+  } else if (config.objective === "leads") {
+    // Lead Ads: Meta handles the form in-app — no destination URL or attribution link needed
+    finalUrl = "";
+    console.log(
+      "📋 [Launch] Leads objective — skipping attribution link (no destination URL)",
+    );
   } else {
-    // Ensure Website URL has protocol
+    // Website / Sales / Traffic / Awareness / Engagement / App Promotion
     if (finalUrl && !finalUrl.startsWith("http")) {
       finalUrl = `https://${finalUrl}`;
     }
-    // Fallback
     if (!finalUrl) finalUrl = "https://google.com";
 
     // -- Attribution: wrap the website link in a trackable redirect --
@@ -281,7 +279,6 @@ export async function launchCampaign(config: LaunchConfig) {
         .single();
 
       if (attrLink) {
-        // Skip replacing finalUrl in local dev because Meta API rejects localhost URLs
         const isLocalhost =
           process.env.NODE_ENV === "development" ||
           process.env.NEXT_PUBLIC_APP_URL?.includes("localhost");
@@ -301,7 +298,6 @@ export async function launchCampaign(config: LaunchConfig) {
         "⚠️ Website attribution link creation failed (non-critical):",
         attrError,
       );
-      // finalUrl remains the raw websiteUrl — zero impact on launch
     }
   }
 
@@ -411,7 +407,9 @@ export async function launchCampaign(config: LaunchConfig) {
       {
         name: config.name,
         dailyBudget: budgetInCents,
-        pageId, // Needed for engagement promoted_object
+        pageId, // Needed for engagement/whatsapp promoted_object
+        metaApplicationId: config.metaApplicationId, // app_promotion
+        appStoreUrl: config.appStoreUrl, // app_promotion
         targeting: {
           geo_locations,
           interests: validatedInterests,
@@ -426,7 +424,7 @@ export async function launchCampaign(config: LaunchConfig) {
         },
       },
       config.objective,
-      config.metaPlacement ?? "automatic", // Surface targeting
+      config.metaPlacement ?? "automatic",
     );
 
     console.log("🎯 [Meta API - Ad Set Created]:", adSetRes);
@@ -455,15 +453,15 @@ export async function launchCampaign(config: LaunchConfig) {
         pageId,
         primaryText: config.adCopy.primary,
         headline: config.adCopy.headline,
-        destinationUrl: finalUrl, // The processed WhatsApp or Website link
+        destinationUrl: finalUrl,
+        leadGenFormId: config.leadGenFormId, // leads objective — may be undefined for others
       },
-      // Pass platform code if available (CTAData), else fallback to string or default
       typeof config.adCopy.cta === "object" && config.adCopy.cta.platformCode
         ? config.adCopy.cta.platformCode
         : typeof config.adCopy.cta === "string"
           ? config.adCopy.cta
           : undefined,
-      config.objective, // Pass objective so createAd builds correct WhatsApp CTA
+      config.objective,
     );
 
     console.log("📣 [Meta API - Ad Creative/Ad Created]:", adRes);
@@ -610,9 +608,10 @@ export async function launchCampaign(config: LaunchConfig) {
     revalidatePath("/campaigns");
     return {
       success: true,
-      campaignId: campaignRes.id, // Meta platform ID
-      dbCampaignId, // Database ID for redirects
-      showPixelPrompt: config.objective === "traffic", // Signal UI to show snippet alert
+      campaignId: campaignRes.id,
+      dbCampaignId,
+      showPixelPrompt:
+        config.objective === "traffic" || config.objective === "sales",
     };
   } catch (error: any) {
     console.error("Launch Error:", error);

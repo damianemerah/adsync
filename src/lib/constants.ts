@@ -203,6 +203,44 @@ export const CAMPAIGN_OBJECTIVES = [
     optimizationModel: "engagement",
     revenueTracked: false,
   },
+  {
+    id: "leads",
+    label: "Collect Leads",
+    description: "Capture contact info via Meta's built-in lead forms.",
+    iconName: "Mail",
+    category: "revenue",
+    // OUTCOME_LEADS + LEAD_GENERATION is the correct ODAX combo for lead-gen.
+    // Meta's native instant forms keep users in-app — no pixel needed.
+    metaObjective: "OUTCOME_LEADS",
+    metaOptimizationGoal: "LEAD_GENERATION",
+    optimizationModel: "lead",
+    revenueTracked: true,
+  },
+  {
+    id: "sales",
+    label: "Direct Sales",
+    description: "Drive purchases tracked by your Meta Pixel.",
+    iconName: "ShoppingCart",
+    category: "revenue",
+    // OUTCOME_SALES + OFFSITE_CONVERSIONS requires a Pixel with Purchase events.
+    // Best used once a Pixel is connected and has recorded at least 50 events.
+    metaObjective: "OUTCOME_SALES",
+    metaOptimizationGoal: "OFFSITE_CONVERSIONS",
+    optimizationModel: "conversion",
+    revenueTracked: true,
+  },
+  {
+    id: "app_promotion",
+    label: "App Installs",
+    description: "Drive downloads and in-app actions for your mobile app.",
+    iconName: "Download",
+    category: "growth",
+    // OUTCOME_APP_PROMOTION + APP_INSTALLS is the standard ODAX app objective.
+    metaObjective: "OUTCOME_APP_PROMOTION",
+    metaOptimizationGoal: "APP_INSTALLS",
+    optimizationModel: "app_install",
+    revenueTracked: false,
+  },
 ] as const;
 
 export type AdSyncObjective = (typeof CAMPAIGN_OBJECTIVES)[number]["id"];
@@ -287,5 +325,23 @@ export const OBJECTIVE_INTENT_MAP = {
     targetingBias: "Interest-heavy",
     ctaBias: "learn_more",
     ageModifier: { min: 0, max: 0 },
+  },
+  leads: {
+    tone: "Value-forward, trust-building, offer-driven",
+    targetingBias: "Interest + Behaviour intersections",
+    ctaBias: "sign_up",
+    ageModifier: { min: 0, max: 0 },
+  },
+  sales: {
+    tone: "Conversion-focused, urgency-driven, benefit-led",
+    targetingBias: "High intent (Engaged Shoppers + Custom Audiences)",
+    ctaBias: "shop_now",
+    ageModifier: { min: 0, max: -5 }, // Buyer-age bias
+  },
+  app_promotion: {
+    tone: "Feature-highlighting, action-oriented, download-focused",
+    targetingBias: "Tech-savvy, mobile-heavy audience",
+    ctaBias: "download",
+    ageModifier: { min: -3, max: -5 }, // Younger, mobile-native bias
   },
 } as const;

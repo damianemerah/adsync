@@ -33,6 +33,8 @@ import { GoalPlatformStep } from "@/components/campaigns/new/steps/goal-platform
 import { AudienceChatStep } from "@/components/campaigns/new/steps/audience-chat-step";
 import { CreativeStep } from "@/components/campaigns/new/steps/creative-step";
 import { BudgetLaunchStep } from "@/components/campaigns/new/steps/budget-launch-step";
+import { LeadFormStep } from "@/components/campaigns/new/steps/lead-form-step";
+import { AppInfoStep } from "@/components/campaigns/new/steps/app-info-step";
 
 // Validation Helpers
 import {
@@ -172,6 +174,45 @@ export default function NewCampaignPage() {
   const canGoToCreative = canAccessCreativeStep(fullState);
   const canGoToLaunch = canAccessLaunchStep(fullState);
   const completionPercentage = getWizardCompletionPercentage(fullState);
+
+  // Dynamic Step configuration based on objective
+  const hasExtraStep =
+    campaignState.objective === "leads" ||
+    campaignState.objective === "app_promotion";
+  const numSteps = hasExtraStep ? 5 : 4;
+
+  // To avoid breaking the existing stores which max out at step 4, we render the extra step as Step 2
+  // and bump the visual numbers of the remaining tabs.
+  const isLeads = campaignState.objective === "leads";
+  const isAppPromo = campaignState.objective === "app_promotion";
+
+  // We need to adjust step validation: if hasExtraStep, step 2 is the extra form, step 3 is audience, step 4 is creative, step 5 is launch
+  // But our Zustand store maxes at 4 currently. To handle this without rewriting the store logic deeply right now,
+  // we will map visual tabs to store steps.
+  // Visual Step 1 -> Store Step 1 (Goal)
+  // Visual Step 2 -> Store Step 2 (App Info / Lead Form) if hasExtraStep, else Audience
+  // Visual Step 3 -> Store Step 3 (Audience) if hasExtraStep, else Creative
+  // Visual Step 4 -> Store Step 4 (Creative) if hasExtraStep, else Launch
+  // Visual Step 5 -> Store Step 5 (Launch) if hasExtraStep
+
+  // For simplicity, we can let the store maintain its 1-4 logic, and just insert the extra step content conditionally in tab 2,
+  // moving audience to tab 3 etc. However, the store's validation helpers might be hardcoded to 4 steps.
+  // For a seamless integration without refactoring the store validation heavily:
+  // We just add a 5th tab if it's leads or app_promotion.
+
+  // Validation for the extra step:
+  const canGoToExtraStep = campaignState.objective !== null;
+  // If we have an extra step, Audience becomes step 3.
+  // Creative becomes step 4. Launch becomes step 5.
+  const canGoToAudienceAdjusted = hasExtraStep
+    ? isLeads
+      ? !!campaignState.leadGenFormId
+      : !!campaignState.metaApplicationId
+    : canGoToAudience;
+  const canGoToCreativeAdjusted = hasExtraStep
+    ? canGoToAudience
+    : canGoToCreative;
+  const canGoToLaunchAdjusted = hasExtraStep ? canGoToCreative : canGoToLaunch;
 
   if (isLoadingSub) {
     return (
@@ -321,7 +362,9 @@ export default function NewCampaignPage() {
           className="w-full"
         >
           {/* Tab Navigation */}
-          <TabsList className="grid w-full grid-cols-4 mb-8 h-auto gap-2 bg-transparent p-0">
+          <TabsList
+            className={`grid w-full mb-8 h-auto gap-2 bg-transparent p-0 ${hasExtraStep ? "grid-cols-5" : "grid-cols-4"}`}
+          >
             <TabsTrigger
               value="1"
               className={cn(
@@ -333,42 +376,65 @@ export default function NewCampaignPage() {
               <span className="text-xs sm:text-sm">Goal</span>
             </TabsTrigger>
 
+            {hasExtraStep && (
+              <TabsTrigger
+                value="2"
+                disabled={!canGoToExtraStep}
+                className={cn(
+                  "h-12 rounded-2xl border-2 transition-all data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=inactive]:border-border data-[state=inactive]:bg-background",
+                  "flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2",
+                  "disabled:opacity-40 disabled:cursor-not-allowed",
+                )}
+              >
+                <span className="text-xs sm:text-sm font-bold">2.</span>
+                <span className="text-xs sm:text-sm">
+                  {isLeads ? "Lead Form" : "App Info"}
+                </span>
+              </TabsTrigger>
+            )}
+
             <TabsTrigger
-              value="2"
-              disabled={!canGoToAudience}
+              value={hasExtraStep ? "3" : "2"}
+              disabled={!canGoToAudienceAdjusted}
               className={cn(
                 "h-12 rounded-2xl border-2 transition-all data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=inactive]:border-border data-[state=inactive]:bg-background",
                 "flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2",
                 "disabled:opacity-40 disabled:cursor-not-allowed",
               )}
             >
-              <span className="text-xs sm:text-sm font-bold">2.</span>
+              <span className="text-xs sm:text-sm font-bold">
+                {hasExtraStep ? "3" : "2"}.
+              </span>
               <span className="text-xs sm:text-sm">Targeting</span>
             </TabsTrigger>
 
             <TabsTrigger
-              value="3"
-              disabled={!canGoToCreative}
+              value={hasExtraStep ? "4" : "3"}
+              disabled={!canGoToCreativeAdjusted}
               className={cn(
                 "h-12 rounded-2xl border-2 transition-all data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=inactive]:border-border data-[state=inactive]:bg-background",
                 "flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2",
                 "disabled:opacity-40 disabled:cursor-not-allowed",
               )}
             >
-              <span className="text-xs sm:text-sm font-bold">3.</span>
+              <span className="text-xs sm:text-sm font-bold">
+                {hasExtraStep ? "4" : "3"}.
+              </span>
               <span className="text-xs sm:text-sm">Creative</span>
             </TabsTrigger>
 
             <TabsTrigger
-              value="4"
-              disabled={!canGoToLaunch}
+              value={hasExtraStep ? "5" : "4"}
+              disabled={!canGoToLaunchAdjusted}
               className={cn(
                 "h-12 rounded-2xl border-2 transition-all data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=inactive]:border-border data-[state=inactive]:bg-background",
                 "flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2",
                 "disabled:opacity-40 disabled:cursor-not-allowed",
               )}
             >
-              <span className="text-xs sm:text-sm font-bold">4.</span>
+              <span className="text-xs sm:text-sm font-bold">
+                {hasExtraStep ? "5" : "4"}.
+              </span>
               <span className="text-xs sm:text-sm">Launch 🚀</span>
             </TabsTrigger>
           </TabsList>
@@ -378,15 +444,21 @@ export default function NewCampaignPage() {
             <GoalPlatformStep />
           </TabsContent>
 
-          <TabsContent value="2" className="mt-0">
+          {hasExtraStep && (
+            <TabsContent value="2" className="mt-0">
+              {isLeads ? <LeadFormStep /> : <AppInfoStep />}
+            </TabsContent>
+          )}
+
+          <TabsContent value={hasExtraStep ? "3" : "2"} className="mt-0">
             <AudienceChatStep />
           </TabsContent>
 
-          <TabsContent value="3" className="mt-0">
+          <TabsContent value={hasExtraStep ? "4" : "3"} className="mt-0">
             <CreativeStep />
           </TabsContent>
 
-          <TabsContent value="4" className="mt-0">
+          <TabsContent value={hasExtraStep ? "5" : "4"} className="mt-0">
             <BudgetLaunchStep />
           </TabsContent>
         </Tabs>

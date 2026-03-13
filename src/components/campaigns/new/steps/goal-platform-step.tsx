@@ -24,6 +24,9 @@ import {
   Heart,
   Lock,
   Globe,
+  Mail,
+  Download,
+  Cart,
 } from "iconoir-react";
 
 const getIcon = (name: string) => {
@@ -36,6 +39,12 @@ const getIcon = (name: string) => {
       return Eye;
     case "Heart":
       return Heart;
+    case "Mail":
+      return Mail;
+    case "ShoppingCart":
+      return Cart;
+    case "Download":
+      return Download;
     default:
       return Flash;
   }
@@ -67,7 +76,8 @@ export function GoalPlatformStep() {
   }, [objective, updateDraft]);
 
   // Wire computeSmartDefaults whenever objective changes
-  const handleObjectiveSelect = (id: string) => {
+  const handleObjectiveSelect = (id: string, comingSoon?: boolean) => {
+    if (comingSoon) return; // Block selection of unimplemented objectives
     updateDraft({ objective: id as any });
 
     const defaults = computeSmartDefaults({
@@ -127,17 +137,28 @@ export function GoalPlatformStep() {
           </div>
           <div className="grid md:grid-cols-2 gap-4">
             {CAMPAIGN_OBJECTIVES.filter((g) => g.category === "revenue").map(
-              (goal) => (
-                <GoalCard
-                  key={goal.id}
-                  title={goal.label}
-                  desc={goal.description}
-                  icon={getIcon(goal.iconName)}
-                  selected={objective === goal.id}
-                  onClick={() => handleObjectiveSelect(goal.id)}
-                  isRevenue
-                />
-              ),
+              (goal) => {
+                const Icon = getIcon(goal.iconName);
+                return (
+                  <GoalCard
+                    key={goal.id}
+                    title={goal.label}
+                    desc={goal.description}
+                    icon={Icon}
+                    selected={objective === goal.id}
+                    onClick={() =>
+                      handleObjectiveSelect(
+                        goal.id,
+                        "comingSoon" in goal ? (goal as any).comingSoon : false,
+                      )
+                    }
+                    isRevenue={true}
+                    comingSoon={
+                      "comingSoon" in goal ? (goal as any).comingSoon : false
+                    }
+                  />
+                );
+              },
             )}
           </div>
         </div>
@@ -148,16 +169,27 @@ export function GoalPlatformStep() {
           </p>
           <div className="grid md:grid-cols-2 gap-4">
             {CAMPAIGN_OBJECTIVES.filter((g) => g.category === "growth").map(
-              (goal) => (
-                <GoalCard
-                  key={goal.id}
-                  title={goal.label}
-                  desc={goal.description}
-                  icon={getIcon(goal.iconName)}
-                  selected={objective === goal.id}
-                  onClick={() => handleObjectiveSelect(goal.id)}
-                />
-              ),
+              (goal) => {
+                const Icon = getIcon(goal.iconName);
+                return (
+                  <GoalCard
+                    key={goal.id}
+                    title={goal.label}
+                    desc={goal.description}
+                    icon={Icon}
+                    selected={objective === goal.id}
+                    onClick={() =>
+                      handleObjectiveSelect(
+                        goal.id,
+                        "comingSoon" in goal ? (goal as any).comingSoon : false,
+                      )
+                    }
+                    comingSoon={
+                      "comingSoon" in goal ? (goal as any).comingSoon : false
+                    }
+                  />
+                );
+              },
             )}
           </div>
         </div>
@@ -282,28 +314,40 @@ function GoalCard({
   selected,
   onClick,
   isRevenue,
+  comingSoon,
 }: any) {
   return (
     <div
-      onClick={onClick}
+      onClick={comingSoon ? undefined : onClick}
       className={cn(
         "p-5 rounded-2xl border cursor-pointer transition-all flex items-center gap-4 relative overflow-hidden",
-        selected
-          ? "border-primary bg-primary/5 shadow-soft ring-1 ring-primary/20"
-          : "bg-card border-border hover:border-primary/50 hover:bg-muted/30",
+        comingSoon
+          ? "border-border bg-muted/30 opacity-60 cursor-not-allowed"
+          : selected
+            ? "border-primary bg-primary/5 shadow-soft ring-1 ring-primary/20"
+            : "bg-card border-border hover:border-primary/50 hover:bg-muted/30",
       )}
     >
-      {isRevenue && selected && (
+      {isRevenue && selected && !comingSoon && (
         <div className="absolute top-0 right-0 p-1.5">
           <div className="bg-green-500 rounded-full h-2 w-2" />
+        </div>
+      )}
+      {comingSoon && (
+        <div className="absolute top-2 right-2">
+          <span className="bg-primary/10 text-primary text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider whitespace-nowrap">
+            Coming Soon
+          </span>
         </div>
       )}
       <div
         className={cn(
           "h-12 w-12 rounded-xl flex items-center justify-center shrink-0 transition-colors",
-          selected
-            ? "bg-primary text-primary-foreground"
-            : "bg-muted text-subtle-foreground",
+          comingSoon
+            ? "bg-muted text-muted-foreground"
+            : selected
+              ? "bg-primary text-primary-foreground"
+              : "bg-muted text-subtle-foreground",
         )}
       >
         <Icon className="h-6 w-6" />
@@ -312,7 +356,9 @@ function GoalCard({
         <p className="font-bold text-foreground">{title}</p>
         <p className="text-xs text-subtle-foreground">{desc}</p>
       </div>
-      {selected && <CheckCircle className="ml-auto h-6 w-6 text-primary" />}
+      {selected && !comingSoon && (
+        <CheckCircle className="ml-auto h-6 w-6 text-primary" />
+      )}
     </div>
   );
 }

@@ -63,6 +63,12 @@ export function getCTRForObjective(objectiveId: AdSyncObjective): number {
       return NG_BENCHMARKS.ctrAwareness;
     case "engagement":
       return NG_BENCHMARKS.ctrEngagement;
+    case "lead":
+      return NG_BENCHMARKS.ctrEngagement; // Lead-gen CTR is similar to engagement
+    case "conversion":
+      return NG_BENCHMARKS.ctrTraffic; // Conversion campaigns share traffic CTR profile
+    case "app_install":
+      return NG_BENCHMARKS.ctrTraffic; // App install CTR roughly tracks traffic
     default:
       return NG_BENCHMARKS.ctrTraffic;
   }
@@ -75,6 +81,9 @@ export const OBJECTIVE_MULTIPLIERS: Record<AdSyncObjective, number> = {
   traffic: 1.1, // Sales Intent: Medium (Website visit)
   engagement: 0.85, // Growth Intent
   awareness: 0.7, // Growth Intent
+  leads: 1.2, // High sales intent — captured lead = warm prospect
+  sales: 1.5, // Highest sales signal — pixel-qualified conversions
+  app_promotion: 0.9, // Growth intent — installs don't always convert to revenue
 };
 
 // ── Quality Discount by Objective ──────────────────────────────────────────
@@ -83,6 +92,9 @@ export const QUALITY_DISCOUNTS: Record<AdSyncObjective, number> = {
   traffic: 0.85, // "Landing Page View" optimization filters some bots
   awareness: 0.7,
   engagement: 0.85,
+  leads: 0.9, // Instant form optimization filters low-intent clicks
+  sales: 0.88, // Pixel-trained conversion optimization, decent quality
+  app_promotion: 0.8, // App install traffic can include incentivized installs
 };
 
 // ── Budget Constraints (₦ Naira) ───────────────────────────────────────────
@@ -129,6 +141,9 @@ export const DEFAULT_AGE_RANGES: Record<
   traffic: { min: 18, max: 55 },
   awareness: { min: 18, max: 65 },
   engagement: { min: 18, max: 35 },
+  leads: { min: 21, max: 55 }, // Form-fillers skew slightly older
+  sales: { min: 18, max: 50 }, // Purchase behaviour skews broad but capped
+  app_promotion: { min: 18, max: 40 }, // App installs skew younger/mobile-first
 };
 
 // ── Default Locations (Meta geo IDs — cities) ─────────────────────────────
