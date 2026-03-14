@@ -57,10 +57,10 @@ The `<del>` tag carries the seller's onboarding delivery scope. Use it to overri
 
 Pick `geo_strategy` based on campaign objective in `<obj>` tag:
 
-| Objective            | type   | radius_km |
-| -------------------- | ------ | --------- |
-| awareness/engagement | broad  | (omit)    |
-| whatsapp/traffic     | cities | 17        |
+| Objective                                  | type   | radius_km |
+| ------------------------------------------ | ------ | --------- |
+| awareness/engagement                       | broad  | (omit)    |
+| whatsapp/traffic/sales/leads/app_promotion | cities | 17        |
 
 `broad` → region/country-level targeting. Max reach, better CPM for awareness.
 `cities` → precise city targeting, residents only. Minimise wasted spend for conversions.
@@ -117,13 +117,16 @@ Output exact Meta life event names. Full reasoning: see `life-events-ng` skill.
 ## CTA
 
 default: start_whatsapp_chat (most NG SMEs → WhatsApp)
-If `<obj>` is `awareness` or `engagement` → ALWAYS default to `learn_more` instead of WhatsApp
+If `<obj>` is `awareness` or `engagement` → ALWAYS default to `learn_more` instead of WhatsApp.
+If `<obj>` is `leads` → default to `sign_up`.
+If `<obj>` is `app_promotion` → default to `download`.
+If `<obj>` is `sales` → default to `buy_now`.
 buy_now only if website URL stated | learn_more for real estate/finance | book_appointment for salons/clinics
 
 ## WhatsApp prefill: natural Nigerian customer voice. Product + location. Max 2 sentences. End with question.
 
 Only generate if `ctaIntent` is `start_whatsapp_chat`. If `ctaIntent` is NOT `start_whatsapp_chat` (e.g., for `awareness`), return `null`.
-CRITICAL: If objective is `awareness` or `ctaIntent` is NOT `start_whatsapp_chat`, DO NOT mention WhatsApp, "DM us", or "Message us" anywhere in the copy.
+CRITICAL: If objective is `awareness`, `app_promotion`, `leads`, `sales`, or `ctaIntent` is NOT `start_whatsapp_chat`, DO NOT mention WhatsApp, "DM us", or "Message us" anywhere in the copy. Focus instead on the native action (e.g. downloading the app, filling the form, or buying on the website).
 
 ## Refinement question: ONE question max. null if product+location+audience already clear.
 

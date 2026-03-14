@@ -261,13 +261,20 @@ export const MetaService = {
       ...getPlacementSpec(placement, params.metaSubPlacements),
     };
 
-    // For App Messaging and Engagement, we must specify the promoted object (Page ID)
-    const needsPromotedObject =
+    // promoted_object: page_id for engagement/whatsapp; application_id for app installs
+    const needsPagePromotedObject =
       objective === "engagement" || objective === "whatsapp";
     const promotedObject =
-      needsPromotedObject && params.pageId
+      needsPagePromotedObject && params.pageId
         ? { page_id: params.pageId }
-        : undefined;
+        : objective === "app_promotion" && params.metaApplicationId
+          ? {
+              application_id: params.metaApplicationId,
+              ...(params.appStoreUrl && {
+                object_store_url: params.appStoreUrl,
+              }),
+            }
+          : undefined;
 
     // Click-to-WhatsApp requires destination_type=WHATSAPP on the ad set.
     // Without this, Meta won't route the click to WhatsApp even with CONVERSATIONS optimization.
@@ -351,27 +358,50 @@ export const MetaService = {
     adSetId: string,
     creativeHash: string,
     copy: any,
-    ctaCode: string = "SHOP_NOW", // Added ctaCode with default
-    objective?: string, // Pass objective so we can build the correct CTA for WhatsApp
+    ctaCode: string = "SHOP_NOW",
+    objective?: string,
   ) => {
     const id = adAccountId.startsWith("act_")
       ? adAccountId
       : `act_${adAccountId}`;
 
-    // Click-to-WhatsApp requires a specific CTA structure — WHATSAPP_MESSAGE + app_destination.
-    // Using SHOP_NOW or any other generic type here will cause Meta to reject the ad or route
-    // clicks incorrectly.
     const isWhatsApp = objective === "whatsapp";
-    const callToAction = isWhatsApp
-      ? {
-          type: "WHATSAPP_MESSAGE",
-          value: { app_destination: "WHATSAPP" },
-        }
-      : { type: ctaCode };
+    // Lead Ads attach form to CTA — no destination URL sent to Meta
+    const isLead = objective === "leads";
+
+    let callToAction: Record<string, any>;
+    if (isWhatsApp) {
+      callToAction = {
+        type: "WHATSAPP_MESSAGE",
+        value: { app_destination: "WHATSAPP" },
+      };
+    } else if (isLead && copy.leadGenFormId) {
+      callToAction = {
+        type: "SIGN_UP",
+        value: { lead_gen_form_id: copy.leadGenFormId },
+      };
+    } else {
+      callToAction = { type: ctaCode };
+    }
 
     console.log("📣 [Meta API] createAd - CallToAction:", callToAction);
 
-    // First, create the Ad Creative Object
+    // Lead Ads: no link URL in the creative — just form reference via CTA
+    const linkData = isLead
+      ? {
+          image_hash: creativeHash,
+          message: copy.primaryText,
+          name: copy.headline,
+          call_to_action: callToAction,
+        }
+      : {
+          image_hash: creativeHash,
+          link: copy.destinationUrl,
+          message: copy.primaryText,
+          name: copy.headline,
+          call_to_action: callToAction,
+        };
+
     const creativeRes = await MetaService.request(
       `/${id}/adcreatives`,
       "POST",
@@ -379,25 +409,61 @@ export const MetaService = {
       {
         name: "AdSync Creative",
         object_story_spec: {
-          page_id: copy.pageId, // We need the user's FB Page ID
-          link_data: {
-            image_hash: creativeHash,
-            link: copy.destinationUrl,
-            message: copy.primaryText,
-            name: copy.headline,
-            call_to_action: callToAction,
-          },
+          page_id: copy.pageId,
+          link_data: linkData,
         },
       },
     );
 
-    // Then connect it to the Ad Set
     return MetaService.request(`/${id}/ads`, "POST", token, {
       name: "AdSync Ad 1",
       adset_id: adSetId,
       creative: { creative_id: creativeRes.id },
       status: "PAUSED",
     });
+  },
+
+  // 4b. Create a Lead Gen Form on a Facebook Page (leads objective)
+  createLeadGenForm: async (
+    token: string,
+    pageId: string,
+    form: {
+      name: string;
+      questions: Array<{ type: string; label?: string }>;
+      privacyPolicyUrl: string;
+      thankYouMessage?: string;
+    },
+  ): Promise<{ id: string }> => {
+    const questions = form.questions.map((q) =>
+      q.type === "CUSTOM"
+        ? {
+            type: "CUSTOM",
+            key: q.label?.toLowerCase().replace(/\s+/g, "_"),
+            label: q.label,
+          }
+        : { type: q.type },
+    );
+    return MetaService.request(`/${pageId}/leadgen_forms`, "POST", token, {
+      name: form.name,
+      questions,
+      privacy_policy: { url: form.privacyPolicyUrl },
+      ...(form.thankYouMessage && {
+        thank_you_page: { body: form.thankYouMessage },
+      }),
+    });
+  },
+
+  // 4c. List existing Lead Gen Forms on a Facebook Page
+  getLeadGenForms: async (
+    token: string,
+    pageId: string,
+  ): Promise<Array<{ id: string; name: string; status: string }>> => {
+    const data = await MetaService.request(
+      `/${pageId}/leadgen_forms?fields=id,name,status&limit=20`,
+      "GET",
+      token,
+    );
+    return data.data || [];
   },
 
   getAccountInsights: async (token: string, adAccountId: string) => {
