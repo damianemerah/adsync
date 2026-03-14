@@ -14,18 +14,23 @@ FLUX 2 Pro has no negative prompt support. Negative instructions degrade quality
 | ❌ Avoid                        | ✅ Use instead                                      |
 | ------------------------------- | --------------------------------------------------- |
 | "no street background"          | "pure white studio surface, seamless backdrop"      |
-| "no humans"                     | "product isolated on studio surface, no other elements" |
+| "no humans"                     | "product as sole focal point on studio surface"     |
 | "no clutter"                    | "minimal composition, single focal point, clean space" |
 | "no outdoor scene"              | "controlled studio environment, clean interior"     |
 | "avoid low quality"             | "8K resolution, sharp focus, professional grade"    |
 
-## Prompt Structure (word order = priority weight — most important first)
+## Prompt Structure (word order = priority weight — FLUX reads left-to-right, first words matter most)
 
 ```
 [SUBJECT + SPECIFIC STATE/ACTION] | [PHOTOGRAPHY STYLE + CAMERA] | [LIGHTING] | [SURFACE/ENVIRONMENT] | [MOOD + COLORS] | [FORMAT HINT]
 ```
 
-Output: **40-80 words**. No JSON. No preamble. No labels. Just the final FLUX prompt string.
+**Ideal length: 30–80 words** (FLUX performs best in this range):
+- 10–30 words: Quick style exploration
+- 30–80 words: **OPTIMAL** — detailed enough for full control, concise enough for clarity
+- 80+ words: Complex scenes (diminishing returns)
+
+Output: **ONLY the final FLUX prompt string. No JSON. No preamble. No labels.**
 
 ---
 

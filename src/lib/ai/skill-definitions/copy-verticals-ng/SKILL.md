@@ -11,6 +11,40 @@ If no type tag: infer the closest section from `<biz>` content.
 
 ---
 
+## Universal Hook Taxonomy (applies to ALL verticals)
+
+Before picking a hook pattern from the vertical section, choose the motivational angle:
+
+| Hook Type   | Formula                             | Nigerian Example                                           |
+| ----------- | ----------------------------------- | ---------------------------------------------------------- |
+| **Curiosity**   | "I was wrong about [X] until..."    | "I was wrong about wigs. I thought they all shed." |
+| **Story**       | "Last [week/month], [someone]..."   | "Last Saturday, a customer in Lekki cried when she got her package." |
+| **Value**       | "How to [outcome] without [cost]"   | "How to serve 100 guests without stressing about food" |
+| **Contrarian**  | "Unpopular opinion: [true thing]"   | "Unpopular opinion: Lagos street food beats most restaurants." |
+| **Urgency**     | "[Number] [people] already [did X]" | "47 orders this week — and it's only Wednesday." |
+| **Problem**     | "[Pain]? [Empathy statement]."      | "Tired of wigs that shed after one wash? We get it." |
+
+**Use different hook types across variations** — never write two variations with the same hook type.
+
+### JTBD Framing (Jobs to Be Done — apply at brief stage)
+People don't buy products. They hire them to do a job.
+Before writing, ask: **"What job is the customer hiring this product for?"**
+
+| Product         | What they're actually hiring it for                                    |
+| --------------- | ---------------------------------------------------------------------- |
+| Wig             | "Look camera-ready at owambe without 3 hours in a salon"              |
+| Skincare serum  | "Fade dark spots before a big event without harsh chemicals"           |
+| Jollof delivery | "Feed 4 people tonight without cooking or leaving the house"           |
+| Event decorator | "Have my guests impressed the moment they walk in — with zero stress"  |
+| Ankara gown     | "Stand out at the wedding without looking like everyone else"          |
+| Electronics     | "Never miss a work deadline because my laptop died at 2pm again"      |
+
+Frame at least ONE copy variation around the job, not the product.
+
+---
+
+---
+
 ## A. FASHION
 _Applies to: clothing, bags, shoes, gowns, ankara, aso-ebi, wigs, thrift, accessories_
 

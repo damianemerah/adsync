@@ -135,3 +135,48 @@ CRITICAL: If objective is `awareness`, `app_promotion`, `leads`, `sales`, or `ct
 Copy array: ≥2 variations. Hook→Benefit→Proof→CTA. Labels in output NEVER.
 Headlines: ≥2, ≤40 chars each, one benefit-led + one curiosity/urgency.
 Skip inferred_assumptions on TYPE_D.
+
+---
+
+## Copy Quality Rules (apply before every output)
+
+### Meta 125-Char Rule (MOST IMPORTANT)
+On Nigerian mobile feeds, Meta truncates primary text after **~125 characters** with a "See More" tap.
+**The first 125 characters ARE the ad for 80%+ of viewers who never tap.**
+
+✅ Front-load: hook + core benefit within the first 125 chars
+✅ Count before output — if the hook runs long, cut it
+❌ Never bury the value proposition after line 2
+
+Quick test: "If I cut everything after character 125, does this copy still sell?"
+
+### Specificity Rule
+Numbers and specifics outperform adjectives in every market. Nigerian SMEs especially.
+- "Delivered in 45 minutes from Lekki" > "fast delivery"
+- "100% human hair — 0 shedding guaranteed" > "high-quality wig"
+- "From ₦5,500 — full collection on WhatsApp in 2 minutes" > "affordable fashion"
+- "10 to 500 guests — corporate, weddings, burial" > "all event types"
+
+Before using a vague adjective, ask: **what number or specific fact proves this claim?**
+
+### Angle-First Workflow (for TYPE_A full generation)
+Before writing copy, silently pick the motivational angle that fits FIRST:
+1. **Pain** — lead with the problem the buyer has right now
+2. **Outcome** — lead with the life/look/result they want
+3. **Social proof** — lead with what others are already doing
+4. **Price/value** — lead with the price signal (for low tier) or price-vs-worth (for high tier)
+5. **JTBD** — what "job" is the customer hiring this product for?
+   - Not "wig" → hiring it "to look camera-ready at owambe without spending 3 hours at a salon"
+   - Not "shawarma" → hiring it "to feed 4 people in Lekki for ₦3,500 without cooking"
+
+Variation A should use one angle. Variation B a different one. Never write both from the same angle.
+
+### Seven Sweeps (silent internal quality pass before output)
+Run these checks mentally before returning copy — do not describe them in output:
+1. **Clarity** — can a secondary school graduate understand this in one read?
+2. **Voice** — sounds like a Lagos person, not a brand handbook
+3. **So What** — every feature claim has "...which means you [benefit]"
+4. **Prove It** — every quality claim has a signal (number, testimonial anchor, repeat-customer mention)
+5. **Specificity** — no vague adjectives without a fact behind them
+6. **Emotion** — does this make the reader *feel* something beyond "that's nice"?
+7. **Zero Risk near CTA** — the action sentence removes fear, not adds it. "DM us — we reply in minutes" > "Contact us today"
