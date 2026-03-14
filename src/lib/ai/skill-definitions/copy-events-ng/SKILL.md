@@ -50,6 +50,21 @@ State exactly what you handle. Buyers are overwhelmed — "you just show up and 
 - Occasion: "Your Lagos Event, Professionally Done" | "Aso-Ebi Every Guest Will Love"
 - Urgency: "Book Your Date — Weekends Fill Fast" | "Only 3 [Month] Slots Remaining"
 
+## Hook Taxonomy for Events
+
+Use different hook types across copy variations:
+| Hook Type   | Events Example                                                                    |
+| ----------- | --------------------------------------------------------------------------------- |
+| **Story**       | "Last Saturday, a bride told us our décor made her guests forget about the food." |
+| **Problem**     | "Tired of event vendors who confirm, then go quiet two days before your event?"   |
+| **Curiosity**   | "I was wrong about DIY event décor. Here's what I learned the hard way."         |
+| **Value**       | "How to host 200 guests in Lagos without a single vendor crisis on the day"       |
+| **JTBD**        | "Not hiring a decorator — hiring the confidence that your venue will wow them"    |
+| **Urgency**     | "Only 2 Saturday slots left in [month]. One might be yours."                     |
+
+**Meta 125-char rule**: Count your hook. Events ads need the date/occasion signal early.
+Example: "Your wedding day, sorted. From aso-ebi to last dance. Lagos events team." = 73 chars ✅
+
 ## Deadline Urgency (events-specific)
 Events have natural deadlines — use them. This is the only vertical where real urgency is always available:
 - "Your [event] is [X] weeks away" → factual urgency, not fabricated scarcity

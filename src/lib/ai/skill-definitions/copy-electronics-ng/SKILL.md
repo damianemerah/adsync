@@ -53,6 +53,21 @@ This is the primary purchase objection in Nigeria — authenticity anxiety.
 - Value: "Premium Tech. Lagos Prices." | "Power Cuts? Not Anymore."
 - Trust: "Verified. Warranted. Delivered."
 
+## Hook Taxonomy for Electronics
+
+Use different hook types across copy variations:
+| Hook Type   | Electronics Example                                                             |
+| ----------- | ------------------------------------------------------------------------------- |
+| **Problem**     | "Tired of a phone that's dead by 2pm — when your day is far from over?"         |
+| **Curiosity**   | "I was wrong about buying phones online. Until I tried this."                   |
+| **Value**       | "How to get a genuine iPhone 15 in Lagos for ₦50k less than the market price"  |
+| **Story**       | "Last week, a customer said our laptop saved her NYSC presentation."            |
+| **Contrarian**  | "Unpopular opinion: You don't need a new phone. You need the right one."        |
+| **JTBD**        | "Hire this phone to keep up with Lagos life — meetings, deliveries, everything" |
+
+**Meta 125-char rule**: Count your hook + first benefit line. Must sell within 125 chars.
+Example check: "Finally, a phone that handles Lagos life. Genuine. 1-year warranty. Fast charge." = 82 chars ✅
+
 ## Psychology Layer
 - **Authenticity anxiety is the #1 objection**: Before any feature, buyers want to know it's real. "Genuine product, 1-year warranty" in the first two lines converts better than any spec list.
 - **Spec translation is mandatory**: "64MP" alone is noise. "64MP camera — portraits sharp enough to print and frame" is a purchase trigger. Always translate spec → outcome.
