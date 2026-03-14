@@ -9,7 +9,7 @@
         "Ubuntu-22.04",
         "bash",
         "-c",
-        "source ~/.nvm/nvm.sh && cd ~/projects/adsync/.claude/worktrees/fervent-ride && npm run dev -- --port 3001"
+        "source ~/.nvm/nvm.sh && cd ~/projects/adsync/.claude/worktrees/condescending-panini && npm run dev -- --port 3001"
       ],
       "port": 3001
     }

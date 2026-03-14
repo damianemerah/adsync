@@ -7,6 +7,7 @@ import { PromptParser } from "@/lib/ai/prompt-parser";
 import probe from "probe-image-size";
 import {
   FLUX_AD_GENERATOR_SYSTEM,
+  FLUX_DIRECT_SYSTEM,
   FLUX_EDIT_SYSTEM,
   CreativeFormat,
 } from "@/lib/ai/prompts";
@@ -19,6 +20,8 @@ import { isPermanentCreativeUrl, isTempUploadUrl } from "@/lib/creative-utils";
 import { requireCredits, spendCredits } from "@/lib/credits";
 import { CREDIT_COSTS } from "@/lib/constants";
 import { getActiveOrgId } from "@/lib/active-org";
+import { resolveTier } from "@/lib/tier";
+import { SKILL_IDS } from "@/lib/ai/service";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
@@ -149,6 +152,11 @@ export async function generateAdCreative({
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
+  // 4b. Resolve tier — determines whether to use image-creative-ng skill (Growth/Agency)
+  // or fall back to the JSON→compile approach (Starter).
+  const { config: tierConfig } = await resolveTier(supabase, user.id);
+  const useImageSkill = tierConfig.ai.useSkills;
+
   // --- PROMPT ENGINEERING ---
   let finalPrompt = prompt;
 
@@ -239,25 +247,26 @@ export async function generateAdCreative({
         finalPrompt = completion.output_text.trim();
       }
     } else {
-      // --- GENERATION FLOW (Compiler Pattern) ---
+      // --- GENERATION FLOW ---
+      // Growth/Agency: image-creative-ng skill → direct FLUX prompt string (better quality)
+      // Starter: JSON schema → compileFluxPrompt() → FLUX string (fallback)
 
-      // [NEW] Format Mapping (v2.1)
       const formatMapping: Record<string, any> = {
         social_ad: {
-          ad_type: "lifestyle", // Changed from "product_only" to allow environments
+          ad_type: "lifestyle",
           format: { placement: "social_feed", aspect_ratio: aspectRatio },
         },
         product_image: {
           ad_type: "product_only",
           format: { placement: "ecommerce", aspect_ratio: "1:1" },
-          text_overlay: { exists: false }, // CRITICAL: Force no text
-          constraints: { no_humans: true },
+          text_overlay: { exists: false },
+          constraints: { product_isolated: true },
         },
         poster: {
           ad_type: "graphic",
           format: { placement: "social_feed", aspect_ratio: "4:5" },
         },
-        auto: {}, // Fallback
+        auto: {},
       };
 
       const mappedContext =
@@ -265,7 +274,6 @@ export async function generateAdCreative({
           ? formatMapping[creativeFormat]
           : {};
 
-      // 1. Construct User Context
       const userMessage = `
         Context: ${imageContext}
         Request: ${finalPrompt}
@@ -274,44 +282,67 @@ export async function generateAdCreative({
       `.trim();
 
       console.log("\n====================================");
-      console.log(
-        "🤖 [OpenAI Images] Calling responses.create (gpt-4.1) for image prompt generation...",
-      );
+      console.log(`🤖 [OpenAI Images] Generation — skill: ${useImageSkill}`);
       console.log("📝 [OpenAI Images] userMessage:\n", userMessage);
 
-      // 2. Call OpenAI for JSON
-      const completion = await (openai.responses.create as any)({
-        model: "gpt-4.1",
-        instructions: FLUX_AD_GENERATOR_SYSTEM,
-        input: userMessage,
-      });
+      if (useImageSkill) {
+        // ── Skill path (Growth/Agency): direct FLUX prompt string ──────────
+        const completion = await (openai.responses.create as any)({
+          model: "gpt-4.1",
+          instructions: FLUX_DIRECT_SYSTEM,
+          input: userMessage,
+          tools: [
+            {
+              type: "shell",
+              environment: {
+                type: "container_auto",
+                skills: [
+                  { type: "skill_reference", skill_id: SKILL_IDS.imageCreative },
+                ],
+              },
+            },
+          ],
+        });
 
-      console.log("====================================\n");
+        console.log("====================================\n");
+        promptGenerationUsage = completion.usage || null;
 
-      promptGenerationUsage = completion.usage || null;
-
-      if (completion.output_text) {
-        // Strip code fences defensively
-        const rawJson = completion.output_text
-          .replace(/```json\n?/g, "")
-          .replace(/```\n?/g, "")
-          .trim();
-
-        // 3. Compile JSON to String
-        const jsonResponse = JSON.parse(rawJson);
-
-        // Safety gate
-        if (jsonResponse.safety_flagged) {
-          throw new Error(
-            "Your prompt contains unsafe content. Please revise.",
-          );
+        if (completion.output_text) {
+          const raw = completion.output_text.trim();
+          if (raw.startsWith("SAFE_FLAG:")) {
+            throw new Error("Your prompt contains unsafe content. Please revise.");
+          }
+          finalPrompt = raw;
+          console.log("🧠 Skill-Generated Prompt:", finalPrompt);
         }
+      } else {
+        // ── Starter path: JSON schema → compile ────────────────────────────
+        const completion = await (openai.responses.create as any)({
+          model: "gpt-4.1",
+          instructions: FLUX_AD_GENERATOR_SYSTEM,
+          input: userMessage,
+        });
 
-        /* @ts-ignore */
-        const { compileFluxPrompt } = await import("@/lib/ai/compiler");
-        finalPrompt = compileFluxPrompt(jsonResponse, aspectRatio || "1:1");
+        console.log("====================================\n");
+        promptGenerationUsage = completion.usage || null;
 
-        console.log("🧠 Compiled Prompt:", finalPrompt);
+        if (completion.output_text) {
+          const rawJson = completion.output_text
+            .replace(/```json\n?/g, "")
+            .replace(/```\n?/g, "")
+            .trim();
+
+          const jsonResponse = JSON.parse(rawJson);
+
+          if (jsonResponse.safety_flagged) {
+            throw new Error("Your prompt contains unsafe content. Please revise.");
+          }
+
+          /* @ts-ignore */
+          const { compileFluxPrompt } = await import("@/lib/ai/compiler");
+          finalPrompt = compileFluxPrompt(jsonResponse, aspectRatio || "1:1");
+          console.log("🧠 Compiled Prompt:", finalPrompt);
+        }
       }
     }
   } catch (error) {
@@ -405,11 +436,12 @@ export async function generateAdCreative({
         sync_mode: true,
       };
     } else {
-      // Standard Generation
+      // Standard Generation — prompt_upsampling triggers FLUX's internal enhancement
       inputArgs = {
         ...inputArgs,
-        image_size: targetImageSize, // [FIXED] Passing the correct enum/object
+        image_size: targetImageSize,
         safety_tolerance: "2",
+        prompt_upsampling: true,
       };
     }
 

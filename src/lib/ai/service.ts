@@ -166,38 +166,46 @@ const openai = new OpenAI({
 });
 
 // ─── Skill IDs ────────────────────────────────────────────────────────────────
-const SKILL_IDS = {
+// Exported so ai-images.ts can reference imageCreative without duplication.
+export const SKILL_IDS = {
   coreStrategy: process.env.SKILL_ID_CORE_STRATEGY_NG!,
-  fashion: process.env.SKILL_ID_COPY_FASHION_NG!,
-  food: process.env.SKILL_ID_COPY_FOOD_NG!,
-  beauty: process.env.SKILL_ID_COPY_BEAUTY_NG!,
-  services: process.env.SKILL_ID_COPY_SERVICES_NG!,
+  copyVerticals: process.env.SKILL_ID_COPY_VERTICALS_NG!,    // merged: fashion/beauty/food/services/b2b/general
+  copyElectronics: process.env.SKILL_ID_COPY_ELECTRONICS_NG!,
+  copyEvents: process.env.SKILL_ID_COPY_EVENTS_NG!,
   policyGuard: process.env.SKILL_ID_POLICY_GUARD_NG!,
   lifeEvents: process.env.SKILL_ID_LIFE_EVENTS_NG!,
+  imageCreative: process.env.SKILL_ID_IMAGE_CREATIVE_NG!,
 };
+
+// Business types that require Meta policy compliance checking.
+// policyGuard is skipped for 85%+ of calls (food, fashion, beauty) — saves ~500 tokens/call.
+const REGULATED_TYPES = new Set([
+  "finance", "health", "betting", "supplements", "insurance", "crypto", "forex",
+]);
 
 function buildSkillList(
   businessType?: string,
   needsLifeEvents?: boolean,
 ): any[] {
-  const VERTICAL: Record<string, string> = {
-    fashion: SKILL_IDS.fashion,
-    beauty: SKILL_IDS.beauty,
-    food: SKILL_IDS.food,
-    events: SKILL_IDS.fashion,
-    electronics: SKILL_IDS.services,
-    b2b: SKILL_IDS.services,
-    general: SKILL_IDS.services,
-  };
+  const type = businessType ?? "general";
+
+  // electronics and events have dedicated skills; everything else uses copy-verticals-ng
+  const verticalSkillId =
+    type === "electronics"
+      ? SKILL_IDS.copyElectronics
+      : type === "events"
+        ? SKILL_IDS.copyEvents
+        : SKILL_IDS.copyVerticals;
 
   const skills = [
     { type: "skill_reference", skill_id: SKILL_IDS.coreStrategy },
-    {
-      type: "skill_reference",
-      skill_id: VERTICAL[businessType ?? "general"] ?? SKILL_IDS.services,
-    },
-    { type: "skill_reference", skill_id: SKILL_IDS.policyGuard },
+    { type: "skill_reference", skill_id: verticalSkillId },
   ];
+
+  // Policy guard only for regulated categories
+  if (REGULATED_TYPES.has(type)) {
+    skills.push({ type: "skill_reference", skill_id: SKILL_IDS.policyGuard });
+  }
 
   if (needsLifeEvents) {
     skills.push({ type: "skill_reference", skill_id: SKILL_IDS.lifeEvents });
@@ -407,7 +415,7 @@ async function generateWithOpenAI(
                 type: "container_auto",
                 skills: buildSkillList(
                   extracted?.businessType,
-                  !!extracted?.lifeSignals,
+                  !!(extracted?.lifeSignals?.trim() && extracted.lifeSignals !== "none"),
                 ),
               },
             },
@@ -459,20 +467,37 @@ async function generateWithOpenAI(
   return { ...result, usage };
 }
 
-// ─── Copy Refinement (gpt-5-mini, no Skills) ─────────────────────────────────
+// ─── Copy Refinement Schema (slim — copy/headline/whatsapp only) ─────────────
+// Refinement never needs to re-generate interests, behaviors, demographics etc.
+// Using the full AI_STRATEGY_SCHEMA wastes ~400-600 tokens and splits model attention.
+const REFINEMENT_SCHEMA = {
+  type: "object" as const,
+  properties: {
+    copy: { type: "array" as const, items: { type: "string" as const } },
+    headline: { type: "array" as const, items: { type: "string" as const } },
+    whatsappMessage: { type: ["string", "null"] as const },
+  },
+  required: ["copy", "headline", "whatsappMessage"] as const,
+  additionalProperties: false,
+};
+
+const REFINEMENT_INSTRUCTION = `You are a Nigerian ad copy editor. Rewrite only the copy variations and headlines based on the refinement instruction.
+Keep the same brand voice, CTA intent, and WhatsApp message format. Return ONLY the updated copy, headline, and whatsappMessage fields.`;
+
+// ─── Copy Refinement (gpt-5-mini, slim schema — no full strategy re-gen) ─────
 export async function refineAdCopyWithOpenAI(
   input: AIInput,
   refinementInstruction: string,
 ): Promise<AIStrategyResult & { usage?: any }> {
   const response = await (openai.responses.create as any)({
     model: "gpt-5-mini",
-    instructions: BASE_INSTRUCTION,
+    instructions: REFINEMENT_INSTRUCTION,
     input: `${buildUserMessage(input)}\n\nRefinement instruction: ${refinementInstruction}`,
     text: {
       format: {
         type: "json_schema",
-        name: "ai_strategy_result",
-        schema: AI_STRATEGY_SCHEMA,
+        name: "refinement_result",
+        schema: REFINEMENT_SCHEMA,
       },
     },
   });
@@ -488,8 +513,42 @@ export async function refineAdCopyWithOpenAI(
   const outputText = response.output_text;
   if (!outputText) throw new Error("No response from OpenAI refinement");
 
-  const result = JSON.parse(outputText) as AIStrategyResult;
-  return { ...result, usage };
+  // Merge refined copy fields back onto a minimal valid AIStrategyResult shell.
+  // Caller only uses copy/headline/whatsappMessage from refinement responses.
+  const refined = JSON.parse(outputText) as {
+    copy: string[];
+    headline: string[];
+    whatsappMessage: string | null;
+  };
+
+  return {
+    plain_english_summary: "",
+    interests: [],
+    behaviors: [],
+    lifeEvents: [],
+    demographics: { age_min: 18, age_max: 65, gender: "all" },
+    suggestedLocations: [],
+    geo_strategy: null,
+    estimatedReach: 0,
+    copy: refined.copy,
+    headline: refined.headline,
+    ctaIntent: "start_whatsapp_chat" as const,
+    whatsappMessage: refined.whatsappMessage,
+    meta: {
+      input_type: "TYPE_D" as const,
+      needs_clarification: false,
+      clarification_question: null,
+      clarification_options: null,
+      is_question: false,
+      question_answer: null,
+      price_signal: "unknown" as const,
+      detected_business_type: "unknown" as const,
+      confidence: 1,
+      inferred_assumptions: [],
+      refinement_question: null,
+    },
+    usage,
+  };
 }
 
 // ─── Mock Generator (dev fallback) ───────────────────────────────────────────
