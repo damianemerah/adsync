@@ -77,14 +77,12 @@ export function compileContextPrompt(
     prompt += `, interested in ${topInterests}`;
   }
 
-  // SECTION 4: Location Context (audience signal only — NOT a scene directive)
-  // ⚠️ CRITICAL: Location text must NEVER describe outdoor/street environments.
-  // These words feed directly into FLUX as scene instructions. Keep them
-  // audience-demographic only so the visual stays clean and product-focused.
+  // SECTION 4: Audience Style Signal (derived, not raw targeting data)
+  // ⚠️ Do NOT inject audience interest labels (e.g. "interested in Afrobeats") —
+  // FLUX reads these as scene directives and generates thematic backgrounds.
+  // Translate audience → a visual styling tone instead.
   if (locations && locations.length > 0) {
-    const primaryLocation = locations[0];
-    // Audience context only — no scene/environment language
-    prompt += `. Nigerian consumer market, modern urban professional audience`;
+    prompt += `. Contemporary Nigerian aesthetic, modern aspirational styling`;
   }
 
   // SECTION 5: Copy Integration (if available)
@@ -96,26 +94,27 @@ export function compileContextPrompt(
   }
 
   // SECTION 6: Format-Specific Enhancements
-  // ⚠️ CRITICAL: Every non-poster format MUST enforce studio/clean background.
-  // This is the hard guardrail that prevents street/market scene bleed.
+  // Use positive scene description — FLUX does not support negative prompting.
+  // Describe what IS there, not what to avoid.
   switch (format) {
     case "product_image":
       prompt +=
-        ". STUDIO WHITE BACKGROUND ONLY. Clean e-commerce product photography, soft box studio lighting, pure white or light gradient background, no outdoor elements, no street, no market, no people, no hands, product centered and isolated, commercial quality";
+        ". Clean e-commerce product photography. Pure white seamless studio backdrop, soft box lighting, product centered and isolated on studio surface, commercial quality";
       break;
-    case "social_ad":
+    case "social_ad": {
       const platform = context.platform || "Instagram";
-      prompt += `. ${platform} social media ad. STUDIO OR SOLID COLOR BACKGROUND ONLY. No street scenes, no outdoor market, no crowds. Product-centered composition, clean minimal background, scroll-stopping professional visual`;
+      prompt += `. ${platform} social media ad. Clean minimal studio or solid color background, product-centered composition, scroll-stopping professional visual`;
       if (context.objective === "sales") {
         prompt += ", strong product focus, e-commerce quality";
       }
       break;
+    }
     case "poster":
       prompt +=
-        ". Graphic poster layout, bold typography, flat or gradient background, modern design aesthetic. No photorealistic street or outdoor scenes";
+        ". Graphic poster layout, bold typography, flat or gradient background, modern design aesthetic, clean typographic composition";
       break;
     case "auto":
-      prompt += ". Professional ad creative, clean studio background, product-focused composition. No street or market backgrounds";
+      prompt += ". Professional ad creative, clean studio environment, product-focused composition, minimal props";
       break;
   }
 
@@ -137,10 +136,9 @@ export function compileContextPrompt(
       prompt += ". Square 1:1 composition for Instagram and Facebook feeds";
   }
 
-  // SECTION 8: Quality Anchors + Background Hard Constraint
-  // Repeated explicitly to override any upstream context bleed.
+  // SECTION 8: Quality Anchors
   prompt +=
-    ". Professional commercial photography, high resolution, 8k quality, sharp focus. CRITICAL: NO street backgrounds, NO outdoor market scenes, NO shopfront environments, NO crowds or pedestrians";
+    ". Professional commercial photography, high resolution, 8K quality, sharp focus, studio lighting, clean composition";
 
   return prompt.trim();
 }

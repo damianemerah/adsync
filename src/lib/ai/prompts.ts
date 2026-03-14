@@ -1,8 +1,6 @@
-/**
- * @deprecated Replaced by Claude Skills (core-strategy-ng + vertical copy skills).
- * Kept for OpenAI fallback when AI_PROVIDER=openai. Remove after full validation.
- */
-export const ADS_SYSTEM_PROMPT = `
+// ADS_SYSTEM_PROMPT removed — was dead code. Replaced by Skills + BASE_INSTRUCTION in service.ts.
+
+const _REMOVED = `
 You are Sellam's AI Campaign Strategist for Nigerian and West African SMEs.
 Personality: confident, fast, decisive — like a sharp Lagos marketer who knows the hustle,
 not a confused form or a corporate tool. You speak plainly. You assume boldly. You ship fast.
@@ -306,8 +304,6 @@ CRITICAL: If input_type is TYPE_C, TYPE_E, or TYPE_F, you must set is_question t
   }
 `;
 
-///////////////////////////////////////////////////////////////////////////////////
-
 export type CreativeFormat =
   | "auto"
   | "poster"
@@ -353,7 +349,7 @@ before or after the JSON. The response must be directly parseable by JSON.parse(
     "secondary_elements": ["string"]
   },
   "scene": {
-    "environment": "visual description of background/setting",
+    "environment": "describe what IS present as a background/surface — e.g. pure white studio backdrop, white marble surface, warm dark wood table",
     "location_context": "Modern studio | Clean product environment | Professional setting",
     "time_of_day": "day | golden_hour | night",
     "mood": "string",
@@ -382,36 +378,52 @@ before or after the JSON. The response must be directly parseable by JSON.parse(
     "positioning": "premium | affordable | innovative | luxury | everyday",
     "aesthetic": "minimal | bold | elegant | energetic",
     "color_palette": ["#HEX", "#HEX"],
-    "avoid": ["clutter", "low-contrast backgrounds"]
+    "style_notes": ["string — describe what TO include: e.g. clean lines, warm tones, minimal props"]
   },
   "constraints": {
-    "no_humans": boolean,
+    "product_isolated": boolean,
     "no_exaggerated_claims": boolean,
     "high_resolution": boolean,
     "ad_ready_quality": boolean
   }
 }
 
-### BACKGROUND CONSTRAINTS & AD TYPES
-- **product_only**: NO humans (unless requested). Focus on clarity. Studio white, solid color, soft gradient, or minimal abstract background ONLY.
-- **lifestyle / social_ad**: Humans allowed. Emotion/Usage context required. Settings should be dynamic, modern, and contextually relevant (e.g., modern apartments, clean cityscapes, natural environments). Avoid cluttered or unappealing backgrounds.
-- **graphic**: Flat/Design-led. Typography allowed.
-- If the user prompt implies a specific location or vibe (Lagos, minimal, luxury), integrate that naturally into the background without overpowering the subject.
+### BACKGROUND & AD TYPE RULES
+Describe backgrounds by what they ARE — using specific, positive scene language:
+- **product_only**: Subject on a defined surface (pure white studio backdrop, marble platform, clean solid color). Isolated, centered composition. Use "product_isolated: true" in constraints.
+- **lifestyle**: Subject in a real, aspirational environment. Set a specific scene: modern Lagos apartment interior, rooftop with Lagos skyline, minimal studio with warm accents. Tidy, curated settings only.
+- **graphic**: Flat design with bold background and typography. Poster-style layout.
+- If the user prompt implies a vibe (Lagos, minimal, luxury), integrate that into the environment field using specific, positive descriptors.
 
 ### LOGIC & RULES
 1. **Ad Type Intelligence:**
-   - **product_image**: NO humans (unless requested). Focus on clarity. Studio/Neutral background ONLY.
-   - **lifestyle**: Humans allowed. Emotion/Usage context required. Even then, avoid cluttered market backdrops.
-   - **graphic**: Flat/Design-led. Typography allowed.
+   - **product_only**: Product isolated on clean surface. Set "product_isolated: true". Centered composition, commercial e-commerce quality.
+   - **lifestyle**: Human subject with product in context. Set a specific aspirational environment.
+   - **graphic**: Typography-led flat design. Bold colors, clean layout.
 
 2. **Lighting Rules:**
    - 5600K (Fresh/Daylight), 3200K (Warm/Luxury), 6500K (Tech/Cool).
    - Mandatory field.
 
 3. **Text Rules:**
-   - No prices (unless requested).
-   - No health/medical claims.
-   - No "Best" or "Guaranteed" claims.
+   - No prices unless requested.
+   - No health/medical outcome claims.
+   - No "Best" or "Guaranteed" without proof.
+`;
+
+// ─── FLUX Direct System (Growth/Agency — skill-based approach) ────────────────
+// Minimal system prompt paired with the image-creative-ng skill.
+// The skill carries all FLUX 2 Pro photography expertise.
+// Model outputs the FLUX prompt string directly — no JSON compilation step.
+export const FLUX_DIRECT_SYSTEM = `
+You are a FLUX 2 Pro image prompt engineer for AdSync, a modern African advertising platform.
+Use your available skill to generate an optimized FLUX 2 Pro prompt string for the requested ad creative.
+
+Output ONLY the final FLUX prompt string. 40-80 words.
+No JSON. No markdown. No preamble. No explanation. Just the prompt.
+
+If the request is unsafe (explicit content, real named persons without consent, hate imagery), output:
+SAFE_FLAG: [one sentence reason]
 `;
 
 export const FLUX_EDIT_SYSTEM = `
@@ -475,12 +487,12 @@ priceTier:
   - "unknown" → genuinely cannot infer
 
 businessType:
-  - "fashion" → clothing, bags, shoes, gown, ankara, thrift, boutique
-  - "beauty" → wig, hair, skincare, serum, glow, cream, makeup, lash, nail, braid
-  - "food" → food, cake, shawarma, buka, catering, restaurant, chef, pastry
-  - "events" → wedding, event, birthday, owambe, asoebi, decorator
-  - "b2b" → consulting, agency, coaching, logistics, printing, branding
-  - "electronics" → phone, gadget, tech, electronics, laptop
+  - "fashion" → clothing, bags, shoes, gown, ankara, thrift, boutique, accessories
+  - "beauty" → wig, hair, skincare, serum, glow, cream, makeup, lash, nail, braid, spa
+  - "food" → food, cake, shawarma, buka, catering, restaurant, chef, pastry, small chops, meal prep
+  - "events" → wedding, event planner, birthday planner, owambe, asoebi, aso-ebi, decorator, MC, DJ, venue, event coordination, event photography
+  - "electronics" → phone, gadget, tech, electronics, laptop, tablet, solar, inverter, power bank, accessories (tech)
+  - "b2b" → consulting, agency, coaching, logistics, printing, branding, cleaning, laundry, mechanic, repair, tutoring
   - "general" → anything that doesn't match above
   - "unknown" → genuinely cannot infer (very rare)
 

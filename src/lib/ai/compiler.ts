@@ -44,7 +44,8 @@ export interface AdSceneSchema {
     avoid: string[];
   };
   constraints: {
-    no_humans: boolean;
+    product_isolated?: boolean;
+    no_humans?: boolean;         // legacy — use product_isolated
     no_exaggerated_claims: boolean;
     high_resolution: boolean;
     ad_ready_quality: boolean;
@@ -90,10 +91,9 @@ export function compileFluxPrompt(
     prompt += ". Typography: Modern, bold, legible. ";
   }
 
-  // 6. Constraints / "Avoid" implicitly handled by what we DON'T include,
-  // but we can add negative prompt hints if Flux supports them in the main string (it usually does contextually).
-  if (schema.constraints.no_humans) {
-    prompt += "No humans present, focus solely on the object. ";
+  // 6. Product isolation — described positively (FLUX does not support negative prompting)
+  if ((schema.constraints as any).product_isolated || (schema.constraints as any).no_humans) {
+    prompt += "Product isolated on studio surface, sole focal point, clean composition. ";
   }
 
   // 7. Aspect Ratio / Format Hints
