@@ -58,6 +58,14 @@ export interface AIStrategyResult {
     | "sign_up"
     | "download";
   whatsappMessage?: string | null; // Only present when ctaIntent === "start_whatsapp_chat"
+  suggestedLeadForm?: {
+    fields: Array<{
+      type: string;       // MetaStandardFieldType or "CUSTOM" or "USER_CHOICE"
+      label?: string;     // For CUSTOM/USER_CHOICE fields
+      choices?: string[]; // For USER_CHOICE fields
+    }>;
+    thankYouMessage: string;
+  } | null;
   reasoning?: string;
   /**
    * One plain-English sentence that leads the chat response.

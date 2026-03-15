@@ -25,7 +25,7 @@ export interface CampaignContext {
     bodyCopy: string;
   };
   platform?: "meta" | "tiktok" | "google";
-  objective?: "awareness" | "sales" | "leads";
+  objective?: "whatsapp" | "traffic" | "awareness" | "engagement" | "leads" | "sales" | "app_promotion";
   metaSubPlacements?: Record<string, string[]>;
 }
 

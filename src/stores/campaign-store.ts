@@ -117,6 +117,16 @@ export interface CampaignState {
   /** Number of copy refinements done this session. Used to enforce Starter tier limit (max 3). */
   refinementCount: number;
 
+  /** AI-suggested lead form fields for leads objective. Populated by AI strategy result or local defaults. */
+  suggestedLeadForm: {
+    fields: Array<{
+      type: string;
+      label?: string;
+      choices?: string[];
+    }>;
+    thankYouMessage: string;
+  } | null;
+
   /** All copy variations returned by AI, sliced by tier limit. Index 0 mirrors adCopy. */
   adCopyVariations: CopyVariation[];
 
@@ -183,6 +193,7 @@ export const useCampaignStore = create<CampaignState>()((set, get) => ({
   },
   selectedTemplate: null,
   pendingGeneratedImage: null,
+  suggestedLeadForm: null,
   refinementCount: 0,
   adCopyVariations: [],
   selectedCopyIdx: 0,
@@ -319,6 +330,7 @@ export const useCampaignStore = create<CampaignState>()((set, get) => ({
       },
       selectedTemplate: null,
       pendingGeneratedImage: null,
+      suggestedLeadForm: null,
       adCopyVariations: [],
       selectedCopyIdx: 0,
       messages: [],

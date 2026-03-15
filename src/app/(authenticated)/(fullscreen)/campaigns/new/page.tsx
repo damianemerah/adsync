@@ -36,11 +36,11 @@ import { BudgetLaunchStep } from "@/components/campaigns/new/steps/budget-launch
 import { LeadFormStep } from "@/components/campaigns/new/steps/lead-form-step";
 import { AppInfoStep } from "@/components/campaigns/new/steps/app-info-step";
 
-// Validation Helpers
 import {
   canAccessAudienceStep,
   canAccessCreativeStep,
   canAccessLaunchStep,
+  canAccessExtraStep,
   getWizardCompletionPercentage,
 } from "@/stores/campaign-helpers";
 
@@ -49,6 +49,9 @@ export default function NewCampaignPage() {
   /* eslint-disable react-hooks/exhaustive-deps */
   const searchParams = useSearchParams();
   const draftId = searchParams.get("draftId");
+  const [persistedDraftId, setPersistedDraftId] = useState<string | null>(
+    draftId,
+  );
   const {
     currentStep: step,
     setStep,
@@ -101,7 +104,13 @@ export default function NewCampaignPage() {
   const handleSaveAndExit = async () => {
     setSavingState("exit");
     try {
-      await saveDraft(campaignState, draftId || undefined);
+      const savedId = await saveDraft(
+        campaignState,
+        persistedDraftId || undefined,
+      );
+      if (savedId && savedId !== persistedDraftId) {
+        setPersistedDraftId(savedId);
+      }
       toast.success("Draft Saved", {
         description: "You can resume this campaign from the dashboard.",
       });
@@ -117,7 +126,14 @@ export default function NewCampaignPage() {
   const handleSaveOnly = async () => {
     setSavingState("save");
     try {
-      await saveDraft(campaignState, draftId || undefined);
+      const savedId = await saveDraft(
+        campaignState,
+        persistedDraftId || undefined,
+      );
+      if (savedId && savedId !== persistedDraftId) {
+        setPersistedDraftId(savedId);
+        router.replace(`/campaigns/new?draftId=${savedId}`, { scroll: false });
+      }
       toast.success("Draft Saved", {
         description: "Your progress has been saved.",
       });
@@ -130,7 +146,7 @@ export default function NewCampaignPage() {
   };
 
   const handleDeleteDraft = async () => {
-    if (!draftId) {
+    if (!persistedDraftId) {
       if (confirm("Discard all changes and start over?")) {
         resetDraft();
       }
@@ -146,7 +162,7 @@ export default function NewCampaignPage() {
 
     setIsDeleting(true);
     try {
-      await deleteDraft(draftId);
+      await deleteDraft(persistedDraftId);
       toast.success("Draft Deleted");
       resetDraft();
       router.push("/campaigns");
@@ -177,37 +193,20 @@ export default function NewCampaignPage() {
 
   // Dynamic Step configuration based on objective
   const hasExtraStep =
-    campaignState.objective === "leads" ||
-    campaignState.objective === "app_promotion";
+    campaignState.objective === "app_promotion" ||
+    campaignState.objective === "leads";
+
+  const extraStepLabel =
+    campaignState.objective === "app_promotion" ? "App Info" : "Lead Form";
+
   const numSteps = hasExtraStep ? 5 : 4;
 
-  // To avoid breaking the existing stores which max out at step 4, we render the extra step as Step 2
-  // and bump the visual numbers of the remaining tabs.
-  const isLeads = campaignState.objective === "leads";
-  const isAppPromo = campaignState.objective === "app_promotion";
+  // Validation logic
+  const canGoToExtraStep = canAccessExtraStep(fullState);
 
-  // We need to adjust step validation: if hasExtraStep, step 2 is the extra form, step 3 is audience, step 4 is creative, step 5 is launch
-  // But our Zustand store maxes at 4 currently. To handle this without rewriting the store logic deeply right now,
-  // we will map visual tabs to store steps.
-  // Visual Step 1 -> Store Step 1 (Goal)
-  // Visual Step 2 -> Store Step 2 (App Info / Lead Form) if hasExtraStep, else Audience
-  // Visual Step 3 -> Store Step 3 (Audience) if hasExtraStep, else Creative
-  // Visual Step 4 -> Store Step 4 (Creative) if hasExtraStep, else Launch
-  // Visual Step 5 -> Store Step 5 (Launch) if hasExtraStep
-
-  // For simplicity, we can let the store maintain its 1-4 logic, and just insert the extra step content conditionally in tab 2,
-  // moving audience to tab 3 etc. However, the store's validation helpers might be hardcoded to 4 steps.
-  // For a seamless integration without refactoring the store validation heavily:
-  // We just add a 5th tab if it's leads or app_promotion.
-
-  // Validation for the extra step:
-  const canGoToExtraStep = campaignState.objective !== null;
-  // If we have an extra step, Audience becomes step 3.
-  // Creative becomes step 4. Launch becomes step 5.
+  // If we have an extra step, the guards shift
   const canGoToAudienceAdjusted = hasExtraStep
-    ? isLeads
-      ? !!campaignState.leadGenFormId
-      : !!campaignState.metaApplicationId
+    ? canGoToExtraStep
     : canGoToAudience;
   const canGoToCreativeAdjusted = hasExtraStep
     ? canGoToAudience
@@ -326,7 +325,7 @@ export default function NewCampaignPage() {
                 align="end"
                 className="rounded-xl shadow-soft border-border bg-popover"
               >
-                {draftId && (
+                {persistedDraftId && (
                   <DropdownMenuItem
                     onClick={handleDeleteDraft}
                     disabled={isDeleting}
@@ -343,7 +342,7 @@ export default function NewCampaignPage() {
                   }}
                   className={cn(
                     "rounded-lg cursor-pointer",
-                    !draftId && "text-red-600 focus:bg-red-50",
+                    !persistedDraftId && "text-red-600 focus:bg-red-50",
                   )}
                 >
                   <Undo className="h-4 w-4 mr-2" /> Start Over
@@ -387,9 +386,7 @@ export default function NewCampaignPage() {
                 )}
               >
                 <span className="text-xs sm:text-sm font-bold">2.</span>
-                <span className="text-xs sm:text-sm">
-                  {isLeads ? "Lead Form" : "App Info"}
-                </span>
+                <span className="text-xs sm:text-sm">{extraStepLabel}</span>
               </TabsTrigger>
             )}
 
@@ -446,20 +443,48 @@ export default function NewCampaignPage() {
 
           {hasExtraStep && (
             <TabsContent value="2" className="mt-0">
-              {isLeads ? <LeadFormStep /> : <AppInfoStep />}
+              {campaignState.objective === "app_promotion" ? (
+                <AppInfoStep />
+              ) : (
+                <LeadFormStep />
+              )}
             </TabsContent>
           )}
 
           <TabsContent value={hasExtraStep ? "3" : "2"} className="mt-0">
-            <AudienceChatStep />
+            <AudienceChatStep
+              persistedDraftId={persistedDraftId}
+              onDraftSaved={(id) => {
+                setPersistedDraftId(id);
+                router.replace(`/campaigns/new?draftId=${id}`, {
+                  scroll: false,
+                });
+              }}
+            />
           </TabsContent>
 
           <TabsContent value={hasExtraStep ? "4" : "3"} className="mt-0">
-            <CreativeStep />
+            <CreativeStep
+              persistedDraftId={persistedDraftId}
+              onDraftSaved={(id) => {
+                setPersistedDraftId(id);
+                router.replace(`/campaigns/new?draftId=${id}`, {
+                  scroll: false,
+                });
+              }}
+            />
           </TabsContent>
 
           <TabsContent value={hasExtraStep ? "5" : "4"} className="mt-0">
-            <BudgetLaunchStep />
+            <BudgetLaunchStep
+              persistedDraftId={persistedDraftId}
+              onDraftSaved={(id) => {
+                setPersistedDraftId(id);
+                router.replace(`/campaigns/new?draftId=${id}`, {
+                  scroll: false,
+                });
+              }}
+            />
           </TabsContent>
         </Tabs>
       </main>

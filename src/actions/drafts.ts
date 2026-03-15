@@ -155,10 +155,19 @@ export async function saveDraft(
 
 export async function getDraft(campaignId: string) {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const orgId = await getActiveOrgId();
+  if (!orgId) return null;
+
   const { data, error } = await supabase
     .from("campaigns")
     .select("*")
     .eq("id", campaignId)
+    .eq("organization_id", orgId)
     .single();
 
   if (error) {

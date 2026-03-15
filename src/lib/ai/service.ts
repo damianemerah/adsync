@@ -74,6 +74,40 @@ const AI_STRATEGY_SCHEMA = {
       ],
     },
     whatsappMessage: { type: ["string", "null"] as const },
+    suggestedLeadForm: {
+      anyOf: [
+        {
+          type: "object" as const,
+          properties: {
+            fields: {
+              type: "array" as const,
+              items: {
+                type: "object" as const,
+                properties: {
+                  type: { type: "string" as const },
+                  label: { type: ["string", "null"] as const },
+                  choices: {
+                    anyOf: [
+                      {
+                        type: "array" as const,
+                        items: { type: "string" as const },
+                      },
+                      { type: "null" as const },
+                    ],
+                  },
+                },
+                required: ["type", "label", "choices"] as const,
+                additionalProperties: false,
+              },
+            },
+            thankYouMessage: { type: "string" as const },
+          },
+          required: ["fields", "thankYouMessage"] as const,
+          additionalProperties: false,
+        },
+        { type: "null" as const },
+      ],
+    },
     meta: {
       type: "object" as const,
       properties: {
@@ -153,6 +187,7 @@ const AI_STRATEGY_SCHEMA = {
     "headline",
     "ctaIntent",
     "whatsappMessage",
+    "suggestedLeadForm",
     "meta",
   ] as const,
   additionalProperties: false,
@@ -169,7 +204,7 @@ const openai = new OpenAI({
 // Exported so ai-images.ts can reference imageCreative without duplication.
 export const SKILL_IDS = {
   coreStrategy: process.env.SKILL_ID_CORE_STRATEGY_NG!,
-  copyVerticals: process.env.SKILL_ID_COPY_VERTICALS_NG!,    // merged: fashion/beauty/food/services/b2b/general
+  copyVerticals: process.env.SKILL_ID_COPY_VERTICALS_NG!, // merged: fashion/beauty/food/services/b2b/general
   copyElectronics: process.env.SKILL_ID_COPY_ELECTRONICS_NG!,
   copyEvents: process.env.SKILL_ID_COPY_EVENTS_NG!,
   policyGuard: process.env.SKILL_ID_POLICY_GUARD_NG!,
@@ -180,7 +215,13 @@ export const SKILL_IDS = {
 // Business types that require Meta policy compliance checking.
 // policyGuard is skipped for 85%+ of calls (food, fashion, beauty) — saves ~500 tokens/call.
 const REGULATED_TYPES = new Set([
-  "finance", "health", "betting", "supplements", "insurance", "crypto", "forex",
+  "finance",
+  "health",
+  "betting",
+  "supplements",
+  "insurance",
+  "crypto",
+  "forex",
 ]);
 
 function buildSkillList(
@@ -415,7 +456,10 @@ async function generateWithOpenAI(
                 type: "container_auto",
                 skills: buildSkillList(
                   extracted?.businessType,
-                  !!(extracted?.lifeSignals?.trim() && extracted.lifeSignals !== "none"),
+                  !!(
+                    extracted?.lifeSignals?.trim() &&
+                    extracted.lifeSignals !== "none"
+                  ),
                 ),
               },
             },
@@ -534,6 +578,7 @@ export async function refineAdCopyWithOpenAI(
     headline: refined.headline,
     ctaIntent: "start_whatsapp_chat" as const,
     whatsappMessage: refined.whatsappMessage,
+    suggestedLeadForm: null,
     meta: {
       input_type: "TYPE_D" as const,
       needs_clarification: false,
@@ -580,6 +625,7 @@ async function generateMock(input: AIInput): Promise<AIStrategyResult> {
     plain_english_summary: "Mock campaign targeting Lagos shoppers.",
     lifeEvents: [],
     whatsappMessage: null,
+    suggestedLeadForm: null,
     meta: {
       input_type: "TYPE_A" as const,
       needs_clarification: false,
@@ -600,6 +646,7 @@ async function generateMock(input: AIInput): Promise<AIStrategyResult> {
 export async function generateAndSaveStrategy(
   input: AIInput,
   conversationHistory: TriageMessage[] = [],
+  activeOrgId?: string,
 ): Promise<AIStrategyResult & { usage?: any }> {
   const supabase = await createClient();
   const provider = process.env.AI_PROVIDER!;
@@ -653,6 +700,7 @@ export async function generateAndSaveStrategy(
           headline: [],
           ctaIntent: "buy_now" as const,
           whatsappMessage: null,
+          suggestedLeadForm: null,
           meta: {
             input_type: "TYPE_D" as const,
             needs_clarification: false,
@@ -683,6 +731,7 @@ export async function generateAndSaveStrategy(
         headline: [],
         ctaIntent: "buy_now" as const,
         whatsappMessage: null,
+        suggestedLeadForm: null,
         meta: {
           input_type: triage.input_type as any,
           needs_clarification: triage.input_type === "TYPE_B",
@@ -712,17 +761,22 @@ export async function generateAndSaveStrategy(
   );
   console.log("OpenAI Skills Result: 📋", aiResult);
 
-  const { data: member } = await supabase
-    .from("organization_members")
-    .select("organization_id")
-    .eq("user_id", user?.id)
-    .single();
-  if (!member) throw new Error("No organization found");
+  let orgIdToSave = activeOrgId;
+
+  if (!orgIdToSave) {
+    const { data: member } = await supabase
+      .from("organization_members")
+      .select("organization_id")
+      .eq("user_id", user?.id)
+      .single();
+    if (!member) throw new Error("No organization found");
+    orgIdToSave = member.organization_id as string;
+  }
 
   const { error } = await supabase
     .from("targeting_profiles")
     .insert({
-      organization_id: member?.organization_id,
+      organization_id: orgIdToSave || undefined,
       name: `${input.businessDescription.substring(0, 20)}...`,
       business_description: input.businessDescription,
       product_category: "General",

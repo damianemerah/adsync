@@ -21,9 +21,12 @@ import {
 } from "iconoir-react";
 import { AdSyncObjective } from "@/lib/constants";
 import { PaymentDialog } from "@/components/billing/payment-dialog";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { estimateBudget, predictROAS } from "@/lib/intelligence";
+import { createLeadForm, fetchMetaPages } from "@/actions/lead-forms";
+import { saveDraft } from "@/actions/drafts";
+import { toast } from "sonner";
 
 // ─── Outcome Tiers ────────────────────────────────────────────────────────────
 
@@ -67,10 +70,14 @@ const OUTCOME_TIERS: OutcomeTier[] = [
   },
 ];
 
-export function BudgetLaunchStep() {
+export function BudgetLaunchStep({
+  persistedDraftId,
+  onDraftSaved,
+}: {
+  persistedDraftId: string | null;
+  onDraftSaved: (id: string) => void;
+}) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const draftId = searchParams.get("draftId");
   const {
     budget,
     campaignName,
@@ -91,6 +98,8 @@ export function BudgetLaunchStep() {
     targetLifeEvents,
     destinationValue,
     aiPrompt,
+    leadGenFormId,
+    suggestedLeadForm,
   } = useCampaignStore();
 
   const orgROI = useOrgROI();
@@ -124,6 +133,20 @@ export function BudgetLaunchStep() {
   const needsPixel = isWebsiteObjective && !hasPixel && !skipPixel;
 
   const canLaunch = !isLaunching && hasHealthyAccount && !needsPixel;
+
+  useEffect(() => {
+    if (!budget || !campaignName) return;
+    const t = setTimeout(async () => {
+      try {
+        const state = useCampaignStore.getState();
+        const id = await saveDraft(state, persistedDraftId ?? undefined);
+        if (id && id !== persistedDraftId) onDraftSaved(id);
+      } catch {
+        // Silent
+      }
+    }, 2500);
+    return () => clearTimeout(t);
+  }, [budget, campaignName]);
 
   // If user loaded a draft with a custom budget, clear the tier highlight
   useEffect(() => {
@@ -218,7 +241,60 @@ export function BudgetLaunchStep() {
 
   // ─── Launch handler ──────────────────────────────────────────────────────────
 
-  const handleLaunch = () => {
+  const handleLaunch = async () => {
+    // Auto-create lead form if needed (leads objective without explicit form ID)
+    let finalLeadGenFormId = leadGenFormId;
+
+    if (objective === "leads" && !leadGenFormId && suggestedLeadForm) {
+      try {
+        const accounts = adAccounts;
+        const defaultAccount =
+          accounts?.find((a: any) => a.isDefault) ?? accounts?.[0];
+        const adAccountId = defaultAccount?.accountId;
+
+        if (!adAccountId) {
+          toast.error("No ad account found");
+          return;
+        }
+
+        // Fetch page ID
+        const pagesRes = await fetchMetaPages(adAccountId);
+        if (!pagesRes.success || !pagesRes.pages.length) {
+          toast.error("No Facebook Page found. Please connect a Page first.");
+          return;
+        }
+
+        const pageId = pagesRes.pages[0].id;
+
+        // Create the lead form
+        const formName = `${campaignName || "Campaign"} - Lead Form`;
+        const res = await createLeadForm(adAccountId, pageId, {
+          name: formName,
+          privacyPolicyUrl: "https://sellam.app/privacy", // Default privacy policy
+          thankYouMessage: suggestedLeadForm.thankYouMessage,
+          questions: suggestedLeadForm.fields.map((f) => ({
+            id: crypto.randomUUID(),
+            type: f.type as any,
+            ...(f.label ? { label: f.label } : {}),
+            ...(f.choices ? { choices: f.choices } : {}),
+          })),
+        });
+
+        if (res.success && res.formId) {
+          finalLeadGenFormId = res.formId;
+          updateDraft({ leadGenFormId: res.formId });
+          toast.success("Lead form created successfully");
+        } else {
+          toast.error(res.error || "Failed to create lead form");
+          return;
+        }
+      } catch (error) {
+        console.error("Error creating lead form:", error);
+        toast.error("Failed to create lead form");
+        return;
+      }
+    }
+
     const launchPayload = {
       name: campaignName || `New Campaign - ${new Date().toLocaleDateString()}`,
       objective: objective as AdSyncObjective,
@@ -256,7 +332,8 @@ export function BudgetLaunchStep() {
         platform: platform || "meta",
         objective: objective || "sales",
       },
-      campaignId: draftId || undefined,
+      campaignId: persistedDraftId || undefined,
+      leadGenFormId: finalLeadGenFormId || undefined,
     };
 
     console.log("🚀 [UI Start Launch] Payload sent to action:", launchPayload);

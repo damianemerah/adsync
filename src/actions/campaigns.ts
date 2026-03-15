@@ -728,6 +728,8 @@ export async function updateCampaignStatus(
   action: "PAUSED" | "ACTIVE" | "ARCHIVED",
 ) {
   const supabase = await createClient();
+  const orgId = await getActiveOrgId();
+  if (!orgId) throw new Error("No organization found");
 
   // 1. Get Campaign & Token
   const { data: campaign } = await supabase
@@ -742,6 +744,7 @@ export async function updateCampaignStatus(
     `,
     )
     .eq("id", campaignId)
+    .eq("organization_id", orgId)
     .single();
 
   if (!campaign || !campaign.ad_accounts) throw new Error("Campaign not found");
@@ -785,6 +788,8 @@ export async function updateCampaignStatus(
  */
 export async function syncCampaignInsights(campaignId: string) {
   const supabase = await createClient();
+  const orgId = await getActiveOrgId();
+  if (!orgId) throw new Error("No organization found");
 
   // Get campaign and account
   const { data: campaign } = await supabase
@@ -799,6 +804,7 @@ export async function syncCampaignInsights(campaignId: string) {
     `,
     )
     .eq("id", campaignId)
+    .eq("organization_id", orgId)
     .single();
 
   if (!campaign || !campaign.ad_accounts) throw new Error("Campaign not found");
@@ -875,6 +881,8 @@ export async function syncCampaignInsights(campaignId: string) {
  */
 export async function syncCampaignAds(campaignId: string) {
   const supabase = await createClient();
+  const orgId = await getActiveOrgId();
+  if (!orgId) throw new Error("No organization found");
 
   // Get campaign and account
   const { data: campaign } = await supabase
@@ -889,6 +897,7 @@ export async function syncCampaignAds(campaignId: string) {
     `,
     )
     .eq("id", campaignId)
+    .eq("organization_id", orgId)
     .single();
 
   if (!campaign || !campaign.ad_accounts) throw new Error("Campaign not found");
@@ -956,6 +965,8 @@ export async function syncCampaignAds(campaignId: string) {
  */
 export async function getCampaignPlacementInsights(campaignId: string) {
   const supabase = await createClient();
+  const orgId = await getActiveOrgId();
+  if (!orgId) throw new Error("No organization found");
 
   // Get campaign and account
   const { data: campaign } = await supabase
@@ -970,6 +981,7 @@ export async function getCampaignPlacementInsights(campaignId: string) {
     `,
     )
     .eq("id", campaignId)
+    .eq("organization_id", orgId)
     .single();
 
   if (!campaign || !campaign.ad_accounts) throw new Error("Campaign not found");

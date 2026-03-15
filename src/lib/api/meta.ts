@@ -429,20 +429,31 @@ export const MetaService = {
     pageId: string,
     form: {
       name: string;
-      questions: Array<{ type: string; label?: string }>;
+      questions: Array<{ type: string; label?: string; choices?: string[] }>;
       privacyPolicyUrl: string;
       thankYouMessage?: string;
     },
   ): Promise<{ id: string }> => {
-    const questions = form.questions.map((q) =>
-      q.type === "CUSTOM"
-        ? {
-            type: "CUSTOM",
-            key: q.label?.toLowerCase().replace(/\s+/g, "_"),
-            label: q.label,
-          }
-        : { type: q.type },
-    );
+    const questions = form.questions.map((q) => {
+      if (q.type === "USER_CHOICE") {
+        return {
+          type: "USER_CHOICE",
+          description: q.label,
+          key: q.label?.toLowerCase().replace(/\s+/g, "_") || "user_choice",
+          choices: (q.choices ?? [])
+            .filter(Boolean)
+            .map((c, i) => ({ key: `choice_${i + 1}`, display_value: c })),
+        };
+      }
+      if (q.type === "CUSTOM") {
+        return {
+          type: "CUSTOM",
+          key: q.label?.toLowerCase().replace(/\s+/g, "_") || "custom",
+          label: q.label,
+        };
+      }
+      return { type: q.type };
+    });
     return MetaService.request(`/${pageId}/leadgen_forms`, "POST", token, {
       name: form.name,
       questions,
@@ -451,6 +462,21 @@ export const MetaService = {
         thank_you_page: { body: form.thankYouMessage },
       }),
     });
+  },
+
+  // 4b-i. List Facebook Pages connected to the user's access token
+  getMetaPages: async (
+    token: string,
+  ): Promise<Array<{ id: string; name: string }>> => {
+    const data = await MetaService.request(
+      `/me/accounts?fields=id,name&limit=25`,
+      "GET",
+      token,
+    );
+    return (data.data || []).map((p: { id: string; name: string }) => ({
+      id: p.id,
+      name: p.name,
+    }));
   },
 
   // 4c. List existing Lead Gen Forms on a Facebook Page

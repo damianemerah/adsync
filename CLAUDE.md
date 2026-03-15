@@ -1,5 +1,41 @@
 # AdSync – Project Rules for Claude
 
+## Available Tools (MCP)
+
+**You have full access to several MCP servers to aid your workflow:**
+
+- **Supabase MCP Server**: Use this for database research, running SQL queries, reading table structures, and applying migrations directly to the active project.
+- **Perplexity-Ask MCP Server**: Use the Perplexity search integration to perform advanced, up-to-date research, search for current documentation, and resolve external implementation issues.
+
+## Agent Context & Skills
+
+**Before writing any code for a feature, read `.agent/AGENTS.md`** — it is the single entry point for all project context:
+
+- `.agent/rules/` — architecture decisions, code conventions, product rules, theme
+- `.agent/skills/` — feature-area skill files (see index in AGENTS.md)
+- `.agent/workflows/` — step-by-step workflow guides (`/implement-phase`, `/remodel`, etc.)
+- `.agent/plans/` — current feature plans
+
+The skill directory in AGENTS.md maps trigger phrases to the correct SKILL.md file. Always read the relevant skill before implementing a feature. Current skills include:
+
+| Skill                   | Path                                             |
+| ----------------------- | ------------------------------------------------ |
+| Attribution Layer       | `.agent/skills/attribution/SKILL.md`             |
+| AI Context              | `.agent/skills/ai-context/SKILL.md`              |
+| Campaign Launch         | `.agent/skills/campaign-launch/SKILL.md`         |
+| Naira Payments          | `.agent/skills/naira-payments/SKILL.md`          |
+| Tier Strategy           | `.agent/skills/tier-strategy/SKILL.md`           |
+| Marketing Copy          | `.agent/skills/marketing/SKILL.md`               |
+| Frontend Design         | `.agent/skills/frontend-design/SKILL.md`         |
+| Audience Targeting      | `.agent/skills/audience-targeting/SKILL.md`      |
+| Lead Gen Objective      | `.agent/skills/lead-gen-objective/SKILL.md`      |
+| App Promotion Objective | `.agent/skills/app-promotion-objective/SKILL.md` |
+| Growth Strategy         | `.agent/skills/growth-strategy/SKILL.md`         |
+| Lead Scoring            | `.agent/skills/lead-scoring/SKILL.md`            |
+| Momentum Tracking       | `.agent/skills/momentum-tracking/SKILL.md`       |
+
+---
+
 ## Architecture Overview
 
 Next.js 16 App Router app with Supabase (Postgres + Auth). Users can belong to **multiple organizations**. Every page and data query must be scoped to the **active organization**.
@@ -111,10 +147,10 @@ Zustand (`src/store/dashboard-store.ts`) is for **dashboard UI state only** (sel
 
 ### Why Edge Functions Are Different
 
-| Context                     | Org Filtering Required? | Reason                                                                 |
-| --------------------------- | ----------------------- | ---------------------------------------------------------------------- |
+| Context                     | Org Filtering Required? | Reason                                                                  |
+| --------------------------- | ----------------------- | ----------------------------------------------------------------------- |
 | **Web App** (UI/API routes) | ✅ **YES**              | User is interacting with a specific workspace; must see only their data |
-| **Edge Functions** (cron)   | ❌ **NO**               | System automation processing all orgs; identifies owners per record    |
+| **Edge Functions** (cron)   | ❌ **NO**               | System automation processing all orgs; identifies owners per record     |
 
 ### How Edge Functions Handle Multi-Org Data
 
@@ -139,22 +175,20 @@ for (const campaign of campaigns) {
 ```ts
 // ❌ WRONG: Don't filter by a single org in edge functions
 const orgId = await getActiveOrgId(); // ❌ NO! Edge functions don't have "active org"
-const { data } = await supabase
-  .from("campaigns")
-  .eq("organization_id", orgId); // ❌ This limits to one org only
+const { data } = await supabase.from("campaigns").eq("organization_id", orgId); // ❌ This limits to one org only
 ```
 
 ### Current Edge Functions
 
 All edge functions are scheduled via `pg_cron` and correctly implement multi-org processing:
 
-| Function                   | Schedule      | Purpose                                              | Org Scoping                                     |
-| -------------------------- | ------------- | ---------------------------------------------------- | ----------------------------------------------- |
-| `sync-campaign-insights`   | Every 6 hours | Syncs Meta API metrics for all campaigns             | Fetches all campaigns; each has `organization_id` |
-| `subscription-lifecycle`   | Daily 22:00   | Resets credits & expires trials                      | Processes all orgs in `organizations` table     |
-| `account-health`           | Every 4 hours | Checks ad account balances & pauses low-balance ads  | Fetches all ad_accounts; notifies per-org owner |
-| `post-launch-rules`        | Every 12 hours| Evaluates campaign performance & sends optimization alerts | Fetches all campaigns; notifies per-org owner |
-| `weekly-report`            | Weekly        | Sends performance summary emails                     | Groups by org; filters campaigns per org        |
+| Function                 | Schedule       | Purpose                                                    | Org Scoping                                       |
+| ------------------------ | -------------- | ---------------------------------------------------------- | ------------------------------------------------- |
+| `sync-campaign-insights` | Every 6 hours  | Syncs Meta API metrics for all campaigns                   | Fetches all campaigns; each has `organization_id` |
+| `subscription-lifecycle` | Daily 22:00    | Resets credits & expires trials                            | Processes all orgs in `organizations` table       |
+| `account-health`         | Every 4 hours  | Checks ad account balances & pauses low-balance ads        | Fetches all ad_accounts; notifies per-org owner   |
+| `post-launch-rules`      | Every 12 hours | Evaluates campaign performance & sends optimization alerts | Fetches all campaigns; notifies per-org owner     |
+| `weekly-report`          | Weekly         | Sends performance summary emails                           | Groups by org; filters campaigns per org          |
 
 ### Helper Pattern: `getOrgOwner()`
 
@@ -174,10 +208,10 @@ async function getOrgOwner(supabase: any, organizationId: string) {
 
 ### Key Files
 
-| File                                                              | Purpose                                  |
-| ----------------------------------------------------------------- | ---------------------------------------- |
+| File                                                                                                                             | Purpose                                   |
+| -------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
 | [supabase/migrations/20260227160001_setup_pg_cron_schedules.sql](supabase/migrations/20260227160001_setup_pg_cron_schedules.sql) | Defines cron schedules for edge functions |
-| `supabase/functions/*/index.ts`                                   | Edge function implementations            |
+| `supabase/functions/*/index.ts`                                                                                                  | Edge function implementations             |
 
 ### When to Use Which Pattern
 

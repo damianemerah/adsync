@@ -9,7 +9,7 @@ import { classifyLocally } from "@/lib/ai/preprocessor";
 import type { TriageMessage } from "@/lib/ai/service";
 import { useState, useRef, useEffect } from "react";
 import { saveDraft } from "@/actions/drafts";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
@@ -120,10 +120,14 @@ function buildOutcomePreview(
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function AudienceChatStep() {
+export function AudienceChatStep({
+  persistedDraftId,
+  onDraftSaved,
+}: {
+  persistedDraftId: string | null;
+  onDraftSaved: (id: string) => void;
+}) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const draftIdRef = useRef<string | null>(searchParams.get("draftId"));
   const {
     setStep,
     updateDraft,
@@ -430,13 +434,9 @@ export function AudienceChatStep() {
     const timer = setTimeout(async () => {
       try {
         const state = useCampaignStore.getState();
-        const savedId = await saveDraft(state, draftIdRef.current ?? undefined);
-        if (savedId && savedId !== draftIdRef.current) {
-          draftIdRef.current = savedId;
-
-          router.replace(`/campaigns/new?draftId=${savedId}`, {
-            scroll: false,
-          });
+        const savedId = await saveDraft(state, persistedDraftId ?? undefined);
+        if (savedId && savedId !== persistedDraftId) {
+          onDraftSaved(savedId);
         }
       } catch {
         // Silent
@@ -946,6 +946,7 @@ export function AudienceChatStep() {
         selectedCopyIdx: 0,
         locations: finalLocations,
         lastGeneratedObjective: objective || "whatsapp",
+        suggestedLeadForm: result.suggestedLeadForm ?? null,
       });
 
       const outcome = buildOutcomePreview(objective, budget);

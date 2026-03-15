@@ -157,6 +157,7 @@ export async function POST(request: Request) {
         currentCopy: currentCopy ?? undefined,
       },
       conversationHistory ?? [],
+      activeOrgId,
     );
     console.log(
       "\n[API Route: /api/ai/generate] ✅ Strategy generated successfully, returning to client.\n",

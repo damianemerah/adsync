@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Sparks, MapPin, Xmark } from "iconoir-react";
 import { cn } from "@/lib/utils";
 import { AsyncTagInput } from "./async-tag-input";
+import { LeadFormPreviewCompact } from "./lead-form-preview-compact";
 
 /** Real Meta IDs are always numeric strings (e.g. "6003107902433"). */
 function isResolvedId(id: string): boolean {
@@ -331,6 +332,9 @@ export function AudienceSummaryPanel() {
           )}
         </div>
       </div>
+
+      {/* Lead Form Preview (only for leads objective) */}
+      <LeadFormPreviewCompact />
 
       {/* Interests */}
       <div className="space-y-3">

@@ -45,6 +45,7 @@ export async function getActiveOrgId(): Promise<string | null> {
   }
 
   // Fallback: first org
+
   return orgIds[0];
 }
 

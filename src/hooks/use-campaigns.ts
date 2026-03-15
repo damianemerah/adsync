@@ -72,10 +72,12 @@ export function useCampaigns() {
   const syncMutation = useMutation({
     mutationFn: async () => {
       // Get all active ad accounts first
-      const { data: accounts } = await supabase
+      let q = supabase
         .from("ad_accounts")
         .select("id")
         .eq("health_status", "healthy");
+      if (activeOrgId) q = q.eq("organization_id", activeOrgId);
+      const { data: accounts } = await q;
 
       if (!accounts || accounts.length === 0)
         throw new Error("No connected ad accounts.");
@@ -107,7 +109,7 @@ export function useCampaigns() {
     mutationFn: launchCampaign,
     onSuccess: (data) => {
       if (data.success) {
-        queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+        queryClient.invalidateQueries({ queryKey: ["campaigns", activeOrgId] });
         toast.success("Campaign launched successfully!");
         router.push("/campaigns");
       } else {

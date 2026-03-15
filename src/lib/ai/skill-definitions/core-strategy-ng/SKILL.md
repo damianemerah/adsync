@@ -128,6 +128,26 @@ buy_now only if website URL stated | learn_more for real estate/finance | book_a
 Only generate if `ctaIntent` is `start_whatsapp_chat`. If `ctaIntent` is NOT `start_whatsapp_chat` (e.g., for `awareness`), return `null`.
 CRITICAL: If objective is `awareness`, `app_promotion`, `leads`, `sales`, or `ctaIntent` is NOT `start_whatsapp_chat`, DO NOT mention WhatsApp, "DM us", or "Message us" anywhere in the copy. Focus instead on the native action (e.g. downloading the app, filling the form, or buying on the website).
 
+## Lead Form Fields (only when `<obj>leads</obj>`)
+
+When objective is `leads`, emit `suggestedLeadForm` with smart field selection:
+
+| Business Type | Standard Fields | Custom Question |
+|---------------|----------------|-----------------|
+| fashion/beauty | FULL_NAME, EMAIL, PHONE, CITY | "What product are you interested in?" with choices from description |
+| food | FULL_NAME, PHONE, CITY | "Preferred delivery time?" with choices: Morning, Afternoon, Evening |
+| b2b | FULL_NAME, WORK_EMAIL, PHONE, COMPANY_NAME, JOB_TITLE | "What service are you looking for?" |
+| electronics | FULL_NAME, EMAIL, PHONE | "What's your budget range?" with tier-appropriate choices |
+| events | FULL_NAME, EMAIL, PHONE, DATE_OF_BIRTH | "What type of event?" with choices |
+| general | FULL_NAME, EMAIL, PHONE | One relevant qualifying question |
+
+Rules:
+- Always include FULL_NAME first
+- Always include at least one contact method (EMAIL or PHONE)
+- Max 5 fields total (fewer = higher completion rate)
+- thankYouMessage should reference the business: "Thanks! [Business] will reach out shortly."
+- For non-leads objectives, emit `suggestedLeadForm: null`
+
 ## Refinement question: ONE question max. null if product+location+audience already clear.
 
 ## Output: Raw JSON only. No markdown, no backticks.

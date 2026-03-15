@@ -3,7 +3,7 @@
 import { useCampaignStore } from "@/stores/campaign-store";
 import { useCreatives } from "@/hooks/use-creatives";
 import { CreativeUploadDialog } from "@/components/creatives/creative-upload-dialog";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -37,7 +37,13 @@ import { PaymentDialog } from "@/components/billing/payment-dialog";
 import { toast } from "sonner";
 import { Refresh, EditPencil } from "iconoir-react";
 
-export function CreativeStep() {
+export function CreativeStep({
+  persistedDraftId,
+  onDraftSaved,
+}: {
+  persistedDraftId: string | null;
+  onDraftSaved: (id: string) => void;
+}) {
   const {
     currentStep: step,
     objective,
@@ -62,6 +68,20 @@ export function CreativeStep() {
   const [customPrompt, setCustomPrompt] = useState("");
   const { balance } = useCreditBalance();
   const router = useRouter();
+
+  useEffect(() => {
+    if (selectedCreatives.length === 0) return;
+    const t = setTimeout(async () => {
+      try {
+        const state = useCampaignStore.getState();
+        const id = await saveDraft(state, persistedDraftId ?? undefined);
+        if (id && id !== persistedDraftId) onDraftSaved(id);
+      } catch {
+        // Silent
+      }
+    }, 2500);
+    return () => clearTimeout(t);
+  }, [selectedCreatives]);
 
   const toggleCreative = (url: string) => {
     if (selectedCreatives.includes(url)) {
