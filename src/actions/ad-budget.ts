@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { getActiveOrgId } from "@/lib/active-org";
 import {
   createCustomer,
@@ -336,6 +336,95 @@ export async function reserveAdBudget(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Ensure a virtual USD card exists for an org — safe to call server-side
+// (webhook, cron) using service-role credentials. Idempotent.
+// ─────────────────────────────────────────────────────────────────────────────
+export async function ensureVirtualCardForOrg(
+  orgId: string,
+): Promise<{ success: boolean; message: string }> {
+  const supabase = createAdminClient();
+
+  const { data: existingCard } = await supabase
+    .from("virtual_cards")
+    .select("id")
+    .eq("organization_id", orgId)
+    .single();
+
+  if (existingCard) {
+    return { success: true, message: "Virtual card already exists" };
+  }
+
+  const { data: org } = await supabase
+    .from("organizations")
+    .select("name")
+    .eq("id", orgId)
+    .single();
+  if (!org) throw new Error(`Organization ${orgId} not found`);
+
+  const { data: member } = await supabase
+    .from("organization_members")
+    .select("user_id")
+    .eq("organization_id", orgId)
+    .eq("role", "owner")
+    .single();
+  if (!member) throw new Error(`No owner found for org ${orgId}`);
+
+  const {
+    data: { user },
+  } = await supabase.auth.admin.getUserById(member.user_id as string);
+  if (!user?.email) throw new Error(`Owner email not found for org ${orgId}`);
+
+  const ownerPhone = (user.user_metadata?.phone as string) || "+2348000000000";
+
+  const customer = await createCustomer(
+    orgId,
+    org.name,
+    user.email,
+    ownerPhone,
+    {
+      line1: "1 Sellam Street",
+      city: "Lagos",
+      state: "Lagos",
+      postalCode: "100001",
+    },
+  );
+
+  const account = await createUsdAccount(customer.id);
+
+  const sudoCard: SudoCardDetails = await createVirtualCard(
+    customer.id,
+    account.id,
+    org.name,
+    {
+      line1: "1 Sellam Street",
+      city: "Lagos",
+      state: "Lagos",
+      postalCode: "100001",
+    },
+  );
+
+  const { error: cardError } = await supabase.from("virtual_cards").insert({
+    organization_id: orgId,
+    provider: "sudo",
+    provider_card_id: sudoCard.id,
+    provider_customer_id: customer.id,
+    provider_account_id: account.id,
+    last_four: sudoCard.last4,
+    expiry_month: sudoCard.expiryMonth,
+    expiry_year: sudoCard.expiryYear,
+    status: "active",
+    balance_usd: 0,
+  });
+
+  if (cardError) throw cardError;
+
+  console.log(
+    `✅ ensureVirtualCardForOrg: created card ${sudoCard.id} (****${sudoCard.last4}) for org ${orgId}`,
+  );
+  return { success: true, message: "Virtual card created successfully" };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Create virtual USD card for the organization (via Sudo Africa)
 // This is called when an org first tops up their ad budget
 // ─────────────────────────────────────────────────────────────────────────────
@@ -398,7 +487,7 @@ export async function createOrganizationVirtualCard(): Promise<{
     orgId,
     org.name,
     user.email,
-    user.phone || "+2348000000000", // TODO: Collect phone during onboarding
+    (user.user_metadata?.phone as string) || "+2348000000000", // TODO: Collect phone during onboarding
     {
       line1: "1 Sellam Street", // TODO: Collect address during onboarding
       city: "Lagos",

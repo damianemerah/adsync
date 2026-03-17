@@ -38,6 +38,7 @@ export function ROIMetricsCard({ campaignId }: ROIMetricsCardProps) {
   }
 
   if (!roi) return null;
+  console.log("roi🔥", roi);
 
   const metrics = [
     {

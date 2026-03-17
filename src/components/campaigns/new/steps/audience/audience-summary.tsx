@@ -4,7 +4,7 @@ import { useCampaignStore } from "@/stores/campaign-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Sparks, MapPin, Xmark } from "iconoir-react";
+import { ArrowRight, Sparks, MapPin, Xmark, WarningTriangle } from "iconoir-react";
 import { cn } from "@/lib/utils";
 import { AsyncTagInput } from "./async-tag-input";
 import { LeadFormPreviewCompact } from "./lead-form-preview-compact";
@@ -256,15 +256,17 @@ export function AudienceSummaryPanel() {
               }}
             />
           </div>
-          {targetBehaviors?.filter((b: any) => isResolvedId(b.id)).length >
-          0 ? (
-            targetBehaviors
-              .filter((b: any) => isResolvedId(b.id))
-              .map((beh: any) => (
+          {targetBehaviors?.length > 0 ? (
+            targetBehaviors.map((beh: any) => (
                 <Badge
                   key={beh.id}
                   variant="secondary"
-                  className="py-1 px-3 rounded-full cursor-pointer border transition-colors bg-purple-500/10 text-purple-600 border-purple-200 hover:bg-purple-500/20"
+                  className={cn(
+                    "py-1 px-3 rounded-full cursor-pointer border transition-colors",
+                    isResolvedId(beh.id)
+                      ? "bg-purple-500/10 text-purple-600 border-purple-200 hover:bg-purple-500/20"
+                      : "bg-amber-500/10 text-amber-600 border-amber-200 hover:bg-amber-500/20",
+                  )}
                   onClick={() =>
                     updateDraft({
                       targetBehaviors: targetBehaviors.filter(
@@ -273,6 +275,7 @@ export function AudienceSummaryPanel() {
                     })
                   }
                 >
+                  {!isResolvedId(beh.id) && <WarningTriangle className="h-3 w-3 mr-1 opacity-70" />}
                   {beh.name} <Xmark className="h-3 w-3 ml-1 opacity-50" />
                 </Badge>
               ))
@@ -305,15 +308,17 @@ export function AudienceSummaryPanel() {
               }}
             />
           </div>
-          {targetLifeEvents?.filter((e: any) => isResolvedId(e.id)).length >
-          0 ? (
-            targetLifeEvents
-              .filter((e: any) => isResolvedId(e.id))
-              .map((event: any) => (
+          {targetLifeEvents?.length > 0 ? (
+            targetLifeEvents.map((event: any) => (
                 <Badge
                   key={event.id}
                   variant="secondary"
-                  className="py-1 px-3 rounded-full cursor-pointer border transition-colors bg-pink-500/10 text-pink-600 border-pink-200 hover:bg-pink-500/20"
+                  className={cn(
+                    "py-1 px-3 rounded-full cursor-pointer border transition-colors",
+                    isResolvedId(event.id)
+                      ? "bg-pink-500/10 text-pink-600 border-pink-200 hover:bg-pink-500/20"
+                      : "bg-amber-500/10 text-amber-600 border-amber-200 hover:bg-amber-500/20",
+                  )}
                   onClick={() =>
                     updateDraft({
                       targetLifeEvents: targetLifeEvents.filter(
@@ -322,6 +327,7 @@ export function AudienceSummaryPanel() {
                     })
                   }
                 >
+                  {!isResolvedId(event.id) && <WarningTriangle className="h-3 w-3 mr-1 opacity-70" />}
                   {event.name} <Xmark className="h-3 w-3 ml-1 opacity-50" />
                 </Badge>
               ))
@@ -349,17 +355,20 @@ export function AudienceSummaryPanel() {
               onAdd={addInterest}
             />
           </div>
-          {targetInterests.filter((int: any) => isResolvedId(int.id)).length >
-          0 ? (
-            targetInterests
-              .filter((int: any) => isResolvedId(int.id))
-              .map((int: any) => (
+          {targetInterests.length > 0 ? (
+            targetInterests.map((int: any) => (
                 <Badge
                   key={int.id}
                   variant="secondary"
-                  className="py-1 px-3 rounded-full cursor-pointer transition-colors bg-primary/10 text-primary hover:bg-primary/20"
+                  className={cn(
+                    "py-1 px-3 rounded-full cursor-pointer transition-colors",
+                    isResolvedId(int.id)
+                      ? "bg-primary/10 text-primary hover:bg-primary/20"
+                      : "bg-amber-500/10 text-amber-600 border border-amber-200 hover:bg-amber-500/20",
+                  )}
                   onClick={() => removeInterest(int)}
                 >
+                  {!isResolvedId(int.id) && <WarningTriangle className="h-3 w-3 mr-1 opacity-70" />}
                   {int.name}
                   <Xmark className="h-3 w-3 ml-1 opacity-50" />
                 </Badge>

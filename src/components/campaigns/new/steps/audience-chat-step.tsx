@@ -608,13 +608,15 @@ export function AudienceChatStep({
 
         updateDraft({
           targetInterests: resolvedInterests.filter(Boolean),
-          targetBehaviors: rewriteResolvedBehaviors.map(({ id, name }) => ({
+          targetBehaviors: rewriteResolvedBehaviors.map(({ id, name, resolved }) => ({
             id,
             name,
+            resolved,
           })),
-          targetLifeEvents: rewriteResolvedLifeEvents.map(({ id, name }) => ({
+          targetLifeEvents: rewriteResolvedLifeEvents.map(({ id, name, resolved }) => ({
             id,
             name,
+            resolved,
           })),
           ageRange: {
             min: result.demographics?.age_min || 18,
@@ -860,17 +862,20 @@ export function AudienceChatStep({
 
       console.log("Valid Locations 👇👇", validLocations);
 
-      const normalizedInterests = resolvedInterests.map(({ id, name }) => ({
+      const normalizedInterests = resolvedInterests.map(({ id, name, resolved }) => ({
         id,
         name,
+        resolved,
       }));
-      const normalizedBehaviors = resolvedBehaviors.map(({ id, name }) => ({
+      const normalizedBehaviors = resolvedBehaviors.map(({ id, name, resolved }) => ({
         id,
         name,
+        resolved,
       }));
-      const normalizedLifeEvents = resolvedLifeEvents.map(({ id, name }) => ({
+      const normalizedLifeEvents = resolvedLifeEvents.map(({ id, name, resolved }) => ({
         id,
         name,
+        resolved,
       }));
       console.log("[Targeting] Resolved behaviors:", normalizedBehaviors);
       console.log("[Targeting] Resolved life events:", normalizedLifeEvents);

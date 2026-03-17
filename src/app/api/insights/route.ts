@@ -23,9 +23,12 @@ export async function GET(request: Request) {
 
   // 2. Parse query params
   const { searchParams } = new URL(request.url);
+  console.log("searchParams🔥", searchParams);
   const accountId = searchParams.get("accountId") || undefined;
   const campaignIdsRaw = searchParams.get("campaignIds") || "all";
   const platform = searchParams.get("platform") || "meta";
+  const dateFrom = searchParams.get("dateFrom") || undefined;
+  const dateTo = searchParams.get("dateTo") || undefined;
 
   const campaignId =
     campaignIdsRaw === "all"
@@ -38,11 +41,20 @@ export async function GET(request: Request) {
       campaignId,
       platform,
       accountId,
+      dateFrom,
+      dateTo,
     });
 
     if (!data) {
       return NextResponse.json({
-        summary: { spend: "0", impressions: "0", clicks: "0", ctr: "0", cpc: "0", reach: "0" },
+        summary: {
+          spend: "0",
+          impressions: "0",
+          clicks: "0",
+          ctr: "0",
+          cpc: "0",
+          reach: "0",
+        },
         performance: [],
         demographics: { age: [], gender: [], region: [] },
       });

@@ -3,15 +3,10 @@ import { MetaService } from "@/lib/api/meta";
 import { SupabaseClient } from "@supabase/supabase-js";
 import { getActiveOrgId } from "@/lib/active-org";
 
-// Interface removed as we return a dynamic object now
-
 /**
- * Server-side fetcher for dashboard insights
- * Fetches performance metrics from Meta API for the last 30 days
- */
-/**
- * Server-side fetcher for dashboard insights
- * Fetches performance metrics from Meta API with optional filtering
+ * Server-side fetcher for dashboard insights.
+ * Fast path (cache hit < 5 min): serves summary + performance chart from DB.
+ * Stale path (cache miss): fetches from Meta API, persists to DB, then returns.
  */
 export async function getDashboardData(
   supabase: SupabaseClient,
@@ -20,6 +15,8 @@ export async function getDashboardData(
     campaignId?: string | "all";
     platform?: string;
     accountId?: string;
+    dateFrom?: string;
+    dateTo?: string;
   },
 ) {
   // 1. Get active org ID from cookie
@@ -31,7 +28,7 @@ export async function getDashboardData(
     .from("ad_accounts")
     .select("*")
     .eq("organization_id", activeOrgId)
-    .eq("platform", "meta") // Currently supporting Meta
+    .eq("platform", filter?.platform || "meta")
     .eq("health_status", "healthy");
 
   if (filter?.accountId) {
@@ -45,13 +42,20 @@ export async function getDashboardData(
     return {
       performance: [],
       demographics: { age: [], gender: [], region: [] },
-      summary: { spend: "0", impressions: "0", clicks: "0", ctr: "0" },
+      summary: {
+        spend: "0",
+        impressions: "0",
+        clicks: "0",
+        ctr: "0",
+        cpc: "0",
+        reach: "0",
+      },
     };
   }
 
   const account = accounts[0];
 
-  // 1b. Get Local Campaign Metrics (Revenue/Sales/Clicks)
+  // Campaign-level query for revenue/sales (platform-tracked) + aggregate spend metrics
   let campaignQuery = supabase
     .from("campaigns")
     .select(
@@ -66,9 +70,7 @@ export async function getDashboardData(
     campaignQuery = campaignQuery.eq("id", filter.campaignId);
   }
 
-  // ─── THE 5-MINUTE CACHE-ON-READ RULE ───────────────────────────────────────
-  // Check if we have fresh data (synced within the last 5 minutes).
-  // If so, skip the Meta API call entirely and serve from DB.
+  // ─── 5-MINUTE CACHE-ON-READ ────────────────────────────────────────────────
   const FIVE_MINUTES_MS = 5 * 60 * 1000;
   const lastSynced = account.last_synced_at
     ? new Date(account.last_synced_at).getTime()
@@ -76,28 +78,49 @@ export async function getDashboardData(
   const isFresh = Date.now() - lastSynced < FIVE_MINUTES_MS;
 
   if (isFresh) {
-    // ── FAST PATH: Aggregate from DB (< 100ms) ──────────────────────────────
+    // ── FAST PATH: serve everything from DB ──────────────────────────────────
     console.log(
       `[Insights] Cache HIT for account ${account.id} (synced ${Math.round((Date.now() - lastSynced) / 1000)}s ago). Serving from DB.`,
     );
 
-    const { data: localCampaigns } = await campaignQuery;
+    let dailyQuery = supabase
+      .from("campaign_metrics")
+      .select(
+        "date, spend_cents, impressions, clicks, reach, ctr, campaigns!inner(ad_account_id, organization_id)",
+      )
+      .eq("campaigns.ad_account_id", account.id)
+      .eq("campaigns.organization_id", activeOrgId)
+      .order("date", { ascending: true });
+
+    if (filter?.campaignId && filter.campaignId !== "all") {
+      dailyQuery = dailyQuery.eq("campaign_id", filter.campaignId);
+    }
+    if (filter?.dateFrom) dailyQuery = dailyQuery.gte("date", filter.dateFrom);
+    if (filter?.dateTo) dailyQuery = dailyQuery.lte("date", filter.dateTo);
+    if (!filter?.dateFrom && !filter?.dateTo) {
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
+      dailyQuery = dailyQuery.gte("date", thirtyDaysAgo);
+    }
+
+    const [{ data: localCampaigns }, { data: dailyRows }] = await Promise.all([
+      campaignQuery,
+      dailyQuery,
+    ]);
+
+    console.log("Local Campaigns🔥", localCampaigns?.length);
+
     const campaigns = localCampaigns || [];
 
     const localSummary = campaigns.reduce(
       (acc, c) => ({
-        spend: acc.spend + (c.spend_cents || 0) / 100,
-        impressions: acc.impressions + (c.impressions || 0),
-        clicks: acc.clicks + (c.clicks || 0),
         revenue: acc.revenue + (c.revenue_ngn || 0),
         sales: acc.sales + (c.sales_count || 0),
         whatsapp_clicks: acc.whatsapp_clicks + (c.whatsapp_clicks || 0),
         website_clicks: acc.website_clicks + (c.website_clicks || 0),
       }),
       {
-        spend: 0,
-        impressions: 0,
-        clicks: 0,
         revenue: 0,
         sales: 0,
         whatsapp_clicks: 0,
@@ -105,22 +128,76 @@ export async function getDashboardData(
       },
     );
 
+    let filteredSpendCents = 0;
+    let filteredImpressions = 0;
+    let filteredClicks = 0;
+    for (const row of dailyRows ?? []) {
+      filteredSpendCents += row.spend_cents ?? 0;
+      filteredImpressions += row.impressions ?? 0;
+      filteredClicks += row.clicks ?? 0;
+    }
+    const spend = filteredSpendCents / 100;
+
     const ctr =
-      localSummary.impressions > 0
-        ? ((localSummary.clicks / localSummary.impressions) * 100).toFixed(2)
+      filteredImpressions > 0
+        ? ((filteredClicks / filteredImpressions) * 100).toFixed(2)
         : "0";
-    const cpc =
-      localSummary.clicks > 0
-        ? (localSummary.spend / localSummary.clicks).toFixed(2)
-        : "0";
+    const cpc = filteredClicks > 0 ? (spend / filteredClicks).toFixed(2) : "0";
+
+    // Aggregate campaign_metrics rows by date for the performance chart
+    const byDate = new Map<
+      string,
+      {
+        spend: number;
+        impressions: number;
+        clicks: number;
+        reach: number;
+        totalImprForCtr: number;
+        weightedCtr: number;
+      }
+    >();
+    for (const row of dailyRows ?? []) {
+      const existing = byDate.get(row.date) ?? {
+        spend: 0,
+        impressions: 0,
+        clicks: 0,
+        reach: 0,
+        totalImprForCtr: 0,
+        weightedCtr: 0,
+      };
+      existing.spend += row.spend_cents ?? 0;
+      existing.impressions += row.impressions ?? 0;
+      existing.clicks += row.clicks ?? 0;
+      existing.reach += row.reach ?? 0;
+      existing.totalImprForCtr += row.impressions ?? 0;
+      existing.weightedCtr += (row.ctr ?? 0) * (row.impressions ?? 0);
+      byDate.set(row.date, existing);
+    }
+    const performance = Array.from(byDate.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, v]) => ({
+        date,
+        spend: v.spend / 100,
+        impressions: v.impressions,
+        clicks: v.clicks,
+        reach: v.reach,
+        ctr: v.totalImprForCtr > 0 ? v.weightedCtr / v.totalImprForCtr : 0,
+      }));
+
+    // Use cached demographics if available, else empty arrays
+    const cachedDemographics = (account as any).demographics_cache ?? {
+      age: [],
+      gender: [],
+      region: [],
+    };
 
     return {
-      performance: [], // Time-series from campaign_metrics available on detail page
-      demographics: { age: [], gender: [], region: [] },
+      performance,
+      demographics: cachedDemographics,
       summary: {
-        spend: localSummary.spend.toFixed(2),
-        impressions: localSummary.impressions.toString(),
-        clicks: localSummary.clicks.toString(),
+        spend: spend.toFixed(2),
+        impressions: filteredImpressions.toString(),
+        clicks: filteredClicks.toString(),
         ctr,
         cpc,
         reach: "0",
@@ -130,7 +207,7 @@ export async function getDashboardData(
     };
   }
 
-  // ── STALE PATH: Hit Meta API, update DB cache ────────────────────────────
+  // ── STALE PATH: fetch from Meta, persist to DB ───────────────────────────
   console.log(
     `[Insights] Cache MISS for account ${account.id} (last synced: ${account.last_synced_at ?? "never"}). Fetching from Meta.`,
   );
@@ -139,20 +216,21 @@ export async function getDashboardData(
   const actId = account.platform_account_id;
 
   try {
-    // 2. Build Meta API URLs
-    const datePreset = "last_30d";
+    const dateParam =
+      filter?.dateFrom && filter?.dateTo
+        ? `time_range=${encodeURIComponent(JSON.stringify({ since: filter.dateFrom, until: filter.dateTo }))}`
+        : `date_preset=last_30d`;
 
-    let perfUrl = `/act_${actId}/insights?date_preset=${datePreset}&time_increment=1&fields=spend,impressions,clicks,cpc,ctr,reach,date_start`;
-    const ageUrl = `/act_${actId}/insights?date_preset=${datePreset}&fields=spend,impressions,clicks&breakdowns=age`;
-    const genderUrl = `/act_${actId}/insights?date_preset=${datePreset}&fields=spend,impressions,clicks&breakdowns=gender`;
-    const regionUrl = `/act_${actId}/insights?date_preset=${datePreset}&fields=spend,impressions,clicks&breakdowns=region`;
+    let perfUrl = `/act_${actId}/insights?${dateParam}&time_increment=1&fields=spend,impressions,clicks,cpc,ctr,reach,date_start`;
+    const ageUrl = `/act_${actId}/insights?${dateParam}&fields=spend,impressions,clicks&breakdowns=age`;
+    const genderUrl = `/act_${actId}/insights?${dateParam}&fields=spend,impressions,clicks&breakdowns=gender`;
+    const regionUrl = `/act_${actId}/insights?${dateParam}&fields=spend,impressions,clicks&breakdowns=region`;
 
     if (filter?.campaignId && filter.campaignId !== "all") {
       const filtering = `&filtering=[{field:"campaign.id",operator:"IN",value:[${filter.campaignId}]}]`;
       perfUrl += filtering;
     }
 
-    // 3. Parallel Fetch from Meta
     const [perfRes, ageRes, genderRes, regionRes] = await Promise.all([
       MetaService.request(perfUrl, "GET", token),
       MetaService.request(ageUrl, "GET", token),
@@ -160,12 +238,22 @@ export async function getDashboardData(
       MetaService.request(regionUrl, "GET", token),
     ]);
 
-    // 4. Process Data
     const performance = perfRes.data || [];
     const age = ageRes.data || [];
     const gender = genderRes.data || [];
     const region = regionRes.data || [];
 
+    // Persist demographics cache + stamp last_synced_at
+    const demographics = { age, gender, region };
+    await supabase
+      .from("ad_accounts")
+      .update({
+        last_synced_at: new Date().toISOString(),
+        demographics_cache: demographics,
+      })
+      .eq("id", account.id);
+
+    // Build summary totals from daily rows
     const summary = performance.reduce(
       (acc: any, day: any) => ({
         spend: (parseFloat(acc.spend) + parseFloat(day.spend || 0)).toFixed(2),
@@ -187,7 +275,6 @@ export async function getDashboardData(
       .reduce((acc: number, day: any) => acc + parseInt(day.reach || 0), 0)
       .toString();
 
-    // 5. Local Revenue/Sales Summary
     const { data: localCampaigns } = await campaignQuery;
     const localSummary = (localCampaigns || []).reduce(
       (acc, c) => ({
@@ -199,15 +286,16 @@ export async function getDashboardData(
       { revenue: 0, sales: 0, whatsapp_clicks: 0, website_clicks: 0 },
     );
 
-    // 6. ✅ Stamp last_synced_at so subsequent loads hit the fast path
-    await supabase
-      .from("ad_accounts")
-      .update({ last_synced_at: new Date().toISOString() })
-      .eq("id", account.id);
-
     return {
-      performance,
-      demographics: { age, gender, region },
+      performance: performance.map((day: any) => ({
+        date: day.date_start,
+        spend: parseFloat(day.spend || "0"),
+        impressions: parseInt(day.impressions || "0"),
+        clicks: parseInt(day.clicks || "0"),
+        reach: parseInt(day.reach || "0"),
+        ctr: parseFloat(day.ctr || "0"),
+      })),
+      demographics,
       summary: {
         ...summary,
         revenue: localSummary.revenue,
@@ -216,27 +304,115 @@ export async function getDashboardData(
     };
   } catch (error) {
     console.error("Dashboard Data Error:", error);
-    // Fallback: serve from DB even if stale rather than showing nothing
+    // Fallback: serve from DB even on Meta API failure
     const { data: localCampaigns } = await campaignQuery;
     const campaigns = localCampaigns || [];
     const localSummary = campaigns.reduce(
       (acc, c) => ({
-        spend: acc.spend + (c.spend_cents || 0) / 100,
-        impressions: acc.impressions + (c.impressions || 0),
-        clicks: acc.clicks + (c.clicks || 0),
+        revenue: acc.revenue + (c.revenue_ngn || 0),
+        sales: acc.sales + (c.sales_count || 0),
+        whatsapp_clicks: acc.whatsapp_clicks + (c.whatsapp_clicks || 0),
+        website_clicks: acc.website_clicks + (c.website_clicks || 0),
       }),
-      { spend: 0, impressions: 0, clicks: 0 },
+      { revenue: 0, sales: 0, whatsapp_clicks: 0, website_clicks: 0 },
     );
 
+    let fallbackQuery = supabase
+      .from("campaign_metrics")
+      .select(
+        "date, spend_cents, impressions, clicks, reach, ctr, campaigns!inner(ad_account_id, organization_id)",
+      )
+      .eq("campaigns.ad_account_id", account.id)
+      .eq("campaigns.organization_id", activeOrgId)
+      .order("date", { ascending: true });
+    if (filter?.campaignId && filter.campaignId !== "all") {
+      fallbackQuery = fallbackQuery.eq("campaign_id", filter.campaignId);
+    }
+    if (filter?.dateFrom) {
+      fallbackQuery = fallbackQuery.gte("date", filter.dateFrom);
+    }
+    if (filter?.dateTo) {
+      fallbackQuery = fallbackQuery.lte("date", filter.dateTo);
+    }
+    if (!filter?.dateFrom && !filter?.dateTo) {
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
+      fallbackQuery = fallbackQuery.gte("date", thirtyDaysAgo);
+    }
+
+    const { data: fallbackRows } = await fallbackQuery;
+
+    let filteredSpendCents = 0;
+    let filteredImpressions = 0;
+    let filteredClicks = 0;
+    for (const row of fallbackRows ?? []) {
+      filteredSpendCents += row.spend_cents ?? 0;
+      filteredImpressions += row.impressions ?? 0;
+      filteredClicks += row.clicks ?? 0;
+    }
+    const spend = filteredSpendCents / 100;
+    const ctr =
+      filteredImpressions > 0
+        ? ((filteredClicks / filteredImpressions) * 100).toFixed(2)
+        : "0";
+    const cpc = filteredClicks > 0 ? (spend / filteredClicks).toFixed(2) : "0";
+
+    const fallbackByDate = new Map<
+      string,
+      {
+        spend: number;
+        impressions: number;
+        clicks: number;
+        reach: number;
+        totalImprForCtr: number;
+        weightedCtr: number;
+      }
+    >();
+    for (const row of fallbackRows ?? []) {
+      const existing = fallbackByDate.get(row.date) ?? {
+        spend: 0,
+        impressions: 0,
+        clicks: 0,
+        reach: 0,
+        totalImprForCtr: 0,
+        weightedCtr: 0,
+      };
+      existing.spend += row.spend_cents ?? 0;
+      existing.impressions += row.impressions ?? 0;
+      existing.clicks += row.clicks ?? 0;
+      existing.reach += row.reach ?? 0;
+      existing.totalImprForCtr += row.impressions ?? 0;
+      existing.weightedCtr += (row.ctr ?? 0) * (row.impressions ?? 0);
+      fallbackByDate.set(row.date, existing);
+    }
+    const fallbackPerformance = Array.from(fallbackByDate.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, v]) => ({
+        date,
+        spend: v.spend / 100,
+        impressions: v.impressions,
+        clicks: v.clicks,
+        reach: v.reach,
+        ctr: v.totalImprForCtr > 0 ? v.weightedCtr / v.totalImprForCtr : 0,
+      }));
+
     return {
-      performance: [],
-      demographics: { age: [], gender: [], region: [] },
+      performance: fallbackPerformance,
+      demographics: (account as any).demographics_cache ?? {
+        age: [],
+        gender: [],
+        region: [],
+      },
       summary: {
-        spend: localSummary.spend.toFixed(2),
-        impressions: localSummary.impressions.toString(),
-        clicks: localSummary.clicks.toString(),
-        ctr: "0",
-        cpc: "0",
+        spend: spend.toFixed(2),
+        impressions: filteredImpressions.toString(),
+        clicks: filteredClicks.toString(),
+        ctr,
+        cpc,
+        reach: "0",
+        revenue: localSummary.revenue,
+        sales: localSummary.sales,
       },
     };
   }
@@ -244,17 +420,14 @@ export async function getDashboardData(
 
 /**
  * Get recent campaigns for dashboard
- * Filters by organization_id to match RLS policy
  */
 export async function getRecentCampaigns(
   supabase: SupabaseClient,
   limit: number = 5,
 ) {
-  // 1. Get active org ID from cookie
   const activeOrgId = await getActiveOrgId();
   if (!activeOrgId) return [];
 
-  // 2. Fetch Recent Campaigns for that Organization
   const { data, error } = await supabase
     .from("campaigns")
     .select(
@@ -266,7 +439,7 @@ export async function getRecentCampaigns(
       )
     `,
     )
-    .eq("organization_id", activeOrgId) // 👈 Explicit Filter by active org
+    .eq("organization_id", activeOrgId)
     .order("created_at", { ascending: false })
     .limit(limit);
 

@@ -13,6 +13,7 @@ export interface LocationOption {
 export interface TargetingOption {
   id: string;
   name: string;
+  resolved?: boolean;
 }
 
 export interface CopyVariation {
@@ -57,7 +58,6 @@ export interface CampaignState {
   platform: "meta" | "tiktok" | null;
   objective: AdSyncObjective | null;
   metaPlacement: MetaPlacement; // Which Meta surfaces to show the ad on
-  metaSubPlacements: Record<string, string[]>; // e.g. { instagram: ["feed", "story"] }
 
   // NEW: Store Name & Interests here to survive refresh
   campaignName: string;
@@ -157,10 +157,6 @@ export const useCampaignStore = create<CampaignState>()((set, get) => ({
   objective: null,
 
   metaPlacement: "automatic" as MetaPlacement,
-  metaSubPlacements: {
-    instagram: ["feed", "story", "reels", "instagram_explore", "shop"],
-    facebook: ["feed", "video_feeds", "instream_video"],
-  },
   campaignName: "", // Default empty, we will auto-set or let user type
   targetInterests: [], // Important!
   targetBehaviors: [],
@@ -295,10 +291,6 @@ export const useCampaignStore = create<CampaignState>()((set, get) => ({
       platform: null,
       objective: null,
       metaPlacement: "automatic" as MetaPlacement,
-      metaSubPlacements: {
-        instagram: ["feed", "story", "reels", "instagram_explore", "shop"],
-        facebook: ["feed", "video_feeds", "instream_video"],
-      },
       campaignName: "",
       targetInterests: [],
       targetBehaviors: [],

@@ -8,26 +8,13 @@ import {
   MetaPlacement,
 } from "@/lib/constants";
 
-const getPlacementSpec = (
-  placementId: MetaPlacement,
-  metaSubPlacements?: Record<string, string[]>,
-) => {
+const getPlacementSpec = (placementId: MetaPlacement) => {
   const config = META_PLACEMENTS.find((p) => p.id === placementId);
-  if (!config || config.id === "automatic") return {}; // Advantage+
+  if (!config || config.id === "automatic") return {}; // Advantage+ — let Andromeda decide
 
-  const spec: any = { publisher_platforms: config.publisherPlatforms };
-
-  // If sub-placements are provided (i.e. manual granular selection), inject them dynamically
-  if (metaSubPlacements && placementId === "instagram") {
-    spec.instagram_positions = metaSubPlacements.instagram;
-  } else if (metaSubPlacements && placementId === "facebook") {
-    spec.facebook_positions = metaSubPlacements.facebook;
-  } else {
-    // Fallback to the default configuration
-    Object.assign(spec, config.positions);
-  }
-
-  return spec;
+  // Only restrict at publisher_platforms level — no instagram_positions/facebook_positions.
+  // Meta's Andromeda ML delivers better ROI when given maximum placement freedom within a platform.
+  return { publisher_platforms: config.publisherPlatforms };
 };
 
 // Maps AdSync objectives to the correct Meta optimization_goal for the Ad Set.
@@ -258,7 +245,7 @@ export const MetaService = {
           ),
         },
       }),
-      ...getPlacementSpec(placement, params.metaSubPlacements),
+      ...getPlacementSpec(placement),
     };
 
     // promoted_object: page_id for engagement/whatsapp; application_id for app installs

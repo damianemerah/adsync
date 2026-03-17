@@ -71,13 +71,21 @@ export async function GET(
       event_type: "click",
       fbclid,
     })
-    .then(() => {
+    .then(({ error }) => {
+      if (error) {
+        console.error("link_clicks insert failed:", error);
+        return;
+      }
       // Increment the correct counter based on destination type
       if (link.campaign_id) {
-        supabase.rpc("increment_campaign_clicks", {
-          p_campaign_id: link.campaign_id,
-          p_destination_type: link.destination_type,
-        });
+        supabase
+          .rpc("increment_campaign_clicks", {
+            p_campaign_id: link.campaign_id,
+            p_destination_type: link.destination_type,
+          })
+          .then(({ error: rpcError }) => {
+            if (rpcError) console.error("increment_campaign_clicks failed:", rpcError);
+          });
       }
     });
 

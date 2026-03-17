@@ -27,6 +27,7 @@ import {
   resolveLocalBehavior,
   resolveLocalLifeEvent,
 } from "@/lib/constants/meta-behaviors";
+import { resolveLocalInterest } from "@/lib/constants/meta-interests";
 
 export interface ResolvedTarget {
   id: string;
@@ -82,7 +83,16 @@ export async function resolveInterest(
   name: string,
   searchFn: (query: string) => Promise<any[]>,
 ): Promise<ResolvedTarget> {
-  const keyword = extractSearchKeyword(name);
+  // Local catalog — normalizes common LLM names to exact Meta names
+  const local = resolveLocalInterest(name);
+
+  // Fast-path: confirmed Meta ID baked in (from validate-meta-interests.ts)
+  if (local?.metaId) {
+    return { id: local.metaId, name: local.name, resolved: true };
+  }
+
+  const correctedName = local?.name ?? name;
+  const keyword = extractSearchKeyword(correctedName);
 
   try {
     const results = await searchFn(keyword);
@@ -94,10 +104,10 @@ export async function resolveInterest(
         return { id: String(top.id), name: top.name, resolved: true };
       }
 
-      // Word overlap failed — try the original full name if different from keyword
-      if (keyword !== name.trim()) {
-        const fallback = await searchFn(name.trim());
-        if (fallback.length > 0 && hasWordOverlap(fallback[0].name, name)) {
+      // Word overlap failed — try the corrected full name if different from keyword
+      if (keyword !== correctedName.trim()) {
+        const fallback = await searchFn(correctedName.trim());
+        if (fallback.length > 0 && hasWordOverlap(fallback[0].name, correctedName)) {
           return {
             id: String(fallback[0].id),
             name: fallback[0].name,

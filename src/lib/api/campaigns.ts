@@ -47,19 +47,121 @@ export async function getCampaignById(supabase: SupabaseClient, id: string) {
 
   // 2. Live Fetch from Meta
   if (data.platform === "meta" && data.ad_accounts?.access_token) {
+    // Fast-path: check if campaign_metrics has fresh data (within last 5 minutes)
+    const { data: latestMetric } = await supabase
+      .from("campaign_metrics")
+      .select("synced_at")
+      .eq("campaign_id", id)
+      .order("synced_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const isFresh =
+      latestMetric?.synced_at &&
+      Date.now() - new Date(latestMetric.synced_at).getTime() < 5 * 60 * 1000;
+
+    // Ads freshness check (15-minute TTL)
+    const { data: freshAd } = await supabase
+      .from("ads")
+      .select("synced_at")
+      .eq("campaign_id", id)
+      .order("synced_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const adsAreFresh =
+      freshAd?.synced_at &&
+      Date.now() - new Date(freshAd.synced_at).getTime() < 15 * 60 * 1000;
+
+    if (adsAreFresh) {
+      const { data: cachedAds } = await supabase
+        .from("ads")
+        .select(
+          "platform_ad_id, name, status, creative_snapshot, clicks, impressions, spend_cents, ctr",
+        )
+        .eq("campaign_id", id);
+      ads = (cachedAds || []).map((ad: any) => ({
+        id: ad.platform_ad_id,
+        name: ad.name,
+        status: ad.status,
+        image:
+          ad.creative_snapshot?.thumbnail_url ||
+          ad.creative_snapshot?.image_url ||
+          "/placeholder.svg",
+        clicks: ad.clicks || 0,
+        spend: (ad.spend_cents || 0) / 100,
+        ctr: ad.ctr || 0,
+        impressions: ad.impressions || 0,
+      }));
+    }
+
+    // Demographics freshness check (1-hour TTL)
+    const demoIsFresh =
+      data.demographics_synced_at &&
+      Date.now() - new Date(data.demographics_synced_at).getTime() <
+        60 * 60 * 1000;
+
+    if (demoIsFresh && data.demographics_cache) {
+      demographics = data.demographics_cache as { age: any[]; gender: any[] };
+    }
+
+    if (isFresh) {
+      const { data: dbMetrics } = await supabase
+        .from("campaign_metrics")
+        .select("*")
+        .eq("campaign_id", id)
+        .order("date", { ascending: true });
+
+      if (dbMetrics && dbMetrics.length > 0) {
+        performanceData = dbMetrics.map((m: any) => ({
+          date: new Date(m.date).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+          }),
+          spend: (m.spend_cents || 0) / 100,
+          clicks: m.clicks || 0,
+          impressions: m.impressions || 0,
+        }));
+
+        summary = dbMetrics.reduce(
+          (acc: any, m: any) => ({
+            spend: acc.spend + (m.spend_cents || 0) / 100,
+            clicks: acc.clicks + (m.clicks || 0),
+            impressions: acc.impressions + (m.impressions || 0),
+            reach: acc.reach + (m.reach || 0),
+          }),
+          { spend: 0, clicks: 0, impressions: 0, reach: 0 },
+        );
+        summary.ctr = summary.impressions
+          ? (summary.clicks / summary.impressions) * 100
+          : 0;
+        summary.cpc = summary.clicks ? summary.spend / summary.clicks : 0;
+      }
+    }
+
     try {
       const token = decrypt(data.ad_accounts.access_token);
       const campId = data.platform_campaign_id;
       const accId = data.ad_accounts.platform_account_id;
 
-      // PARALLEL FETCHING for Speed
+      // PARALLEL FETCHING for Speed — skip calls when cached data is fresh
       const [insightsRes, demoRes, adsRes, balanceRes] = await Promise.all([
-        MetaService.getCampaignInsights(token, campId),
-        MetaService.getCampaignDemographics(token, campId),
-        MetaService.getCampaignAds(token, campId),
+        isFresh
+          ? Promise.resolve({ data: null })
+          : MetaService.getCampaignInsights(token, campId),
+        demoIsFresh
+          ? Promise.resolve({ data: null })
+          : MetaService.getCampaignDemographics(token, campId),
+        adsAreFresh
+          ? Promise.resolve({ data: null })
+          : MetaService.getCampaignAds(token, campId),
         // Use the account ID from DB (usually numeric). MetaService handles adding 'act_' prefix if needed.
         MetaService.getAdAccountBalance(token, accId),
       ]);
+
+      console.log("insightsRes🔥", insightsRes);
+      console.log("demoRes🔥", demoRes);
+      console.log("adsRes🔥", adsRes);
 
       // --- A. Process Time Series & SAVE TO DB ---
       if (insightsRes.data && insightsRes.data.length > 0) {
@@ -113,7 +215,7 @@ export async function getCampaignById(supabase: SupabaseClient, id: string) {
       }
 
       // --- B. Process Demographics ---
-      if (demoRes.data) {
+      if (demoRes.data && demoRes.data.length > 0) {
         demographics.age = demoRes.data.map((d: any) => ({
           name: d.age,
           value: parseInt(d.reach),
@@ -124,10 +226,21 @@ export async function getCampaignById(supabase: SupabaseClient, id: string) {
           else acc.push({ name: d.gender, value: parseInt(d.reach) });
           return acc;
         }, []);
+
+        // Persist to campaigns table (fire-and-forget)
+        await supabase
+          .from("campaigns")
+          .update({
+            demographics_cache: demographics,
+            demographics_synced_at: new Date().toISOString(),
+          })
+          .eq("id", id);
       }
 
       // --- C. Process Ads ---
-      if (adsRes.data) {
+      if (adsRes.data && adsRes.data.length > 0) {
+        const now = new Date().toISOString();
+
         ads = adsRes.data.map((ad: any) => ({
           id: ad.id,
           name: ad.name,
@@ -139,7 +252,31 @@ export async function getCampaignById(supabase: SupabaseClient, id: string) {
           clicks: ad.insights?.data?.[0]?.clicks || 0,
           spend: ad.insights?.data?.[0]?.spend || 0,
           ctr: ad.insights?.data?.[0]?.ctr || 0,
+          impressions: parseInt(ad.insights?.data?.[0]?.impressions || "0"),
         }));
+
+        // Upsert to ads table for cache-on-read
+        const adsToUpsert = adsRes.data.map((ad: any) => ({
+          platform_ad_id: ad.id,
+          campaign_id: data.id,
+          name: ad.name,
+          status: ad.status.toLowerCase(),
+          creative_snapshot: {
+            thumbnail_url: ad.creative?.thumbnail_url || null,
+            image_url: ad.creative?.image_url || null,
+          },
+          clicks: parseInt(ad.insights?.data?.[0]?.clicks || "0", 10),
+          impressions: parseInt(ad.insights?.data?.[0]?.impressions || "0", 10),
+          spend_cents: Math.round(
+            parseFloat(ad.insights?.data?.[0]?.spend || "0") * 100,
+          ),
+          ctr: parseFloat(ad.insights?.data?.[0]?.ctr || "0"),
+          synced_at: now,
+        }));
+
+        await supabase
+          .from("ads")
+          .upsert(adsToUpsert, { onConflict: "platform_ad_id" });
       }
 
       // --- D. Process Balance ---
@@ -166,6 +303,36 @@ export async function getCampaignById(supabase: SupabaseClient, id: string) {
           clicks: m.clicks || 0,
           impressions: m.impressions || 0,
         }));
+      }
+
+      // Serve cached ads from DB
+      if (!adsAreFresh) {
+        const { data: cachedAds } = await supabase
+          .from("ads")
+          .select(
+            "platform_ad_id, name, status, creative_snapshot, clicks, impressions, spend_cents, ctr",
+          )
+          .eq("campaign_id", id);
+        if (cachedAds?.length) {
+          ads = cachedAds.map((ad: any) => ({
+            id: ad.platform_ad_id,
+            name: ad.name,
+            status: ad.status,
+            image:
+              ad.creative_snapshot?.thumbnail_url ||
+              ad.creative_snapshot?.image_url ||
+              "/placeholder.svg",
+            clicks: ad.clicks || 0,
+            spend: (ad.spend_cents || 0) / 100,
+            ctr: ad.ctr || 0,
+            impressions: ad.impressions || 0,
+          }));
+        }
+      }
+
+      // Serve cached demographics from DB
+      if (!demoIsFresh && data.demographics_cache) {
+        demographics = data.demographics_cache as { age: any[]; gender: any[] };
       }
     }
   }
@@ -265,6 +432,7 @@ export async function getCampaigns(supabase: SupabaseClient) {
 
     // ✅ NEW: Map the cached metrics from DB
     clicks: campaign.clicks || 0,
+    impressions: campaign.impressions || 0,
     spend: (campaign.spend_cents || 0) / 100, // Convert cents to main currency
     ctr: Number(campaign.ctr || 0),
     objective: campaign.objective,

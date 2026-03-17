@@ -8,9 +8,15 @@ import {
   buildBehaviorCatalogPrompt,
   buildLifeEventCatalogPrompt,
 } from "@/lib/constants/meta-behaviors";
+import { buildInterestCatalogPrompt } from "@/lib/constants/meta-interests";
 
 // ─── Minimal System Instruction ──────────────────────────────────────────────
 const BASE_INSTRUCTION = `You are an expert Nigerian ad copywriter and marketing strategist. Use your available skills to determine the best strategy and generate high-converting ad copy. Structure your response according to the provided JSON schema.
+
+INTERESTS — prefer names from this catalog (5-8, 1-3 words each):
+${buildInterestCatalogPrompt()}
+
+If none fit, you may use other short Meta-valid interest names (1-3 words, no brand names, no "lovers"/"enthusiasts").
 
 BEHAVIORS — you MUST output ONLY names from this exact list (2–5, never invent new names):
 ${buildBehaviorCatalogPrompt()}

@@ -18,6 +18,7 @@ import {
   Coins,
   Sparks,
   StatUp,
+  WarningTriangle,
 } from "iconoir-react";
 import { AdSyncObjective } from "@/lib/constants";
 import { PaymentDialog } from "@/components/billing/payment-dialog";
@@ -26,6 +27,10 @@ import Link from "next/link";
 import { estimateBudget, predictROAS } from "@/lib/intelligence";
 import { createLeadForm, fetchMetaPages } from "@/actions/lead-forms";
 import { saveDraft } from "@/actions/drafts";
+import {
+  getAdBudgetWallet,
+  type AdBudgetWallet,
+} from "@/actions/ad-budget";
 import { toast } from "sonner";
 
 // ─── Outcome Tiers ────────────────────────────────────────────────────────────
@@ -109,6 +114,7 @@ export function BudgetLaunchStep({
   const [dbCampaignId, setDbCampaignId] = useState<string | null>(null);
   const [showPixelPrompt, setShowPixelPrompt] = useState(false);
   const [skipPixel, setSkipPixel] = useState(false);
+  const [wallet, setWallet] = useState<AdBudgetWallet | null>(null);
 
   // Derive initial selected tier from store budget so phone mockup + this step always agree
   const [selectedTier, setSelectedTier] = useState<string | null>(
@@ -126,13 +132,18 @@ export function BudgetLaunchStep({
     !isLoadingAccounts &&
     (adAccounts ?? []).some((a) => a.status === "payment_issue");
 
+  // Wallet sufficiency: balance covers 7 days of budget (budget is in NGN, balance is in kobo)
+  const walletSufficient = wallet
+    ? wallet.balance_ngn >= budget * 100 * 7
+    : false;
+
   // Mock check for if the org has a pixel configured
   const hasPixel = false;
   // If objective is website/sales, and they haven't connected a pixel or skipped it, we pause them
   const isWebsiteObjective = objective === "traffic";
   const needsPixel = isWebsiteObjective && !hasPixel && !skipPixel;
 
-  const canLaunch = !isLaunching && hasHealthyAccount && !needsPixel;
+  const canLaunch = !isLaunching && hasHealthyAccount && !needsPixel && walletSufficient;
 
   useEffect(() => {
     if (!budget || !campaignName) return;
@@ -152,6 +163,13 @@ export function BudgetLaunchStep({
   useEffect(() => {
     const match = OUTCOME_TIERS.find((t) => t.amount === budget);
     setSelectedTier(match?.key ?? null);
+  }, []);
+
+  // Fetch ad budget wallet on mount
+  useEffect(() => {
+    getAdBudgetWallet()
+      .then(setWallet)
+      .catch(() => setWallet(null));
   }, []);
 
   // ─── Live Estimates ──────────────────────────────────────────────────────────
@@ -521,14 +539,44 @@ export function BudgetLaunchStep({
                 />
                 {hasPaymentIssue && (
                   <p className="text-xs text-red-400 pl-9 -mt-1">
-                    <a
-                      href="https://business.facebook.com/billing_hub/payment_settings"
-                      target="_blank"
+                    {wallet ? (
+                      <Link
+                        href="/settings/subscription"
+                        className="underline"
+                      >
+                        Fund your ad budget wallet →
+                      </Link>
+                    ) : (
+                      <a
+                        href="https://business.facebook.com/billing_hub/payment_settings"
+                        target="_blank"
+                        className="underline"
+                        rel="noreferrer"
+                      >
+                        Add payment method on Meta →
+                      </a>
+                    )}
+                  </p>
+                )}
+                {wallet && (
+                  <CheckItem
+                    label={
+                      walletSufficient
+                        ? "Ad Budget Funded"
+                        : "Ad Budget Low"
+                    }
+                    status={walletSufficient ? "success" : "warning"}
+                    inverse
+                  />
+                )}
+                {wallet && !walletSufficient && (
+                  <p className="text-xs text-yellow-400 pl-9 -mt-1">
+                    <Link
+                      href="/settings/subscription"
                       className="underline"
-                      rel="noreferrer"
                     >
-                      Add payment method on Meta →
-                    </a>
+                      Fund your wallet for at least 7 days →
+                    </Link>
                   </p>
                 )}
                 <CheckItem
@@ -660,6 +708,43 @@ export function BudgetLaunchStep({
           </div>
         </div>
       )}
+
+      {/* Unresolved targeting warning */}
+      {(() => {
+        const unresolvedInterests = targetInterests.filter((i) => !/^\d+$/.test(i.id));
+        const unresolvedBehaviors = (targetBehaviors || []).filter((b) => !/^\d+$/.test(b.id));
+        const totalUnresolved = unresolvedInterests.length + unresolvedBehaviors.length;
+        const totalTargets = targetInterests.length + (targetBehaviors || []).length;
+        const unresolvedRatio = totalTargets > 0 ? totalUnresolved / totalTargets : 0;
+
+        if (totalUnresolved === 0) return null;
+
+        const isSevere = unresolvedRatio > 0.3;
+
+        return (
+          <div className={cn(
+            "p-4 rounded-2xl border flex items-start gap-3",
+            isSevere
+              ? "bg-red-50 border-red-200 text-red-800"
+              : "bg-amber-50 border-amber-200 text-amber-800",
+          )}>
+            <WarningTriangle className={cn(
+              "h-5 w-5 mt-0.5 shrink-0",
+              isSevere ? "text-red-500" : "text-amber-500",
+            )} />
+            <div className="text-sm">
+              <p className="font-bold mb-0.5">
+                {totalUnresolved} targeting option{totalUnresolved > 1 ? "s" : ""} could not be verified
+              </p>
+              <p className="text-xs opacity-80">
+                {isSevere
+                  ? "Over 30% of your targeting is unverified. Consider refining your audience for better results."
+                  : "Unverified options will be dropped at launch. Your ad will still run with the verified targets."}
+              </p>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Launch Button */}
       <div className="pt-4 border-t border-border">

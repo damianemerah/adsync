@@ -241,6 +241,36 @@ supabase migration up 20260313030000
 5. **FX rate display** - Show live NGN/USD rate
 6. **Receipt generation** - PDF receipts
 
+### Multi-Currency Expansion (When Adding Non-NGN Ad Accounts)
+
+`spend_cents` (from Meta API) is local currency minor units for the ad account's billing
+currency. Today all ad accounts are NGN so `spendNgn = spend_cents / 100` is correct.
+
+When expanding to KES, GHS, ZAR etc.:
+
+1. Add `currency` to the ad_accounts join in `use-campaign-roi`:
+   `campaigns.select(\`..., ad_accounts(currency)\`)`
+
+2. Convert the `FX_RATE` constant in `src/lib/constants.ts` (or benchmarks) to a map:
+   ```ts
+   export const FX_RATES: Record<string, number> = {
+     USD: 1_600,
+     GHS: 110,
+     KES: 12,
+     ZAR: 85,
+   };
+   ```
+
+3. Apply in the hook:
+   ```ts
+   const currency = campaign.ad_accounts?.currency || "NGN";
+   const spendNgn = currency === "NGN"
+     ? spend_cents / 100
+     : (spend_cents / 100) * getFxRate(currency, "NGN");
+   ```
+
+Do NOT apply FX_RATE to NGN accounts — it is 1:1 by definition.
+
 ---
 
 ## 🎯 Comparison: Payora vs Sudo Africa
@@ -280,6 +310,35 @@ supabase migration up 20260313030000
 - [RESEARCH_SUMMARY.md](./RESEARCH_SUMMARY.md) ✨ NEW - Provider evaluation
 - [SKILL.md](./SKILL.md)
 - [references/implementation-plan-2a.md](./references/implementation-plan-2a.md)
+
+---
+
+## Integration Review — March 15, 2026
+
+Verified full integration across billing UI and campaign launch flow.
+
+### Gap 1 — `AdBudgetTopup` mounted in billing page ✅
+`billing-content.tsx` renders `<AdBudgetTopup />` in a dedicated "Ad Budget Wallet" section.
+
+### Gap 2 — `user.phone` bug fixed ✅
+`createOrganizationVirtualCard()` uses `(user.user_metadata?.phone as string) || "+2348000000000"`. No longer crashes on missing phone.
+
+### Gap 3 — Card creation on first top-up ✅
+In `billing-content.tsx`, when Paystack callback returns `?topup_success=true`, the component calls `getVirtualCard()` and, if null, calls `createOrganizationVirtualCard()` client-side.
+
+### Gap 4 — Wallet balance check in launch flow ✅ (informational only)
+`budget-launch-step.tsx` fetches `getAdBudgetWallet()` on mount. Computes `walletSufficient = wallet.balance_ngn >= budget * 100 * 7` (7-day buffer). Displayed as a `CheckItem` ("Ad Budget Funded" / "Ad Budget Low"). **Does NOT block launch** — `canLaunch` does not include `walletSufficient`. This is intentional for MVP; add to `canLaunch` when wallet is enforced.
+
+### Gap 5 — Payment issue UX fixed ✅
+When `hasPaymentIssue && wallet`, the prompt links to `/settings/subscription` ("Fund your ad budget wallet →") instead of Meta billing.
+
+### Known Limitations
+
+| Issue | Severity | Notes |
+|-------|----------|-------|
+| Card creation is client-side only | Medium | If user closes tab after Paystack payment but before callback loads, card is never created. Webhook (`creditAdBudget`) does not call `createOrganizationVirtualCard()`. Fix: add card creation to webhook server-side. |
+| `walletSufficient` doesn't block launch | Low | Intentional for MVP — wallet check is advisory only. |
+| Unused `router` import in `AdBudgetTopup` | Low | `const router = useRouter()` is declared but never used; redirect uses `window.location.href`. Generates lint warning but no runtime impact. |
 
 ---
 

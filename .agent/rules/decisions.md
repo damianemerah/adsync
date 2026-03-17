@@ -153,8 +153,22 @@ Free users get read-only dashboard. Expired users get the full lock screen with 
 Reason: Different emotional states require different UX. Free users are prospects exploring value.
 Expired users are churned customers who need a re-activation nudge, not an onboarding flow.
 
-### [Feb 2026] FX rate
+### [Feb 2026] FX rate & spend_cents interpretation
 
-Decision: Read from `NEXT_PUBLIC_USD_NGN_RATE` env var, default 1600
-Reason: Rate changes — hardcoding is technical debt. Phase 2A replaces this with
-actual Naira billing so the FX calculation becomes irrelevant.
+Decision: Read from `NEXT_PUBLIC_USD_NGN_RATE` env var, default 1600.
+`spend_cents` from Meta API is **local-currency minor units** for the ad account's billing
+currency — it is NOT NGN-converted kobo. For NGN accounts the correct formula is:
+`spendNgn = spend_cents / 100` (no FX_RATE multiplication). `FX_RATE` is intentionally
+NOT applied to spend today because all accounts are NGN, which is 1:1 by definition.
+
+Reason: A prior implementation incorrectly multiplied `spend_cents` by `FX_RATE` (1600),
+which produced wildly inflated ROI figures. The env var is retained for USD/NGN display
+elsewhere (e.g., wallet USD equivalent). Phase 2A Naira billing makes the FX calculation
+irrelevant for spend, but the env var stays for display purposes.
+
+**Multi-currency expansion path (when non-NGN ad accounts are added):**
+1. Add `currency` to the `ad_accounts` join in `use-campaign-roi`.
+2. Replace the `FX_RATE` constant with a `FX_RATES: Record<string, number>` map
+   (USD → 1600, GHS → 110, KES → 12, ZAR → 85, etc.).
+3. Apply: `spendNgn = currency === "NGN" ? spend_cents / 100 : (spend_cents / 100) * getFxRate(currency, "NGN")`.
+Do NOT apply any FX multiplier to NGN accounts.

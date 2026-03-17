@@ -36,7 +36,7 @@ export default function StudioPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { updateDraft, metaSubPlacements, metaPlacement, platform } =
+  const { updateDraft, metaPlacement, platform } =
     useCampaignStore();
   const initialImageParam = searchParams.get("image");
   const editId = searchParams.get("edit");
@@ -157,63 +157,40 @@ export default function StudioPage() {
     loadCampaignContext();
   }, [campaignId]);
 
-  // [NEW] Aspect Ratio Auto-Selection from Placement Data
+  // Aspect Ratio Auto-Selection from Placement
+  // Uses metaPlacement (automatic/instagram/facebook) to pick the best default ratio.
+  // Sub-placements were removed — Meta's Andromeda ML decides within a platform.
   useEffect(() => {
     // Only apply smart default if we are creating a new creative (not editing an existing one)
     if (editId || initialImageParam) return;
 
-    // Determine the source of truth for placements
-    // 1. If we loaded an existing campaign context from DB, use its saved placements
-    // 2. Otherwise fall back to the live draft store
-    let placementsToEval: Record<string, string[]> | undefined;
-    let isAutomatic = false;
+    // Determine placement source: campaign context from DB, or live draft store
+    const placement = campaignContext?.platform === "meta"
+      ? (campaignContext?.objective ? metaPlacement : "automatic")
+      : metaPlacement;
 
-    if (campaignContext) {
-      placementsToEval = campaignContext.metaSubPlacements;
-      // If we don't have metaSubPlacements in the context, it might be automatic or old
-      isAutomatic = !placementsToEval;
-    } else {
-      placementsToEval = metaSubPlacements;
-      isAutomatic = platform === "meta" && metaPlacement === "automatic";
-    }
+    const isAutomatic = platform === "meta" && placement === "automatic";
 
-    if (isAutomatic || !placementsToEval) {
-      setAspectRatio("1:1");
+    if (isAutomatic || !platform || platform !== "meta") {
+      setAspectRatio("1:1"); // Default for automatic or non-Meta
       return;
     }
 
-    // Flatten all selected placements across instagram and facebook
-    const allSelected: string[] = [];
-    if (placementsToEval.instagram)
-      allSelected.push(...placementsToEval.instagram);
-    if (placementsToEval.facebook)
-      allSelected.push(...placementsToEval.facebook);
-
-    if (allSelected.length === 0) {
-      setAspectRatio("1:1");
-      return;
-    }
-
-    // Logic: If user *ONLY* selected vertical formats, lock to 9:16
-    const isOnlyVertical = allSelected.every((p) =>
-      ["story", "reels"].includes(p),
-    );
-
-    // Logic: If they selected explore or poster type but NOT the main wide feeds, use 4:5
-    const hasExplore = allSelected.includes("instagram_explore");
-    const hasFeed =
-      allSelected.includes("feed") || allSelected.includes("video_feeds");
-
-    if (isOnlyVertical) {
-      setAspectRatio("9:16");
-    } else if (hasExplore && !hasFeed) {
-      setAspectRatio("4:5");
-    } else {
-      setAspectRatio("1:1");
+    // Platform-specific smart defaults:
+    // Instagram: 4:5 is the recommended ratio (covers Feed + Explore best)
+    // Facebook: 1:1 is the standard for Feed
+    switch (placement) {
+      case "instagram":
+        setAspectRatio("4:5");
+        break;
+      case "facebook":
+        setAspectRatio("1:1");
+        break;
+      default:
+        setAspectRatio("1:1");
     }
   }, [
     campaignContext,
-    metaSubPlacements,
     metaPlacement,
     platform,
     editId,

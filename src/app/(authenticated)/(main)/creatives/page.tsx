@@ -10,27 +10,19 @@ import {
   EmptyDescription,
   EmptyContent,
 } from "@/components/ui/empty";
-import {
-  NavArrowLeft,
-  NavArrowRight,
-  Sparks,
-  FilterList,
-  ViewColumns3,
-  Download,
-  Search,
-} from "iconoir-react";
+import { NavArrowLeft, Sparks } from "iconoir-react";
 import Image from "next/image";
 // --- MOCK DATA REMOVED ---
 
 import { useAdAnalysis } from "@/hooks/use-ad-analysis";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
 import { HelpCenterSheet } from "@/components/layout/help-center-sheet";
 
 export default function CreativeAnalyzePage() {
   // Use the hook to fetch real data
   const { data: ads, isLoading } = useAdAnalysis();
+  console.log("ads🔥🔥", ads);
   const router = useRouter();
 
   const handleImprove = (ad: any) => {
@@ -132,53 +124,6 @@ export default function CreativeAnalyzePage() {
                 </EmptyContent>
               </Empty>
             )}
-          </div>
-
-          {/* Ad List Table Section */}
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-heading font-bold text-foreground">
-                Ad List
-              </h2>
-              <div className="flex items-center gap-3">
-                {/* Search */}
-                <div className="relative group">
-                  <Input
-                    type="text"
-                    placeholder="Search Creative/Ad Name"
-                    className="pl-10 pr-4 h-10 w-64 rounded-xl bg-background border-border focus:border-primary/50 transition-all shadow-sm"
-                  />
-                  <div className="absolute left-3 top-3 text-subtle-foreground group-focus-within:text-primary transition-colors">
-                    <Search className="h-4 w-4" />
-                  </div>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-10 gap-2 rounded-xl text-subtle-foreground border-border hover:text-foreground hover:border-primary/50"
-                >
-                  <FilterList className="w-4 h-4" /> Filter
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-10 gap-2 rounded-xl text-subtle-foreground border-border hover:text-foreground hover:border-primary/50"
-                >
-                  <ViewColumns3 className="w-4 h-4" /> Columns
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-10 gap-2 rounded-xl text-subtle-foreground border-border hover:text-foreground hover:border-primary/50"
-                >
-                  <Download className="w-4 h-4" /> Export CSV
-                </Button>
-              </div>
-            </div>
-            {/* Skeleton Table for visual */}
-            <div className="bg-card rounded-3xl border border-border shadow-soft p-8 h-64 flex items-center justify-center text-subtle-foreground font-medium">
-              Ad List Table (Coming Soon)
-            </div>
           </div>
         </div>
       </main>

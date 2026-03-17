@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import { Database } from "@/types/supabase";
-import { creditAdBudget } from "@/actions/ad-budget";
+import { creditAdBudget, ensureVirtualCardForOrg } from "@/actions/ad-budget";
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -92,6 +92,17 @@ export async function POST(req: NextRequest) {
           });
 
           console.log(`✅ Ad budget credited for org ${orgId}`);
+
+          // Ensure the org has a virtual USD card (idempotent — no-op if already exists).
+          // This runs server-side so card creation is reliable even if the user
+          // closes the browser before the Paystack callback page loads.
+          try {
+            await ensureVirtualCardForOrg(orgId);
+          } catch (cardErr) {
+            // Don't fail the webhook — budget was already credited. Card creation
+            // will retry on the next top-up or on the billing page callback.
+            console.error(`⚠️ Virtual card creation failed for org ${orgId}:`, cardErr);
+          }
           break;
         }
 

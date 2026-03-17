@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useActiveOrgContext } from "@/components/providers/active-org-provider";
@@ -9,6 +10,7 @@ import { MetricCards } from "@/components/dashboard/metric-cards";
 import {
   PerformanceChart,
   MetricKey,
+  METRIC_CONFIG,
 } from "@/components/dashboard/performance-chart";
 import { DemographicsCharts } from "@/components/dashboard/demographics-charts";
 import { CampaignsView } from "@/components/campaigns/campaigns-view";
@@ -21,7 +23,6 @@ import { useCampaigns } from "@/hooks/use-campaigns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AccountHealthDialog } from "@/components/dashboard/account-health-dialog";
 import { getAccountHealth } from "@/actions/account-health";
-import { ShieldCheck, WarningTriangle } from "iconoir-react";
 import { Button } from "@/components/ui/button";
 
 interface UnifiedDashboardProps {
@@ -30,21 +31,26 @@ interface UnifiedDashboardProps {
   userId: string;
 }
 
-// Map MetricCard labels → PerformanceChart MetricKey
-const LABEL_TO_METRIC_KEY: Record<string, MetricKey> = {
-  "Total Spend": "spend",
-  Impressions: "impressions",
-  Clicks: "clicks",
-  CTR: "ctr",
-};
+// Metrics available in the performance time-series data
+const CHARTABLE_METRICS: MetricKey[] = [
+  "spend",
+  "impressions",
+  "clicks",
+  "ctr",
+];
 
 export function UnifiedDashboard({
   initialData,
   campaigns,
   userId,
 }: UnifiedDashboardProps) {
-  const { selectedCampaignIds, selectedAccountId, selectedPlatform } =
-    useDashboardStore();
+  const {
+    selectedCampaignIds,
+    selectedAccountId,
+    selectedPlatform,
+    dateRange,
+    status,
+  } = useDashboardStore();
   const router = useRouter();
 
   // Handle auto-refresh after connecting Meta account
@@ -54,7 +60,11 @@ export function UnifiedDashboard({
 
   // Live-fetch campaigns from DB
   const { data: liveCampaigns } = useCampaigns();
-  const displayCampaigns = liveCampaigns ?? campaigns;
+  const allCampaigns = liveCampaigns ?? campaigns;
+  const displayCampaigns =
+    status === "all"
+      ? allCampaigns
+      : allCampaigns.filter((c: any) => c.status === status);
 
   // Track which metric cards the user has toggled ON
   const [healthDialogOpen, setHealthDialogOpen] = useState(false);
@@ -69,10 +79,14 @@ export function UnifiedDashboard({
       .catch(() => {});
   }, []);
 
-  const [selectedMetricLabels, setSelectedMetricLabels] = useState<string[]>([
-    "Total Spend",
-    "Impressions",
-  ]);
+  const [activeMetrics, setActiveMetrics] =
+    useState<MetricKey[]>(CHARTABLE_METRICS);
+
+  const toggleMetric = (key: MetricKey) => {
+    setActiveMetrics((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
+    );
+  };
 
   useEffect(() => {
     if (searchParams.get("success") === "meta_connected") {
@@ -92,27 +106,25 @@ export function UnifiedDashboard({
     }
   }, [searchParams, queryClient, activeOrgId, selectedPlatform]);
 
+  // Convert dateRange to ISO strings for the API.
+  // Zustand persist rehydrates Date fields as strings, so handle both.
+  const toISODate = (d: Date | string | undefined) =>
+    d ? new Date(d).toISOString().split("T")[0] : undefined;
+  const dateFrom = dateRange?.from ? toISODate(dateRange.from) : undefined;
+  const dateTo = dateRange?.to ? toISODate(dateRange.to) : undefined;
+
   // Live-fetch from /api/insights whenever filters change
   const { data: liveData, isLoading: isLoadingInsights } = useInsights({
     accountId: selectedAccountId || undefined,
     campaignIds: selectedCampaignIds,
     platform: selectedPlatform,
+    dateFrom,
+    dateTo,
   });
+  console.log("Livedata🔥🔥", liveData);
 
   // Prefer live data; fall back to server-rendered initial data
   const dashboardData = liveData ?? initialData;
-
-  // Derive active chart metrics from selected card labels
-  const activeMetrics = selectedMetricLabels
-    .map((label) => LABEL_TO_METRIC_KEY[label])
-    .filter((key): key is MetricKey => !!key);
-
-  // Expose toggle handler to MetricCards
-  const handleMetricToggle = useCallback((label: string) => {
-    setSelectedMetricLabels((prev) =>
-      prev.includes(label) ? prev.filter((l) => l !== label) : [...prev, label],
-    );
-  }, []);
 
   // Calculate Revenue Breakdown from Campaigns
   // Heuristic: If WhatsApp clicks > Website clicks, assign revenue to WhatsApp, else Website.
@@ -168,15 +180,43 @@ export function UnifiedDashboard({
           ) : (
             <MetricCards
               summary={dashboardData?.summary ?? initialData.summary}
-              selectedMetrics={selectedMetricLabels}
-              onToggle={handleMetricToggle}
             />
           )}
 
           {/* Performance Chart */}
           <Card className="shadow-soft">
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-3">
               <CardTitle>Performance Trends</CardTitle>
+              <div className="flex flex-wrap gap-2">
+                {CHARTABLE_METRICS.map((key) => {
+                  const cfg = METRIC_CONFIG[key];
+                  const active = activeMetrics.includes(key);
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => toggleMetric(key)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                        active
+                          ? "border-transparent text-white"
+                          : "border-border text-muted-foreground bg-card hover:border-primary/40"
+                      }`}
+                      style={
+                        active ? { backgroundColor: cfg.color } : undefined
+                      }
+                    >
+                      <span
+                        className="h-2 w-2 rounded-full shrink-0"
+                        style={{
+                          backgroundColor: active
+                            ? "rgba(255,255,255,0.7)"
+                            : cfg.color,
+                        }}
+                      />
+                      {cfg.label}
+                    </button>
+                  );
+                })}
+              </div>
             </CardHeader>
             <CardContent>
               {isLoadingInsights && !liveData ? (
@@ -188,7 +228,7 @@ export function UnifiedDashboard({
                     activeMetrics={
                       activeMetrics.length > 0
                         ? activeMetrics
-                        : ["spend", "clicks"]
+                        : CHARTABLE_METRICS
                     }
                   />
                 </div>
@@ -225,6 +265,15 @@ export function UnifiedDashboard({
               <h2 className="font-bold text-lg text-foreground">
                 Recent Campaigns
               </h2>
+              <Link href="/campaigns">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-sm text-muted-foreground hover:text-primary"
+                >
+                  View All
+                </Button>
+              </Link>
             </div>
             <CampaignsView
               campaigns={displayCampaigns}

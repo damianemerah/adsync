@@ -8,7 +8,7 @@ const corsHeaders = {
 
 // Extremely simplified Meta API fetcher for edge function
 async function getCampaignInsights(token: string, campaignId: string) {
-  const url = `https://graph.facebook.com/v19.0/${campaignId}/insights?fields=impressions,reach,clicks,ctr,cpc,spend&date_preset=last_7d&access_token=${token}`;
+  const url = `https://graph.facebook.com/v24.0/${campaignId}/insights?fields=impressions,reach,clicks,ctr,cpc,spend&date_preset=last_7d&time_increment=1&access_token=${token}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Meta API Error: ${res.statusText}`);
   return res.json();
@@ -118,7 +118,7 @@ serve(async (req) => {
           }));
 
           await supabaseClient.from("campaign_metrics").upsert(metricsToUpsert, {
-            onConflict: "campaign_id, date",
+            onConflict: "campaign_id,date",
           });
           
           await supabaseClient

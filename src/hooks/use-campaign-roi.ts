@@ -44,7 +44,7 @@ export function useCampaignROI(campaignId: string) {
 
       if (!campaign) return null;
 
-      const spendNgn = ((campaign.spend_cents || 0) / 100) * FX_RATE;
+      const spendNgn = (campaign.spend_cents || 0) / 100;
       const whatsappClicks = campaign.whatsapp_clicks || 0;
       const websiteClicks = campaign.website_clicks || 0;
       const totalClicks = campaign.total_link_clicks || 0;

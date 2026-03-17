@@ -1,8 +1,8 @@
 "use client";
 
 import { useCampaigns } from "@/hooks/use-campaigns";
-import { useQuery } from "@tanstack/react-query";
-import { fetchCampaignById, syncCampaigns } from "@/actions/campaigns";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { fetchCampaignById } from "@/actions/campaigns";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Sheet,
@@ -26,6 +26,7 @@ function CampaignsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: campaigns, isLoading } = useCampaigns();
+  const queryClient = useQueryClient();
 
   // Store Filters
   const {
@@ -113,13 +114,19 @@ function CampaignsPageContent() {
 
     setIsSyncing(true);
     try {
-      const res = await syncCampaigns(selectedAccountId);
-      if (res.success) {
-        toast.success(`Synced ${res.count} campaigns from Meta.`);
+      const res = await fetch("/api/campaigns/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accountId: selectedAccountId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+        toast.success(`Synced ${data.count} campaigns from Meta.`);
       } else {
-        toast.error(res.error || "Failed to sync campaigns.");
+        toast.error(data.error || "Failed to sync campaigns.");
       }
-    } catch (err) {
+    } catch {
       toast.error("An unexpected error occurred.");
     } finally {
       setIsSyncing(false);
@@ -127,7 +134,7 @@ function CampaignsPageContent() {
   };
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-slate-50">
+    <div className="flex flex-col bg-slate-50">
       <header className="sticky top-0 z-30 w-full border-b border-border bg-white/80 backdrop-blur-md">
         <div className="flex h-16 items-center justify-between px-6 lg:px-8">
           <h1 className="text-xl font-heading font-bold text-slate-900 tracking-tight">

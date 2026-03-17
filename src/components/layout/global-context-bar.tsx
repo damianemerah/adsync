@@ -125,12 +125,11 @@ export function GlobalContextBar({
 
   // Filter Accounts based on selected platform
   const filteredAccounts = accounts?.filter(
-    (acc) => selectedPlatform === "all" || acc.platform === selectedPlatform,
+    (acc) => acc.platform === selectedPlatform,
   );
 
   const filteredCampaigns = campaigns?.filter((camp) => {
-    if (selectedPlatform !== "all" && camp.platform !== selectedPlatform)
-      return false;
+    if (camp.platform !== selectedPlatform) return false;
     if (selectedAccountId && camp.ad_account_id !== selectedAccountId)
       return false;
     return true;
@@ -165,11 +164,9 @@ export function GlobalContextBar({
                         </div>
                       )}
                       <span className="truncate font-bold text-foreground text-sm leading-tight">
-                        {selectedPlatform === "all"
-                          ? "All Platforms"
-                          : selectedPlatform === "meta"
-                            ? "Meta Ads"
-                            : "TikTok Ads"}
+                        {selectedPlatform === "meta"
+                          ? "Meta Ads"
+                          : "TikTok Ads"}
                       </span>
                     </div>
                   </div>
@@ -181,18 +178,14 @@ export function GlobalContextBar({
                 align="start"
               >
                 <DropdownMenuCheckboxItem
-                  checked={selectedPlatform === "all"}
-                  onCheckedChange={() => {
-                    setSelectedPlatform("all");
-                    setOpenPlatform(false);
-                  }}
-                  className="py-2.5 font-medium cursor-pointer rounded-xl"
-                >
-                  All Platforms
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
                   checked={selectedPlatform === "meta"}
                   onCheckedChange={() => {
+                    const currentAccount = accounts?.find(
+                      (a) => a.id === selectedAccountId,
+                    );
+                    if (currentAccount && currentAccount.platform !== "meta") {
+                      setSelectedAccountId("");
+                    }
                     setSelectedPlatform("meta");
                     setOpenPlatform(false);
                   }}
@@ -203,6 +196,15 @@ export function GlobalContextBar({
                 <DropdownMenuCheckboxItem
                   checked={selectedPlatform === "tiktok"}
                   onCheckedChange={() => {
+                    const currentAccount = accounts?.find(
+                      (a) => a.id === selectedAccountId,
+                    );
+                    if (
+                      currentAccount &&
+                      currentAccount.platform !== "tiktok"
+                    ) {
+                      setSelectedAccountId("");
+                    }
                     setSelectedPlatform("tiktok");
                     setOpenPlatform(false);
                   }}
@@ -231,7 +233,7 @@ export function GlobalContextBar({
                     <span className="truncate font-bold text-foreground text-sm leading-tight w-full">
                       {selectedAccountId && accounts
                         ? accounts.find((a) => a.id === selectedAccountId)?.name
-                        : "All Accounts"}
+                        : "Select Account"}
                     </span>
                   </div>
                   <NavArrowDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
@@ -250,24 +252,6 @@ export function GlobalContextBar({
                   <CommandList>
                     <CommandEmpty>No account found.</CommandEmpty>
                     <CommandGroup>
-                      <CommandItem
-                        value="all_accounts_reset_value"
-                        onSelect={() => {
-                          setSelectedAccountId("");
-                          setOpenAccount(false);
-                        }}
-                        className="py-3 font-medium cursor-pointer"
-                      >
-                        <Check
-                          className={cn(
-                            "mr-2 h-4 w-4 text-primary",
-                            selectedAccountId === ""
-                              ? "opacity-100"
-                              : "opacity-0",
-                          )}
-                        />
-                        All Accounts
-                      </CommandItem>
                       {filteredAccounts?.map((account) => (
                         <CommandItem
                           key={account.id}
@@ -300,7 +284,7 @@ export function GlobalContextBar({
             </Popover>
           </div>
 
-          {/* 3. Campaigns */}
+          {/* 4. Campaigns */}
           <div className="flex-1 min-w-[180px] max-w-[220px] space-y-1.5">
             <Popover open={openCampaign} onOpenChange={setOpenCampaign}>
               <PopoverTrigger asChild>

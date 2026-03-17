@@ -26,7 +26,6 @@ export interface CampaignContext {
   };
   platform?: "meta" | "tiktok" | "google";
   objective?: "whatsapp" | "traffic" | "awareness" | "engagement" | "leads" | "sales" | "app_promotion";
-  metaSubPlacements?: Record<string, string[]>;
 }
 
 /**

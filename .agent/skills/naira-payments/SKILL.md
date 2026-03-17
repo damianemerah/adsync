@@ -20,6 +20,9 @@ Load this skill when working on:
 Full SQL, code, and specs in:
 `.agent/skills/naira-payments/references/phase-2a-naira-payments.md`
 
+Full status, provider selection rationale, and integration review notes in:
+`.agent/skills/naira-payments/IMPLEMENTATION_STATUS.md`
+
 ## Two Separate Payment Flows — Never Confuse Them
 
 ### Flow 1: Sellam Platform Subscription (ALREADY EXISTS)
@@ -29,14 +32,24 @@ SME → Paystack → organizations.subscription_status = 'active'
 Handled by: src/actions/paystack.ts (existing)
 ```
 
-### Flow 2: Ad Budget Top-Up (Phase 2A — BUILD THIS)
+### Flow 2: Ad Budget Top-Up (Phase 2A — COMPLETE)
 
 ```
 SME pays ₦ → Paystack → webhook → creditAdBudget()
   → ad_budget_wallets.balance_ngn increases
-  → Grey/Geegpay API funds org's virtual USD card
+  → Sudo Africa API funds org's virtual USD card
   → Virtual card is on SME's own Meta ad account
 ```
+
+**Callback flow (client-side):**
+```
+Paystack redirects → ?topup_success=true
+  → billing-content.tsx reads param
+  → getVirtualCard() — if null → createOrganizationVirtualCard()
+```
+
+**Note:** Card creation only fires if the user lands on the callback page.
+If the tab is closed before redirect, card is not created (webhook does not call createOrganizationVirtualCard). This is a known MVP gap.
 
 ## The Isolation Rule (Critical)
 

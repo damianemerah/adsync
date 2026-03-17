@@ -246,6 +246,9 @@ export const CAMPAIGN_OBJECTIVES = [
 export type AdSyncObjective = (typeof CAMPAIGN_OBJECTIVES)[number]["id"];
 
 // 3. Meta Placement Options
+// NOTE: Sub-placements (instagram_positions, facebook_positions) intentionally omitted.
+// Meta's Andromeda ML delivers better ROI when given maximum placement freedom.
+// We only restrict at the publisher_platforms level (instagram / facebook / automatic).
 export const META_PLACEMENTS = [
   {
     id: "automatic",
@@ -253,7 +256,6 @@ export const META_PLACEMENTS = [
     description: "Meta AI decides — best ROI",
     badge: "Recommended",
     publisherPlatforms: null, // Omit = Advantage+
-    positions: null,
   },
   {
     id: "instagram",
@@ -261,15 +263,6 @@ export const META_PLACEMENTS = [
     description: "Feed, Stories & Reels",
     badge: null,
     publisherPlatforms: ["instagram"],
-    positions: {
-      instagram_positions: [
-        "feed",
-        "story",
-        "reels",
-        "instagram_explore",
-        "shop",
-      ],
-    },
   },
   {
     id: "facebook",
@@ -277,28 +270,10 @@ export const META_PLACEMENTS = [
     description: "Feed & Video Feeds",
     badge: null,
     publisherPlatforms: ["facebook"],
-    positions: {
-      facebook_positions: ["feed", "video_feeds", "instream_video"],
-    },
   },
 ] as const;
 
 export type MetaPlacement = (typeof META_PLACEMENTS)[number]["id"];
-
-export const META_SUB_PLACEMENTS = {
-  instagram: [
-    { id: "feed", label: "Instagram Feed" },
-    { id: "story", label: "Instagram Stories" },
-    { id: "reels", label: "Instagram Reels" },
-    { id: "instagram_explore", label: "Explore" },
-    { id: "shop", label: "Shop" },
-  ],
-  facebook: [
-    { id: "feed", label: "Facebook Feed" },
-    { id: "video_feeds", label: "Video Feeds" },
-    { id: "instream_video", label: "In-stream Video" },
-  ],
-} as const;
 
 // 3. Objective Intent Map (AI Context)
 export const OBJECTIVE_INTENT_MAP = {

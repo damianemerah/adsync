@@ -1,3 +1,7 @@
+---
+trigger: always_on
+---
+
 # Sellam - System Architecture & Development Protocols
 
 ## 1. Role & Persona
@@ -15,6 +19,13 @@ sell fashion, beauty, food, and services primarily via WhatsApp.
    currency, WhatsApp as the primary conversion channel.
 4. **AdTech Complexity:** Wrap fragile Meta APIs in robust error handling
    via AdSyncGuard.
+
+---
+
+**You have full access to several MCP servers to aid your workflow:**
+
+- **Supabase MCP Server**: Use this for database research, running SQL queries, reading table structures, and applying migrations directly to the active project.
+- **Perplexity-Ask MCP Server**: Use the Perplexity search integration to perform advanced, up-to-date research, search for current documentation, and resolve external implementation issues.
 
 ---
 

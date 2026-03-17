@@ -45,7 +45,7 @@
 | **1B**   | Naira ROI dashboard — Mark as Sold, `useCampaignROI`                                                 | ✅ Complete |
 | **1C**   | Org-level AI context — `useOrgContext`, category playbooks                                           | ✅ Complete |
 | **CAPI** | Meta Conversions API — offline WhatsApp + website CAPI events, `fbclid` capture, CAPI settings UI    | ✅ Complete |
-| **2A**   | Naira ad budget wallet — Paystack top-up, virtual USD card                                           | ✅ Complete |
+| **2A**   | Naira ad budget wallet — Paystack top-up, Sudo Africa virtual USD card, wallet balance check in launch step, billing page integration | ✅ Complete |
 | **T1**   | Targeting Phase 1 — Language, income proxies, exclusions                                             | ⬜ Next     |
 | **T2**   | Targeting Phase 2 — Custom audiences, retargeting                                                    | ⬜ Planned  |
 | **T3**   | Targeting Phase 3 — Lookalike audiences (Agency tier)                                                | ⬜ Planned  |

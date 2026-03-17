@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/card";
 import { Wallet, Plus, ArrowRight, Check } from "lucide-react";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
 import {
   initializeAdBudgetTopup,
   getAdBudgetWallet,
@@ -32,8 +31,6 @@ const TOPUP_PRESETS = [
 // Component
 // ─────────────────────────────────────────────────────────────────────────────
 export function AdBudgetTopup() {
-  const router = useRouter();
-
   const [balance, setBalance] = useState<number | null>(null);
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
@@ -80,7 +77,7 @@ export function AdBudgetTopup() {
       // Initialize Paystack transaction (fee is calculated server-side too)
       const { authorization_url, reference } = await initializeAdBudgetTopup(
         selectedAmount,
-        `${window.location.origin}/dashboard?payment=success`,
+        `${window.location.origin}/settings/subscription?topup_success=true`,
       );
 
       console.log("Paystack transaction initialized:", reference);

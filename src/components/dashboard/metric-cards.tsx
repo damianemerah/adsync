@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { ArrowUpRight, Check } from "iconoir-react";
+import { ArrowUpRight } from "iconoir-react";
 import { CampaignMetrics } from "@/lib/utils/campaign-metrics";
 
 interface MetricCardProps {
@@ -10,74 +10,18 @@ interface MetricCardProps {
   value: string;
   change: string | null;
   trend: "up" | "down" | "neutral";
-  theme: "blue" | "green" | "purple" | "orange" | "indigo";
-  isSelected: boolean;
-  onToggle: () => void;
+  theme?: string; // kept for backwards-compat with metrics array, not used in display
 }
 
-export function MetricCard({
-  label,
-  value,
-  change,
-  trend,
-  theme = "blue",
-  isSelected,
-  onToggle,
-}: MetricCardProps) {
-  const themes = {
-    blue: {
-      activeBorder: "border-primary/30",
-      activeBg: "bg-primary/5",
-      checkbox: "bg-primary border-primary text-primary-foreground",
-    },
-    green: {
-      activeBorder: "border-emerald-200",
-      activeBg: "bg-emerald-50/50",
-      checkbox: "bg-emerald-500 border-emerald-500 text-white",
-    },
-    purple: {
-      activeBorder: "border-purple-200",
-      activeBg: "bg-purple-50/50",
-      checkbox: "bg-purple-500 border-purple-500 text-white",
-    },
-    orange: {
-      activeBorder: "border-orange-200",
-      activeBg: "bg-orange-50/50",
-      checkbox: "bg-orange-500 border-orange-500 text-white",
-    },
-    indigo: {
-      activeBorder: "border-indigo-200",
-      activeBg: "bg-indigo-50/50",
-      checkbox: "bg-indigo-500 border-indigo-500 text-white",
-    },
-  };
-
-  const style = themes[theme] || themes.blue;
+export function MetricCard({ label, value, change, trend }: MetricCardProps) {
 
   return (
     <Card
-      onClick={onToggle}
-      className={cn(
-        "relative overflow-hidden transition-all duration-200 cursor-pointer border p-0 shadow-none",
-        "bg-card hover:shadow-soft",
-        isSelected
-          ? cn(style.activeBg, style.activeBorder, "shadow-sm")
-          : "border-border",
-      )}
+      className="relative overflow-hidden border p-0 shadow-none bg-card border-border"
     >
       <CardContent className="px-5 py-3 flex flex-col h-full justify-between">
-        {/* Header: Label + Checkbox */}
+        {/* Header: Label */}
         <div className="flex gap-2 items-center mb-3">
-          <div
-            className={cn(
-              "h-5 w-5 rounded border flex items-center justify-center transition-colors",
-              isSelected
-                ? style.checkbox
-                : "border-input bg-muted hover:border-ring",
-            )}
-          >
-            {isSelected && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
-          </div>
           <p className="text-xs font-bold text-subtle-foreground uppercase tracking-wider">
             {label}
           </p>
@@ -146,17 +90,9 @@ interface MetricCardsProps {
     prev_revenue?: string | number;
     prev_sales?: string | number;
   };
-  /** Controlled: which metric labels are currently selected */
-  selectedMetrics: string[];
-  /** Controlled: toggle callback */
-  onToggle: (label: string) => void;
 }
 
-export function MetricCards({
-  summary,
-  selectedMetrics,
-  onToggle,
-}: MetricCardsProps) {
+export function MetricCards({ summary }: MetricCardsProps) {
   // Format helpers
   const toNum = (val: string | number | undefined) =>
     parseFloat(String(val || "0"));
@@ -243,12 +179,7 @@ export function MetricCards({
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
       {metrics.map((m) => (
-        <MetricCard
-          key={m.label}
-          {...m}
-          isSelected={selectedMetrics.includes(m.label)}
-          onToggle={() => onToggle(m.label)}
-        />
+        <MetricCard key={m.label} {...m} />
       ))}
     </div>
   );

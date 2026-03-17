@@ -37,6 +37,7 @@ export function SubPlacementROICard({ campaignId }: SubPlacementROICardProps) {
       try {
         setIsLoading(true);
         const res = await getCampaignPlacementInsights(campaignId);
+        console.log("placement insights res🔥", res);
         if (res.success && res.data) {
           setData(res.data);
         }
@@ -153,9 +154,7 @@ export function SubPlacementROICard({ campaignId }: SubPlacementROICardProps) {
                     )}
                   </div>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    {clicks === 0 && spend > 0
-                      ? "Recommendation: Turn Off"
-                      : `${clicks} Clicks Driven`}
+                    {`${clicks} Clicks Driven`}
                   </p>
                 </div>
               </div>

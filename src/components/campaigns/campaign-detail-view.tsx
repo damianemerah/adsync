@@ -77,6 +77,10 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
       const isStale = !lastUpdate || lastUpdate < oneHourAgo;
 
+      console.log("hasRecentData", hasRecentData);
+      console.log("isStale", isStale);
+      console.log("Campaign", campaign);
+
       if (!hasRecentData || isStale) {
         // Sync in background without blocking UI
         Promise.all([

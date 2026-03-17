@@ -4,16 +4,11 @@ import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useActiveOrgContext } from "@/components/providers/active-org-provider";
 
-// Define the shape of the data returned by the Supabase query
 interface AdData {
   id: string;
   name: string;
   status: string;
-  creative_snapshot: any; // We'll type check this manually or use a more specific type if available
-  campaigns: {
-    name: string;
-    organization_id: string | null;
-  } | null; // Join returns an object or null
+  creative_snapshot: any;
   clicks: number | null;
   impressions: number | null;
   spend_cents: number | null;
@@ -27,22 +22,12 @@ export function useAdAnalysis() {
   return useQuery({
     queryKey: ["ad-analysis", activeOrgId],
     queryFn: async () => {
-      // Fetch Ads with metrics, scoped to the active org via the campaigns join
       let q = supabase
         .from("ads")
         .select(
-          `
-          id,
-          name,
-          status,
-          creative_snapshot,
-          campaigns!inner(name, organization_id),
-          clicks,
-          impressions,
-          spend_cents,
-          ctr
-        `,
+          `id, name, status, creative_snapshot, clicks, impressions, spend_cents, ctr, campaigns!inner(name, organization_id)`,
         )
+        .not("creative_snapshot", "is", null)
         .order("spend_cents", { ascending: false });
 
       if (activeOrgId) {
@@ -53,29 +38,28 @@ export function useAdAnalysis() {
 
       if (error) throw error;
 
-      return (data as unknown as AdData[]).map((ad) => {
-        // Extract image from snapshot (Meta structure varies, handle gracefully)
-        // creative_snapshot can be:
-        // 1. { thumbnail_url: "..." }
-        // 2. { image_url: "..." }
-        // 3. { url: "..." }
-        // 4. Sometimes it might be nested
+      return (
+        data as unknown as (AdData & {
+          campaigns: { name: string; organization_id: string };
+        })[]
+      ).map((ad) => {
         const snapshot = ad.creative_snapshot || {};
+        // creative_snapshot on ads (Meta sync) stores { thumbnail_url, image_url, url }
         const image =
           snapshot.thumbnail_url ||
           snapshot.image_url ||
           snapshot.url ||
-          "/placeholder.png"; // Fallback
+          "/placeholder.png";
 
         return {
           id: ad.id,
           name: ad.name,
-          campaignName: ad.campaigns?.name || "Unknown Campaign",
-          image: image,
+          campaignName: ad.campaigns?.name || ad.name,
+          image,
           spend: (ad.spend_cents || 0) / 100,
           clicks: ad.clicks || 0,
           impressions: ad.impressions || 0,
-          ctr: Number(ad.ctr) || 0, // Ensure it's a number
+          ctr: Number(ad.ctr) || 0,
         };
       });
     },

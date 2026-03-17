@@ -34,6 +34,11 @@ import {
   getPaymentContext,
 } from "@/actions/paystack";
 import { verifyAndActivate } from "@/actions/verify-payment";
+import {
+  getVirtualCard,
+  createOrganizationVirtualCard,
+} from "@/actions/ad-budget";
+import { AdBudgetTopup } from "@/components/billing/ad-budget-topup";
 import { toast } from "sonner";
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
@@ -129,6 +134,31 @@ export function BillingContent() {
   // ── Callback verification: handle redirect from Paystack ────────────────
   useEffect(() => {
     if (verifiedRef.current) return;
+
+    // Handle ad budget top-up callback (webhook already credited the wallet)
+    const isTopupSuccess = searchParams.get("topup_success") === "true";
+    if (isTopupSuccess) {
+      verifiedRef.current = true;
+      toast.success("Ad budget topped up successfully!");
+
+      // Auto-create virtual card on first top-up
+      getVirtualCard()
+        .then(async (card) => {
+          if (!card) {
+            try {
+              await createOrganizationVirtualCard();
+              toast.success("Virtual card created for your ad account.");
+            } catch (err) {
+              console.error("Virtual card creation failed:", err);
+            }
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to check virtual card:", err);
+        });
+      return;
+    }
+
     const isSuccess =
       searchParams.get("success") === "true" ||
       searchParams.get("pack_success") === "true";
@@ -381,6 +411,18 @@ export function BillingContent() {
             You need an active subscription to purchase credit packs.
           </p>
         )}
+      </section>
+
+      {/* Ad Budget Wallet */}
+      <section>
+        <h2 className="text-lg font-heading font-bold mb-1">
+          Ad Budget Wallet
+        </h2>
+        <p className="text-subtle-foreground text-sm mb-4">
+          Fund your wallet in Naira — we convert and pay Meta in USD
+          automatically.
+        </p>
+        <AdBudgetTopup />
       </section>
 
       {/* Plan Cards */}

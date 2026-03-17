@@ -46,6 +46,7 @@ export function useCampaigns() {
         currency: c.ad_accounts?.currency || "NGN",
         createdAt: new Date(c.created_at || Date.now()).toLocaleDateString(),
         clicks: c.clicks || 0,
+        impressions: c.impressions || 0,
         spend_cents: c.spend_cents || 0,
         spend: (c.spend_cents || 0) / 100,
         ctr: Number(c.ctr || 0),

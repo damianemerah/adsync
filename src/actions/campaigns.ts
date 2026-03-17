@@ -38,7 +38,6 @@ interface LaunchConfig {
   budget: number; // In Naira
   platform: "meta" | "tiktok";
   metaPlacement?: "automatic" | "instagram" | "facebook"; // Which Meta surfaces
-  metaSubPlacements?: Record<string, string[]>; // The exact checked positions
   adCopy: {
     primary: string;
     headline: string;
@@ -324,12 +323,32 @@ export async function launchCampaign(config: LaunchConfig) {
     // Step B: Prepare Targeting Objects
     // Now we use the stored IDs directly
 
+    const droppedInterests = config.targetInterests.filter(
+      (i) => !/^\d+$/.test(i.id),
+    );
+    if (droppedInterests.length > 0) {
+      console.warn(
+        `[launch] Dropping ${droppedInterests.length} unresolved interests:`,
+        droppedInterests.map((i) => i.name),
+      );
+    }
+
     const validatedInterests = config.targetInterests
       .filter((i) => /^\d+$/.test(i.id))
       .map((i) => ({
         id: i.id,
         name: i.name,
       }));
+
+    const droppedBehaviors = config.targetBehaviors.filter(
+      (b) => !/^\d+$/.test(b.id),
+    );
+    if (droppedBehaviors.length > 0) {
+      console.warn(
+        `[launch] Dropping ${droppedBehaviors.length} unresolved behaviors:`,
+        droppedBehaviors.map((b) => b.name),
+      );
+    }
 
     const validatedBehaviors = config.targetBehaviors
       .filter((b) => /^\d+$/.test(b.id))
@@ -420,7 +439,6 @@ export async function launchCampaign(config: LaunchConfig) {
           locales: config.targetLanguages,
           exclusionAudienceIds: config.exclusionAudienceIds,
           lifeEvents: config.targetLifeEvents,
-          metaSubPlacements: config.metaSubPlacements,
         },
       },
       config.objective,
@@ -568,7 +586,6 @@ export async function launchCampaign(config: LaunchConfig) {
         },
         platform: config.platform,
         objective: config.objective,
-        metaSubPlacements: config.metaSubPlacements, // [NEW] Save user's specific sub-placements for studio
       };
 
       console.log("AI Context:", aiContext);
@@ -813,19 +830,41 @@ export async function syncCampaignInsights(campaignId: string) {
     const token = decrypt(campaign.ad_accounts.access_token);
     const metaId = campaign.platform_campaign_id;
 
-    // Fetch insights for last 30 days with daily breakdown
-    const insightsRes = await MetaService.request(
-      `/${metaId}/insights?date_preset=last_30d&time_increment=1&fields=spend,impressions,clicks,reach,ctr,cpc,date_start`,
-      "GET",
-      token,
-    );
+    // Fetch insights for the campaign's lifetime with daily breakdown.
+    // Meta uses pagination for large date ranges, so we must loop to get all data.
+    let insightsData: any[] = [];
+    let nextUrl: string | null = `/${metaId}/insights?date_preset=maximum&time_increment=1&fields=spend,impressions,clicks,reach,ctr,cpc,date_start`;
 
-    if (!insightsRes.data || insightsRes.data.length === 0) {
+    while (nextUrl) {
+      // If nextUrl includes the graph URL root, strip it out so we can pass it to MetaService.request
+      if (nextUrl.startsWith("https://graph.facebook.com")) {
+        const urlObj = new URL(nextUrl);
+        nextUrl = urlObj.pathname.replace("/v24.0", "") + urlObj.search;
+      }
+
+      const res = await MetaService.request(nextUrl, "GET", token);
+      
+      if (res.data && res.data.length > 0) {
+        insightsData = [...insightsData, ...res.data];
+      }
+
+      // Check if there is another page of data
+      if (res.paging && res.paging.next) {
+        nextUrl = res.paging.next;
+      } else {
+        nextUrl = null; // Exit loop
+      }
+    }
+
+    console.log(`insightsData length🔥: ${insightsData.length}`);
+
+    if (insightsData.length === 0) {
+      console.log("Returning early📧📧");
       return { success: true, count: 0, message: "No insights data available" };
     }
 
     // Process insights into performance array
-    const performanceData = insightsRes.data.map((day: any) => ({
+    const performanceData = insightsData.map((day: any) => ({
       date: day.date_start,
       spend: parseFloat(day.spend || "0"),
       impressions: parseInt(day.impressions || "0"),
@@ -835,6 +874,8 @@ export async function syncCampaignInsights(campaignId: string) {
       cpc: parseFloat(day.cpc || "0"),
     }));
 
+    console.log("performanceData🔥", performanceData);
+
     // Calculate summary
     const summary = performanceData.reduce(
       (acc: any, day: any) => ({
@@ -842,8 +883,10 @@ export async function syncCampaignInsights(campaignId: string) {
         impressions: acc.impressions + day.impressions,
         clicks: acc.clicks + day.clicks,
         reach: acc.reach + day.reach,
+        ctr: 0,
+        cpc: 0,
       }),
-      { spend: 0, impressions: 0, clicks: 0, reach: 0 },
+      { spend: 0, impressions: 0, clicks: 0, reach: 0, ctr: 0, cpc: 0 },
     );
 
     summary.ctr =
@@ -852,17 +895,35 @@ export async function syncCampaignInsights(campaignId: string) {
         : 0;
     summary.cpc = summary.clicks > 0 ? summary.spend / summary.clicks : 0;
 
-    // Update campaign with performance data
-    const { error: updateError } = await supabase
+    // Step 1: Upsert daily rows to campaign_metrics
+    const metricsRows = performanceData.map((day: any) => ({
+      campaign_id: campaignId,
+      date: day.date,
+      spend_cents: Math.round(day.spend * 100),
+      impressions: day.impressions,
+      clicks: day.clicks,
+      reach: day.reach,
+      ctr: day.ctr,
+      synced_at: new Date().toISOString(),
+    }));
+
+    console.log("metricsRows🔥", metricsRows);
+
+    await supabase
+      .from("campaign_metrics")
+      .upsert(metricsRows, { onConflict: "campaign_id,date" });
+
+    // Step 2: Update campaign summary row with real columns
+    await supabase
       .from("campaigns")
       .update({
-        performance: performanceData,
-        summary,
+        spend_cents: Math.round(summary.spend * 100),
+        impressions: summary.impressions,
+        clicks: summary.clicks,
+        ctr: summary.ctr,
         updated_at: new Date().toISOString(),
       })
       .eq("id", campaignId);
-
-    if (updateError) throw updateError;
 
     return {
       success: true,
@@ -938,21 +999,7 @@ export async function syncCampaignAds(campaignId: string) {
       };
     });
 
-    // Update campaign with ads data
-    const { error: updateError } = await supabase
-      .from("campaigns")
-      .update({
-        ads: adsData,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", campaignId);
-
-    if (updateError) throw updateError;
-
-    return {
-      success: true,
-      count: adsData.length,
-    };
+    return { success: true, count: adsData.length, ads: adsData };
   } catch (error: any) {
     console.error("Sync Ads Error:", error);
     return { success: false, error: error.message };

@@ -4,7 +4,6 @@ import { useCampaignStore } from "@/stores/campaign-store";
 import {
   CAMPAIGN_OBJECTIVES,
   META_PLACEMENTS,
-  META_SUB_PLACEMENTS,
   MetaPlacement,
 } from "@/lib/constants";
 import { computeSmartDefaults } from "@/lib/intelligence";
@@ -55,7 +54,6 @@ export function GoalPlatformStep() {
     objective,
     platform,
     metaPlacement,
-    metaSubPlacements,
     setStep,
     updateDraft,
     locations,
@@ -93,26 +91,6 @@ export function GoalPlatformStep() {
       budget: defaults.budget,
       ageRange: defaults.ageRange,
       gender: defaults.gender,
-    });
-  };
-
-  const handleSubPlacementToggle = (
-    platformId: "instagram" | "facebook",
-    positionId: string,
-  ) => {
-    const current = metaSubPlacements[platformId] || [];
-    const updated = current.includes(positionId)
-      ? current.filter((id) => id !== positionId)
-      : [...current, positionId];
-
-    // Optional: Prevent unchecking the very last option so the platform isn't entirely empty
-    if (updated.length === 0) return;
-
-    updateDraft({
-      metaSubPlacements: {
-        ...metaSubPlacements,
-        [platformId]: updated,
-      },
     });
   };
 
@@ -238,46 +216,6 @@ export function GoalPlatformStep() {
                 />
               ))}
             </div>
-
-            {/* Sub-Placements (Granular Control) */}
-            {(metaPlacement === "instagram" ||
-              metaPlacement === "facebook") && (
-              <div className="mt-6 pt-4 border-t border-border/50 animate-in fade-in slide-in-from-top-2">
-                <p className="text-xs font-bold text-foreground mb-3">
-                  Select where you want your ad to appear on{" "}
-                  {metaPlacement === "instagram" ? "Instagram" : "Facebook"}:
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {META_SUB_PLACEMENTS[
-                    metaPlacement as keyof typeof META_SUB_PLACEMENTS
-                  ].map((sub) => {
-                    const isChecked = metaSubPlacements[
-                      metaPlacement as "instagram" | "facebook"
-                    ]?.includes(sub.id);
-                    return (
-                      <button
-                        key={sub.id}
-                        onClick={() =>
-                          handleSubPlacementToggle(
-                            metaPlacement as "instagram" | "facebook",
-                            sub.id,
-                          )
-                        }
-                        className={cn(
-                          "px-3 py-1.5 text-xs font-medium rounded-full border transition-all flex items-center gap-1.5",
-                          isChecked
-                            ? "bg-primary text-primary-foreground border-primary"
-                            : "bg-card text-subtle-foreground border-border hover:border-primary/50",
-                        )}
-                      >
-                        {isChecked && <CheckCircle className="h-3 w-3" />}
-                        {sub.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
           </div>
         )}
       </div>
