@@ -1,18 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+// Edge functions invoked by pg_cron don't need CORS headers
+// Removed permissive CORS that allowed any origin to call this endpoint
 
 // ── Benchmarks & Constants ──────────────────────────────────────────────────
-const FX_RATE = parseInt(
-  Deno.env.get("NEXT_PUBLIC_USD_NGN_RATE") ||
-    Deno.env.get("USD_NGN_RATE") ||
-    "1600",
-);
+// FX_RATE is now fetched dynamically from the database (fx_rates table)
+// Fallback to static 1600 if DB fetch fails
+let FX_RATE = 1600; // Will be updated from DB on startup
 
 const NG_BENCHMARKS = {
   cpcUsd: 0.12,
@@ -166,7 +161,7 @@ async function sendInAppNotification(supabase: any, params: any) {
     action_label: actionLabel,
     action_url: actionUrl,
     dedup_key: dedupKey,
-    read: false,
+    is_read: false,
   });
 
   if (error) {
@@ -180,8 +175,9 @@ async function sendInAppNotification(supabase: any, params: any) {
 
 // ── Main Handler ───────────────────────────────────────────────────────────
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+  // pg_cron uses POST, not OPTIONS
+  if (req.method !== "POST") {
+    return new Response("Method not allowed", { status: 405 });
   }
 
   try {
@@ -192,6 +188,28 @@ serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Fetch current FX rate from database
+    // ─────────────────────────────────────────────────────────────────────
+    try {
+      const { data: fxData } = await supabase
+        .from("fx_rates")
+        .select("rate_ngn_per_usd")
+        .eq("is_active", true)
+        .single();
+
+      if (fxData?.rate_ngn_per_usd) {
+        FX_RATE = parseFloat(fxData.rate_ngn_per_usd);
+        console.log(`✓ Using dynamic FX rate: ${FX_RATE}`);
+      } else {
+        console.warn("⚠️ No active FX rate found, using fallback: 1600");
+      }
+    } catch (fxError) {
+      console.error("⚠️ Failed to fetch FX rate:", fxError);
+      console.log("Using fallback FX rate: 1600");
+    }
+
     const week = isoWeek();
 
     const twoDaysAgo = new Date();
@@ -320,14 +338,14 @@ serve(async (req) => {
         postLaunchNotificationsSent: postLaunchTriggered,
       }),
       {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
         status: 200,
       },
     );
   } catch (error: any) {
     console.error("[Cron] Fatal:", error);
     return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       status: 500,
     });
   }

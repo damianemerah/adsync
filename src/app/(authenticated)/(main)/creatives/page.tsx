@@ -22,7 +22,6 @@ import { HelpCenterSheet } from "@/components/layout/help-center-sheet";
 export default function CreativeAnalyzePage() {
   // Use the hook to fetch real data
   const { data: ads, isLoading } = useAdAnalysis();
-  console.log("ads🔥🔥", ads);
   const router = useRouter();
 
   const handleImprove = (ad: any) => {
@@ -82,7 +81,7 @@ export default function CreativeAnalyzePage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-10 border-border text-subtle-foreground bg-background hover:text-foreground hover:border-primary/50 rounded-xl transition-all shadow-sm"
+                  className="h-10 border-border text-subtle-foreground bg-background hover:text-foreground hover:border-primary/50 rounded-md transition-all shadow-sm"
                 >
                   Sorting By Spend{" "}
                   <NavArrowLeft className="w-4 h-4 -rotate-90 ml-2" />
@@ -97,7 +96,7 @@ export default function CreativeAnalyzePage() {
                 {[...Array(4)].map((_, i) => (
                   <div
                     key={i}
-                    className="bg-card rounded-3xl h-96 border border-border shadow-soft animate-pulse"
+                    className="bg-card rounded-lg h-96 shadow-sm border border-border animate-pulse"
                   />
                 ))}
               </div>
@@ -112,7 +111,7 @@ export default function CreativeAnalyzePage() {
                 ))}
               </div>
             ) : (
-              <Empty className="bg-card border-border shadow-soft rounded-3xl">
+              <Empty className="bg-card shadow-sm border border-border rounded-lg">
                 <EmptyHeader>
                   <EmptyTitle>No Creatives Found</EmptyTitle>
                   <EmptyDescription>
@@ -120,7 +119,7 @@ export default function CreativeAnalyzePage() {
                   </EmptyDescription>
                 </EmptyHeader>
                 <EmptyContent>
-                  <Button className="rounded-xl">Sync Accounts</Button>
+                  <Button className="rounded-md">Sync Accounts</Button>
                 </EmptyContent>
               </Empty>
             )}
@@ -139,9 +138,9 @@ function AdAnalyzeCard({
   onImprove: () => void;
 }) {
   return (
-    <div className="bg-card rounded-3xl border border-border shadow-soft hover:shadow-lg transition-all duration-300 p-5 group flex flex-col h-full">
+    <div className="bg-card rounded-lg shadow-sm hover:shadow-sm border border-border transition-all duration-300 p-5 group flex flex-col h-full">
       {/* 1. Image Display */}
-      <div className="relative aspect-square bg-muted/50 rounded-2xl overflow-hidden mb-5 border border-border/50">
+      <div className="relative aspect-square bg-muted/50 rounded-lg overflow-hidden mb-5 border border-border/50">
         <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
           {/* Fallback if no image */}
           <Image
@@ -174,7 +173,7 @@ function AdAnalyzeCard({
       </div>
 
       {/* 3. Metrics */}
-      <div className="space-y-3 mb-6 bg-muted/30 p-4 rounded-2xl border border-border/50">
+      <div className="space-y-3 mb-6 bg-muted/30 p-4 rounded-lg border border-border/50">
         <MetricRow
           label="Spend"
           value={`$${data.spend.toFixed(2)}`}
@@ -200,7 +199,7 @@ function AdAnalyzeCard({
       {/* 4. Action */}
       <Button
         onClick={onImprove}
-        className="w-full bg-ai hover:bg-ai/90 text-white font-bold rounded-xl shadow-md hover:shadow-lg border-0 h-11 transition-all"
+        className="w-full bg-ai hover:bg-ai/90 text-white font-bold rounded-md shadow-md hover:shadow-sm border border-border h-11 transition-all"
       >
         <Sparks className="w-4 h-4 mr-2" /> Improve Creative
       </Button>

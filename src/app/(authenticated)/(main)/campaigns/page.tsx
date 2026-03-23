@@ -21,12 +21,17 @@ import { Suspense, useState } from "react"; // Added useState
 import { GlobalFilter } from "@/components/layout/global-filter";
 import { useDashboardStore } from "@/store/dashboard-store";
 import { toast } from "sonner";
+import { useAdAccounts } from "@/hooks/use-ad-account";
+import { useAuth } from "@/components/providers/auth-provider";
+import { DashboardEmptyState } from "@/components/dashboard/empty-state";
 
 function CampaignsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: campaigns, isLoading } = useCampaigns();
+  const { data: accounts, isLoading: isLoadingAccounts } = useAdAccounts();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   // Store Filters
   const {
@@ -112,6 +117,15 @@ function CampaignsPageContent() {
       return;
     }
 
+    // ✅ Defensive check: Validate that selected account still exists (fixes disconnect/reconnect stale ID bug)
+    const accountExists = accounts?.find((a) => a.id === selectedAccountId);
+    if (!accountExists) {
+      toast.error(
+        "Selected account no longer exists. Please select a different account or refresh the page.",
+      );
+      return;
+    }
+
     setIsSyncing(true);
     try {
       const res = await fetch("/api/campaigns/sync", {
@@ -133,8 +147,39 @@ function CampaignsPageContent() {
     }
   };
 
+  const hasAdAccount = !!(accounts && accounts.length > 0);
+
+  if (!isLoadingAccounts && !hasAdAccount) {
+    const userName =
+      (user?.user_metadata?.full_name as string | undefined)?.split(" ")[0] ||
+      user?.email?.split("@")[0] ||
+      "there";
+
+    return (
+      <div className="flex flex-col bg-slate-50 min-h-screen">
+        <header className="sticky top-0 z-30 w-full border-b border-border bg-white/80 backdrop-blur-md">
+          <div className="flex h-16 items-center justify-between px-6 lg:px-8">
+            <h1 className="text-xl font-heading font-bold text-slate-900 tracking-tight">
+              Campaigns
+            </h1>
+            <div className="flex items-center gap-3">
+              <HelpCenterSheet />
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 p-8 overflow-y-auto">
+          <DashboardEmptyState
+            userName={userName}
+            hasAdAccount={false}
+          />
+        </main>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col bg-slate-50">
+    <div className="flex flex-col bg-slate-50 h-full">
       <header className="sticky top-0 z-30 w-full border-b border-border bg-white/80 backdrop-blur-md">
         <div className="flex h-16 items-center justify-between px-6 lg:px-8">
           <h1 className="text-xl font-heading font-bold text-slate-900 tracking-tight">
@@ -156,7 +201,7 @@ function CampaignsPageContent() {
             <HelpCenterSheet />
 
             <Link href="/campaigns/new">
-              <Button className="gap-2 bg-primary font-bold shadow-lg shadow-primary/20">
+              <Button className="gap-2 bg-primary font-bold shadow-sm border border-border shadow-primary/20">
                 <Plus className="h-4 w-4" />
                 Create Campaign
               </Button>

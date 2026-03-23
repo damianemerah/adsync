@@ -2,14 +2,14 @@
  * active-org.ts
  *
  * Server-side utility to resolve the user's active organization from the
- * `sellam_active_org` cookie. Used by Server Components, layouts, and
+ * `Tenzu_active_org` cookie. Used by Server Components, layouts, and
  * server actions to avoid always defaulting to the first organization.
  */
 
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 
-export const ACTIVE_ORG_COOKIE = "sellam_active_org";
+export const ACTIVE_ORG_COOKIE = "Tenzu_active_org";
 
 /**
  * Returns the active organization ID from the cookie, OR falls back to the

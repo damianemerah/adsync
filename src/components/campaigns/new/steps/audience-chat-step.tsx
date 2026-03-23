@@ -1087,7 +1087,7 @@ export function AudienceChatStep({
           <SheetTrigger asChild>
             <Button
               size="lg"
-              className="h-14 px-5 rounded-2xl shadow-soft bg-primary text-primary-foreground font-bold gap-2"
+              className="h-14 px-5 rounded-lg shadow-sm border border-border bg-primary text-primary-foreground font-bold gap-2"
             >
               <ListSelect className="h-5 w-5" />
               Review Audience
@@ -1149,7 +1149,7 @@ export function AudienceChatStep({
           maxSize={45}
           className="hidden lg:block"
         >
-          <div className="bg-card border border-border rounded-3xl shadow-soft h-full p-5 flex flex-col overflow-hidden">
+          <div className="bg-card border border-border rounded-lg shadow-sm border border-border h-full p-5 flex flex-col overflow-hidden">
             <h3 className="font-bold text-base text-foreground mb-4 flex items-center gap-2">
               <Check className="h-5 w-5 text-primary" /> Audience Summary
             </h3>

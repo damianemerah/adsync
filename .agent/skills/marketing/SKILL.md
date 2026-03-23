@@ -1,13 +1,13 @@
 ---
-name: sellam-marketing-copywriter
-description: Generate high-impact marketing copy positioning Sellam as the sales-first ad tool for Nigerian hustlers. Use when writing landing pages, emails, ads, social posts, investor pitches, or competitive comparisons. "Sellam" is Nigerian Pidgin for "sell it" — the product is a commerce tool, not B2B SaaS. Highlights Sellam's core advantages: Naira payment (vs. Wask's USD), AI creative studio (vs. agencies), chat-based simplicity (vs. Meta Ads Manager), and visible Naira ROI. Always frames ads as a path to sales — not vanity metrics like impressions or clicks.
+name: tenzu-marketing-copywriter
+description: Generate high-impact marketing copy positioning Tenzu as the sales-first ad tool for Nigerian hustlers. Use when writing landing pages, emails, ads, social posts, investor pitches, or competitive comparisons. "Tenzu" is Nigerian Pidgin for "sell it" — the product is a commerce tool, not B2B SaaS. Highlights Tenzu's core advantages: Naira payment (vs. Wask's USD), AI creative studio (vs. agencies), chat-based simplicity (vs. Meta Ads Manager), and visible Naira ROI. Always frames ads as a path to sales — not vanity metrics like impressions or clicks.
 ---
 
-# Sellam Marketing & Copywriter Skill
+# Tenzu Marketing & Copywriter Skill
 
-Generate marketing materials that position **Sellam** as the superior choice for Nigerian SME hustlers by leveraging four core competitive advantages: Revenue Visibility, Local Payment Infrastructure, AI Creative Automation, and Mobile-First Simplicity.
+Generate marketing materials that position **Tenzu** as the superior choice for Nigerian SME hustlers by leveraging four core competitive advantages: Revenue Visibility, Local Payment Infrastructure, AI Creative Automation, and Mobile-First Simplicity.
 
-> **Name Rule:** The product is called **Sellam** everywhere. Never write "AdSync" in any user-facing copy. The internal codebase folder is still `adsync/` but that is irrelevant to external messaging.
+> **Name Rule:** The product is called **Tenzu** everywhere. Never write "Tenzu" in any user-facing copy. The internal codebase folder is still `tenzu/` but that is irrelevant to external messaging.
 
 ## Quick Reference
 
@@ -29,7 +29,7 @@ Every piece of marketing copy must anchor to at least one of these pillars:
 
 **The Pain:** "I ran an ad. I got 200 clicks. But did I actually sell anything? I don't know."
 
-**Sellam Solution:** Sellam wraps every ad destination in a smart link (`sellam.app/l/[token]`). Every WhatsApp message and website visit is tracked. The SME sees ₦ spent vs ₦ earned — in plain Naira.
+**Tenzu Solution:** Tenzu wraps every ad destination in a smart link (`tenzu.africa/l/[token]`). Every WhatsApp message and website visit is tracked. The SME sees ₦ spent vs ₦ earned — in plain Naira.
 
 **Key Messages:**
 
@@ -42,13 +42,13 @@ Every piece of marketing copy must anchor to at least one of these pillars:
 
 - Meta Ads Manager: shows impressions, clicks, CTR — no Naira revenue
 - Agencies: show "engagement reports" — SME never knows actual sales
-- Sellam: shows ₦ spent → conversations → sales → profit. That's it.
+- Tenzu: shows ₦ spent → conversations → sales → profit. That's it.
 
 ### 2. The Payment Pillar ("Naira-Native")
 
 **The Pain:** "My card gets declined by international platforms. I can't access Wask/Shopify/Canva Pro."
 
-**Sellam Solution:** Pay subscription in Naira via Paystack/Bank Transfer. No dollar card required.
+**Tenzu Solution:** Pay subscription in Naira via Paystack/Bank Transfer. No dollar card required.
 
 **Key Messages:**
 
@@ -60,13 +60,13 @@ Every piece of marketing copy must anchor to at least one of these pillars:
 
 - Wask: Requires USD payment, often fails with Nigerian cards
 - AdCreative.ai: Same payment friction
-- Sellam: Local payment infrastructure = zero friction
+- Tenzu: Local payment infrastructure = zero friction
 
 ### 3. The Creative Pillar ("AI Studio")
 
 **The Pain:** "I have products but no designer. My photos look unprofessional. Agencies charge ₦150k."
 
-**Sellam Solution:** AI Studio transforms phone photos into professional ads in seconds using Flux AI.
+**Tenzu Solution:** AI Studio transforms phone photos into professional ads in seconds using Flux AI.
 
 **Key Messages:**
 
@@ -78,13 +78,13 @@ Every piece of marketing copy must anchor to at least one of these pillars:
 
 - Agencies: Slow (5-7 days), expensive (₦100k-200k), opaque process
 - Wask: Templates only, no AI transformation
-- Sellam: AI-powered creative generation + templates
+- Tenzu: AI-powered creative generation + templates
 
 ### 4. The Simplicity Pillar ("No-Expert Required")
 
 **The Pain:** "Meta Ads Manager is too complex. I don't understand targeting/bidding."
 
-**Sellam Solution:** Chat with AI consultant. It builds your ad in 2 minutes.
+**Tenzu Solution:** Chat with AI consultant. It builds your ad in 2 minutes.
 
 **Key Messages:**
 
@@ -96,7 +96,7 @@ Every piece of marketing copy must anchor to at least one of these pillars:
 
 - Meta Ads Manager: Steep learning curve, 50+ fields
 - Agencies: Black box (you don't learn)
-- Sellam: Transparent AI guidance with educational value
+- Tenzu: Transparent AI guidance with educational value
 
 ---
 
@@ -106,11 +106,11 @@ Every piece of marketing copy must anchor to at least one of these pillars:
 
 **The Product Is a Commerce Tool, Not a SaaS Platform:**
 
-- Frame Sellam as "your sales tool" not "your ad management platform"
+- Frame Tenzu as "your sales tool" not "your ad management platform"
 - Frame the SME as a boss/hustler, not a "marketer" or "advertiser"
 - Frame results as "sales" and "money", not "conversions" and "revenue"
 
-**Language Rules (strictly follow `sellam-product.md`):**
+**Language Rules (strictly follow `tenzu-product.md`):**
 | ❌ Never Say | ✅ Say Instead |
 |---|---|
 | Campaign | Ad / Sale / Promo |
@@ -139,9 +139,9 @@ Every piece of marketing copy must anchor to at least one of these pillars:
 
 ### vs. Wask / AdCreative.ai (Global SaaS Tools)
 
-**Frame:** Built for US credit cards and desktop workflows. Sellam is built for Naira transfers, WhatsApp, and mobile.
+**Frame:** Built for US credit cards and desktop workflows. Tenzu is built for Naira transfers, WhatsApp, and mobile.
 
-| Dimension        | Wask/AdCreative               | Sellam                      |
+| Dimension        | Wask/AdCreative               | Tenzu                      |
 | ---------------- | ----------------------------- | --------------------------- |
 | Payment          | USD credit card (fails often) | Naira via Paystack/Transfer |
 | Audience         | US/EU marketers               | Nigerian hustlers           |
@@ -158,9 +158,9 @@ Every piece of marketing copy must anchor to at least one of these pillars:
 
 ### vs. Local Agencies
 
-**Frame:** Agencies are slow and expensive. Sellam is instant and affordable. And you see the results yourself.
+**Frame:** Agencies are slow and expensive. Tenzu is instant and affordable. And you see the results yourself.
 
-| Dimension        | Agency                  | Sellam             |
+| Dimension        | Agency                  | Tenzu             |
 | ---------------- | ----------------------- | ------------------ |
 | Cost             | ₦100k-200k per campaign | From ₦15k/month    |
 | Timeline         | 5-7 days                | 2 minutes          |
@@ -176,9 +176,9 @@ Every piece of marketing copy must anchor to at least one of these pillars:
 
 ### vs. DIY Meta Ads Manager
 
-**Frame:** Too complex, shows the wrong numbers. Sellam simplifies and shows Naira results.
+**Frame:** Too complex, shows the wrong numbers. Tenzu simplifies and shows Naira results.
 
-| Dimension         | Ads Manager         | Sellam                            |
+| Dimension         | Ads Manager         | Tenzu                            |
 | ----------------- | ------------------- | --------------------------------- |
 | Learning Curve    | Steep (50+ fields)  | Gentle (chat interface)           |
 | Time to Launch    | 2+ hours            | 2 minutes                         |
@@ -206,18 +206,18 @@ Every piece of marketing copy must anchor to at least one of these pillars:
 ### Step 3: Apply Framework
 
 1. **Hook**: State the pain point (The "Ouch")
-2. **Mechanism**: Explain Sellam's solution (The "How")
+2. **Mechanism**: Explain Tenzu's solution (The "How")
 3. **Benefit**: Emphasize the sales outcome (The "₦ Wow")
 4. **CTA**: Clear next action
 
 ### Step 4: Apply Anti-Scam Filter
 
 - **Never promise**: Instant wealth, guaranteed sales, get-rich-quick numbers
-- **Always promise**: Visibility, ease, control, learning — things Sellam actually delivers
+- **Always promise**: Visibility, ease, control, learning — things Tenzu actually delivers
 
 ### Step 5: Review Checklist
 
-- [ ] Uses **Sellam** (not "AdSync") as product name
+- [ ] Uses **Tenzu** (not "Tenzu") as product name
 - [ ] Uses approved vocabulary (no "impressions", "campaign", "optimize", "bot", "dollar")
 - [ ] Frames outcome as Naira sales — not vanity metrics
 - [ ] Acknowledges local Nigerian context (Naira, WhatsApp, mobile)
@@ -248,15 +248,15 @@ Every piece of marketing copy must anchor to at least one of these pillars:
 
 ```
 [Bad]: "Advanced attribution and ROI reporting"
-[Good]: "You ran an ad. Sellam tells you who messaged, who visited, and how many sales you closed. In Naira."
+[Good]: "You ran an ad. Tenzu tells you who messaged, who visited, and how many sales you closed. In Naira."
 ```
 
 ### Objection Handling (FAQ)
 
 ```
-[Bad]: "Why is Sellam better than Wask?"
+[Bad]: "Why is Tenzu better than Wask?"
 [Good]: "Can I pay with my Nigerian bank card?"
-[Answer]: "Yes. Unlike Wask or other international tools, Sellam uses Paystack so your local card works perfectly every time. No more 'Payment Failed' messages."
+[Answer]: "Yes. Unlike Wask or other international tools, Tenzu uses Paystack so your local card works perfectly every time. No more 'Payment Failed' messages."
 ```
 
 ### Urgency (Email Subject)
@@ -269,8 +269,8 @@ Every piece of marketing copy must anchor to at least one of these pillars:
 ### Social Proof (Testimonial Frame)
 
 ```
-[Bad]: "Sellam helped me grow my business"
-[Good]: "I spent ₦150k on an agency for one ad. With Sellam, I run 10 ads monthly for ₦15k — and I see exactly which ones brought sales." - Chioma, Lagos Fashion Vendor
+[Bad]: "Tenzu helped me grow my business"
+[Good]: "I spent ₦150k on an agency for one ad. With Tenzu, I run 10 ads monthly for ₦15k — and I see exactly which ones brought sales." - Chioma, Lagos Fashion Vendor
 ```
 
 ### Revenue Milestone (In-app / Email)
@@ -292,7 +292,7 @@ Every piece of marketing copy must anchor to at least one of these pillars:
 
 1. Name the confusion ("You spent ₦20,000 on that ad. But did you sell anything?")
 2. Identify the root cause ("Meta shows clicks. Not sales. You're flying blind.")
-3. Show Sellam's clarity ("Sellam shows you: people reached → chats → sales → ₦ made")
+3. Show Tenzu's clarity ("Tenzu shows you: people reached → chats → sales → ₦ made")
 4. One simple CTA ("See your next ad's real results →")
 
 ### The "Payment Recovery" Pattern
@@ -303,7 +303,7 @@ Every piece of marketing copy must anchor to at least one of these pillars:
 
 1. Acknowledge frustration ("Card declined again?")
 2. Identify the real problem ("It's not your card—it's their international gateway")
-3. Present Sellam as the fix ("Pay in Naira. Works every time.")
+3. Present Tenzu as the fix ("Pay in Naira. Works every time.")
 4. Show ease ("Switch in 60 seconds")
 
 ### The "Agency Escape" Pattern
@@ -314,7 +314,7 @@ Every piece of marketing copy must anchor to at least one of these pillars:
 
 1. Validate current frustration ("Agencies work, but they cost ₦150k and give you a PDF report")
 2. Introduce hidden cost ("You paid for an ad you can't measure")
-3. Present Sellam as evolution, not replacement ("Same reach. Real sales visibility. At ₦15k/month")
+3. Present Tenzu as evolution, not replacement ("Same reach. Real sales visibility. At ₦15k/month")
 4. Emphasize ownership ("Own the numbers, not just the output")
 
 ### The "Complexity Crusher" Pattern
@@ -325,7 +325,7 @@ Every piece of marketing copy must anchor to at least one of these pillars:
 
 1. Empathize with confusion ("50 fields. 3 tabs. CTR, CPM, ROAS — what does it mean for your sales?")
 2. Reframe complexity as a barrier ("Tools should work for you, not the other way around")
-3. Show Sellam's simplicity ("Chat. Click. Launch. See who messaged.")
+3. Show Tenzu's simplicity ("Chat. Click. Launch. See who messaged.")
 4. Promise real results ("Not metrics. Sales.")
 
 ---
@@ -334,12 +334,12 @@ Every piece of marketing copy must anchor to at least one of these pillars:
 
 Before finalizing any copy, verify:
 
-1. **Name Check:** Is it "Sellam" everywhere (not "AdSync")?
+1. **Name Check:** Is it "Tenzu" everywhere (not "Tenzu")?
 2. **Pillar Alignment:** Is the competitive advantage clear?
 3. **Revenue Frame:** Does it promise Naira sales outcomes — not clicks or impressions?
 4. **Local Context:** Does it acknowledge Nigerian market realities (Naira, WhatsApp, mobile)?
 5. **Vocabulary:** Does it pass the word-swap table (no banned terms)?
 6. **Action-Oriented:** Is the CTA specific and immediate?
-7. **Anti-Scam:** Does it promise only what Sellam actually delivers?
+7. **Anti-Scam:** Does it promise only what Tenzu actually delivers?
 
 For detailed examples by channel, see the references folder.

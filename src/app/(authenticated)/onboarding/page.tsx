@@ -140,7 +140,7 @@ const LEFT_PANEL_CONTENT = [
   {
     title: "Create your workspace",
     body: "Start by naming your business. This is where all your campaigns and sales data will live.",
-    quote: "Sellam helped me scale my shoe business to ₦5M monthly sales.",
+    quote: "Tenzu helped me scale my shoe business to ₦5M monthly sales.",
     author: "Chidi, Lagos",
   },
   {
@@ -153,8 +153,7 @@ const LEFT_PANEL_CONTENT = [
   {
     title: "Tell us about you",
     body: "We'll tailor your dashboard and AI recommendations based on your role.",
-    quote:
-      "I manage 12 clients and Sellam cuts my campaign setup time in half.",
+    quote: "I manage 12 clients and Tenzu cuts my campaign setup time in half.",
     author: "Tunde, Port Harcourt",
   },
   {
@@ -338,11 +337,11 @@ export default function OnboardingPage() {
     <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 flex flex-col items-center justify-center p-4 font-sans">
       {/* Top Logo */}
       <div className="mb-6 flex items-center gap-2">
-        <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shadow-lg shadow-primary/25">
+        <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shadow-sm border border-border shadow-primary/25">
           <Flash className="h-4 w-4 text-white fill-current" />
         </div>
         <span className="font-heading font-bold text-xl text-foreground">
-          Sellam
+          Tenzu
         </span>
       </div>
 
@@ -365,7 +364,7 @@ export default function OnboardingPage() {
               <div className="absolute bottom-0 left-0 w-72 h-72 bg-violet-500 rounded-full blur-[120px] opacity-10 -ml-24 -mb-24 pointer-events-none" />
 
               <div className="relative z-10">
-                <div className="h-11 w-11 rounded-2xl bg-white/10 flex items-center justify-center mb-5 border border-white/15">
+                <div className="h-11 w-11 rounded-lg bg-white/10 flex items-center justify-center mb-5 border border-white/15">
                   <StepIcon className="h-5 w-5 text-primary" />
                 </div>
                 <h2 className="text-2xl font-bold mb-2.5 leading-tight">
@@ -394,7 +393,7 @@ export default function OnboardingPage() {
               </div>
 
               {/* Testimonial */}
-              <div className="relative z-10 bg-white/5 p-5 rounded-2xl border border-white/10">
+              <div className="relative z-10 bg-white/5 p-5 rounded-lg border border-white/10">
                 <div className="flex gap-0.5 mb-3">
                   {[1, 2, 3, 4, 5].map((i) => (
                     <Star
@@ -422,7 +421,7 @@ export default function OnboardingPage() {
                       Name your workspace
                     </h3>
                     <p className="text-sm text-muted-foreground">
-                      This is how your business will appear in Sellam.
+                      This is how your business will appear in Tenzu.
                     </p>
                   </div>
 
@@ -506,7 +505,7 @@ export default function OnboardingPage() {
                             key={method.id}
                             onClick={() => setSellingMethod(method.id)}
                             className={cn(
-                              "cursor-pointer rounded-xl border-2 p-3 flex items-center gap-3 transition-all",
+                              "cursor-pointer rounded-md border-2 p-3 flex items-center gap-3 transition-all",
                               isSelected
                                 ? "border-primary bg-primary/5"
                                 : "border-slate-200 hover:border-slate-300 bg-white",
@@ -636,7 +635,7 @@ export default function OnboardingPage() {
                           key={role.id}
                           onClick={() => setUserRole(role.id)}
                           className={cn(
-                            "cursor-pointer rounded-xl border-2 p-4 transition-all",
+                            "cursor-pointer rounded-md border-2 p-4 transition-all",
                             isSelected
                               ? "border-primary bg-primary/5"
                               : "border-slate-200 bg-white hover:border-slate-300",
@@ -645,7 +644,7 @@ export default function OnboardingPage() {
                           <div className="flex items-center gap-3">
                             <div
                               className={cn(
-                                "h-10 w-10 rounded-xl flex items-center justify-center shrink-0 transition-colors",
+                                "h-10 w-10 rounded-md flex items-center justify-center shrink-0 transition-colors",
                                 isSelected
                                   ? "bg-primary/10 text-primary"
                                   : "bg-slate-100 text-slate-400",
@@ -700,7 +699,7 @@ export default function OnboardingPage() {
                       </div>
 
                       {/* Trial Card — always Growth, no plan switching */}
-                      <div className="relative rounded-2xl border-2 border-primary/20 bg-linear-to-br from-slate-900 to-slate-800 p-6 overflow-hidden text-white">
+                      <div className="relative rounded-lg border-2 border-primary/20 bg-linear-to-br from-slate-900 to-slate-800 p-6 overflow-hidden text-white">
                         {/* Glow */}
                         <div className="absolute top-0 right-0 w-48 h-48 bg-primary rounded-full blur-[80px] opacity-20 -mr-16 -mt-16 pointer-events-none" />
                         <div className="absolute bottom-0 left-0 w-48 h-48 bg-violet-500 rounded-full blur-[80px] opacity-15 -ml-16 -mb-16 pointer-events-none" />
@@ -755,7 +754,7 @@ export default function OnboardingPage() {
                         <div className="flex-1 h-px bg-slate-200" />
                       </div>
 
-                      <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-4 space-y-3">
+                      <div className="rounded-md border-2 border-dashed border-slate-200 bg-slate-50/50 p-4 space-y-3">
                         <div>
                           <p className="text-sm font-semibold text-foreground">
                             Ready to subscribe now?
@@ -825,9 +824,9 @@ export default function OnboardingPage() {
                     <button
                       onClick={() => handleConnect("/api/connect/meta")}
                       disabled={isLoading}
-                      className="group flex items-center gap-4 p-4 rounded-xl border-2 border-slate-200 hover:border-primary hover:bg-primary/5 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+                      className="group flex items-center gap-4 p-4 rounded-md border-2 border-slate-200 hover:border-primary hover:bg-primary/5 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed bg-white"
                     >
-                      <div className="w-11 h-11 rounded-xl bg-blue-600 flex items-center justify-center shrink-0 shadow-md shadow-blue-600/25">
+                      <div className="w-11 h-11 rounded-md bg-blue-600 flex items-center justify-center shrink-0 shadow-md shadow-blue-600/25">
                         <svg
                           className="w-5 h-5 text-white"
                           fill="currentColor"
@@ -850,9 +849,9 @@ export default function OnboardingPage() {
                     <button
                       onClick={() => handleConnect("/api/connect/tiktok")}
                       disabled={isLoading}
-                      className="group flex items-center gap-4 p-4 rounded-xl border-2 border-slate-200 hover:border-slate-800 hover:bg-slate-50 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+                      className="group flex items-center gap-4 p-4 rounded-md border-2 border-slate-200 hover:border-slate-800 hover:bg-slate-50 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed bg-white"
                     >
-                      <div className="w-11 h-11 rounded-xl bg-slate-900 flex items-center justify-center shrink-0 shadow-md shadow-slate-900/20">
+                      <div className="w-11 h-11 rounded-md bg-slate-900 flex items-center justify-center shrink-0 shadow-md shadow-slate-900/20">
                         <span className="font-black text-white text-sm">
                           Tk
                         </span>
@@ -904,7 +903,7 @@ export default function OnboardingPage() {
                   <Button
                     onClick={step === 5 ? handleFinish : handleNext}
                     disabled={isNextDisabled || isLoading || isPaymentLoading}
-                    className="bg-slate-900 hover:bg-slate-800 text-white min-w-[150px] h-11 rounded-xl font-bold shadow-lg shadow-slate-900/15 gap-2"
+                    className="bg-slate-900 hover:bg-slate-800 text-white min-w-[150px] h-11 rounded-md font-bold shadow-sm border border-border shadow-slate-900/15 gap-2"
                   >
                     {isLoading ? (
                       <>

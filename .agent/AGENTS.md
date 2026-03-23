@@ -1,7 +1,9 @@
-# Sellam — AI Agent Entry Point (AGENTS.md)
+# Tenzu — AI Agent Entry Point (AGENTS.md)
 
-> **Product Name:** Sellam (code repo: `adsync/`) — Nigerian Pidgin for "sell it."
+> **Product Name:** Tenzu (code repo: `tenzu/`) — Nigerian Pidgin for "sell it."
 > **Mission:** Democratize Meta ad management for Nigerian SMEs — hustlers who sell fashion, food, beauty, and services primarily via WhatsApp.
+
+> **Architecture is globally scalable.** MVP is Nigeria-first (NG defaults). New orgs can be provisioned with any `country_code` / `currency_default`. All defaults (`country_code='NG'`, `currency_default='NGN'`, `billing_provider='paystack'`) preserve existing Nigerian user behaviour — zero breaking changes.
 
 ---
 
@@ -11,7 +13,7 @@
 
 1. Read `.agent/rules/project-rule.md` — architecture, tech stack, and implementation rules
 2. Read `.agent/rules/decisions.md` — settled decisions (do not revisit these)
-3. Read `.agent/rules/sellam-product.md` — product vision, MVP rules, UI language
+3. Read `.agent/rules/tenzu-product.md` — product vision, MVP rules, UI language
 4. Read the **relevant skill file** for the feature area you are working in (see index below)
 
 ---
@@ -61,14 +63,14 @@ Always read the relevant skill file before writing code.
 ## Global Non-Negotiables
 
 - **1:1:1 Rule:** 1 Campaign → 1 Ad Set → 1 Ad. Never break this for standard launches. Phase 4 creative testing will introduce a controlled exception — see `campaign-launch/SKILL.md`.
-- **Attribution Always:** Every ad destination wrapped in `sellam.app/l/[token]`. Never raw `wa.me` or raw `https://` to Meta.
+- **Attribution Always:** Every ad destination wrapped in `tenzu.africa/l/[token]`. Never raw `wa.me` or raw `https://` to Meta.
 - **Naira-First:** SMEs never see a dollar amount. Always `₦{amount.toLocaleString()}`.
 - **TypeScript Strictness:** `any` is forbidden. Run `npx tsc --noemit` before marking any task done.
 - **Mobile First:** Every component must work at 375px. User is on a phone.
 - **Subscription Gate:** Check `subscription_status === 'active'` before any Meta API write.
 - **Policy Guard:** Run ad copy through `checkAdPolicy()` before Meta submission. Block HIGH, warn MEDIUM.
 - **TikTok:** Deferred. Gated in backend. Remove from UI if visible.
-- **No Shared Cards:** Each org gets their own Meta virtual card. Never use a shared Sellam card on Meta.
+- **No Shared Cards:** Each org gets their own Meta virtual card. Never use a shared Tenzu card on Meta.
 
 ---
 
@@ -79,7 +81,7 @@ Always read the relevant skill file before writing code.
 | `/implement-phase` | Starting a new feature phase from the plan           |
 | `/new-migration`   | Creating a Supabase DB migration                     |
 | `/policy-check`    | Checking ad copy risk before launch                  |
-| `/remodel`         | Refactoring UI to match Sellam Soft Modern aesthetic |
+| `/remodel`         | Refactoring UI to match Tenzu Soft Modern aesthetic |
 | `/fix-layout`      | Fixing spacing and layout inconsistencies            |
 
 ---
@@ -118,5 +120,5 @@ The following files live in `.agent/plans/archive/`. They are **historical conte
 - `implementation_plan.md` → master 12-month plan, superseded phase-by-phase by `skills/*/references/`
 - `campaign_flow_audit.md` → audit of built-but-disconnected features (some items since resolved or intentionally removed)
 - `static_data_audit.md` → resolved dummy data audit
-- `adsync-creative-v2-prd.md` → creative pipeline Phase 2–4 roadmap (not started)
-- `summary.md` → project overview, largely replaced by this file + `rules/sellam-product.md`
+- `tenzu-creative-v2-prd.md` → creative pipeline Phase 2–4 roadmap (not started)
+- `summary.md` → project overview, largely replaced by this file + `rules/tenzu-product.md`

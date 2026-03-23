@@ -17,10 +17,10 @@ export default function BillingPage() {
       <Suspense
         fallback={
           <div className="space-y-8">
-            <Skeleton className="h-64 w-full rounded-xl" />
+            <Skeleton className="h-64 w-full rounded-md" />
             <div className="grid md:grid-cols-2 gap-6">
-              <Skeleton className="h-96 rounded-xl" />
-              <Skeleton className="h-96 rounded-xl" />
+              <Skeleton className="h-96 rounded-md" />
+              <Skeleton className="h-96 rounded-md" />
             </div>
           </div>
         }

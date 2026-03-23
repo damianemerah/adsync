@@ -24,7 +24,9 @@ import {
 import { Creative } from "@/types";
 import { cn } from "@/lib/utils";
 
-const generateVideoThumbnail = (file: File): Promise<string> =>
+const generateVideoMetadata = (
+  file: File,
+): Promise<{ thumbnail: string; width: number; height: number }> =>
   new Promise((resolve) => {
     const video = document.createElement("video");
     video.autoplay = true;
@@ -45,12 +47,16 @@ const generateVideoThumbnail = (file: File): Promise<string> =>
       canvas.height = video.videoHeight;
       const ctx = canvas.getContext("2d");
       ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL("image/jpeg"));
+      resolve({
+        thumbnail: canvas.toDataURL("image/jpeg"),
+        width: video.videoWidth,
+        height: video.videoHeight,
+      });
       URL.revokeObjectURL(url);
     };
 
     video.onerror = () => {
-      resolve("");
+      resolve({ thumbnail: "", width: 0, height: 0 });
       URL.revokeObjectURL(url);
     };
   });
@@ -245,12 +251,14 @@ export function CreativeUploadDialog({
       if (item.file.type.startsWith("video")) {
         // Generate thumbnail client-side to avoid rendering <video> in tiny containers
         try {
-          const thumbUrl = await generateVideoThumbnail(item.file);
-          if (thumbUrl) {
+          const { thumbnail, width, height } = await generateVideoMetadata(
+            item.file,
+          );
+          if (thumbnail) {
             setUploadQueue((prev) =>
               prev.map((qItem) =>
                 qItem.id === item.id
-                  ? { ...qItem, previewUrl: thumbUrl }
+                  ? { ...qItem, previewUrl: thumbnail }
                   : qItem,
               ),
             );
@@ -258,8 +266,8 @@ export function CreativeUploadDialog({
           handleUploadProcess(
             item.id,
             item.file,
-            { width: 0, height: 0 },
-            thumbUrl,
+            { width, height },
+            thumbnail,
           );
         } catch (err) {
           console.error("Failed to generate video thumbnail", err);
@@ -346,7 +354,7 @@ export function CreativeUploadDialog({
           <div className="space-y-4 py-4 overflow-y-auto">
             {/* Drop Zone */}
             {!hasUploading && !allDone && (
-              <label className="relative border-2 border-dashed border-border rounded-2xl p-10 flex flex-col items-center justify-center text-center hover:bg-muted/50 hover:border-primary transition-all cursor-pointer group bg-muted/20">
+              <label className="relative border-2 border-dashed border-border rounded-lg p-10 flex flex-col items-center justify-center text-center hover:bg-muted/50 hover:border-primary transition-all cursor-pointer group bg-muted/20">
                 <input
                   type="file"
                   multiple
@@ -373,7 +381,7 @@ export function CreativeUploadDialog({
                   <div
                     key={item.id}
                     className={cn(
-                      "flex items-center gap-3 p-3 border rounded-xl bg-card transition-colors w-full overflow-hidden",
+                      "flex items-center gap-3 p-3 border rounded-md bg-card transition-colors w-full overflow-hidden",
                       item.status === "error"
                         ? "border-destructive/40 bg-destructive/5"
                         : item.status === "done"
@@ -488,7 +496,7 @@ export function CreativeUploadDialog({
             </Button>
             {!allDone && !hasUploading && uploadQueue.length > 0 && (
               <Button
-                className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-soft"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-sm border border-border"
                 onClick={handleClose}
               >
                 Done

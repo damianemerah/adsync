@@ -35,13 +35,18 @@ export async function getAccountHealth(): Promise<AccountHealthResult> {
 
   const { data: orgData } = await supabase
     .from("organizations")
-    .select("*")
+    .select("id")
     .eq("id", orgId)
     .single();
 
   if (!orgData) throw new Error("No organization found");
 
-  const org = orgData as any;
+  // Credits are user-scoped — fetch from users table
+  const { data: userData } = await supabase
+    .from("users")
+    .select("credits_balance, plan_credits_quota")
+    .eq("id", user.id)
+    .single();
 
   // Fetch all connected ad accounts for this org
   const { data: adAccounts } = await supabase
@@ -224,7 +229,7 @@ export async function getAccountHealth(): Promise<AccountHealthResult> {
       problemCount: lowBalanceAccounts.length,
       detail: `Accounts with low balance: ${lowBalanceAccounts.map((a) => `${a.nickname || a.account_name} (₦${((a.last_known_balance_cents || 0) / 100).toLocaleString()})`).join(", ")}. Top up to keep ads running without interruption.`,
       actionLabel: "Top Up",
-      actionUrl: "/settings/general",
+      actionUrl: "/settings/subscription#budget",
     });
   } else if ((adAccounts?.length ?? 0) > 0) {
     checks.push({
@@ -235,9 +240,9 @@ export async function getAccountHealth(): Promise<AccountHealthResult> {
     });
   }
 
-  // 6. Subscription / Credits
-  const creditsBalance = org?.credits_balance ?? 0;
-  const creditsQuota = org?.plan_credits_quota ?? 100;
+  // 6. Subscription / Credits (user-scoped, shared across all orgs)
+  const creditsBalance = userData?.credits_balance ?? 0;
+  const creditsQuota = userData?.plan_credits_quota ?? 100;
   const creditsPercent =
     creditsQuota > 0 ? (creditsBalance / creditsQuota) * 100 : 100;
 
@@ -252,7 +257,7 @@ export async function getAccountHealth(): Promise<AccountHealthResult> {
       detail:
         "Your AI credits are nearly depleted. Upgrade your plan or purchase a credit pack to keep generating creatives.",
       actionLabel: "Get Credits",
-      actionUrl: "/settings/subscription",
+      actionUrl: "/settings/subscription#credits",
     });
   } else if (creditsPercent < 25) {
     totalProblems++;
@@ -264,7 +269,7 @@ export async function getAccountHealth(): Promise<AccountHealthResult> {
       problemCount: 1,
       detail: "Your AI credits are running low. Consider upgrading your plan.",
       actionLabel: "Upgrade Plan",
-      actionUrl: "/settings/subscription",
+      actionUrl: "/settings/subscription#plans",
     });
   } else {
     checks.push({

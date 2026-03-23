@@ -83,12 +83,12 @@ export function DataTable<T extends { id?: string | number }>({
     return (
       <div className="space-y-6">
         <div className="flex justify-between">
-          <Skeleton className="h-12 w-64 rounded-2xl" />
-          <Skeleton className="h-12 w-24 rounded-2xl" />
+          <Skeleton className="h-12 w-64 rounded-lg" />
+          <Skeleton className="h-12 w-24 rounded-lg" />
         </div>
         <div className="grid gap-6 md:grid-cols-3">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Skeleton key={i} className="h-48 w-full rounded-3xl" />
+            <Skeleton key={i} className="h-48 w-full rounded-lg" />
           ))}
         </div>
       </div>
@@ -105,7 +105,7 @@ export function DataTable<T extends { id?: string | number }>({
               <input
                 type="text"
                 placeholder={searchPlaceholder}
-                className="w-full h-12 pl-12 pr-4 rounded-2xl border border-border bg-background text-sm font-medium outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring transition-all placeholder:text-muted-foreground"
+                className="w-full h-12 pl-12 pr-4 rounded-lg border border-border bg-background text-sm font-medium outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring transition-all placeholder:text-muted-foreground"
                 onChange={(e) => onSearch?.(e.target.value)}
               />
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -114,15 +114,15 @@ export function DataTable<T extends { id?: string | number }>({
 
           {enableViewToggle && (
             <div className="flex items-center gap-2 ml-auto">
-              <div className="flex bg-muted p-1.5 rounded-2xl border border-border">
+              <div className="flex bg-muted p-1.5 rounded-lg border border-border">
                 <Button
                   variant={viewMode === "grid" ? "default" : "ghost"}
                   size="icon"
                   onClick={() => setViewMode("grid")}
                   className={cn(
-                    "h-9 w-9 rounded-xl transition-all",
+                    "h-9 w-9 rounded-md transition-all",
                     viewMode === "grid"
-                      ? "bg-background text-primary shadow-soft hover:bg-background"
+                      ? "bg-background text-primary shadow-sm border border-border hover:bg-background"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
@@ -133,9 +133,9 @@ export function DataTable<T extends { id?: string | number }>({
                   size="icon"
                   onClick={() => setViewMode("table")}
                   className={cn(
-                    "h-9 w-9 rounded-xl transition-all",
+                    "h-9 w-9 rounded-md transition-all",
                     viewMode === "table"
-                      ? "bg-background text-primary shadow-soft hover:bg-background"
+                      ? "bg-background text-primary shadow-sm border border-border hover:bg-background"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
@@ -166,7 +166,7 @@ export function DataTable<T extends { id?: string | number }>({
                   {renderCard ? (
                     renderCard(row)
                   ) : (
-                    <Card className="rounded-3xl border-border shadow-soft hover:shadow-md transition-all duration-300">
+                    <Card className="rounded-lg border-border shadow-sm border border-border hover:shadow-md transition-all duration-300">
                       <CardContent className="p-6 space-y-4">
                         {columns.map((column) => (
                           <div
@@ -205,7 +205,7 @@ export function DataTable<T extends { id?: string | number }>({
       {/* TABLE VIEW */}
       {viewMode === "table" && (
         <>
-          <div className="rounded-3xl border border-border bg-card shadow-soft overflow-hidden">
+          <div className="rounded-lg border border-border bg-card shadow-sm border border-border overflow-hidden">
             <Table>
               <TableHeader className="bg-muted/50">
                 <TableRow className="hover:bg-transparent border-border">

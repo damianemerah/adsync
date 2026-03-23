@@ -19,14 +19,14 @@ The launch flow in `src/actions/campaigns.ts` correctly skips attribution links 
 | Feature           | WhatsApp / Traffic / Sales              | Leads                             |
 | ----------------- | --------------------------------------- | --------------------------------- |
 | Destination URL   | Required (`wa.me/...` or `https://...`) | ❌ None                           |
-| Sellam Smart Link | Yes, wraps destination URL              | ❌ Not applicable                 |
+| Tenzu Smart Link | Yes, wraps destination URL              | ❌ Not applicable                 |
 | Attribution link  | Yes (`attribution_links` row)           | ❌ Not needed                     |
 | Meta Pixel        | Optional (CAPI)                         | ❌ Not needed                     |
 | Ad Creative       | `link_data` with URL + CTA              | `lead_gen_form_id` attached       |
 | Meta Form         | None                                    | ✅ **Must be created first**      |
 | CAPI signal       | `Purchase` after "Sold!"                | `Lead` event (auto via Meta form) |
 
-Meta Lead Ads capture contact info **inside** Facebook/Instagram using a native Instant Form. The user never leaves the platform. Sellam sends no destination URL.
+Meta Lead Ads capture contact info **inside** Facebook/Instagram using a native Instant Form. The user never leaves the platform. Tenzu sends no destination URL.
 
 ---
 
@@ -95,7 +95,7 @@ if (objective === "leads") {
     "POST",
     token,
     {
-      name: "AdSync Lead Creative",
+      name: "Tenzu Lead Creative",
       object_story_spec: {
         page_id: copy.pageId,
         link_data: {
@@ -130,7 +130,7 @@ Pass `leadGenFormId` through to `createAd()`.
 ### Step 6 — CAPI Lead Event (optional, Phase 2)
 
 When a Lead is captured by Meta's form, Meta fires an automatic `Lead` event internally.
-If the user has CAPI configured, Sellam can additionally send a `Lead` CAPI event server-side
+If the user has CAPI configured, Tenzu can additionally send a `Lead` CAPI event server-side
 using `MetaService.sendCAPIEvent()` with `eventName: "Lead"`.
 
 This is **optional** — Meta's native form fires the Lead event automatically without CAPI.

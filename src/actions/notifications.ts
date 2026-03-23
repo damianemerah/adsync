@@ -94,7 +94,7 @@ export async function startWhatsAppVerification(phoneNumber: string) {
 
     try {
       await client.messages.create({
-        body: `Your Sellam verification code is: ${otp}. It expires in 10 minutes.`,
+        body: `Your Tenzu verification code is: ${otp}. It expires in 10 minutes.`,
         from: fromNumber,
         to: `whatsapp:${phoneNumber}`,
       });

@@ -82,7 +82,7 @@ export function CreateBusinessDialog({
   }
 
   const dialogContent = (
-    <DialogContent className="max-w-xl sm:rounded-3xl p-6 sm:p-8 shadow-soft border-border/40 gap-6">
+    <DialogContent className="max-w-xl sm:rounded-lg p-6 sm:p-8 shadow-sm border border-border border-border/40 gap-6">
       <DialogHeader className="space-y-2">
         <DialogTitle className="text-2xl sm:text-3xl font-heading text-foreground">
           Create New Business
@@ -106,7 +106,7 @@ export function CreateBusinessDialog({
             name="orgName"
             placeholder="e.g. Acme Boutique"
             required
-            className="h-12 rounded-2xl bg-muted/40 border-transparent hover:bg-muted/60 focus:bg-background focus:border-ring transition-all px-4"
+            className="h-12 rounded-lg bg-muted/40 border-transparent hover:bg-muted/60 focus:bg-background focus:border-ring transition-all px-4"
           />
         </div>
 
@@ -119,15 +119,15 @@ export function CreateBusinessDialog({
               Industry
             </Label>
             <Select name="industry" defaultValue={INDUSTRIES[0]}>
-              <SelectTrigger className="w-full h-12 rounded-2xl bg-muted/40 border-transparent hover:bg-muted/60 focus:bg-background focus:border-ring transition-all px-4 [&>span]:line-clamp-1 text-left">
+              <SelectTrigger className="w-full h-12 rounded-lg bg-muted/40 border-transparent hover:bg-muted/60 focus:bg-background focus:border-ring transition-all px-4 [&>span]:line-clamp-1 text-left">
                 <SelectValue placeholder="Select industry" />
               </SelectTrigger>
-              <SelectContent className="rounded-2xl border-border/50 shadow-soft">
+              <SelectContent className="rounded-lg border-border/50 shadow-sm border border-border">
                 {INDUSTRIES.map((ind) => (
                   <SelectItem
                     key={ind}
                     value={ind}
-                    className="rounded-xl cursor-pointer"
+                    className="rounded-md cursor-pointer"
                   >
                     {ind}
                   </SelectItem>
@@ -144,20 +144,20 @@ export function CreateBusinessDialog({
               Selling Method
             </Label>
             <Select name="sellingMethod" defaultValue="online">
-              <SelectTrigger className="w-full h-12 rounded-2xl bg-muted/40 border-transparent hover:bg-muted/60 focus:bg-background focus:border-ring transition-all px-4 [&>span]:line-clamp-1 text-left">
+              <SelectTrigger className="w-full h-12 rounded-lg bg-muted/40 border-transparent hover:bg-muted/60 focus:bg-background focus:border-ring transition-all px-4 [&>span]:line-clamp-1 text-left">
                 <SelectValue placeholder="Select method" />
               </SelectTrigger>
-              <SelectContent className="rounded-2xl border-border/50 shadow-soft">
+              <SelectContent className="rounded-lg border-border/50 shadow-sm border border-border">
                 <SelectItem
                   value="online"
-                  className="rounded-xl cursor-pointer"
+                  className="rounded-md cursor-pointer"
                 >
                   Online / Delivery
                 </SelectItem>
-                <SelectItem value="local" className="rounded-xl cursor-pointer">
+                <SelectItem value="local" className="rounded-md cursor-pointer">
                   In-Store / Local
                 </SelectItem>
-                <SelectItem value="both" className="rounded-xl cursor-pointer">
+                <SelectItem value="both" className="rounded-md cursor-pointer">
                   Both
                 </SelectItem>
               </SelectContent>
@@ -176,7 +176,7 @@ export function CreateBusinessDialog({
             id="businessDescription"
             name="businessDescription"
             placeholder="Briefly describe what this business sells or does…"
-            className="h-24 resize-none rounded-2xl bg-muted/40 border-transparent hover:bg-muted/60 focus:bg-background focus:border-ring transition-all p-4"
+            className="h-24 resize-none rounded-lg bg-muted/40 border-transparent hover:bg-muted/60 focus:bg-background focus:border-ring transition-all p-4"
           />
           <p className="text-xs text-subtle-foreground/80 mt-1">
             Helps the AI generate more relevant ads for this workspace.
@@ -188,14 +188,14 @@ export function CreateBusinessDialog({
             type="button"
             variant="ghost"
             onClick={() => setIsOpen(false)}
-            className="rounded-3xl hover:bg-muted/50 text-subtle-foreground font-medium min-w-[100px]"
+            className="rounded-lg hover:bg-muted/50 text-subtle-foreground font-medium min-w-[100px]"
           >
             Cancel
           </Button>
           <Button
             type="submit"
             disabled={isLoading}
-            className="rounded-3xl shadow-soft hover:shadow-md transition-all px-6 font-semibold"
+            className="rounded-lg shadow-sm border border-border hover:shadow-md transition-all px-6 font-semibold"
           >
             {isLoading ? (
               <>
@@ -234,7 +234,7 @@ export function CreateBusinessDialog({
         className="cursor-pointer inline-block"
       >
         {trigger ?? (
-          <Button className="rounded-3xl shadow-sm px-5 font-semibold">
+          <Button className="rounded-lg shadow-sm px-5 font-semibold">
             <Plus className="w-4 h-4 mr-2 stroke-3" /> Create Business
           </Button>
         )}

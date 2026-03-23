@@ -222,7 +222,7 @@ export function GoalPlatformStep() {
 
       <Button
         size="lg"
-        className="w-full h-14 text-lg font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-soft rounded-2xl"
+        className="w-full h-14 text-lg font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm border border-border rounded-lg"
         disabled={!platform || !objective || platform === "tiktok"}
         onClick={() => {
           const { campaignName } = useCampaignStore.getState();
@@ -258,11 +258,11 @@ function GoalCard({
     <div
       onClick={comingSoon ? undefined : onClick}
       className={cn(
-        "p-5 rounded-2xl border cursor-pointer transition-all flex items-center gap-4 relative overflow-hidden",
+        "p-5 rounded-lg border cursor-pointer transition-all flex items-center gap-4 relative overflow-hidden",
         comingSoon
           ? "border-border bg-muted/30 opacity-60 cursor-not-allowed"
           : selected
-            ? "border-primary bg-primary/5 shadow-soft ring-1 ring-primary/20"
+            ? "border-primary bg-primary/5 shadow-sm border border-border ring-1 ring-primary/20"
             : "bg-card border-border hover:border-primary/50 hover:bg-muted/30",
       )}
     >
@@ -280,7 +280,7 @@ function GoalCard({
       )}
       <div
         className={cn(
-          "h-12 w-12 rounded-xl flex items-center justify-center shrink-0 transition-colors",
+          "h-12 w-12 rounded-md flex items-center justify-center shrink-0 transition-colors",
           comingSoon
             ? "bg-muted text-muted-foreground"
             : selected
@@ -320,7 +320,7 @@ function PlacementCard({
     <button
       onClick={onClick}
       className={cn(
-        "p-3 rounded-2xl border-2 text-left transition-all relative flex flex-col gap-2",
+        "p-3 rounded-lg border-2 text-left transition-all relative flex flex-col gap-2",
         selected
           ? "border-primary bg-primary/5 ring-1 ring-primary/20"
           : "border-border bg-card hover:border-primary/50 hover:bg-muted/30",
@@ -368,17 +368,17 @@ function PlatformCard({
     <div
       onClick={comingSoon ? undefined : onClick}
       className={cn(
-        "p-4 rounded-2xl border transition-all flex items-center gap-3 relative overflow-hidden",
+        "p-4 rounded-lg border transition-all flex items-center gap-3 relative overflow-hidden",
         comingSoon
           ? "border-border bg-muted/30 opacity-60 cursor-not-allowed"
           : selected
-            ? "border-primary bg-primary/5 shadow-soft ring-1 ring-primary/20 cursor-pointer"
+            ? "border-primary bg-primary/5 shadow-sm border border-border ring-1 ring-primary/20 cursor-pointer"
             : "border-border bg-card hover:border-primary/50 hover:bg-muted/30 cursor-pointer",
       )}
     >
       <div
         className={cn(
-          "h-10 w-10 rounded-xl flex items-center justify-center text-white shrink-0",
+          "h-10 w-10 rounded-md flex items-center justify-center text-white shrink-0",
           comingSoon
             ? "bg-muted-foreground/40"
             : color === "blue"

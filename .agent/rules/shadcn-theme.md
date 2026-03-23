@@ -1,21 +1,21 @@
 ---
 name: shadcn-design-system
-description: Enforce shadcn/ui design system with semantic tokens, iconoir-react icons, and consistent typography. Use when creating or refactoring UI components to ensure color consistency (no arbitrary values), proper hierarchy (text-foreground > text-muted-foreground), and accessibility compliance. Always triggers for component creation, styling fixes, or design system violations.
+description: Enforce shadcn/ui design system with semantic tokens, iconoir-react icons, and consistent typography. Enforces the Tenzu "Crisp Modern" aesthetic (flat UI, tight radiuses, crisp borders, no floating shadows). 
 globs: "**/*.{ts,tsx}"
 ---
 
 # shadcn/ui Theme & Design System
 
 ## Role
-You are a **Senior UI/UX Engineer** working on AdSync. Your goal is to enforce a **strict, accessible, and "Soft Modern" design system**.
+You are a **Senior UI/UX Engineer** working on Tenzu. Your goal is to enforce a **strict, accessible, and "Crisp Modern" flat design system**.
 
 ## Core Rules (Non-Negotiable)
 
 1.  **Strict Token Usage**: NEVER use arbitrary colors (e.g., `bg-blue-500`, `text-[#123456]`). Use semantic opacity modifiers if needed (e.g., `bg-primary/10`).
 2.  **Iconography**: Use **`iconoir-react`** exclusively. Import individual icons.
 3.  **Typography**: Use semantic classes (`text-xl font-heading`) over arbitrary values.
-4.  **Radius**: Use `rounded-xl`, `rounded-2xl`, or `rounded-3xl` for that soft feel. Avoid `rounded-md` for main containers.
-5.  **Shadows**: Use `shadow-soft` for cards and dropdowns.
+4.  **Radius**: Use `rounded-md` or `rounded-lg` for all cards and inputs. AVOID `rounded-2xl` and `rounded-3xl` as they feel off-brand and too "bubbly".
+5.  **Shadows**: DO NOT use soft floating shadows for cards. Use crisp 1px borders (`border border-border`) for separation. Use `shadow-sm` ONLY for floating elements like dropdowns or tooltips.
 
 ## Color Usage Guidelines
 
@@ -38,16 +38,16 @@ You are a **Senior UI/UX Engineer** working on AdSync. Your goal is to enforce a
 | Violation | Correction | Why? |
 | :--- | :--- | :--- |
 | `className="text-gray-600"` | `className="text-subtle-foreground"` | Enforces theme consistency. |
-| `className="bg-[#F9FAFB]"` | `className="bg-muted"` | Respects dark mode automatically. |
+| `className="shadow-lg"` | `className="border border-border"` | Tenzu uses Flat UI (borders over shadows). |
 | `import { Check } from 'lucide-react'` | `import { Check } from 'iconoir-react'` | Project standard is Iconoir. |
-| `rounded-md` (on card) | `rounded-2xl` | Matches "Soft Modern" aesthetic. |
+| `rounded-3xl` (on card) | `rounded-lg` | Matches Tenzu "Crisp Modern" flat aesthetic. |
 | `text-purple-500` | `text-ai` | Use semantic names for features. |
 
 ## Exception Handling
 
 ### When Arbitrary Colors Are Acceptable
 - **Data Visualization**: Charts often need specific hex codes (use css variables if possible).
-- **Third-Party Brand Assets**: Facebook Blue, Google Red (use `bg-facebook` if available in globals, else specific hex with comment).
+- **Third-Party Brand Assets**: Facebook Blue, Google Red
 - **Complex Gradients**: If semantic tokens don't suffice.
 
 **Requirement**: Always add a comment explaining the exception:
@@ -55,15 +55,15 @@ You are a **Senior UI/UX Engineer** working on AdSync. Your goal is to enforce a
 
 ## Component Patterns (Condensed)
 
-### 1. Standard Card
+### 1. Standard Crisp Card
 ```tsx
-<div className="bg-card border border-border rounded-2xl p-6 shadow-soft">
+<div className="bg-card border border-border rounded-lg p-6">
   <div className="flex items-center gap-3 mb-4">
-    <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+    <div className="h-10 w-10 rounded-md bg-primary/10 flex items-center justify-center text-primary">
       <IconName className="h-6 w-6" />
     </div>
     <div>
-      <h3 className="text-lg font-heading font-bold text-foreground">Card Title</h3>
+      <h3 className="text-lg font-heading font-semibold text-foreground">Card Title</h3>
       <p className="text-sm text-subtle-foreground">Secondary description text</p>
     </div>
   </div>
@@ -79,7 +79,7 @@ You are a **Senior UI/UX Engineer** working on AdSync. Your goal is to enforce a
   <label className="text-sm font-medium text-foreground">Email Address</label>
   <input
     type="email"
-    className="w-full bg-background border border-input rounded-xl px-4 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-ring focus:border-transparent transition-all placeholder:text-muted-foreground"
+    className="w-full bg-background border border-input rounded-md px-4 py-2 text-sm text-foreground focus:ring-2 focus:ring-ring focus:outline-none transition-all placeholder:text-muted-foreground"
     placeholder="Enter your email"
   />
 </div>
@@ -87,9 +87,9 @@ You are a **Senior UI/UX Engineer** working on AdSync. Your goal is to enforce a
 
 ### 3. AI Feature Block
 ```tsx
-<div className="bg-ai/5 border border-ai/20 rounded-2xl p-6">
+<div className="bg-ai/5 border border-ai/20 rounded-lg p-6">
   <div className="flex items-center gap-2 mb-2">
-    <MagicWand className="h-5 w-5 text-ai" />
+    <Sparkles className="h-5 w-5 text-ai" />
     <h4 className="font-semibold text-ai">AI Insights</h4>
   </div>
   <p className="text-sm text-foreground">
@@ -98,16 +98,7 @@ You are a **Senior UI/UX Engineer** working on AdSync. Your goal is to enforce a
 </div>
 ```
 
-### 4. Data Table Row
-```tsx
-<tr className="border-b border-border hover:bg-muted/50 transition-colors">
-  <td className="p-4 text-sm font-medium text-foreground">Campaign A</td>
-  <td className="p-4 text-sm text-subtle-foreground">Active</td>
-  <td className="p-4 text-sm text-right text-foreground font-mono">₦50,000</td>
-</tr>
-```
-
 ## Accessibility Checklist
-- [ ] Text contrast ratio is at least 4.5:1 (Use `subtle-foreground` over `muted-foreground` for small text).
+- [ ] Text contrast ratio is at least 4.5:1
 - [ ] Interactive elements have `:focus-visible` states (`ring-ring`).
 - [ ] No semantic information is conveyed by color alone.

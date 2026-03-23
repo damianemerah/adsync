@@ -99,12 +99,12 @@ export function PaymentDialog({
             Upgrade to {planName}
           </DialogTitle>
           <DialogDescription className="text-center">
-            Unlock your full Sellam experience with AI-powered ad creation.
+            Unlock your full Tenzu experience with AI-powered ad creation.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <div className="bg-muted/50 p-4 rounded-xl border border-border">
+          <div className="bg-muted/50 p-4 rounded-md border border-border">
             <div className="flex justify-between items-baseline mb-3">
               <span className="font-bold text-lg">{planName} Plan</span>
               <span className="text-2xl font-black">
@@ -125,7 +125,7 @@ export function PaymentDialog({
           </div>
 
           <Button
-            className="w-full h-12 text-base font-bold rounded-xl"
+            className="w-full h-12 text-base font-bold rounded-md"
             onClick={handleSubscribe}
             disabled={loading}
           >

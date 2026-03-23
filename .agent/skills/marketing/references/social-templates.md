@@ -1,6 +1,6 @@
 # Social Media Copy Templates
 
-Platform-specific content strategies and templates for AdSync social media marketing.
+Platform-specific content strategies and templates for Tenzu social media marketing.
 
 ## Platform Strategy Overview
 
@@ -57,7 +57,7 @@ Meanwhile, your competitor—who figured out a better way—just launched their 
 
 Tools built WITH Nigerian payment infrastructure, not AROUND it.
 
-AdSync uses Paystack. Same processor as Piggyvest, Cowrywise, and thousands of Nigerian businesses.
+Tenzu uses Paystack. Same processor as Piggyvest, Cowrywise, and thousands of Nigerian businesses.
 
 Your card works. First try. Every time.
 
@@ -65,7 +65,7 @@ Your card works. First try. Every time.
 
 You're not bad at Facebook ads. Your payment method just hasn't met the right tool yet.
 
-Try AdSync free for 7 days → [link]
+Try Tenzu free for 7 days → [link]
 
 Your card will thank you.
 ```
@@ -79,7 +79,7 @@ Your card: Declined
 You: *Tries AdCreative.ai*
 Your card: Declined
 
-You: *Opens AdSync*
+You: *Opens Tenzu*
 Your card: Welcome 🎉
 
 We accept Nigerian cards. Via Paystack. Because your business can't wait for international gateways to "figure it out."
@@ -90,7 +90,7 @@ We accept Nigerian cards. Via Paystack. Because your business can't wait for int
 ```
 "I spent ₦200k on agency creatives.
 
-Then I found AdSync's AI Studio.
+Then I found Tenzu's AI Studio.
 
 Now I create 10+ ad variations monthly for ₦15k.
 
@@ -125,7 +125,7 @@ Wask: Great tool. Terrible payment experience.
 
 AdCreative.ai: Same problem.
 
-AdSync: Built for your Naira card. 
+Tenzu: Built for your Naira card. 
 
 Because Nigerian businesses shouldn't need international credit cards to run local ads.
 
@@ -139,7 +139,7 @@ Your competitors launched 3 Facebook campaigns this week.
 
 You? Still stuck on "Payment Declined."
 
-Switch to AdSync. Pay in Naira. Launch in 2 minutes.
+Switch to Tenzu. Pay in Naira. Launch in 2 minutes.
 
 Free trial → [link]
 ```
@@ -156,7 +156,7 @@ Context:
 → Location: Port Harcourt
 → Prior experience: Zero Facebook ads experience
 → Budget: ₦15,000
-→ Tool: AdSync
+→ Tool: Tenzu
 
 The Challenge:
 Tunde had been relying on Instagram posts and word-of-mouth. Growth was slow. He wanted to scale but was intimidated by Facebook Ads Manager's complexity.
@@ -164,7 +164,7 @@ Tunde had been relying on Instagram posts and word-of-mouth. Growth was slow. He
 He tried watching YouTube tutorials. Got confused by "Campaign Objectives," "Ad Sets," and "Bidding Strategies."
 
 The Solution:
-Instead of wrestling with Ads Manager, Tunde used AdSync's AI Consultant.
+Instead of wrestling with Ads Manager, Tunde used Tenzu's AI Consultant.
 
 Setup Process:
 1. Chatted with AI: "I sell jollof rice and delivery in Port Harcourt"
@@ -189,11 +189,11 @@ Facebook ads work for Nigerian SMEs. But only if you can:
 2. Create professional creatives (AI, not agencies)
 3. Set up campaigns without confusion (chat, not forms)
 
-AdSync handles all three.
+Tenzu handles all three.
 
 Want similar results? Link in comments.
 
-#FacebookAds #NigerianBusiness #SMEGrowth #AdSync
+#FacebookAds #NigerianBusiness #SMEGrowth #Tenzu
 ```
 
 ### Short Post: Thought Leadership
@@ -211,7 +211,7 @@ Your business can't scale if your card gets rejected by every international tool
 
 Solution? Build for local payment rails first. Features second.
 
-That's why AdSync uses Paystack—same processor as Piggyvest and Flutterwave.
+That's why Tenzu uses Paystack—same processor as Piggyvest and Flutterwave.
 
 Your Naira card works. Your business grows.
 
@@ -223,7 +223,7 @@ Infrastructure > Strategy.
 ### Announcement Post
 
 ```
-Excited to share: AdSync just crossed 2,000 active users 🎉
+Excited to share: Tenzu just crossed 2,000 active users 🎉
 
 All Nigerian SMEs. All running professional Facebook campaigns without:
 
@@ -285,7 +285,7 @@ Just ₦15k/month for unlimited designs.
 
 Slide 6 (CTA):
 Try AI Studio free for 7 days
-Link in bio → @adsync_ng
+Link in bio → @tenzu_ng
 
 Caption:
 "Stop paying agencies ₦150k per design. 
@@ -296,7 +296,7 @@ Upload. Improve. Done.
 
 Try it free (link in bio)
 
-#FacebookAds #AIDesign #NigerianBusiness #SmallBusiness #AdSync"
+#FacebookAds #AIDesign #NigerianBusiness #SmallBusiness #Tenzu"
 ```
 
 ### Reel Script: Payment Drama
@@ -314,21 +314,21 @@ Audio: "Card declined"
 Text overlay: "Is my card broken?"
 
 [Scene 4: Person opens phone with relief]
-Text overlay: "Opens AdSync..."
+Text overlay: "Opens Tenzu..."
 Audio: "Payment successful! 🎉"
 
 [Scene 5: Person celebrating]
 Text overlay: "Finally, a tool that accepts Nigerian cards"
-End screen: "AdSync • Pay in Naira • Link in bio"
+End screen: "Tenzu • Pay in Naira • Link in bio"
 
 Caption:
 "POV: You found an ad tool that actually accepts your Nigerian card 😭
 
 No more 'Payment Declined' drama. Just Paystack-powered simplicity.
 
-Try AdSync free → Link in bio
+Try Tenzu free → Link in bio
 
-#RelatabContent #NigerianBusinessOwner #PaymentFail #AdSync"
+#RelatabContent #NigerianBusinessOwner #PaymentFail #Tenzu"
 ```
 
 ### Story Sequence
@@ -344,11 +344,11 @@ Story 2:
 [Results reveal - assuming "Yes" wins]
 "85% of you said YES 🤯
 
-That's exactly why we built AdSync."
+That's exactly why we built Tenzu."
 
 Story 3:
 [Product shot]
-"AdSync accepts Nigerian cards via Paystack.
+"Tenzu accepts Nigerian cards via Paystack.
 
 Same processor as:
 → Piggyvest
@@ -379,7 +379,7 @@ Story 5:
 
 2. VAGUE TARGETING
 ❌ "Anyone in Nigeria who might buy"
-✅ Let AdSync AI help you narrow to your actual customers
+✅ Let Tenzu AI help you narrow to your actual customers
 
 3. NO FOLLOW-UP SYSTEM
 ❌ Running ads without a way to capture leads
@@ -397,7 +397,7 @@ Want help setting up your first campaign? Comment "Ready" and we'll DM you a fre
 ```
 How to create a Facebook ad campaign in 2 minutes (no experience needed):
 
-Step 1: Connect your Meta Business account to AdSync
+Step 1: Connect your Meta Business account to Tenzu
 
 Step 2: Chat with our AI
 → It asks simple questions: Who's your customer? What's your budget?
@@ -416,7 +416,7 @@ No confusing forms. No 50 fields. Just simple questions and smart AI.
 
 Try it free → [link]
 
-#FacebookAds #Tutorial #SmallBusinessTips #AdSync
+#FacebookAds #Tutorial #SmallBusinessTips #Tenzu
 ```
 
 ### Engagement Post: Question
@@ -433,7 +433,7 @@ D) "It's too expensive"
 
 Comment A, B, C, or D below. 
 
-(And yes, AdSync solves all four 😉)
+(And yes, Tenzu solves all four 😉)
 
 #FacebookAds #NigerianBusinessOwners #Poll
 ```
@@ -460,7 +460,7 @@ Comment A, B, C, or D below.
 ## Hashtag Strategy
 
 ### Primary Hashtags (Always include 2-3)
-- #AdSync
+- #Tenzu
 - #NigerianBusiness
 - #FacebookAds
 - #SMEGrowth
@@ -508,7 +508,7 @@ Response:
 "Does this work with my existing Meta account?"
 
 Response:
-"Yes! AdSync connects to your existing Meta Business account—no need to create a new one. Setup takes about 30 seconds. Need help? DM us!"
+"Yes! Tenzu connects to your existing Meta Business account—no need to create a new one. Setup takes about 30 seconds. Need help? DM us!"
 ```
 
 ### Complaint/Issue
@@ -524,5 +524,5 @@ Response:
 "I'm currently using Wask. Why should I switch?"
 
 Response:
-"Wask is a solid tool! The main differences: AdSync accepts Nigerian cards (Paystack), has AI creative redesign (not just templates), and chat-based setup. If payment friction or creative help is important to you, worth trying our 7-day free trial. If Wask works for you, stick with it!"
+"Wask is a solid tool! The main differences: Tenzu accepts Nigerian cards (Paystack), has AI creative redesign (not just templates), and chat-based setup. If payment friction or creative help is important to you, worth trying our 7-day free trial. If Wask works for you, stick with it!"
 ```

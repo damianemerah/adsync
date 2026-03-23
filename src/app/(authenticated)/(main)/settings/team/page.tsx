@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -30,89 +32,74 @@ import {
   revokeInvitation,
   removeMember,
 } from "@/actions/team";
-import { createClient } from "@/lib/supabase/client";
+import { useActiveOrgContext } from "@/components/providers/active-org-provider";
+
+// ─── Fetcher ──────────────────────────────────────────────────────────────────
+
+async function fetchTeamData(orgId: string) {
+  const supabase = createClient();
+  const [{ data: membersData }, { data: invitesData }] = await Promise.all([
+    supabase
+      .from("organization_members")
+      .select("id, role, user_id, joined_at, users(email, full_name, avatar_url)")
+      .eq("organization_id", orgId),
+    supabase
+      .from("invitations")
+      .select("*")
+      .eq("organization_id", orgId),
+  ]);
+  return {
+    members: membersData ?? [],
+    invites: invitesData ?? [],
+  };
+}
+
+// ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function TeamSettingsPage() {
+  const { activeOrgId } = useActiveOrgContext();
+  const queryClient = useQueryClient();
+
   const [activeTab, setActiveTab] = useState("members");
   const [isInviteOpen, setIsInviteOpen] = useState(false);
-  const [isInviting, setIsInviting] = useState(false);
-
-  // Form State
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"editor" | "viewer">("editor");
 
-  // Data State
-  const [members, setMembers] = useState<any[]>([]);
-  const [invites, setInvites] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  // ─── Data Fetching ────────────────────────────────────────────────────────
+  const { data, isLoading } = useQuery({
+    queryKey: ["team", activeOrgId],
+    queryFn: () => fetchTeamData(activeOrgId!),
+    enabled: !!activeOrgId,
+    staleTime: 60 * 1000,
+  });
 
-  // Fetch Data
-  const fetchData = async () => {
-    const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return;
+  const members = data?.members ?? [];
+  const invites = data?.invites ?? [];
 
-    const { data: memberData } = await supabase
-      .from("organization_members")
-      .select("organization_id")
-      .eq("user_id", user.id)
-      .single();
-    if (!memberData) return;
+  const invalidate = () =>
+    queryClient.invalidateQueries({ queryKey: ["team", activeOrgId] });
 
-    const orgId = memberData.organization_id;
-    if (!orgId) return;
-
-    const { data: membersData } = await supabase
-      .from("organization_members")
-      .select(
-        "id, role, user_id, joined_at, users(email, full_name, avatar_url)",
-      )
-      .eq("organization_id", orgId);
-
-    const { data: invitesData } = await supabase
-      .from("invitations")
-      .select("*")
-      .eq("organization_id", orgId);
-
-    setMembers(membersData || []);
-    setInvites(invitesData || []);
-    setIsLoading(false);
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const handleInvite = async () => {
-    setIsInviting(true);
-    try {
-      await inviteTeamMember(email, role);
+  // ─── Mutations ────────────────────────────────────────────────────────────
+  const inviteMutation = useMutation({
+    mutationFn: () => inviteTeamMember(email, role),
+    onSuccess: () => {
       toast.success("Invitation Sent!");
       setIsInviteOpen(false);
       setEmail("");
-      fetchData();
-    } catch (e: any) {
-      toast.error("Failed to invite", { description: e.message });
-    } finally {
-      setIsInviting(false);
-    }
-  };
+      invalidate();
+    },
+    onError: (e: Error) => toast.error("Failed to invite", { description: e.message }),
+  });
 
-  const handleRevoke = async (id: string) => {
-    await revokeInvitation(id);
-    toast.success("Invitation revoked");
-    fetchData();
-  };
+  const revokeMutation = useMutation({
+    mutationFn: (id: string) => revokeInvitation(id),
+    onSuccess: () => { toast.success("Invitation revoked"); invalidate(); },
+  });
 
-  const handleRemove = async (userId: string) => {
-    if (confirm("Are you sure you want to remove this user?")) {
-      await removeMember(userId);
-      toast.success("Member removed");
-      fetchData();
-    }
-  };
+  const removeMutation = useMutation({
+    mutationFn: (userId: string) => removeMember(userId),
+    onSuccess: () => { toast.success("Member removed"); invalidate(); },
+  });
 
   return (
     <div className="space-y-6">
@@ -163,15 +150,15 @@ export default function TeamSettingsPage() {
             </div>
             <CardContent className="p-0">
               {isLoading ? (
-                <div className="p-8 text-center text-muted-foreground">
-                  Loading members...
+                <div className="p-8 text-center text-muted-foreground flex items-center justify-center gap-2">
+                  <SystemRestart className="h-4 w-4 animate-spin" /> Loading members...
                 </div>
               ) : members.length === 0 ? (
                 <div className="p-8 text-center text-muted-foreground">
                   No members yet.
                 </div>
               ) : (
-                members.map((member) => (
+                members.map((member: any) => (
                   <div
                     key={member.id}
                     className="grid grid-cols-[1fr_auto_auto] items-center gap-4 px-5 py-4 border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
@@ -203,7 +190,11 @@ export default function TeamSettingsPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleRemove(member.user_id)}
+                          onClick={() => {
+                            if (confirm("Are you sure you want to remove this user?")) {
+                              removeMutation.mutate(member.user_id);
+                            }
+                          }}
                           className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
                         >
                           <Trash className="w-4 h-4" />
@@ -238,7 +229,7 @@ export default function TeamSettingsPage() {
                   No pending invites.
                 </div>
               ) : (
-                invites.map((invite) => (
+                invites.map((invite: any) => (
                   <div
                     key={invite.id}
                     className="grid grid-cols-[1fr_auto_auto] items-center gap-4 px-5 py-4 border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
@@ -267,7 +258,8 @@ export default function TeamSettingsPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleRevoke(invite.id)}
+                        onClick={() => revokeMutation.mutate(invite.id)}
+                        disabled={revokeMutation.isPending}
                         className="text-destructive hover:text-destructive hover:bg-destructive/10 text-xs"
                       >
                         Revoke
@@ -318,8 +310,11 @@ export default function TeamSettingsPage() {
             <Button variant="outline" onClick={() => setIsInviteOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleInvite} disabled={isInviting || !email}>
-              {isInviting ? (
+            <Button
+              onClick={() => inviteMutation.mutate()}
+              disabled={inviteMutation.isPending || !email}
+            >
+              {inviteMutation.isPending ? (
                 <SystemRestart className="w-4 h-4 animate-spin" />
               ) : (
                 "Invite"

@@ -28,7 +28,7 @@ without CORS issues. No framework dependency.
 ### [Feb 2026] Attribution link placement
 
 Decision: `src/app/l/[token]/route.ts` — not under `/api/`
-Reason: Produces clean `sellam.app/l/token` URLs that go inside Meta ads.
+Reason: Produces clean `tenzu.africa/l/token` URLs that go inside Meta ads.
 `/api/` in the URL is an implementation detail that users and Meta both see.
 In Next.js App Router, route.ts files are valid anywhere in the app directory.
 
@@ -85,13 +85,13 @@ Reason: Both have API card issuance. Confirm programmatic card-per-user limits b
 
 Decision: Prepaid only — no credit, no post-billing
 Reason: Eliminates refund risk and dispute risk entirely.
-SME pays Adsync first → card is loaded → Meta charges the card.
+SME pays Tenzu first → card is loaded → Meta charges the card.
 
 ### [Feb 2026] Meta card isolation
 
 Decision: Each org gets their OWN virtual card attached to their OWN Meta ad account
 Reason: Isolates ban risk. One org's policy violation cannot affect other orgs.
-Sellam's infrastructure is never the payment method Meta sees.
+Tenzu's infrastructure is never the payment method Meta sees.
 
 ## Database
 
@@ -122,7 +122,7 @@ Reason: Nigerian SMEs advertise on Facebook/Instagram. TikTok splits roadmap foc
 ### [Feb 2026] Team/agency dashboard
 
 Decision: Not in Phase 1
-Reason: Agency incentives (client dependency) are opposed to Sellam's value prop (SME ownership).
+Reason: Agency incentives (client dependency) are opposed to Tenzu's value prop (SME ownership).
 
 ### [Feb 2026] "Mark as Sold" scope
 
@@ -132,7 +132,7 @@ Reason: CRM competes with WhatsApp's native features and adds onboarding complex
 ### [Feb 2026] Pixel for website owners
 
 Decision: Optional — shown after campaign launch for website destination campaigns.
-Never a gate or requirement to use Sellam.
+Never a gate or requirement to use Tenzu.
 Reason: 56% of users have no website. Pixel cannot be a blocker.
 
 ### [Feb 2026] Free Dashboard — "Connect for Free, Pay to Launch"

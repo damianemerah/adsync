@@ -66,7 +66,7 @@ export const AdCanvas = forwardRef<HTMLDivElement, AdCanvasProps>(
     };
 
     return (
-      <div className="w-full flex justify-center bg-slate-100 rounded-xl border border-slate-200 p-4">
+      <div className="w-full flex justify-center bg-slate-100 rounded-md border border-slate-200 p-4">
         {/* THE CANVAS AREA - Fixed Aspect Ratio 1:1 */}
         <div
           ref={ref}
@@ -91,7 +91,7 @@ export const AdCanvas = forwardRef<HTMLDivElement, AdCanvasProps>(
               {renderOverlay()}
             </>
           ) : (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50 text-slate-400 border-2 border-dashed border-slate-200 m-4 rounded-xl">
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50 text-slate-400 border-2 border-dashed border-slate-200 m-4 rounded-md">
               <p>Your design will appear here</p>
             </div>
           )}

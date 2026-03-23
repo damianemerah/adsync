@@ -21,7 +21,7 @@ Read this entire file before writing any code for attribution or ROI features.
 | Website with pixel | ~5–10% | Tracking already works | Served well by Meta natively |
 | Linktree / bio link | Scattered | Partial tracking | Inconsistent |
 
-The Sellam Attribution Link solves segments 1 and 2 identically. The destination type doesn't matter — the wrapper is the same. Segment 3 gets the optional pixel snippet on top.
+The Tenzu Attribution Link solves segments 1 and 2 identically. The destination type doesn't matter — the wrapper is the same. Segment 3 gets the optional pixel snippet on top.
 
 ---
 
@@ -152,10 +152,10 @@ export function generatePixelToken(): string {
 }
 
 /**
- * Builds the full Sellam redirect URL
+ * Builds the full Tenzu redirect URL
  */
 export function buildAttributionUrl(token: string, baseUrl?: string): string {
-  const base = baseUrl || process.env.NEXT_PUBLIC_APP_URL || "https://sellam.app";
+  const base = baseUrl || process.env.NEXT_PUBLIC_APP_URL || "https://tenzu.africa";
   return `${base}/l/${token}`;
 }
 ```
@@ -167,7 +167,7 @@ export function buildAttributionUrl(token: string, baseUrl?: string): string {
 **New file:** `src/app/l/[token]/route.ts`
 
 NOTE: This lives outside `/api/` intentionally. In Next.js App Router, route.ts
-is valid anywhere. This produces clean `sellam.app/l/token` URLs inside Meta ads.
+is valid anywhere. This produces clean `tenzu.africa/l/token` URLs inside Meta ads.
 
 ```typescript
 import { NextRequest, NextResponse } from "next/server";
@@ -289,12 +289,12 @@ export async function GET(request: NextRequest) {
 **Snippet shown to website owners in campaign detail UI (after launch):**
 
 ```html
-<!-- Sellam Pixel — paste once in <head> -->
+<!-- Tenzu Pixel — paste once in <head> -->
 <script>
 (function(t){
-  new Image().src = "https://sellam.app/api/pixel?t="+t+"&e=view";
-  document.addEventListener("sellam_purchase", function(e){
-    new Image().src = "https://sellam.app/api/pixel?t="+t+"&e=purchase&v="+(e.detail?.value||0);
+  new Image().src = "https://tenzu.africa/api/pixel?t="+t+"&e=view";
+  document.addEventListener("tenzu_purchase", function(e){
+    new Image().src = "https://tenzu.africa/api/pixel?t="+t+"&e=purchase&v="+(e.detail?.value||0);
   });
 })("THEIR_PIXEL_TOKEN");
 </script>

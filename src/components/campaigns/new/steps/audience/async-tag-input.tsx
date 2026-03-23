@@ -92,7 +92,7 @@ export function AsyncTagInput({
                 Searching...
               </div>
             ) : results.length > 0 ? (
-              <CommandList className="bg-popover text-popover-foreground border border-border rounded-lg shadow-soft overflow-hidden p-1 max-h-[200px]">
+              <CommandList className="bg-popover text-popover-foreground border border-border rounded-lg shadow-sm border border-border overflow-hidden p-1 max-h-[200px]">
                 <CommandGroup heading="Results">
                   {results.map((item) => (
                     <CommandItem

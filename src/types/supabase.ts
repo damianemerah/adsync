@@ -17,7 +17,7 @@ export type Database = {
       ad_account_snapshots: {
         Row: {
           account_status: string | null
-          ad_account_id: string | null
+          ad_account_id: string
           balance_cents: number | null
           currency: string | null
           id: string
@@ -27,7 +27,7 @@ export type Database = {
         }
         Insert: {
           account_status?: string | null
-          ad_account_id?: string | null
+          ad_account_id: string
           balance_cents?: number | null
           currency?: string | null
           id?: string
@@ -37,7 +37,7 @@ export type Database = {
         }
         Update: {
           account_status?: string | null
-          ad_account_id?: string | null
+          ad_account_id?: string
           balance_cents?: number | null
           currency?: string | null
           id?: string
@@ -46,6 +46,13 @@ export type Database = {
           spend_cap_cents?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "ad_account_snapshots_ad_account_id_fkey"
+            columns: ["ad_account_id"]
+            isOneToOne: false
+            referencedRelation: "active_ad_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "ad_account_snapshots_ad_account_id_fkey"
             columns: ["ad_account_id"]
@@ -59,10 +66,13 @@ export type Database = {
         Row: {
           access_token: string
           account_name: string | null
+          api_version: string | null
           auto_paused_at: string | null
           capi_access_token: string | null
           connected_at: string | null
           currency: string | null
+          demographics_cache: Json | null
+          disconnected_at: string | null
           funding_source_details: Json | null
           health_status: string | null
           id: string
@@ -78,14 +88,19 @@ export type Database = {
           platform_account_id: string
           refresh_token: string | null
           token_expires_at: string | null
+          token_refreshed_at: string | null
+          webhook_cert_updated: boolean | null
         }
         Insert: {
           access_token: string
           account_name?: string | null
+          api_version?: string | null
           auto_paused_at?: string | null
           capi_access_token?: string | null
           connected_at?: string | null
           currency?: string | null
+          demographics_cache?: Json | null
+          disconnected_at?: string | null
           funding_source_details?: Json | null
           health_status?: string | null
           id?: string
@@ -101,14 +116,19 @@ export type Database = {
           platform_account_id: string
           refresh_token?: string | null
           token_expires_at?: string | null
+          token_refreshed_at?: string | null
+          webhook_cert_updated?: boolean | null
         }
         Update: {
           access_token?: string
           account_name?: string | null
+          api_version?: string | null
           auto_paused_at?: string | null
           capi_access_token?: string | null
           connected_at?: string | null
           currency?: string | null
+          demographics_cache?: Json | null
+          disconnected_at?: string | null
           funding_source_details?: Json | null
           health_status?: string | null
           id?: string
@@ -124,6 +144,8 @@ export type Database = {
           platform_account_id?: string
           refresh_token?: string | null
           token_expires_at?: string | null
+          token_refreshed_at?: string | null
+          webhook_cert_updated?: boolean | null
         }
         Relationships: [
           {
@@ -135,95 +157,10 @@ export type Database = {
           },
         ]
       }
-      ad_budget_transactions: {
-        Row: {
-          amount_ngn: number
-          amount_usd: number | null
-          balance_after: number
-          created_at: string | null
-          description: string | null
-          fx_rate: number | null
-          id: string
-          metadata: Json | null
-          organization_id: string
-          reference: string | null
-          type: string
-        }
-        Insert: {
-          amount_ngn: number
-          amount_usd?: number | null
-          balance_after: number
-          created_at?: string | null
-          description?: string | null
-          fx_rate?: number | null
-          id?: string
-          metadata?: Json | null
-          organization_id: string
-          reference?: string | null
-          type: string
-        }
-        Update: {
-          amount_ngn?: number
-          amount_usd?: number | null
-          balance_after?: number
-          created_at?: string | null
-          description?: string | null
-          fx_rate?: number | null
-          id?: string
-          metadata?: Json | null
-          organization_id?: string
-          reference?: string | null
-          type?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ad_budget_transactions_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      ad_budget_wallets: {
-        Row: {
-          balance_ngn: number
-          created_at: string | null
-          id: string
-          organization_id: string
-          reserved_ngn: number
-          updated_at: string | null
-        }
-        Insert: {
-          balance_ngn?: number
-          created_at?: string | null
-          id?: string
-          organization_id: string
-          reserved_ngn?: number
-          updated_at?: string | null
-        }
-        Update: {
-          balance_ngn?: number
-          created_at?: string | null
-          id?: string
-          organization_id?: string
-          reserved_ngn?: number
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ad_budget_wallets_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: true
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       ad_sets: {
         Row: {
           bid_amount_cents: number | null
-          campaign_id: string | null
+          campaign_id: string
           created_at: string | null
           id: string
           name: string
@@ -234,7 +171,7 @@ export type Database = {
         }
         Insert: {
           bid_amount_cents?: number | null
-          campaign_id?: string | null
+          campaign_id: string
           created_at?: string | null
           id?: string
           name: string
@@ -245,7 +182,7 @@ export type Database = {
         }
         Update: {
           bid_amount_cents?: number | null
-          campaign_id?: string | null
+          campaign_id?: string
           created_at?: string | null
           id?: string
           name?: string
@@ -266,8 +203,9 @@ export type Database = {
       }
       ads: {
         Row: {
-          ad_set_id: string | null
+          ad_set_id: string
           call_to_action: string | null
+          campaign_id: string
           carousel_data: Json | null
           clicks: number | null
           created_at: string | null
@@ -287,10 +225,12 @@ export type Database = {
           source_post_id: string | null
           spend_cents: number | null
           status: string | null
+          synced_at: string | null
         }
         Insert: {
-          ad_set_id?: string | null
+          ad_set_id: string
           call_to_action?: string | null
+          campaign_id: string
           carousel_data?: Json | null
           clicks?: number | null
           created_at?: string | null
@@ -310,10 +250,12 @@ export type Database = {
           source_post_id?: string | null
           spend_cents?: number | null
           status?: string | null
+          synced_at?: string | null
         }
         Update: {
-          ad_set_id?: string | null
+          ad_set_id?: string
           call_to_action?: string | null
+          campaign_id?: string
           carousel_data?: Json | null
           clicks?: number | null
           created_at?: string | null
@@ -333,6 +275,7 @@ export type Database = {
           source_post_id?: string | null
           spend_cents?: number | null
           status?: string | null
+          synced_at?: string | null
         }
         Relationships: [
           {
@@ -340,6 +283,13 @@ export type Database = {
             columns: ["ad_set_id"]
             isOneToOne: false
             referencedRelation: "ad_sets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ads_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
             referencedColumns: ["id"]
           },
           {
@@ -487,6 +437,8 @@ export type Database = {
           date: string
           id: string
           impressions: number | null
+          media_viewers: number | null
+          media_views: number | null
           reach: number | null
           spend_cents: number | null
           synced_at: string | null
@@ -498,6 +450,8 @@ export type Database = {
           date: string
           id?: string
           impressions?: number | null
+          media_viewers?: number | null
+          media_views?: number | null
           reach?: number | null
           spend_cents?: number | null
           synced_at?: string | null
@@ -509,6 +463,8 @@ export type Database = {
           date?: string
           id?: string
           impressions?: number | null
+          media_viewers?: number | null
+          media_views?: number | null
           reach?: number | null
           spend_cents?: number | null
           synced_at?: string | null
@@ -526,6 +482,7 @@ export type Database = {
       campaigns: {
         Row: {
           ad_account_id: string | null
+          advantage_plus_config: Json | null
           ai_chat_snapshot: Json | null
           ai_context: Json | null
           clicks: number | null
@@ -533,13 +490,19 @@ export type Database = {
           creative_snapshot: Json | null
           ctr: number | null
           daily_budget_cents: number | null
+          demographics_cache: Json | null
+          demographics_synced_at: string | null
           error_log: string | null
           id: string
           impressions: number | null
+          issues_checked_at: string | null
           last_click_at: string | null
+          media_viewers: number | null
+          media_views: number | null
+          meta_issues: Json | null
           name: string
           objective: string | null
-          organization_id: string | null
+          organization_id: string
           placement_type: string | null
           platform: string | null
           platform_campaign_id: string | null
@@ -558,6 +521,7 @@ export type Database = {
         }
         Insert: {
           ad_account_id?: string | null
+          advantage_plus_config?: Json | null
           ai_chat_snapshot?: Json | null
           ai_context?: Json | null
           clicks?: number | null
@@ -565,13 +529,19 @@ export type Database = {
           creative_snapshot?: Json | null
           ctr?: number | null
           daily_budget_cents?: number | null
+          demographics_cache?: Json | null
+          demographics_synced_at?: string | null
           error_log?: string | null
           id?: string
           impressions?: number | null
+          issues_checked_at?: string | null
           last_click_at?: string | null
+          media_viewers?: number | null
+          media_views?: number | null
+          meta_issues?: Json | null
           name: string
           objective?: string | null
-          organization_id?: string | null
+          organization_id: string
           placement_type?: string | null
           platform?: string | null
           platform_campaign_id?: string | null
@@ -590,6 +560,7 @@ export type Database = {
         }
         Update: {
           ad_account_id?: string | null
+          advantage_plus_config?: Json | null
           ai_chat_snapshot?: Json | null
           ai_context?: Json | null
           clicks?: number | null
@@ -597,13 +568,19 @@ export type Database = {
           creative_snapshot?: Json | null
           ctr?: number | null
           daily_budget_cents?: number | null
+          demographics_cache?: Json | null
+          demographics_synced_at?: string | null
           error_log?: string | null
           id?: string
           impressions?: number | null
+          issues_checked_at?: string | null
           last_click_at?: string | null
+          media_viewers?: number | null
+          media_views?: number | null
+          meta_issues?: Json | null
           name?: string
           objective?: string | null
-          organization_id?: string | null
+          organization_id?: string
           placement_type?: string | null
           platform?: string | null
           platform_campaign_id?: string | null
@@ -621,6 +598,13 @@ export type Database = {
           whatsapp_clicks?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "campaigns_ad_account_id_fkey"
+            columns: ["ad_account_id"]
+            isOneToOne: false
+            referencedRelation: "active_ad_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "campaigns_ad_account_id_fkey"
             columns: ["ad_account_id"]
@@ -706,7 +690,7 @@ export type Database = {
           last_used_at: string | null
           media_type: string | null
           name: string | null
-          organization_id: string | null
+          organization_id: string
           original_url: string
           parent_id: string | null
           platform_media_hash: string | null
@@ -728,7 +712,7 @@ export type Database = {
           last_used_at?: string | null
           media_type?: string | null
           name?: string | null
-          organization_id?: string | null
+          organization_id: string
           original_url: string
           parent_id?: string | null
           platform_media_hash?: string | null
@@ -750,7 +734,7 @@ export type Database = {
           last_used_at?: string | null
           media_type?: string | null
           name?: string | null
-          organization_id?: string | null
+          organization_id?: string
           original_url?: string
           parent_id?: string | null
           platform_media_hash?: string | null
@@ -858,7 +842,7 @@ export type Database = {
           delta: number
           id: string
           model_used: string | null
-          organization_id: string
+          organization_id: string | null
           reason: string
           reference_id: string | null
           user_id: string | null
@@ -869,7 +853,7 @@ export type Database = {
           delta: number
           id?: string
           model_used?: string | null
-          organization_id: string
+          organization_id?: string | null
           reason: string
           reference_id?: string | null
           user_id?: string | null
@@ -880,7 +864,7 @@ export type Database = {
           delta?: number
           id?: string
           model_used?: string | null
-          organization_id?: string
+          organization_id?: string | null
           reason?: string
           reference_id?: string | null
           user_id?: string | null
@@ -901,6 +885,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      fx_rates: {
+        Row: {
+          created_at: string | null
+          fetched_at: string | null
+          id: string
+          is_active: boolean
+          rate_ngn_per_usd: number
+          source_provider: string
+        }
+        Insert: {
+          created_at?: string | null
+          fetched_at?: string | null
+          id?: string
+          is_active?: boolean
+          rate_ngn_per_usd: number
+          source_provider?: string
+        }
+        Update: {
+          created_at?: string | null
+          fetched_at?: string | null
+          id?: string
+          is_active?: boolean
+          rate_ngn_per_usd?: number
+          source_provider?: string
+        }
+        Relationships: []
       }
       invitations: {
         Row: {
@@ -946,6 +957,197 @@ export type Database = {
           },
           {
             foreignKeyName: "invitations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_dlq: {
+        Row: {
+          attempts: number | null
+          created_at: string | null
+          error_message: string | null
+          error_stack: string | null
+          id: string
+          job_id: string | null
+          payload: Json
+          type: string
+        }
+        Insert: {
+          attempts?: number | null
+          created_at?: string | null
+          error_message?: string | null
+          error_stack?: string | null
+          id?: string
+          job_id?: string | null
+          payload: Json
+          type: string
+        }
+        Update: {
+          attempts?: number | null
+          created_at?: string | null
+          error_message?: string | null
+          error_stack?: string | null
+          id?: string
+          job_id?: string | null
+          payload?: Json
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_dlq_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "job_queue"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_metrics: {
+        Row: {
+          duration_ms: number | null
+          error_code: string | null
+          executed_at: string | null
+          id: string
+          job_type: string
+          success: boolean
+        }
+        Insert: {
+          duration_ms?: number | null
+          error_code?: string | null
+          executed_at?: string | null
+          id?: string
+          job_type: string
+          success: boolean
+        }
+        Update: {
+          duration_ms?: number | null
+          error_code?: string | null
+          executed_at?: string | null
+          id?: string
+          job_type?: string
+          success?: boolean
+        }
+        Relationships: []
+      }
+      job_queue: {
+        Row: {
+          attempts: number | null
+          completed_at: string | null
+          created_at: string | null
+          id: string
+          last_error: string | null
+          max_attempts: number | null
+          organization_id: string | null
+          payload: Json
+          started_at: string | null
+          status: string | null
+          type: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          attempts?: number | null
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          last_error?: string | null
+          max_attempts?: number | null
+          organization_id?: string | null
+          payload: Json
+          started_at?: string | null
+          status?: string | null
+          type: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          attempts?: number | null
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          last_error?: string | null
+          max_attempts?: number | null
+          organization_id?: string | null
+          payload?: Json
+          started_at?: string | null
+          status?: string | null
+          type?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_queue_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_queue_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_submissions: {
+        Row: {
+          ad_id: string | null
+          adgroup_id: string | null
+          campaign_id: string | null
+          created_at: string | null
+          field_data: Json
+          form_id: string
+          id: string
+          leadgen_id: string
+          organization_id: string
+          page_id: string | null
+          submitted_at: string
+          updated_at: string | null
+        }
+        Insert: {
+          ad_id?: string | null
+          adgroup_id?: string | null
+          campaign_id?: string | null
+          created_at?: string | null
+          field_data?: Json
+          form_id: string
+          id?: string
+          leadgen_id: string
+          organization_id: string
+          page_id?: string | null
+          submitted_at: string
+          updated_at?: string | null
+        }
+        Update: {
+          ad_id?: string | null
+          adgroup_id?: string | null
+          campaign_id?: string | null
+          created_at?: string | null
+          field_data?: Json
+          form_id?: string
+          id?: string
+          leadgen_id?: string
+          organization_id?: string
+          page_id?: string | null
+          submitted_at?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_submissions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_submissions_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -1236,10 +1438,12 @@ export type Database = {
       organizations: {
         Row: {
           billing_cycle_day: number | null
+          billing_provider: string
           business_description: string | null
+          city: string | null
+          country_code: string
           created_at: string | null
-          credits_balance: number
-          credits_reset_at: string | null
+          currency_default: string
           customer_gender: string | null
           deleted_at: string | null
           id: string
@@ -1250,22 +1454,26 @@ export type Database = {
           name: string
           paystack_customer_code: string | null
           paystack_sub_code: string | null
-          plan_credits_quota: number
           plan_interval: string | null
           price_tier: string | null
           selling_method: string | null
           slug: string
+          state: string | null
+          stripe_customer_id: string | null
           subscription_expires_at: string | null
           subscription_status: string | null
           subscription_tier: string | null
+          timezone: string
           updated_at: string | null
         }
         Insert: {
           billing_cycle_day?: number | null
+          billing_provider?: string
           business_description?: string | null
+          city?: string | null
+          country_code?: string
           created_at?: string | null
-          credits_balance?: number
-          credits_reset_at?: string | null
+          currency_default?: string
           customer_gender?: string | null
           deleted_at?: string | null
           id?: string
@@ -1276,22 +1484,26 @@ export type Database = {
           name: string
           paystack_customer_code?: string | null
           paystack_sub_code?: string | null
-          plan_credits_quota?: number
           plan_interval?: string | null
           price_tier?: string | null
           selling_method?: string | null
           slug: string
+          state?: string | null
+          stripe_customer_id?: string | null
           subscription_expires_at?: string | null
           subscription_status?: string | null
           subscription_tier?: string | null
+          timezone?: string
           updated_at?: string | null
         }
         Update: {
           billing_cycle_day?: number | null
+          billing_provider?: string
           business_description?: string | null
+          city?: string | null
+          country_code?: string
           created_at?: string | null
-          credits_balance?: number
-          credits_reset_at?: string | null
+          currency_default?: string
           customer_gender?: string | null
           deleted_at?: string | null
           id?: string
@@ -1302,14 +1514,16 @@ export type Database = {
           name?: string
           paystack_customer_code?: string | null
           paystack_sub_code?: string | null
-          plan_credits_quota?: number
           plan_interval?: string | null
           price_tier?: string | null
           selling_method?: string | null
           slug?: string
+          state?: string | null
+          stripe_customer_id?: string | null
           subscription_expires_at?: string | null
           subscription_status?: string | null
           subscription_tier?: string | null
+          timezone?: string
           updated_at?: string | null
         }
         Relationships: []
@@ -1568,93 +1782,37 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string | null
+          credits_balance: number
+          credits_reset_at: string | null
           email: string
           full_name: string | null
           id: string
+          plan_credits_quota: number
           updated_at: string | null
         }
         Insert: {
           avatar_url?: string | null
           created_at?: string | null
+          credits_balance?: number
+          credits_reset_at?: string | null
           email: string
           full_name?: string | null
           id: string
+          plan_credits_quota?: number
           updated_at?: string | null
         }
         Update: {
           avatar_url?: string | null
           created_at?: string | null
+          credits_balance?: number
+          credits_reset_at?: string | null
           email?: string
           full_name?: string | null
           id?: string
+          plan_credits_quota?: number
           updated_at?: string | null
         }
         Relationships: []
-      }
-      virtual_cards: {
-        Row: {
-          balance_usd: number | null
-          card_number_encrypted: string | null
-          created_at: string | null
-          cvv_encrypted: string | null
-          expiry_month: string | null
-          expiry_year: string | null
-          id: string
-          last_four: string | null
-          meta_account_id: string | null
-          organization_id: string
-          provider: string
-          provider_account_id: string | null
-          provider_card_id: string
-          provider_customer_id: string | null
-          status: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          balance_usd?: number | null
-          card_number_encrypted?: string | null
-          created_at?: string | null
-          cvv_encrypted?: string | null
-          expiry_month?: string | null
-          expiry_year?: string | null
-          id?: string
-          last_four?: string | null
-          meta_account_id?: string | null
-          organization_id: string
-          provider?: string
-          provider_account_id?: string | null
-          provider_card_id: string
-          provider_customer_id?: string | null
-          status?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          balance_usd?: number | null
-          card_number_encrypted?: string | null
-          created_at?: string | null
-          cvv_encrypted?: string | null
-          expiry_month?: string | null
-          expiry_year?: string | null
-          id?: string
-          last_four?: string | null
-          meta_account_id?: string | null
-          organization_id?: string
-          provider?: string
-          provider_account_id?: string | null
-          provider_card_id?: string
-          provider_customer_id?: string | null
-          status?: string | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "virtual_cards_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: true
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       whatsapp_sales: {
         Row: {
@@ -1710,6 +1868,95 @@ export type Database = {
       }
     }
     Views: {
+      active_ad_accounts: {
+        Row: {
+          access_token: string | null
+          account_name: string | null
+          auto_paused_at: string | null
+          capi_access_token: string | null
+          connected_at: string | null
+          currency: string | null
+          demographics_cache: Json | null
+          disconnected_at: string | null
+          funding_source_details: Json | null
+          health_status: string | null
+          id: string | null
+          is_default: boolean | null
+          last_health_check: string | null
+          last_known_balance_cents: number | null
+          last_synced_at: string | null
+          meta_pixel_id: string | null
+          nickname: string | null
+          organization_id: string | null
+          paused_by_system: boolean | null
+          platform: string | null
+          platform_account_id: string | null
+          refresh_token: string | null
+          token_expires_at: string | null
+          token_refreshed_at: string | null
+        }
+        Insert: {
+          access_token?: string | null
+          account_name?: string | null
+          auto_paused_at?: string | null
+          capi_access_token?: string | null
+          connected_at?: string | null
+          currency?: string | null
+          demographics_cache?: Json | null
+          disconnected_at?: string | null
+          funding_source_details?: Json | null
+          health_status?: string | null
+          id?: string | null
+          is_default?: boolean | null
+          last_health_check?: string | null
+          last_known_balance_cents?: number | null
+          last_synced_at?: string | null
+          meta_pixel_id?: string | null
+          nickname?: string | null
+          organization_id?: string | null
+          paused_by_system?: boolean | null
+          platform?: string | null
+          platform_account_id?: string | null
+          refresh_token?: string | null
+          token_expires_at?: string | null
+          token_refreshed_at?: string | null
+        }
+        Update: {
+          access_token?: string | null
+          account_name?: string | null
+          auto_paused_at?: string | null
+          capi_access_token?: string | null
+          connected_at?: string | null
+          currency?: string | null
+          demographics_cache?: Json | null
+          disconnected_at?: string | null
+          funding_source_details?: Json | null
+          health_status?: string | null
+          id?: string | null
+          is_default?: boolean | null
+          last_health_check?: string | null
+          last_known_balance_cents?: number | null
+          last_synced_at?: string | null
+          meta_pixel_id?: string | null
+          nickname?: string | null
+          organization_id?: string | null
+          paused_by_system?: boolean | null
+          platform?: string | null
+          platform_account_id?: string | null
+          refresh_token?: string | null
+          token_expires_at?: string | null
+          token_refreshed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_accounts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_generation_analytics: {
         Row: {
           context_enhanced_count: number | null
@@ -1735,12 +1982,15 @@ export type Database = {
       add_credits: {
         Args: {
           p_credits: number
-          p_org_id: string
+          p_org_id?: string
           p_reason: string
           p_reference?: string
+          p_user_id: string
         }
         Returns: Json
       }
+      can_manage_org_members: { Args: { org_id: string }; Returns: boolean }
+      cleanup_old_jobs: { Args: { older_than_days?: number }; Returns: number }
       deduct_credits: {
         Args: {
           p_credits: number
@@ -1752,21 +2002,53 @@ export type Database = {
         }
         Returns: Json
       }
-      get_ad_budget_balance: { Args: { p_org_id: string }; Returns: number }
       get_campaign_context: { Args: { p_campaign_id: string }; Returns: Json }
+      get_campaign_lead_count: {
+        Args: { campaign_uuid: string }
+        Returns: number
+      }
+      get_current_fx_rate: { Args: never; Returns: number }
+      get_job_queue_health: {
+        Args: never
+        Returns: {
+          avg_duration_ms: number
+          failed_count: number
+          job_type: string
+          pending_count: number
+          processing_count: number
+        }[]
+      }
+      get_recent_campaign_leads: {
+        Args: { campaign_uuid: string }
+        Returns: number
+      }
       increment_campaign_clicks:
         | { Args: { p_campaign_id: string }; Returns: undefined }
         | {
             Args: { p_campaign_id: string; p_destination_type?: string }
             Returns: undefined
           }
-      reserve_ad_budget: {
-        Args: { p_amount_ngn: number; p_campaign_id: string; p_org_id: string }
+      is_org_member: {
+        Args: { org_id: string; user_id: string }
         Returns: boolean
       }
+      list_active_cron_jobs: {
+        Args: never
+        Returns: {
+          active: boolean
+          command: string
+          jobid: number
+          schedule: string
+        }[]
+      }
+      reset_stuck_jobs: { Args: never; Returns: number }
       update_campaign_sales_summary: {
         Args: { p_amount_ngn: number; p_campaign_id: string }
         Returns: undefined
+      }
+      update_fx_rate: {
+        Args: { p_rate: number; p_source?: string }
+        Returns: string
       }
     }
     Enums: {

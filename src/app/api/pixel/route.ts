@@ -9,7 +9,7 @@ import type { Database } from "@/types/supabase";
  * Pixel endpoint — 1×1 transparent GIF for website owner event tracking.
  *
  * Usage (pasted once in site <head>):
- *   <img src="https://sellam.app/api/pixel?t=PIXEL_TOKEN&e=view" />
+ *   <img src="https://Tenzu.app/api/pixel?t=PIXEL_TOKEN&e=view" />
  *
  * Query params:
  *   t  = pixel_token (from attribution_links, NOT the redirect token)
@@ -27,6 +27,40 @@ const PIXEL_GIF = Buffer.from(
   "base64",
 );
 
+// Simple in-memory rate limiter to prevent click fraud
+// Maps IP address -> { count, resetAt }
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const MAX_REQUESTS_PER_WINDOW = 20; // Max 20 pixel fires per IP per minute
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const record = rateLimitMap.get(ip);
+
+  if (!record || now > record.resetAt) {
+    // New window
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+
+  if (record.count >= MAX_REQUESTS_PER_WINDOW) {
+    return false; // Rate limit exceeded
+  }
+
+  record.count++;
+  return true;
+}
+
+// Cleanup old entries every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, record] of rateLimitMap.entries()) {
+    if (now > record.resetAt) {
+      rateLimitMap.delete(ip);
+    }
+  }
+}, 5 * 60 * 1000);
+
 // Anon client — pixel fires without auth
 function createAnonClient() {
   return createServerClient<Database>(
@@ -42,9 +76,28 @@ export async function GET(request: NextRequest) {
   const event = searchParams.get("e") || "view"; // 'view' | 'lead' | 'purchase'
   const value = parseInt(searchParams.get("v") || "0"); // NGN sale value
 
+  // Extract IP for rate limiting
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0] ||
+             request.headers.get("x-real-ip") ||
+             "unknown";
+
+  // Check rate limit (prevent click fraud)
+  if (!checkRateLimit(ip)) {
+    console.warn(`[Pixel] Rate limit exceeded for IP: ${ip}`);
+    // Still return pixel (don't break page load), just don't record event
+    return new NextResponse(PIXEL_GIF, {
+      headers: {
+        "Content-Type": "image/gif",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+      },
+    });
+  }
+
   if (token) {
     const supabase = createAnonClient();
 
+    // Note: We don't use !inner join here because attribution_links already has organization_id
+    // The query is correctly scoped - pixel_token is unique and linked to one org
     const { data: link } = await supabase
       .from("attribution_links")
       .select("id, campaign_id, organization_id")

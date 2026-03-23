@@ -45,7 +45,7 @@ Add a new conditional wizard step that appears **only** when `objective === 'app
 The step should collect:
 
 - **App Store URL** (iOS App Store or Google Play) — text input
-- Sellam auto-detects platform from URL (Apple/Google) and the `application_id` from the URL
+- Tenzu auto-detects platform from URL (Apple/Google) and the `application_id` from the URL
 
 ```typescript
 // Parse Meta application_id from store URL
@@ -107,7 +107,7 @@ In `src/actions/campaigns.ts`, pass `metaApplicationId` and `appStoreUrl` from t
 For the destination URL / attribution link:
 
 - App Install ads **can** have a destination URL (deep link into the app or fallback web page)
-- If the user provides one, wrap it in a Sellam smart link as normal (`destination_type: 'website'`)
+- If the user provides one, wrap it in a Tenzu smart link as normal (`destination_type: 'website'`)
 - If no destination URL (simple install ad), skip attribution link creation
 
 ### Step 5 — Ad Creative

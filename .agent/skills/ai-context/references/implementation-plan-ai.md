@@ -152,7 +152,7 @@ if (campaignContext?.businessDescription) {
 The pipeline:
 
 1. SME uploads a raw phone video (or takes one in-app)
-2. Adsync uses `fal.ai` video models to add: captions, trim, add CTA text overlay, music bed
+2. Tenzu uses `fal.ai` video models to add: captions, trim, add CTA text overlay, music bed
 3. Output is a 15–30 second Reels/Stories-ready ad video
 
 **New file:** `src/actions/ai-video.ts`
@@ -225,7 +225,7 @@ export async function processUGCVideo({
 
 **Target: Months 9–12**
 
-This is where Adsync builds its moat. By this point, you have real attribution data across hundreds of Nigerian SME campaigns. Phase 3 is about turning that data into recommendations.
+This is where Tenzu builds its moat. By this point, you have real attribution data across hundreds of Nigerian SME campaigns. Phase 3 is about turning that data into recommendations.
 
 ---
 

@@ -26,7 +26,5 @@ export default async function BusinessSettingsPage() {
         .single()
     : { data: null };
 
-  console.log("organization😆😆", organization);
-
   return <BusinessTab organization={organization} activeOrgId={activeOrgId} />;
 }

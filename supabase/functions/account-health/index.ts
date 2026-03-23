@@ -7,7 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const META_API_VERSION = "v24.0";
+const META_API_VERSION = "v25.0";
 const BALANCE_WARN_THRESHOLD = 500_000; // ₦5,000
 const BALANCE_PAUSE_THRESHOLD = 200_000; // ₦2,000
 
@@ -155,11 +155,13 @@ serve(async (req) => {
 
     const today = isoDay();
 
+    // ✅ Filter out soft-deleted (disconnected) accounts
     const { data: accounts, error: accErr } = await supabase
       .from("ad_accounts")
       .select("*")
       .in("health_status", ["healthy", "paused_by_system", "payment_issue"])
-      .not("access_token", "is", null);
+      .not("access_token", "is", null)
+      .is("disconnected_at", null); // Only check health for connected accounts
 
     if (accErr) throw accErr;
 
@@ -181,16 +183,30 @@ serve(async (req) => {
           const metaData = await res.json();
 
           if (metaData.error) {
+            // v25.0 enhanced error logging
+            console.error("Meta API Error:", {
+              code: metaData.error.code,
+              subcode: metaData.error.error_subcode,
+              message: metaData.error.message,
+              user_title: metaData.error.error_user_title,
+              user_msg: metaData.error.error_user_msg,
+              fbtrace_id: metaData.error.fbtrace_id,
+            });
+
             if (metaData.error.code === 190) {
               await supabase
                 .from("ad_accounts")
-                .update({ health_status: "token_expired" })
+                .update({
+                  health_status: "token_expired",
+                  api_version: META_API_VERSION, // Track API version
+                })
                 .eq("id", account.id);
             }
             return {
               id: account.id,
               status: "meta_error",
               msg: metaData.error.message,
+              error_code: metaData.error.code,
             };
           }
 
@@ -212,6 +228,7 @@ serve(async (req) => {
               last_known_balance_cents: balance,
               last_health_check: new Date().toISOString(),
               health_status: newHealthStatus,
+              api_version: META_API_VERSION, // v25.0: Track API version
             })
             .eq("id", account.id);
 

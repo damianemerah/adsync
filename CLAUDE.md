@@ -1,11 +1,12 @@
-# AdSync – Project Rules for Claude
+# Tenzu – Project Rules for Claude
 
 ## Available Tools (MCP)
 
 **You have full access to several MCP servers to aid your workflow:**
 
-- **Supabase MCP Server**: Use this for database research, running SQL queries, reading table structures, and applying migrations directly to the active project.
+- **Supabase MCP Server**: Use this for database research, running SQL queries, reading table structures, and applying migrations directly to the active project. Always apply migration with exact name and timestamp as on local files.
 - **Perplexity-Ask MCP Server**: Use the Perplexity search integration to perform advanced, up-to-date research, search for current documentation, and resolve external implementation issues.
+- **Supabase Types**: Use this to get the types of the database tables. It is located at `src/types/supabase.ts`. To update it, run `npx -y supabase gen types typescript --project-id iomvjxlfxeppizkhehcl --schema public > src/types/supabase.ts`
 
 ## Agent Context & Skills
 
@@ -36,6 +37,101 @@ The skill directory in AGENTS.md maps trigger phrases to the correct SKILL.md fi
 
 ---
 
+## ⚠️ CRITICAL RULE: Always Wire UI Components
+
+### The Problem
+
+**You have a recurring pattern of building components but forgetting to wire them to the UI.** This wastes time and frustrates the user.
+
+### Examples of Past Mistakes
+
+1. **Creating `LeadsList.tsx` without adding it to campaign detail view** - Built the component, but user couldn't see it
+2. **Building modals/sheets without adding trigger buttons** - Component exists but no way to open it
+3. **Creating new pages without adding navigation links** - Page works but unreachable
+
+### The Rule
+
+**NEVER mark a UI component task as "complete" until:**
+
+1. ✅ Component is built
+2. ✅ Component is imported in parent component
+3. ✅ Component is rendered (with conditional logic if needed)
+4. ✅ User can navigate to it (buttons, links, tabs, routes, etc.)
+5. ✅ You've verified the complete user flow
+
+### Mandatory Checklist for UI Components
+
+When creating any new component (modal, page, list, form, etc.):
+
+- [ ] **Component file created** (`MyComponent.tsx`)
+- [ ] **Imported in parent** (`import { MyComponent } from "..."`)"
+- [ ] **Rendered in JSX** (`<MyComponent {...props} />`)
+- [ ] **Navigation/trigger added** (button, link, tab, route, etc.)
+- [ ] **Conditional rendering handled** (show/hide logic, permissions, feature flags)
+- [ ] **User can actually see it** (not hidden behind a missing tab or route)
+
+### Red Flags to Watch For
+
+If you're doing any of these, STOP and wire the component:
+
+- ❌ "I've created the component" → Did you add it to the parent?
+- ❌ "The component is ready" → Can the user navigate to it?
+- ❌ "Let's move on to the next task" → Have you tested the full user flow?
+
+### Correct Implementation Pattern
+
+```typescript
+// ❌ BAD: Component exists but user can't see it
+// File: src/components/features/LeadsList.tsx
+export function LeadsList() { ... }
+// No import, no render, no navigation → USER CANNOT ACCESS IT
+
+// ✅ GOOD: Component is fully wired
+// File: src/components/campaigns/campaign-detail-view.tsx
+import { LeadsList } from "@/components/campaigns/leads-list"; // 1. Import
+
+export function CampaignDetailView({ campaign }) {
+  return (
+    <Tabs>
+      <TabsList>
+        <TabsTrigger value="overview">Overview</TabsTrigger>
+        <TabsTrigger value="leads">Leads</TabsTrigger> {/* 2. Navigation */}
+      </TabsList>
+
+      <TabsContent value="leads">
+        <LeadsList campaignId={campaign.id} /> {/* 3. Render */}
+      </TabsContent>
+    </Tabs>
+  );
+}
+```
+
+### When Building Multi-Step Features
+
+If a feature requires multiple components (backend + frontend + navigation):
+
+1. **Plan the full flow first** (user journey from start to finish)
+2. **Build backend** (API routes, server actions, database)
+3. **Build UI component** (the actual component file)
+4. **Wire the component** (import + render + navigation)
+5. **Test the complete flow** (verify user can access it)
+6. **ONLY THEN mark as complete**
+
+### Exception: Reusable Components
+
+If you're building a **reusable utility component** (not a feature):
+
+- Document where it should be used
+- Provide usage example
+- Add to component library/storybook
+
+But if you're building a **feature component** (user-facing):
+
+- **ALWAYS wire it immediately**
+- Don't leave it orphaned
+
+---
+
 ## Architecture Overview
 
 Next.js 16 App Router app with Supabase (Postgres + Auth). Users can belong to **multiple organizations**. Every page and data query must be scoped to the **active organization**.
@@ -49,10 +145,10 @@ Missing this causes data from other orgs to leak across workspace boundaries.
 
 ### How it works
 
-| Context                            | Mechanism                                                                   | Import                                                                             |
-| ---------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Server Components & Server Actions | `getActiveOrgId()` – reads `sellam_active_org` cookie, validates against DB | `import { getActiveOrgId } from "@/lib/active-org"`                                |
-| Client Components & Hooks          | `useActiveOrgContext()` – React Context set by the layout                   | `import { useActiveOrgContext } from "@/components/providers/active-org-provider"` |
+| Context                            | Mechanism                                                                  | Import                                                                             |
+| ---------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Server Components & Server Actions | `getActiveOrgId()` – reads `tenzu_active_org` cookie, validates against DB | `import { getActiveOrgId } from "@/lib/active-org"`                                |
+| Client Components & Hooks          | `useActiveOrgContext()` – React Context set by the layout                  | `import { useActiveOrgContext } from "@/components/providers/active-org-provider"` |
 
 ### Server-side pattern (Server Components, Server Actions)
 

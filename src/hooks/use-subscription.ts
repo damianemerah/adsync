@@ -28,9 +28,7 @@ export function useSubscription() {
               name,
               subscription_status,
               subscription_tier,
-              subscription_expires_at,
-              credits_balance,
-              plan_credits_quota
+              subscription_expires_at
             )
           `,
         )
@@ -53,9 +51,14 @@ export function useSubscription() {
         subscription_status: string;
         subscription_tier: string;
         subscription_expires_at: string | null;
-        credits_balance: number;
-        plan_credits_quota: number;
       };
+
+      // Credits are user-scoped — fetch from users table
+      const { data: userRecord } = await supabase
+        .from("users")
+        .select("credits_balance, plan_credits_quota")
+        .eq("id", user.id)
+        .single();
 
       return {
         org: {
@@ -68,8 +71,8 @@ export function useSubscription() {
           expiresAt: org?.subscription_expires_at
             ? new Date(org.subscription_expires_at)
             : new Date(),
-          creditsBalance: org?.credits_balance ?? 0,
-          creditQuota: org?.plan_credits_quota ?? 0,
+          creditsBalance: userRecord?.credits_balance ?? 0,
+          creditQuota: userRecord?.plan_credits_quota ?? 0,
         },
       };
     },

@@ -1,6 +1,6 @@
 # Landing Page Copy Patterns
 
-Proven formulas and examples for AdSync landing page sections.
+Proven formulas and examples for Tenzu landing page sections.
 
 ## Hero Section Formula
 
@@ -41,16 +41,16 @@ Chat. Click. Launch. Your AI Ad Consultant Handles the Rest.
 ```
 
 **Examples:**
-- "No designer? No problem. Over 2,000 Nigerian vendors create professional ads daily with AdSync."
-- "Card declined by Wask? AdSync accepts your local card. Zero payment friction."
-- "Confused by Ads Manager? AdSync's AI builds campaigns you actually understand."
+- "No designer? No problem. Over 2,000 Nigerian vendors create professional ads daily with Tenzu."
+- "Card declined by Wask? Tenzu accepts your local card. Zero payment friction."
+- "Confused by Ads Manager? Tenzu's AI builds campaigns you actually understand."
 
 ## Problem-Agitation-Solution (PAS) Section
 
 ### Formula
 1. **Problem:** State the pain clearly
 2. **Agitate:** Make them feel it
-3. **Solution:** Show AdSync as the fix
+3. **Solution:** Show Tenzu as the fix
 
 ### Example 1: Payment Pain
 
@@ -61,7 +61,7 @@ Chat. Click. Launch. Your AI Ad Consultant Handles the Rest.
 > "It's not your card—it's their international gateway. While you struggle with payment forms, your competitors are already running ads."
 
 **Solution:**
-> "AdSync accepts Naira payments via Paystack and bank transfer. Your local card works perfectly. Launch ads today, not someday."
+> "Tenzu accepts Naira payments via Paystack and bank transfer. Your local card works perfectly. Launch ads today, not someday."
 
 [CTA]: Pay the Nigerian Way →
 
@@ -74,7 +74,7 @@ Chat. Click. Launch. Your AI Ad Consultant Handles the Rest.
 > "You know your ads look amateur. You've seen competitor ads that pop—clean backgrounds, professional lighting, compelling angles. Hiring an agency? ₦150,000 minimum. Hiring a designer? ₦50,000 per design. And that's if they even understand your vision."
 
 **Solution:**
-> "AdSync's AI Studio transforms your phone photos into professional ads in seconds. No designer. No agency. No ₦150k invoice. Just upload, click 'Improve,' and watch AI work its magic."
+> "Tenzu's AI Studio transforms your phone photos into professional ads in seconds. No designer. No agency. No ₦150k invoice. Just upload, click 'Improve,' and watch AI work its magic."
 
 [CTA]: Try AI Studio Free →
 
@@ -87,7 +87,7 @@ Chat. Click. Launch. Your AI Ad Consultant Handles the Rest.
 > "50 fields. Campaign objectives, ad sets, placements, bidding strategies, custom audiences—where do you even start? You've watched 10 YouTube tutorials and you're still confused. One wrong setting and you've wasted ₦20,000 on the wrong audience."
 
 **Solution:**
-> "AdSync's AI Consultant asks simple questions: Who's your customer? What's your budget? Then it builds the campaign for you. Chat-style. No confusing dashboards. Just clear, guided setup."
+> "Tenzu's AI Consultant asks simple questions: Who's your customer? What's your budget? Then it builds the campaign for you. Chat-style. No confusing dashboards. Just clear, guided setup."
 
 [CTA]: Build Your First Campaign →
 
@@ -125,7 +125,7 @@ Chat. Click. Launch. Your AI Ad Consultant Handles the Rest.
 > Launch campaigns immediately. No more "payment declined" messages. No begging friends for their dollar cards.
 
 **Proof:**
-> "I tried Wask for 3 months—payment failed every time. AdSync accepted my GTBank card instantly." - Emeka A., Abuja Tech Vendor
+> "I tried Wask for 3 months—payment failed every time. Tenzu accepted my GTBank card instantly." - Emeka A., Abuja Tech Vendor
 
 [CTA]: Try Risk-Free →
 
@@ -153,16 +153,16 @@ Chat. Click. Launch. Your AI Ad Consultant Handles the Rest.
 
 ### Example 1: Trust Objection
 
-**Q:** "Is AdSync legit? I've been scammed by 'ad tools' before."
+**Q:** "Is Tenzu legit? I've been scammed by 'ad tools' before."
 
 **Answer:**
-> We get it—Nigeria has too many scammers promising ad magic. Here's the difference: AdSync doesn't run your ads. You do. Through your own Meta Business account. We just make it easier. Your ad spend goes directly to Meta, not through us. We only charge ₦15k/month for access to the tool—no hidden fees, no percentage of your spend. Over 2,000 verified Nigerian businesses use AdSync monthly.
+> We get it—Nigeria has too many scammers promising ad magic. Here's the difference: Tenzu doesn't run your ads. You do. Through your own Meta Business account. We just make it easier. Your ad spend goes directly to Meta, not through us. We only charge ₦15k/month for access to the tool—no hidden fees, no percentage of your spend. Over 2,000 verified Nigerian businesses use Tenzu monthly.
 
 **Proof:** [Display trust badges: Paystack Verified, 4.8★ Rating, 2000+ Active Users]
 
 ### Example 2: Payment Objection
 
-**Q:** "Why should I trust AdSync with my card details?"
+**Q:** "Why should I trust Tenzu with my card details?"
 
 **Answer:**
 > You shouldn't! That's why we use Paystack—Nigeria's most trusted payment processor (they handle payments for Flutterwave, Piggyvest, and thousands of businesses). Your card details never touch our servers. Paystack handles everything, and they're PCI-DSS certified (the highest security standard). Plus, we offer bank transfer if you prefer zero online payment risk.
@@ -178,16 +178,16 @@ Chat. Click. Launch. Your AI Ad Consultant Handles the Rest.
 
 ### Example 4: Comparison Objection
 
-**Q:** "How is AdSync different from Wask or AdCreative.ai?"
+**Q:** "How is Tenzu different from Wask or AdCreative.ai?"
 
 **Answer:**
 > Three key differences:
 
-> 1. **Payment:** Wask requires USD payment (often fails with Nigerian cards). AdSync accepts Naira via Paystack.
-> 2. **Creative:** Wask gives you templates. AdSync's AI actually redesigns your photos.
-> 3. **Focus:** Wask is built for US/EU marketers. AdSync is built for Nigerian SMEs—WhatsApp links, mobile-first, local support.
+> 1. **Payment:** Wask requires USD payment (often fails with Nigerian cards). Tenzu accepts Naira via Paystack.
+> 2. **Creative:** Wask gives you templates. Tenzu's AI actually redesigns your photos.
+> 3. **Focus:** Wask is built for US/EU marketers. Tenzu is built for Nigerian SMEs—WhatsApp links, mobile-first, local support.
 
-> Bottom line: If you've ever seen "Payment Declined" on Wask, you need AdSync.
+> Bottom line: If you've ever seen "Payment Declined" on Wask, you need Tenzu.
 
 ## Social Proof Section
 
@@ -199,22 +199,22 @@ Chat. Click. Launch. Your AI Ad Consultant Handles the Rest.
 ### Strong Examples
 
 ```
-"I went from ₦200k agency fees per campaign to ₦15k monthly unlimited. AdSync paid for itself in week one."
+"I went from ₦200k agency fees per campaign to ₦15k monthly unlimited. Tenzu paid for itself in week one."
 — Chioma Okafor, Fashion Vendor, Lagos
 
 "My first campaign got 2,300 WhatsApp messages in 48 hours. The AI targeting was scary accurate."
 — Emeka Adeyemi, Phone Accessories, Abuja
 
-"I've tried everything—Wask, Canva, hiring freelancers. AdSync is the first tool my card actually accepts."
+"I've tried everything—Wask, Canva, hiring freelancers. Tenzu is the first tool my card actually accepts."
 — Tunde Balogun, Food Delivery, Port Harcourt
 ```
 
 ### Weak Examples (Avoid These)
 
 ```
-❌ "AdSync is amazing!" — Anonymous
+❌ "Tenzu is amazing!" — Anonymous
 ❌ "Best tool ever" — Happy Customer
-❌ "I love AdSync" — User
+❌ "I love Tenzu" — User
 ```
 
 **Why They're Weak:**
@@ -249,7 +249,7 @@ Pay with your Nigerian card—no international gateway drama.
 
 **Comparison Anchor:**
 > Traditional agency: ₦150,000 per campaign (1× use)
-> AdSync: ₦15,000 per month (unlimited campaigns)
+> Tenzu: ₦15,000 per month (unlimited campaigns)
 
 **Risk Reversal:**
 > 7-day money-back guarantee. Cancel anytime—no questions asked.
@@ -269,7 +269,7 @@ Launch Your First Campaign in 2 Minutes
 
 ### Outcome-Based
 ```
-Join 2,000+ Nigerian Businesses Growing with AdSync
+Join 2,000+ Nigerian Businesses Growing with Tenzu
 Create professional ads. Pay in Naira. Launch in minutes.
 
 [CTA Button]: Create My First Ad →
@@ -278,7 +278,7 @@ Create professional ads. Pay in Naira. Launch in minutes.
 
 ### Risk-Reversal-Based
 ```
-Try AdSync Risk-Free for 7 Days
+Try Tenzu Risk-Free for 7 Days
 If it doesn't work for your business, get a full refund—no questions asked.
 
 [CTA Button]: Start Free Trial →
@@ -297,7 +297,7 @@ Run professional Facebook ads in 2 minutes. Pay in Naira via Paystack. AI builds
 Run Professional Facebook Ads in 2 Minutes
 Pay in Naira. No Expert Needed. No Dollar Card Drama.
 
-Over 2,000 Nigerian vendors launch campaigns daily with AdSync's AI Consultant.
+Over 2,000 Nigerian vendors launch campaigns daily with Tenzu's AI Consultant.
 
 [Primary CTA]: Start Free Trial →
 [Secondary CTA]: See How It Works ↓
@@ -309,12 +309,12 @@ Tired of "Payment Declined"?
 
 You've tried Wask. You've tried AdCreative.ai. Same story: Your Nigerian card doesn't work. Their "international gateway" rejects you.
 
-Meanwhile, your competitors—the ones using AdSync—are launching campaigns right now.
+Meanwhile, your competitors—the ones using Tenzu—are launching campaigns right now.
 ```
 
 ### Solution Section
 ```
-AdSync: Built for Your Card, Your Business, Your Market
+Tenzu: Built for Your Card, Your Business, Your Market
 
 ✅ Naira Payment: Paystack-powered. Your local card works perfectly.
 ✅ AI Creative Studio: Turn phone photos into professional ads in seconds.

@@ -18,10 +18,68 @@ import {
 } from "@/lib/ai/context-compiler";
 import { isPermanentCreativeUrl, isTempUploadUrl } from "@/lib/creative-utils";
 import { requireCredits, spendCredits } from "@/lib/credits";
+import { z } from "zod";
 import { CREDIT_COSTS } from "@/lib/constants";
 import { getActiveOrgId } from "@/lib/active-org";
 import { resolveTier } from "@/lib/tier";
 import { SKILL_IDS } from "@/lib/ai/service";
+
+// Zod schema for AI-generated ad scene response
+// SECURITY: Validates AI JSON responses before using them to prevent runtime errors
+const AdSceneSchema = z.object({
+  safety_flagged: z.boolean().optional(),
+  ad_type: z.enum(["product_only", "lifestyle", "graphic"]).optional(),
+  format: z.object({
+    placement: z.enum(["social_feed", "story", "website", "ecommerce", "print"]).optional(),
+    aspect_ratio: z.string().optional(),
+    safe_zone_required: z.boolean().optional(),
+  }).optional(),
+  subject: z.object({
+    type: z.enum(["physical_product", "service", "digital_product"]).optional(),
+    name: z.string().optional(),
+    primary_focus: z.string().optional(),
+    secondary_elements: z.array(z.string()).optional(),
+  }).optional(),
+  scene: z.object({
+    environment: z.string().optional(),
+    location_context: z.string().optional(),
+    time_of_day: z.string().optional(),
+    mood: z.string().optional(),
+    cultural_context: z.string().optional(),
+  }).optional(),
+  lighting: z.object({
+    style: z.string().optional(),
+    temperature_kelvin: z.number().optional(),
+    direction: z.string().optional(),
+  }).optional(),
+  camera: z.object({
+    required: z.boolean().optional(),
+    angle: z.string().optional(),
+    lens_mm: z.number().optional(),
+    depth_of_field: z.string().optional(),
+  }).optional(),
+  text_overlay: z.object({
+    exists: z.boolean().optional(),
+    headline: z.string().optional(),
+    subtext: z.string().optional(),
+    cta: z.string().optional(),
+    placement_hint: z.string().optional(),
+    hierarchy: z.string().optional(),
+  }).optional(),
+  brand_tone: z.object({
+    positioning: z.string().optional(),
+    aesthetic: z.string().optional(),
+    color_palette: z.array(z.string()).optional(),
+    avoid: z.array(z.string()).optional(),
+  }).optional(),
+  constraints: z.object({
+    product_isolated: z.boolean().optional(),
+    no_humans: z.boolean().optional(),
+    no_exaggerated_claims: z.boolean().optional(),
+    high_resolution: z.boolean().optional(),
+    ad_ready_quality: z.boolean().optional(),
+  }).optional(),
+});
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
@@ -332,15 +390,29 @@ export async function generateAdCreative({
             .replace(/```\n?/g, "")
             .trim();
 
-          const jsonResponse = JSON.parse(rawJson);
+          // SECURITY FIX: Use Zod to validate AI JSON response before using it
+          // Prevents runtime errors from malformed AI responses
+          let jsonResponse;
+          try {
+            const parsed = JSON.parse(rawJson);
+            jsonResponse = AdSceneSchema.parse(parsed);
+          } catch (validationError: any) {
+            console.error("AI response validation failed:", validationError.message);
+            // Fallback: use raw prompt if schema validation fails
+            console.warn("Falling back to raw prompt due to schema validation failure");
+            finalPrompt = userMessage;
+            // Don't throw - degrade gracefully
+            return; // Skip the compilation step
+          }
 
           if (jsonResponse.safety_flagged) {
             throw new Error("Your prompt contains unsafe content. Please revise.");
           }
 
-          /* @ts-ignore */
           const { compileFluxPrompt } = await import("@/lib/ai/compiler");
-          finalPrompt = compileFluxPrompt(jsonResponse, aspectRatio || "1:1");
+          // Cast to the expected type - the AI should return all required fields
+          // but Zod schema makes them optional for safety
+          finalPrompt = compileFluxPrompt(jsonResponse as any, aspectRatio || "1:1");
           console.log("🧠 Compiled Prompt:", finalPrompt);
         }
       }
@@ -656,27 +728,26 @@ export async function saveCreativeToLibrary({
 
   const dims = ASPECT_DIMENSIONS[aspectRatio] || { width: 1024, height: 1024 };
 
-  // 4. Insert DB row
-  const { data: creativeData, error: dbError } = await supabase
-    .from("creatives")
-    .insert({
-      organization_id: orgId,
-      name: `AI Generated - ${prompt.slice(0, 30)}...`,
-      media_type: "image",
-      original_url: publicUrl,
-      width: dims.width,
-      height: dims.height,
-      file_size_bytes: buffer.length,
-      uploaded_by: user.id,
-      generation_prompt: prompt,
-      parent_id: parentCreativeId || null,
-    })
-    .select("id")
-    .single();
+  // 4. Insert DB row using shared saveCreative action (prevents RLS bypass)
+  const { saveCreative } = await import("@/actions/creatives");
+  const result = await saveCreative({
+    originalUrl: publicUrl,
+    width: dims.width,
+    height: dims.height,
+    format: "image/jpeg",
+    aiGenerated: true,
+    generationParams: {
+      prompt,
+      aspectRatio,
+      parentCreativeId: parentCreativeId || null,
+    },
+  });
 
-  if (dbError || !creativeData) {
+  if (!result.success || !result.creative) {
     throw new Error("Failed to save creative to database.");
   }
+
+  const creativeData = result.creative;
 
   // Clean up temp stash now that the image has a permanent home.
   // Fire-and-forget — failure here doesn't affect the caller.
@@ -798,7 +869,7 @@ export async function uploadTempImage(formData: FormData): Promise<string> {
 
   if (uploadError) {
     console.error("[uploadTempImage] Upload failed:", uploadError);
-    throw new Error("Failed to upload image. Please try again.");
+    throw new Error(`Failed to upload image. Please try again. (${uploadError.message || "Unknown error"})`);
   }
 
   const {

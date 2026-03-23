@@ -1,21 +1,21 @@
-# Sellam
+# Tenzu
 
 **AI-powered Meta ads for Nigerian SMEs — hustlers who sell fashion, food, beauty, and services on WhatsApp.**
 
-> "Sellam" is Nigerian Pidgin for "sell it." The repo folder is `adsync/` (legacy name).
+> "Tenzu" is Nigerian Pidgin for "sell it." The repo folder is `adsync/` (legacy name).
 
 ---
 
 ## What It Does
 
-Sellam lets a Nigerian business owner launch a Facebook/Instagram ad in under 2 minutes — in Naira, from their phone, without needing to understand Meta Ads Manager.
+Tenzu lets a Nigerian business owner launch a Facebook/Instagram ad in under 2 minutes — in Naira, from their phone, without needing to understand Meta Ads Manager.
 
 **Core loop:**
 
 1. SME pays ₦ subscription via Paystack
-2. Sellam AI builds the ad strategy + creative
+2. Tenzu AI builds the ad strategy + creative
 3. Ad runs on Meta (Facebook/Instagram)
-4. Every click goes through a Sellam smart link (`sellam.app/l/[token]`)
+4. Every click goes through a Tenzu smart link (`Tenzu.app/l/[token]`)
 5. SME sees ₦ spent → conversations → sales → profit
 
 ---
@@ -79,7 +79,7 @@ All agent instructions live in `.agent/`. Do not use root-level `.md` files as s
 ## Key Decisions (Summary)
 
 - **1:1:1 Rule** — 1 Campaign → 1 Ad Set → 1 Ad. Never break this.
-- **No raw URLs to Meta** — every destination wrapped in `sellam.app/l/[token]`
+- **No raw URLs to Meta** — every destination wrapped in `Tenzu.app/l/[token]`
 - **Naira-first** — SMEs never see a dollar amount
 - **TikTok deferred** — gated in backend, removed from UI
 - **Prepaid only** — no credit, no post-billing

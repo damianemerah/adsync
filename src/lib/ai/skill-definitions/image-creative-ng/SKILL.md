@@ -78,9 +78,9 @@ Output: **ONLY the final FLUX prompt string. No JSON. No preamble. No labels.**
 - Subject: "[young Nigerian woman/man], [action — holding product / using product / smiling naturally]"
 - Camera: "35mm lens, f/2, natural light candid" or "85mm portrait, f/1.8, background bokeh"
 - Person: "contemporary Nigerian styling, rich melanin skin, natural look, authentic expression"
-- Environment: "modern Lagos apartment interior, clean and minimal" or "rooftop, Lagos modern skyline blurred behind" or "bright studio with warm neutral accents"
-- Lighting: "natural window light from left, warm fill on face" or "clean studio, warm neutral 4500K"
-- Style: "lifestyle photography, candid-editorial feel, authentic, not posed"
+- Environment: "high-end luxury studio with warm neutral accents" or "minimalist modern indoor space with soft lighting" or "clean professional studio with subtle gradient backdrop"
+- Lighting: "soft cinematic studio lighting, warm 4500K fill, natural glow on skin"
+- Style: "lifestyle photography, high-end editorial feel, professional studio grade"
 
 ---
 

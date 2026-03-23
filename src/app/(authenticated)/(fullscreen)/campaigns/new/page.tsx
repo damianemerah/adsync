@@ -236,7 +236,7 @@ export default function NewCampaignPage() {
             generate AI creatives.
           </p>
           <Button
-            className="w-full mt-4 font-bold h-12 rounded-xl"
+            className="w-full mt-4 font-bold h-12 rounded-md"
             onClick={() => setIsPaymentOpen(true)}
           >
             Upgrade Plan
@@ -272,7 +272,7 @@ export default function NewCampaignPage() {
               size="sm"
               onClick={handleSaveOnly}
               disabled={isSaving}
-              className="flex items-center gap-2 h-9 rounded-xl font-medium border-border"
+              className="flex items-center gap-2 h-9 rounded-md font-medium border-border"
             >
               {savingState === "save" ? (
                 <SystemRestart className="h-4 w-4 animate-spin" />
@@ -323,7 +323,7 @@ export default function NewCampaignPage() {
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
-                className="rounded-xl shadow-soft border-border bg-popover"
+                className="rounded-md shadow-sm border border-border border-border bg-popover"
               >
                 {persistedDraftId && (
                   <DropdownMenuItem
@@ -367,7 +367,7 @@ export default function NewCampaignPage() {
             <TabsTrigger
               value="1"
               className={cn(
-                "h-12 rounded-2xl border-2 transition-all data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=inactive]:border-border data-[state=inactive]:bg-background",
+                "h-12 rounded-lg border-2 transition-all data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=inactive]:border-border data-[state=inactive]:bg-background",
                 "flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2",
               )}
             >
@@ -380,7 +380,7 @@ export default function NewCampaignPage() {
                 value="2"
                 disabled={!canGoToExtraStep}
                 className={cn(
-                  "h-12 rounded-2xl border-2 transition-all data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=inactive]:border-border data-[state=inactive]:bg-background",
+                  "h-12 rounded-lg border-2 transition-all data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=inactive]:border-border data-[state=inactive]:bg-background",
                   "flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2",
                   "disabled:opacity-40 disabled:cursor-not-allowed",
                 )}
@@ -394,7 +394,7 @@ export default function NewCampaignPage() {
               value={hasExtraStep ? "3" : "2"}
               disabled={!canGoToAudienceAdjusted}
               className={cn(
-                "h-12 rounded-2xl border-2 transition-all data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=inactive]:border-border data-[state=inactive]:bg-background",
+                "h-12 rounded-lg border-2 transition-all data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=inactive]:border-border data-[state=inactive]:bg-background",
                 "flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2",
                 "disabled:opacity-40 disabled:cursor-not-allowed",
               )}
@@ -409,7 +409,7 @@ export default function NewCampaignPage() {
               value={hasExtraStep ? "4" : "3"}
               disabled={!canGoToCreativeAdjusted}
               className={cn(
-                "h-12 rounded-2xl border-2 transition-all data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=inactive]:border-border data-[state=inactive]:bg-background",
+                "h-12 rounded-lg border-2 transition-all data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=inactive]:border-border data-[state=inactive]:bg-background",
                 "flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2",
                 "disabled:opacity-40 disabled:cursor-not-allowed",
               )}
@@ -424,7 +424,7 @@ export default function NewCampaignPage() {
               value={hasExtraStep ? "5" : "4"}
               disabled={!canGoToLaunchAdjusted}
               className={cn(
-                "h-12 rounded-2xl border-2 transition-all data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=inactive]:border-border data-[state=inactive]:bg-background",
+                "h-12 rounded-lg border-2 transition-all data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=inactive]:border-border data-[state=inactive]:bg-background",
                 "flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2",
                 "disabled:opacity-40 disabled:cursor-not-allowed",
               )}

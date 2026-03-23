@@ -10,8 +10,8 @@ export function SmartOptimizationSection() {
         <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-24">
           {/* Left Visual - Image */}
           <div className="w-full lg:w-1/2 relative mb-12 lg:mb-0">
-            <div className="bg-linear-to-b from-blue-100/50 to-transparent p-1 rounded-3xl relative">
-              <div className="aspect-4/3 relative rounded-2xl overflow-hidden bg-white shadow-xl border border-blue-50">
+            <div className="bg-linear-to-b from-blue-100/50 to-transparent p-1 rounded-lg relative">
+              <div className="aspect-4/3 relative rounded-lg overflow-hidden bg-white shadow-xl border border-blue-50">
                 {/* Generated Smart Optimization Dashboard Image */}
                 <Image
                   src="/images/smart-optimization-dashboard.png"
@@ -23,7 +23,7 @@ export function SmartOptimizationSection() {
               </div>
 
               {/* Floating Badge */}
-              <div className="absolute -bottom-6 -right-6 bg-white p-4 rounded-2xl shadow-lg border border-blue-50 animate-bounce-slow hidden md:block">
+              <div className="absolute -bottom-6 -right-6 bg-white p-4 rounded-lg shadow-sm border border-border border border-blue-50 animate-bounce-slow hidden md:block">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center text-green-600">
                     <CheckCircle className="w-5 h-5" />
@@ -64,8 +64,8 @@ export function SmartOptimizationSection() {
             </p>
 
             <div className="grid gap-6">
-              <div className="flex items-start gap-4 p-4 rounded-2xl hover:bg-white hover:shadow-sm transition-all border border-transparent hover:border-blue-50">
-                <div className="h-12 w-12 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+              <div className="flex items-start gap-4 p-4 rounded-lg hover:bg-white hover:shadow-sm transition-all border border-transparent hover:border-blue-50">
+                <div className="h-12 w-12 rounded-md bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
                   <StatsReport className="w-6 h-6" />
                 </div>
                 <div>
@@ -79,8 +79,8 @@ export function SmartOptimizationSection() {
                 </div>
               </div>
 
-              <div className="flex items-start gap-4 p-4 rounded-2xl hover:bg-white hover:shadow-sm transition-all border border-transparent hover:border-blue-50">
-                <div className="h-12 w-12 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+              <div className="flex items-start gap-4 p-4 rounded-lg hover:bg-white hover:shadow-sm transition-all border border-transparent hover:border-blue-50">
+                <div className="h-12 w-12 rounded-md bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
                   <Flash className="w-6 h-6" />
                 </div>
                 <div>
@@ -96,7 +96,7 @@ export function SmartOptimizationSection() {
             </div>
 
             <div className="pt-4">
-              <Button className="h-14 px-8 rounded-3xl bg-blue-600 hover:bg-blue-700 text-white shadow-soft font-bold text-lg group">
+              <Button className="h-14 px-8 rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-sm border border-border font-bold text-lg group">
                 Create Automation Rules
                 <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Button>

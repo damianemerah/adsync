@@ -1,14 +1,13 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"\;
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0"\;
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+// Edge functions invoked by pg_cron don't need CORS headers
+// Removed permissive CORS that allowed any origin to call this endpoint
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+  // pg_cron uses POST, not OPTIONS
+  if (req.method !== "POST") {
+    return new Response("Method not allowed", { status: 405 });
   }
 
   try {
@@ -24,11 +23,11 @@ serve(async (req) => {
     let resetCount = 0;
     let expiredCount = 0;
 
-    // 1. Credit Reset: Find active/trialing orgs where today is their billing cycle day
-    // Also ensure we haven't already updated them today (last_billing_update_at)
+    // 1. Credit Reset: Find active/trialing orgs where today is their billing cycle day.
+    //    Credits are user-scoped — reset on the users table per org owner.
     const { data: orgsToReset, error: resetErr } = await supabaseClient
       .from("organizations")
-      .select("id, credit_quota, last_billing_update_at")
+      .select("id, last_billing_update_at")
       .in("subscription_status", ["active", "trialing"])
       .eq("billing_cycle_day", currentDay);
 
@@ -44,13 +43,34 @@ serve(async (req) => {
           }
         }
 
-        // Reset credits to quota
+        // Find the org owner
+        const { data: ownerMember } = await supabaseClient
+          .from("organization_members")
+          .select("user_id")
+          .eq("organization_id", org.id)
+          .eq("role", "owner")
+          .single();
+
+        if (!ownerMember?.user_id) continue;
+
+        // Reset user's credits to their plan quota
+        const { data: userRecord } = await supabaseClient
+          .from("users")
+          .select("plan_credits_quota")
+          .eq("id", ownerMember.user_id)
+          .single();
+
+        const quota = userRecord?.plan_credits_quota ?? 50;
+
         const { error: updateErr } = await supabaseClient
+          .from("users")
+          .update({ credits_balance: quota, credits_reset_at: nowIso })
+          .eq("id", ownerMember.user_id);
+
+        // Also stamp the org so we don't double-reset today
+        await supabaseClient
           .from("organizations")
-          .update({
-            credits_balance: org.credit_quota,
-            last_billing_update_at: nowIso,
-          })
+          .update({ last_billing_update_at: nowIso })
           .eq("id", org.id);
 
         if (!updateErr) resetCount++;
@@ -62,7 +82,7 @@ serve(async (req) => {
       .from("organizations")
       .select("id")
       .eq("subscription_status", "trialing")
-      .lte("trial_ends_at", nowIso);
+      .lte("subscription_expires_at", nowIso);
 
     if (trialErr) throw trialErr;
 
@@ -88,19 +108,19 @@ serve(async (req) => {
     if (cancelErr) throw cancelErr;
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         creditsReset: resetCount,
-        trialsExpired: expiredCount 
+        trialsExpired: expiredCount
       }),
       {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
         status: 200,
       },
     );
   } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       status: 400,
     });
   }

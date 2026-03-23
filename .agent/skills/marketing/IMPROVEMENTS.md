@@ -1,12 +1,12 @@
 # What's New: Enhanced vs. Original Marketing Skill
 
-This document highlights the improvements in the enhanced version of your AdSync marketing skill.
+This document highlights the improvements in the enhanced version of your Tenzu marketing skill.
 
 ## Structural Improvements
 
 ### Original Skill
 ```
-adsync-marketing-copywriter/
+tenzu-marketing-copywriter/
 ├── SKILL.md (3,500 words, all in one file)
 └── resources/
     └── brand_voice.md (350 words, basic vocabulary)
@@ -14,7 +14,7 @@ adsync-marketing-copywriter/
 
 ### Enhanced Skill
 ```
-adsync-marketing-enhanced/
+tenzu-marketing-enhanced/
 ├── SKILL.md (2,000 words, quick reference framework)
 ├── references/ (5 detailed reference files)
 │   ├── brand-voice.md (2,500 words, comprehensive)
@@ -104,7 +104,7 @@ adsync-marketing-enhanced/
 **Original:** Listed as bullet points
 **Enhanced:** Complete framework for each:
 - Pain point statement
-- AdSync solution
+- Tenzu solution
 - Key messages
 - Competitive edge
 - When to use
@@ -125,7 +125,7 @@ adsync-marketing-enhanced/
 - Overview (product, target, pricing)
 - Their strengths (honest assessment)
 - Their weaknesses (specific pain points)
-- AdSync advantages (differentiated value)
+- Tenzu advantages (differentiated value)
 - When to mention (context)
 - Key messages (talking points)
 - Objection responses (common pushbacks)

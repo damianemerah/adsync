@@ -33,7 +33,7 @@ export const useDashboardStore = create<DashboardState>()(
       status: "all",
       searchQuery: "",
       dateRange: {
-        from: addDays(new Date(), -7),
+        from: addDays(new Date(), -30),
         to: new Date(),
       },
 
@@ -47,7 +47,7 @@ export const useDashboardStore = create<DashboardState>()(
       setDateRange: (range) => set({ dateRange: range }),
     }),
     {
-      name: "adsync-dashboard-context",
+      name: "tenzu-dashboard-context",
     },
   ),
 );

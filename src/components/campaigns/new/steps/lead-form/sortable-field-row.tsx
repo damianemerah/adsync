@@ -10,6 +10,7 @@ import {
   STANDARD_FIELD_LABELS,
   MetaStandardFieldType,
   META_STANDARD_FIELDS,
+  META_PREFILLED_FIELDS,
 } from "@/types/lead-form-builder";
 import { cn } from "@/lib/utils";
 
@@ -51,6 +52,9 @@ export function SortableFieldRow({
   const isStandard = META_STANDARD_FIELDS.includes(
     field.type as MetaStandardFieldType,
   );
+  const isPrefilled = META_PREFILLED_FIELDS.has(
+    field.type as MetaStandardFieldType,
+  );
   const isCustom = field.type === "CUSTOM" || field.type === "USER_CHOICE";
   const label = getFieldLabel(field);
   const isUntitled = !field.label && isCustom;
@@ -60,8 +64,8 @@ export function SortableFieldRow({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex items-center gap-3 px-3 py-2.5 rounded-xl border border-border bg-background transition-shadow",
-        isDragging && "shadow-lg opacity-80 z-50",
+        "flex items-center gap-3 px-3 py-2.5 rounded-md border border-border bg-background transition-shadow",
+        isDragging && "shadow-sm border border-border opacity-80 z-50",
       )}
     >
       {/* Drag Handle */}
@@ -85,10 +89,18 @@ export function SortableFieldRow({
       </span>
 
       {/* Badge */}
-      {isStandard && (
+      {isPrefilled && (
         <Badge
           variant="secondary"
           className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary border-primary/20 shrink-0"
+        >
+          ⚡ pre-filled
+        </Badge>
+      )}
+      {isStandard && !isPrefilled && (
+        <Badge
+          variant="secondary"
+          className="text-[10px] px-1.5 py-0.5 bg-muted text-muted-foreground shrink-0"
         >
           standard
         </Badge>

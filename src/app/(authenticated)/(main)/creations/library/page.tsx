@@ -18,6 +18,7 @@ import {
   Sparks,
   Plus,
   NavArrowDown,
+  Bin,
 } from "iconoir-react";
 import {
   DropdownMenu,
@@ -25,6 +26,7 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -50,11 +52,12 @@ import { useQueryClient } from "@tanstack/react-query";
 export default function CreativesPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { creatives, isLoading } = useCreatives();
+  const { creatives, isLoading, deleteCreatives, isDeleting } = useCreatives();
   const { data: accounts } = useAdAccounts();
 
   const [view, setView] = useState<"grid" | "list">("grid");
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [filterType, setFilterType] = useState<
     "all" | "image" | "video" | "generated_image"
   >("all");
@@ -62,6 +65,8 @@ export default function CreativesPage() {
   // Modals
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [previewItem, setPreviewItem] = useState<any>(null);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState("");
 
   const toggleSelection = (id: string) => {
     setSelectedItems((prev) =>
@@ -71,8 +76,33 @@ export default function CreativesPage() {
 
   // Helper to open preview
   const handlePreview = (item: any) => {
-    console.log(item);
     setPreviewItem({ ...item });
+    setEditedName(item.name || "");
+    setIsEditingName(false);
+  };
+
+  const handleUpdateName = async () => {
+    if (!editedName.trim() || editedName === previewItem.name) {
+      setIsEditingName(false);
+      return;
+    }
+
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("creatives")
+        .update({ name: editedName.trim() })
+        .eq("id", previewItem.id);
+
+      if (error) throw error;
+
+      setPreviewItem({ ...previewItem, name: editedName.trim() });
+      setIsEditingName(false);
+      queryClient.invalidateQueries({ queryKey: ["creatives"] });
+      toast.success("Name updated");
+    } catch (err: any) {
+      toast.error("Failed to update name", { description: err.message });
+    }
   };
 
   // Filtered creatives based on type selection
@@ -84,17 +114,27 @@ export default function CreativesPage() {
   // Delete a creative from storage + DB, then invalidate the list
   const handleDelete = async (id: string) => {
     try {
-      const supabase = createClient();
-      const { error } = await supabase.from("creatives").delete().eq("id", id);
-      if (error) throw error;
+      await deleteCreatives([id]);
       // Remove from selection if selected
       setSelectedItems((prev) => prev.filter((s) => s !== id));
       // Close preview if this was the previewed item
       if (previewItem?.id === id) setPreviewItem(null);
-      queryClient.invalidateQueries({ queryKey: ["creatives"] });
       toast.success("Creative deleted");
     } catch (err: any) {
       toast.error("Failed to delete", { description: err.message });
+    }
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedItems.length === 0) return;
+
+    try {
+      await deleteCreatives(selectedItems);
+      setSelectedItems([]);
+      setIsDeleteDialogOpen(false);
+      toast.success(`${selectedItems.length} assets deleted`);
+    } catch (err: any) {
+      toast.error("Failed to delete assets", { description: err.message });
     }
   };
 
@@ -141,7 +181,7 @@ export default function CreativesPage() {
       title: "Asset",
       render: (item: Creative) => (
         <div className="flex items-center gap-3 font-medium text-foreground">
-          <div className="h-10 w-10 rounded-xl bg-muted overflow-hidden relative shrink-0">
+          <div className="h-10 w-10 rounded-md bg-muted overflow-hidden relative shrink-0">
             <Image
               src={item.thumbnail_url || item.original_url}
               alt={item.name || "Creative"}
@@ -149,7 +189,9 @@ export default function CreativesPage() {
               className="object-cover"
             />
           </div>
-          {item.name}
+          <span className="truncate max-w-[240px]" title={item.name || ""}>
+            {item.name}
+          </span>
         </div>
       ),
     },
@@ -199,7 +241,7 @@ export default function CreativesPage() {
             <Button
               onClick={() => router.push("/creations/studio")}
               size="sm"
-              className="h-9 px-5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-soft gap-2"
+              className="h-9 px-5 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-sm border border-border gap-2"
             >
               <Sparks className="w-4 h-4" /> Generate with AI
             </Button>
@@ -211,14 +253,14 @@ export default function CreativesPage() {
       <main className="flex-1 overflow-y-auto p-2 md:p-4 lg:p-6">
         <div className="space-y-6 container max-w-7xl mx-auto">
           {/* Toolbar */}
-          <div className="flex flex-col md:flex-row justify-end items-start md:items-center gap-4 bg-card p-2 rounded-3xl border border-border shadow-soft">
+          <div className="flex flex-col md:flex-row justify-end items-start md:items-center gap-4 bg-card p-2 rounded-lg shadow-sm border border-border">
             <div className="flex items-center gap-2">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-10 rounded-xl border-border text-subtle-foreground hover:text-foreground hover:bg-muted gap-2"
+                    className="h-10 rounded-md border-border text-subtle-foreground hover:text-foreground hover:bg-muted gap-2"
                   >
                     <FilterList className="w-4 h-4" />
                     {filterType === "all"
@@ -258,7 +300,7 @@ export default function CreativesPage() {
                   </DropdownMenuCheckboxItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <div className="bg-muted/50 p-1 rounded-xl flex border border-border">
+              <div className="bg-muted/50 p-1 rounded-md flex border border-border">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -289,7 +331,7 @@ export default function CreativesPage() {
               <Button
                 onClick={() => setUploadModalOpen(true)}
                 size="sm"
-                className="h-10 px-6 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-soft hover:shadow-lg transition-all"
+                className="h-10 px-6 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-sm hover:shadow-sm border border-border transition-all"
               >
                 <CloudUpload className="w-4 h-4 mr-2" /> Upload
               </Button>
@@ -303,9 +345,9 @@ export default function CreativesPage() {
                 {/* Add New tile */}
                 <div
                   onClick={() => setUploadModalOpen(true)}
-                  className="aspect-square rounded-3xl border-2 border-dashed border-border bg-card/50 hover:bg-primary/5 hover:border-primary/50 transition-all cursor-pointer flex flex-col items-center justify-center gap-3 text-muted-foreground hover:text-primary group"
+                  className="aspect-square rounded-lg border-2 border-dashed border-border bg-card/50 hover:bg-primary/5 hover:border-primary/50 transition-all cursor-pointer flex flex-col items-center justify-center gap-3 text-muted-foreground hover:text-primary group"
                 >
-                  <div className="h-14 w-14 rounded-full bg-background shadow-soft flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <div className="h-14 w-14 rounded-full bg-background shadow-sm border border-border flex items-center justify-center group-hover:scale-110 transition-transform">
                     <Plus className="w-6 h-6" />
                   </div>
                   <span className="text-sm font-medium">Add New</span>
@@ -316,7 +358,7 @@ export default function CreativesPage() {
                   [...Array(8)].map((_, i) => (
                     <div
                       key={`skeleton-${i}`}
-                      className="rounded-3xl border border-border bg-card overflow-hidden animate-pulse"
+                      className="rounded-lg border border-border bg-card overflow-hidden animate-pulse"
                     >
                       <div className="aspect-square bg-muted" />
                       <div className="p-3 space-y-2">
@@ -373,13 +415,22 @@ export default function CreativesPage() {
 
       {/* Floating Action Bar */}
       {selectedItems.length > 0 && (
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-foreground text-background px-6 py-3 rounded-full shadow-soft flex items-center gap-6 animate-in slide-in-from-bottom-6 z-20 border border-white/10">
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-foreground text-background px-6 py-3 rounded-full shadow-sm border border-border flex items-center gap-6 animate-in slide-in-from-bottom-6 z-20">
           <span className="font-medium text-sm flex items-center gap-2">
             <CheckCircle className="w-4 h-4 text-primary" />
             {selectedItems.length} selected
           </span>
           <div className="h-4 w-px bg-white/20" />
           <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-slate-300 hover:text-white hover:bg-white/10"
+              onClick={() => setIsDeleteDialogOpen(true)}
+              disabled={isDeleting}
+            >
+              <Bin className="w-4 h-4 mr-2" /> Delete
+            </Button>
             <Button
               size="sm"
               variant="ghost"
@@ -420,93 +471,98 @@ export default function CreativesPage() {
         open={!!previewItem}
         onOpenChange={(open) => !open && setPreviewItem(null)}
       >
-        <DialogContent className="max-w-5xl p-0 overflow-hidden bg-background border-0 shadow-soft rounded-3xl gap-0">
-          <div className="grid md:grid-cols-5 h-[80vh]">
-            {/* Media Side (3/5 width) */}
-            <div className="md:col-span-3 bg-muted/30 flex items-center justify-center relative p-8 group">
-              {/* Floating Badges */}
-              <div className="absolute top-6 left-6 flex gap-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                <Badge
-                  variant="secondary"
-                  className="bg-black/40 backdrop-blur-md text-white border-white/10 hover:bg-black/50 px-3 py-1.5 text-xs font-medium"
-                >
-                  {previewItem?.width} x {previewItem?.height}
-                </Badge>
-                <Badge
-                  variant="secondary"
-                  className="bg-black/40 backdrop-blur-md text-white border-white/10 hover:bg-black/50 uppercase px-3 py-1.5 text-xs font-medium"
-                >
-                  {previewItem?.media_type}
-                </Badge>
-              </div>
-
+        <DialogContent className="max-w-lg p-0 overflow-hidden bg-background border-0 shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] gap-0 h-[85vh] sm:h-[80vh]">
+          <div className="relative w-full h-full flex flex-col group overflow-hidden">
+            {/* Background Media Layer */}
+            <div className="absolute inset-0 z-0">
               {previewItem?.media_type === "VIDEO" ||
               previewItem?.media_type === "video" ? (
                 <video
                   src={previewItem.media_url || previewItem.original_url}
                   poster={previewItem.thumbnail_url}
-                  controls
-                  preload="metadata"
-                  className="max-h-full max-w-full rounded-2xl shadow-xl"
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="w-full h-full object-cover scale-105 group-hover:scale-100 transition-transform duration-700 ease-out"
                 />
               ) : (
-                <div className="relative w-full h-full">
-                  <Image
-                    src={
-                      previewItem?.media_url ||
-                      previewItem?.original_url ||
-                      null
-                    }
-                    alt="Preview"
-                    fill
-                    className="object-contain drop-shadow-xl"
-                  />
-                </div>
+                <Image
+                  src={
+                    previewItem?.media_url ||
+                    previewItem?.original_url ||
+                    "/placeholder.png"
+                  }
+                  alt="Preview"
+                  fill
+                  className="object-cover scale-105 group-hover:scale-100 transition-transform duration-700 ease-out"
+                />
+              )}
+              {/* Vibe Gradient Overlay */}
+              <div className="absolute inset-0 bg-linear-to-t from-black/95 via-black/40 to-transparent opacity-80" />
+            </div>
+
+            {/* Top Floating Badges */}
+            <div className="absolute top-6 left-6 flex gap-2 z-20">
+              <Badge className="bg-white/10 backdrop-blur-xl text-white border-white/20 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider">
+                {previewItem?.media_type}
+              </Badge>
+              {previewItem?.width && previewItem?.height && previewItem.width > 0 && previewItem.height > 0 && (
+                <Badge className="bg-white/10 backdrop-blur-xl text-white border-white/20 px-3 py-1.5 text-[10px] font-bold">
+                  {previewItem.width}x{previewItem.height}
+                </Badge>
               )}
             </div>
 
-            {/* Info Side (2/5 width) */}
-            <div className="md:col-span-2 p-8 bg-card flex flex-col border-l border-border relative">
-              <DialogHeader>
-                <DialogTitle className="text-3xl font-heading font-bold text-foreground mb-2 leading-tight">
-                  {previewItem?.name || "Library Asset"}
-                </DialogTitle>
-                <p className="text-sm text-muted-foreground font-medium flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-primary" />
-                  Uploaded to AdSync
-                </p>
-              </DialogHeader>
-
-              <div className="flex-1 space-y-8 mt-8 overflow-y-auto pr-2 no-scrollbar">
-                {/* Simplified Metadata for Library Assets */}
-                <div className="space-y-6">
-                  <div className="bg-muted/30 p-4 rounded-2xl border border-border/50">
-                    <p className="text-xs font-medium text-subtle-foreground mb-1 uppercase tracking-wider">
-                      Filename
-                    </p>
-                    <p className="font-mono text-sm text-foreground break-all">
-                      {previewItem?.name}
-                    </p>
-                  </div>
+            {/* Content Overlay Section */}
+            <div className="mt-auto relative z-10 p-8 pt-24 space-y-6">
+              <div className="space-y-1">
+                {isEditingName ? (
+                  <Input
+                    value={editedName}
+                    onChange={(e) => setEditedName(e.target.value)}
+                    onBlur={handleUpdateName}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleUpdateName();
+                      if (e.key === "Escape") setIsEditingName(false);
+                    }}
+                    className="bg-white/10 border-white/20 text-white text-2xl font-heading font-bold h-auto py-1 px-3 mb-2 focus-visible:ring-0 focus-visible:border-white/40 rounded-xl"
+                    autoFocus
+                  />
+                ) : (
+                  <h2
+                    className="text-3xl font-heading font-bold text-white leading-tight tracking-tight drop-shadow-sm cursor-pointer hover:text-white/80 transition-colors block truncate w-full"
+                    onClick={() => setIsEditingName(true)}
+                    title={previewItem?.name || "Library Asset"}
+                  >
+                    {previewItem?.name || "Library Asset"}
+                  </h2>
+                )}
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                  <span className="text-sm font-medium text-white/60">
+                    Saved to Tenzu Library
+                  </span>
                 </div>
               </div>
 
-              <DialogFooter className="mt-auto pt-6 border-t border-border flex gap-3 z-10">
+              {/* Action Toolbar */}
+              <div className="flex gap-3 pt-2">
                 <Button
                   variant="outline"
-                  className="flex-1 h-12 rounded-full font-bold border-2 border-border text-muted-foreground hover:border-primary/50 hover:bg-primary/5 hover:text-primary transition-all"
+                  className="flex-1 h-14 rounded-2xl font-bold bg-white/5 border-white/10 text-white hover:bg-white/10 hover:text-white transition-all backdrop-blur-sm"
                   onClick={() => {
                     router.push(`/creations/studio/${previewItem.id}`);
                   }}
                 >
-                  <Sparks className="w-4 h-4 mr-2" /> Edit
+                  <Sparks className="w-5 h-5 mr-2 text-primary" /> Edit
                 </Button>
                 <Button
                   className={cn(
-                    "flex-1 h-12 text-sm rounded-full font-bold shadow-lg transition-all",
+                    "flex-[1.5] h-14 text-sm rounded-2xl font-bold shadow-xl transition-all",
                     selectedItems.includes(previewItem?.id)
-                      ? "bg-muted text-muted-foreground hover:bg-muted/80 shadow-none border border-border"
-                      : "bg-primary hover:bg-primary/90 text-primary-foreground shadow-soft",
+                      ? "bg-white/20 text-white hover:bg-white/30 border border-white/20"
+                      : "bg-primary hover:bg-primary/90 text-primary-foreground border-0",
                   )}
                   onClick={() => {
                     toggleSelection(previewItem.id);
@@ -515,15 +571,15 @@ export default function CreativesPage() {
                 >
                   {selectedItems.includes(previewItem?.id) ? (
                     <>
-                      <Xmark className="w-4 h-4 mr-2" /> Deselect
+                      <Xmark className="w-5 h-5 mr-2" /> Deselect
                     </>
                   ) : (
                     <>
-                      <CheckCircle className="w-4 h-4 mr-2" /> Select for Ad
+                      <CheckCircle className="w-5 h-5 mr-2" /> Select for Ad
                     </>
                   )}
                 </Button>
-              </DialogFooter>
+              </div>
             </div>
           </div>
         </DialogContent>
@@ -534,6 +590,40 @@ export default function CreativesPage() {
         open={uploadModalOpen}
         onOpenChange={setUploadModalOpen}
       />
+
+      {/* --- DELETE CONFIRMATION DIALOG --- */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="max-w-md p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-heading font-bold">
+              Delete {selectedItems.length} Assets?
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-subtle-foreground">
+              Are you sure you want to delete these assets? This will also
+              physically remove them from Supabase storage and cannot be undone.
+            </p>
+          </div>
+          <DialogFooter className="flex gap-3">
+            <Button
+              variant="ghost"
+              onClick={() => setIsDeleteDialogOpen(false)}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleBatchDelete}
+              disabled={isDeleting}
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold"
+            >
+              {isDeleting ? "Deleting..." : "Yes, Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

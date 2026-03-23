@@ -24,7 +24,7 @@ export function FormMetadataPanel({
   onThankYouMessageChange,
 }: FormMetadataPanelProps) {
   return (
-    <Card className="rounded-3xl shadow-soft border-border overflow-hidden bg-card">
+    <Card className="rounded-lg shadow-sm border border-border border-border overflow-hidden bg-card">
       <CardHeader className="pb-3 border-b border-border bg-muted/20">
         <CardTitle className="text-sm font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
           <ClipboardCheck className="h-4 w-4 text-primary" />
@@ -52,12 +52,15 @@ export function FormMetadataPanel({
             type="url"
           />
           <p className="text-xs text-muted-foreground">
-            Required by Meta. Must link to a valid privacy policy on your website.
+            Required by Meta. Must link to a valid privacy policy on your
+            website.
           </p>
         </div>
 
         <div className="space-y-1.5">
-          <Label className="font-bold text-sm">Thank You Message (Optional)</Label>
+          <Label className="font-bold text-sm">
+            Thank You Message (Optional)
+          </Label>
           <Textarea
             value={thankYouMessage}
             onChange={(e) => onThankYouMessageChange(e.target.value)}

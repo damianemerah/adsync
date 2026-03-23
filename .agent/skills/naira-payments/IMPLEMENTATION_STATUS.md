@@ -165,7 +165,7 @@ export default function BillingPage() {
 
 ### 1. Run Database Migrations
 ```bash
-cd /home/chisom/projects/adsync
+cd /home/chisom/projects/tenzu
 
 # Apply both migrations
 supabase db push

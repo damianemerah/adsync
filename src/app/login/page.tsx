@@ -12,7 +12,7 @@ export default function LoginPage() {
       <div className="flex flex-col justify-center px-8 sm:px-12 lg:px-20 xl:px-24 bg-background">
         <div className="w-full max-w-sm mx-auto space-y-8">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground shadow-soft">
+            <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center text-primary-foreground shadow-sm border border-border">
               <Flash className="h-6 w-6 stroke-[2]" />
             </div>
             <span className="font-heading font-extrabold text-2xl text-foreground tracking-tight">
@@ -32,7 +32,7 @@ export default function LoginPage() {
           {/* Wrap the form in Suspense boundary */}
           <Suspense
             fallback={
-              <div className="h-64 animate-pulse bg-muted rounded-3xl" />
+              <div className="h-64 animate-pulse bg-muted rounded-lg" />
             }
           >
             <LoginForm />

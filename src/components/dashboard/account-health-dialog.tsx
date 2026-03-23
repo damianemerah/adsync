@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useQuery } from "@tanstack/react-query";
 import {
   Check,
   WarningCircle,
@@ -30,26 +31,27 @@ export function AccountHealthDialog({
   open,
   onOpenChange,
 }: AccountHealthDialogProps) {
-  const [result, setResult] = useState<AccountHealthResult | null>(null);
-  const [isPending, startTransition] = useTransition();
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
 
-  const runScan = () => {
-    startTransition(async () => {
+  const {
+    data: result,
+    isFetching: isPending,
+    refetch,
+  } = useQuery({
+    queryKey: ["account-health"],
+    queryFn: async () => {
       const data = await getAccountHealth();
-      setResult(data);
       // Auto-expand problem rows
-      const problemIds = data.checks
-        .filter((c) => c.status !== "healthy")
-        .map((c) => c.id);
-      setExpandedIds(problemIds);
-    });
-  };
+      setExpandedIds(
+        data.checks.filter((c) => c.status !== "healthy").map((c) => c.id),
+      );
+      return data;
+    },
+    enabled: open,
+    staleTime: 0, // always fresh when dialog opens
+  });
 
-  // Auto-scan when dialog opens
-  useEffect(() => {
-    if (open) runScan();
-  }, [open]);
+  const runScan = () => { refetch(); };
 
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) =>
@@ -62,7 +64,7 @@ export function AccountHealthDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto no-scrollbar sm:max-w-[520px] p-0 gap-0 rounded-3xl overflow-hidden border-border shadow-2xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto no-scrollbar sm:max-w-[520px] p-0 gap-0 rounded-lg overflow-hidden border-border shadow-2xl">
         {/* Top Section */}
         <div className="flex flex-col items-center pt-10 pb-6 px-8 text-center relative">
           {/* Animated icon */}
@@ -122,7 +124,7 @@ export function AccountHealthDialog({
         </div>
 
         {/* Checks List */}
-        <div className="max-h-[400px] overflow-y-auto no-scrollbar mx-6 mb-2 rounded-2xl border border-border divide-y divide-border bg-card">
+        <div className="max-h-[400px] overflow-y-auto no-scrollbar mx-6 mb-2 rounded-lg border border-border divide-y divide-border bg-card">
           {isPending && !result
             ? // Skeleton
               [...Array(4)].map((_, i) => (
@@ -150,7 +152,7 @@ export function AccountHealthDialog({
             variant="outline"
             onClick={runScan}
             disabled={isPending}
-            className="gap-2 rounded-xl border-border text-muted-foreground hover:text-foreground"
+            className="gap-2 rounded-md border-border text-muted-foreground hover:text-foreground"
           >
             <RefreshDouble
               className={cn("h-4 w-4", isPending && "animate-spin")}
@@ -159,7 +161,7 @@ export function AccountHealthDialog({
           </Button>
           <Button
             onClick={() => onOpenChange(false)}
-            className="rounded-xl bg-foreground text-background hover:bg-foreground/90 font-semibold px-6"
+            className="rounded-md bg-foreground text-background hover:bg-foreground/90 font-semibold px-6"
           >
             {allClear ? "Done" : "Skip for Now"}
           </Button>

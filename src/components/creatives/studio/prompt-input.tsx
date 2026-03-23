@@ -108,6 +108,14 @@ export function PromptInput({
       return;
     }
 
+    // Check individual file sizes (5MB limit for Next.js server actions)
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    const oversizedFiles = files.filter(f => f.size > MAX_FILE_SIZE);
+    if (oversizedFiles.length > 0) {
+      toast.error("Image Too Large", { description: "One or more images exceed the 5MB limit. Please use smaller images." });
+      return;
+    }
+
     setIsUploading(true);
     try {
       const uploadPromises = files.map(async (file) => {
@@ -123,9 +131,13 @@ export function PromptInput({
         onImageUrlsChange([...imageUrls, ...validUrls]);
         toast.success(`Uploaded ${validUrls.length} image(s)`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Upload failed", error);
-      toast.error("Failed to upload image. Please try again.");
+      if (error?.message?.includes("exceeded 5 MB limit") || error?.message?.includes("exceeded 1 MB limit") || error?.message?.includes("limit")) {
+        toast.error("Image Too Large", { description: "The uploaded reference image is too large. Please use an image under 5MB." });
+      } else {
+        toast.error("Failed to upload image. Please try again.");
+      }
     } finally {
       setIsUploading(false);
       setIsDragOver(false);
@@ -191,7 +203,7 @@ export function PromptInput({
   return (
     <div
       className={cn(
-        "relative rounded-2xl border border-border bg-card shadow-soft transition-all focus-within:ring-2 focus-within:ring-primary/20",
+        "relative rounded-lg bg-card shadow-sm border border-border transition-all focus-within:ring-2 focus-within:ring-primary/20",
         isDragOver && "ring-2 ring-primary border-primary bg-primary/5",
         className,
       )}
@@ -201,7 +213,7 @@ export function PromptInput({
     >
       {/* Drag Overlay */}
       {isDragOver && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-2xl">
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
           <div className="text-center animate-in zoom-in-95 duration-200">
             <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-3">
               <Upload className="w-6 h-6 text-primary" />
@@ -367,7 +379,7 @@ export function PromptInput({
                     {imageUrls.map((url, idx) => (
                       <div
                         key={idx}
-                        className="relative aspect-square rounded-xl overflow-hidden border border-border group bg-muted/50"
+                        className="relative aspect-square rounded-md overflow-hidden border border-border group bg-muted/50"
                       >
                         <Image
                           src={url}

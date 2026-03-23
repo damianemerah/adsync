@@ -26,7 +26,7 @@ export function RevenueChannelBreakdown({
 
   if (totalRevenue === 0) {
     return (
-      <Card className="h-full shadow-soft">
+      <Card className="h-full shadow-sm border border-border">
         <CardHeader>
           <CardTitle>Revenue Channel</CardTitle>
         </CardHeader>
@@ -38,7 +38,7 @@ export function RevenueChannelBreakdown({
   }
 
   return (
-    <Card className="h-full shadow-soft">
+    <Card className="h-full shadow-sm border border-border">
       <CardHeader>
         <CardTitle>Revenue Source</CardTitle>
       </CardHeader>

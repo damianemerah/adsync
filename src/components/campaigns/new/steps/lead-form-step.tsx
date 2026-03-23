@@ -1,6 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { useCampaignStore } from "@/stores/campaign-store";
 import { useAdAccounts } from "@/hooks/use-ad-account";
 import { useOrganization } from "@/hooks/use-organization";
@@ -50,106 +54,141 @@ import {
   aiSuggestionToFormFields,
 } from "@/lib/lead-form-defaults";
 
+// ─── Zod Schema ───────────────────────────────────────────────────────────────
+
+const leadFormSchema = z.object({
+  formName: z.string().min(1, "Form name is required"),
+  privacyPolicyUrl: z.string().url("Must be a valid URL (e.g. https://…)"),
+  thankYouMessage: z.string().min(1, "Thank you message is required"),
+});
+
+type LeadFormValues = z.infer<typeof leadFormSchema>;
+
 const DEFAULT_FIELDS: FormField[] = [
   { id: nanoid(), type: "FULL_NAME" },
   { id: nanoid(), type: "EMAIL" },
 ];
 
-type ViewMode = "select" | "ai" | "create";
+type ViewMode = "select" | "create";
 
 export function LeadFormStep() {
-  const {
-    leadGenFormId,
-    updateDraft,
-    suggestedLeadForm,
-    campaignName,
-  } = useCampaignStore();
+  const { leadGenFormId, updateDraft, suggestedLeadForm, campaignName } =
+    useCampaignStore();
+  const queryClient = useQueryClient();
   const { data: accounts } = useAdAccounts();
   const { organization } = useOrganization();
 
-  // Bug 1 & 2 fix: auto-select the default (or first) account using the correct field name
   const defaultAccount = accounts?.find((a) => a.isDefault) ?? accounts?.[0];
   const adAccountId = defaultAccount?.accountId;
 
-  const [pages, setPages] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedPageId, setSelectedPageId] = useState<string>("");
-  const pageSelectionInitialized = useRef(false);
-  const [forms, setForms] = useState<Array<{ id: string; name: string }>>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
   const [view, setView] = useState<ViewMode>("select");
-
-  // Builder state
   const [fields, setFields] = useState<FormField[]>(DEFAULT_FIELDS);
-  const [formName, setFormName] = useState("");
-  const [privacyPolicyUrl, setPrivacyPolicyUrl] = useState("");
-  const [thankYouMessage, setThankYouMessage] = useState(
-    "Thanks, we'll be in touch soon!",
-  );
+  const [hasAppliedAISuggestion, setHasAppliedAISuggestion] = useState(false);
+
+  const {
+    register,
+    setValue,
+    watch,
+    formState: { errors },
+    handleSubmit,
+    reset,
+  } = useForm<LeadFormValues>({
+    resolver: zodResolver(leadFormSchema),
+    defaultValues: {
+      formName: "",
+      privacyPolicyUrl: "",
+      thankYouMessage: "Thanks, we'll be in touch soon!",
+    },
+  });
+
+  const thankYouMessage = watch("thankYouMessage");
+  const formName = watch("formName");
+  const privacyPolicyUrl = watch("privacyPolicyUrl");
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   );
 
-  // Bug 3 fix: fetch Facebook Pages first, then load forms for the selected page
-  useEffect(() => {
-    if (!adAccountId) return;
-    let cancelled = false;
+  // ─── Fetch Facebook Pages ────────────────────────────────────────────────────
+  const { data: pagesData, isLoading: isPagesLoading } = useQuery({
+    queryKey: ["meta", "pages", adAccountId],
+    queryFn: async () => {
+      const res = await fetchMetaPages(adAccountId!);
+      if (!res.success) throw new Error("Failed to load Facebook Pages");
+      return res.pages;
+    },
+    enabled: !!adAccountId,
+    staleTime: 5 * 60 * 1000,
+    meta: {
+      onSuccess: (pages: Array<{ id: string; name: string }>) => {
+        if (pages.length > 0 && !selectedPageId) {
+          setSelectedPageId(pages[0].id);
+          updateDraft({ pageId: pages[0].id });
+        }
+      },
+    },
+  });
 
-    async function loadPagesAndForms() {
-      setIsLoading(true);
-      const pagesRes = await fetchMetaPages(adAccountId!);
-      if (cancelled) return;
+  const pages = pagesData ?? [];
 
-      if (!pagesRes.success || !pagesRes.pages.length) {
-        setIsLoading(false);
-        return;
-      }
+  // Auto-select first page
+  const firstPageId = pages[0]?.id;
+  const effectivePageId = selectedPageId || firstPageId || "";
 
-      setPages(pagesRes.pages);
-      const pageId = pagesRes.pages[0].id;
-      setSelectedPageId(pageId);
-      updateDraft({ pageId });
-
-      const formsRes = await fetchLeadGenForms(adAccountId!, pageId);
-      if (cancelled) return;
-
-      if (formsRes.success && formsRes.forms) {
-        setForms(formsRes.forms);
-      } else {
+  // ─── Fetch Lead Gen Forms ────────────────────────────────────────────────────
+  const { data: formsData, isLoading: isFormsLoading } = useQuery({
+    queryKey: ["meta", "lead-forms", adAccountId, effectivePageId],
+    queryFn: async () => {
+      const res = await fetchLeadGenForms(adAccountId!, effectivePageId);
+      if (!res.success) {
         toast.error("Failed to load existing forms from Meta");
+        return [];
       }
-      setIsLoading(false);
-    }
+      return res.forms ?? [];
+    },
+    enabled: !!adAccountId && !!effectivePageId,
+    staleTime: 2 * 60 * 1000,
+  });
 
-    loadPagesAndForms();
-    return () => { cancelled = true; };
-  }, [adAccountId]);
+  const forms = formsData ?? [];
+  const isLoading = isPagesLoading || isFormsLoading;
 
-  // Reload forms when user manually switches page (skip the initial auto-selection)
-  useEffect(() => {
-    if (!adAccountId || !selectedPageId) return;
-    if (!pageSelectionInitialized.current) {
-      pageSelectionInitialized.current = true;
-      return;
-    }
-    let cancelled = false;
-
-    async function reloadForms() {
-      setIsLoading(true);
-      const res = await fetchLeadGenForms(adAccountId!, selectedPageId);
-      if (cancelled) return;
-      if (res.success && res.forms) {
-        setForms(res.forms);
-      } else {
-        toast.error("Failed to load existing forms from Meta");
+  // ─── Create Form Mutation ────────────────────────────────────────────────────
+  const createFormMutation = useMutation({
+    mutationFn: async (values: LeadFormValues) => {
+      if (!adAccountId || !effectivePageId) {
+        throw new Error("Missing ad account or page selection");
       }
-      setIsLoading(false);
-    }
-
-    reloadForms();
-    return () => { cancelled = true; };
-  }, [selectedPageId]);
+      const res = await createLeadForm(adAccountId, effectivePageId, {
+        name: values.formName,
+        privacyPolicyUrl: values.privacyPolicyUrl,
+        thankYouMessage: values.thankYouMessage,
+        questions: fields,
+      });
+      if (!res.success || !res.formId) {
+        throw new Error(
+          res.error ||
+            "Failed to create form. Ensure your Page has accepted Meta's Lead Ads TOS.",
+        );
+      }
+      return res.formId;
+    },
+    onSuccess: (formId) => {
+      toast.success("Lead Form Created!");
+      updateDraft({ leadGenFormId: formId });
+      // Invalidate so forms list refreshes
+      queryClient.invalidateQueries({
+        queryKey: ["meta", "lead-forms", adAccountId, effectivePageId],
+      });
+      setView("select");
+      reset();
+      setFields(DEFAULT_FIELDS);
+    },
+    onError: (err: Error) => {
+      toast.error(err.message);
+    },
+  });
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -175,70 +214,54 @@ export function LeadFormStep() {
     );
   };
 
-  const handleCreateNewForm = async () => {
-    if (!formName || !privacyPolicyUrl) {
-      toast.error("Please provide a form name and privacy policy URL");
-      return;
-    }
-    if (!adAccountId || !selectedPageId) {
-      toast.error("Missing ad account or page selection");
-      return;
-    }
+  const handleCreateNewForm = handleSubmit((values) => {
+    createFormMutation.mutate(values);
+  });
 
-    setIsCreating(true);
-
-    const res = await createLeadForm(adAccountId, selectedPageId, {
-      name: formName,
-      privacyPolicyUrl,
-      thankYouMessage,
-      questions: fields,
-    });
-
-    if (res.success && res.formId) {
-      toast.success("Lead Form Created!");
-      setForms((prev) => [...prev, { id: res.formId!, name: formName }]);
-      updateDraft({ leadGenFormId: res.formId });
-      setView("select");
-      setFormName("");
-      setPrivacyPolicyUrl("");
-      setFields([
-        { id: nanoid(), type: "FULL_NAME" },
-        { id: nanoid(), type: "EMAIL" },
-      ]);
-    } else {
-      toast.error(
-        res.error ||
-          "Failed to create form. Ensure your Page has accepted Meta's Lead Ads TOS.",
-      );
-    }
-    setIsCreating(false);
-  };
+  const isCreating = createFormMutation.isPending;
 
   // AI Generate: populate builder from local defaults or store's AI suggestion
   const handleAIGenerate = () => {
     if (suggestedLeadForm) {
-      // Use AI suggestion from strategy result
       const result = aiSuggestionToFormFields(suggestedLeadForm);
       setFields(result.fields);
-      setThankYouMessage(result.thankYouMessage);
+      setValue("thankYouMessage", result.thankYouMessage);
     } else {
-      // Use local industry-based defaults
       const defaults = getLeadFormDefaults(organization?.industry);
       setFields(defaults.fields);
-      setThankYouMessage(defaults.thankYouMessage);
+      setValue("thankYouMessage", defaults.thankYouMessage);
     }
-    // Auto-generate form name from campaign name
     const baseName = campaignName || organization?.name || "Lead Form";
-    setFormName(`${baseName} - Lead Form`);
+    setValue("formName", `${baseName} - Lead Form`);
+    setHasAppliedAISuggestion(true);
   };
 
-  const handleCustomizeFromAI = () => {
-    // Fields are already populated, just switch to create view
-    setView("create");
+  // Question validation helpers
+  const fieldCount = fields.length;
+  const hasMinimumFields = fieldCount >= 2;
+  const isOptimalRange = fieldCount >= 3 && fieldCount <= 5;
+  const isAcceptableRange = fieldCount >= 6 && fieldCount <= 8;
+  const hasTooManyFields = fieldCount > 8;
+
+  const getFieldCountColor = () => {
+    if (fieldCount < 2) return "text-destructive";
+    if (isOptimalRange) return "text-green-600";
+    if (isAcceptableRange) return "text-yellow-600";
+    if (hasTooManyFields) return "text-orange-600";
+    return "text-foreground";
   };
 
-  const canSave =
-    !isCreating && !!formName && !!privacyPolicyUrl && fields.length > 0;
+  const getFieldCountMessage = () => {
+    if (fieldCount < 2) return "Add at least 2 fields to create a valid form";
+    if (isOptimalRange)
+      return "Optimal number of questions for high conversion";
+    if (isAcceptableRange) return "Good balance between quality and conversion";
+    if (hasTooManyFields)
+      return "Many questions may reduce conversions but improve lead quality";
+    return "";
+  };
+
+  const canSave = !isCreating && hasMinimumFields;
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4">
@@ -256,12 +279,12 @@ export function LeadFormStep() {
         </p>
       </div>
 
-      {/* Toggle Header — 3 options */}
-      <div className="flex bg-muted p-1 rounded-xl mb-8 relative z-10 w-full max-w-md mx-auto">
+      {/* Toggle Header — 2 tabs */}
+      <div className="flex bg-muted p-1 rounded-md mb-8 relative z-10 w-full max-w-sm mx-auto">
         <button
           onClick={() => setView("select")}
           className={cn(
-            "flex-1 py-2 text-sm font-bold rounded-lg transition-all",
+            "flex-1 py-2.5 text-sm font-bold rounded-lg transition-all",
             view === "select"
               ? "bg-background shadow-sm text-foreground"
               : "text-muted-foreground hover:text-foreground",
@@ -270,53 +293,38 @@ export function LeadFormStep() {
           Select Existing
         </button>
         <button
-          onClick={() => {
-            setView("ai");
-            handleAIGenerate();
-          }}
-          className={cn(
-            "flex-1 py-2 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-1.5",
-            view === "ai"
-              ? "bg-background shadow-sm text-foreground"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          <Sparks className="h-3.5 w-3.5" />
-          AI Generate
-        </button>
-        <button
           onClick={() => setView("create")}
           className={cn(
-            "flex-1 py-2 text-sm font-bold rounded-lg transition-all",
+            "flex-1 py-2.5 text-sm font-bold rounded-lg transition-all",
             view === "create"
               ? "bg-background shadow-sm text-foreground"
               : "text-muted-foreground hover:text-foreground",
           )}
         >
-          Build Manually
+          Create New Form
         </button>
       </div>
 
       {/* Select Existing */}
       {view === "select" && (
         <div className="max-w-3xl mx-auto">
-          <div className="bg-card border border-border rounded-3xl p-6 md:p-8 shadow-sm space-y-6 animate-in slide-in-from-left-4 fade-in">
+          <div className="bg-card border border-border rounded-lg p-6 md:p-8 shadow-sm space-y-6 animate-in slide-in-from-left-4 fade-in">
             {pages.length > 1 && (
               <div className="space-y-2">
                 <Label className="text-sm font-bold text-foreground">
                   Facebook Page
                 </Label>
                 <Select
-                  value={selectedPageId}
+                  value={effectivePageId}
                   onValueChange={(val) => {
                     setSelectedPageId(val);
                     updateDraft({ pageId: val });
                   }}
                 >
-                  <SelectTrigger className="h-12 bg-muted/50 border-border font-medium rounded-xl">
+                  <SelectTrigger className="h-12 bg-muted/50 border-border font-medium rounded-md">
                     <SelectValue placeholder="Select a page..." />
                   </SelectTrigger>
-                  <SelectContent className="rounded-xl border-border">
+                  <SelectContent className="rounded-md border-border">
                     {pages.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
                         {p.name}
@@ -331,12 +339,12 @@ export function LeadFormStep() {
                 Select a Meta Instant Form
               </Label>
               {isLoading ? (
-                <div className="h-12 border border-border bg-muted/50 rounded-xl flex items-center px-4 gap-3 text-subtle-foreground">
+                <div className="h-12 border border-border bg-muted/50 rounded-md flex items-center px-4 gap-3 text-subtle-foreground">
                   <SystemRestart className="w-5 h-5 animate-spin" /> Loading
                   your forms...
                 </div>
               ) : forms.length === 0 ? (
-                <div className="p-6 border-2 border-dashed border-border rounded-xl text-center">
+                <div className="p-6 border-2 border-dashed border-border rounded-md text-center">
                   <p className="text-subtle-foreground mb-4">
                     No lead forms found on this Facebook Page.
                   </p>
@@ -349,10 +357,10 @@ export function LeadFormStep() {
                   value={leadGenFormId || ""}
                   onValueChange={(val) => updateDraft({ leadGenFormId: val })}
                 >
-                  <SelectTrigger className="h-14 bg-muted/50 border-border font-medium text-base rounded-xl focus:ring-primary/20">
+                  <SelectTrigger className="h-14 bg-muted/50 border-border font-medium text-base rounded-md focus:ring-primary/20">
                     <SelectValue placeholder="Choose a form..." />
                   </SelectTrigger>
-                  <SelectContent className="rounded-xl border-border">
+                  <SelectContent className="rounded-md border-border">
                     {forms.map((f) => (
                       <SelectItem key={f.id} value={f.id} className="py-3">
                         {f.name}{" "}
@@ -366,125 +374,34 @@ export function LeadFormStep() {
               )}
             </div>
 
-            <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl flex gap-3">
+            <div className="p-4 bg-primary/5 border border-primary/20 rounded-md flex gap-3">
               <div className="mt-0.5">
                 <Check className="w-5 h-5 text-primary" />
               </div>
-              <div className="text-sm">
-                <p className="font-bold text-foreground">What happens next?</p>
-                <p className="text-subtle-foreground">
-                  When users click your ad, this form will pop up natively
-                  inside Facebook/Instagram pre-filled with their information,
-                  making it extremely easy for them to become a lead.
-                </p>
+              <div className="text-sm space-y-2">
+                <p className="font-bold text-foreground">How Lead Ads Work</p>
+                <ol className="text-subtle-foreground space-y-1 list-decimal list-inside">
+                  <li>
+                    Your <strong>ad creative</strong> (image/video + copy)
+                    appears in the user's feed
+                  </li>
+                  <li>
+                    When they click, this <strong>form opens instantly</strong>{" "}
+                    inside Meta
+                  </li>
+                  <li>
+                    Contact fields are <strong>pre-filled</strong> from their
+                    profile
+                  </li>
+                  <li>They submit with one tap — no website visit needed</li>
+                </ol>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* AI Generate */}
-      {view === "ai" && (
-        <div className="max-w-3xl mx-auto animate-in slide-in-from-bottom-4 fade-in">
-          <div className="bg-card border border-border rounded-3xl p-6 md:p-8 shadow-sm space-y-6">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <Sparks className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h2 className="font-bold text-foreground">AI-Suggested Form</h2>
-                <p className="text-xs text-subtle-foreground">
-                  {suggestedLeadForm
-                    ? "Based on your campaign strategy"
-                    : `Based on your industry: ${organization?.industry || "General"}`}
-                </p>
-              </div>
-            </div>
-
-            {/* Preview of suggested fields */}
-            <div className="space-y-2">
-              <p className="text-sm font-bold uppercase tracking-wider text-foreground">
-                Suggested Fields ({fields.length})
-              </p>
-              <div className="space-y-2">
-                {fields.map((field, idx) => (
-                  <div
-                    key={field.id}
-                    className="flex items-center gap-3 p-3 bg-muted/50 border border-border rounded-xl"
-                  >
-                    <span className="text-xs font-bold text-muted-foreground w-6 text-center">
-                      {idx + 1}
-                    </span>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-foreground">
-                        {field.label ||
-                          field.type
-                            .replace(/_/g, " ")
-                            .replace(/\b\w/g, (c) => c.toUpperCase())}
-                      </p>
-                      {field.choices && (
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Options: {field.choices.join(", ")}
-                        </p>
-                      )}
-                    </div>
-                    <span className="text-xs px-2 py-0.5 bg-primary/10 text-primary rounded-full font-medium">
-                      {field.type === "CUSTOM" || field.type === "USER_CHOICE"
-                        ? field.type.replace("_", " ")
-                        : "Standard"}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Thank You Message Preview */}
-            <div className="p-4 bg-muted/30 border border-border rounded-xl">
-              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                Thank You Message
-              </p>
-              <p className="text-sm text-foreground">{thankYouMessage}</p>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-3">
-              <Button
-                onClick={handleCustomizeFromAI}
-                variant="outline"
-                className="flex-1 h-12 rounded-2xl font-bold"
-              >
-                Customize Fields
-              </Button>
-              <Button
-                onClick={() => {
-                  // Re-generate with fresh IDs
-                  handleAIGenerate();
-                  toast.success("Regenerated form suggestion");
-                }}
-                variant="ghost"
-                className="h-12 rounded-2xl font-medium"
-              >
-                <SystemRestart className="w-4 h-4 mr-2" /> Regenerate
-              </Button>
-            </div>
-
-            <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl flex gap-3">
-              <div className="mt-0.5">
-                <Sparks className="w-5 h-5 text-primary" />
-              </div>
-              <div className="text-sm">
-                <p className="font-bold text-foreground">This is a draft</p>
-                <p className="text-subtle-foreground">
-                  Click &quot;Customize Fields&quot; to edit, reorder, or add
-                  more fields. Then save the form to Meta from the builder.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Create New Form (Manual or from AI customization) */}
+      {/* Create New Form */}
       {view === "create" && (
         <ResizablePanelGroup
           direction="horizontal"
@@ -493,18 +410,107 @@ export function LeadFormStep() {
           {/* Left Panel */}
           <ResizablePanel defaultSize={75} minSize={60} maxSize={90}>
             <div className="space-y-6 pr-6">
+              {/* AI Auto-Generate Banner */}
+              {!hasAppliedAISuggestion && (
+                <button
+                  onClick={handleAIGenerate}
+                  className="w-full p-5 rounded-lg bg-linear-to-r from-primary/10 via-primary/5 to-transparent border-2 border-dashed border-primary/30 hover:border-primary/50 transition-all group text-left"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                      <Sparks className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-foreground text-base">
+                        ✨ Auto-Generate for{" "}
+                        {organization?.industry || "your business"}
+                      </p>
+                      <p className="text-sm text-subtle-foreground">
+                        {suggestedLeadForm
+                          ? "Use AI-suggested fields from your campaign strategy"
+                          : `We'll pick the best fields for ${organization?.industry || "your industry"} — 3-4 questions, high conversion.`}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              )}
+
+              {/* AI Applied Badge */}
+              {hasAppliedAISuggestion && (
+                <div className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Sparks className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium text-foreground">
+                      {suggestedLeadForm
+                        ? "AI-generated from your campaign strategy"
+                        : `AI-generated for ${organization?.industry || "your business"}`}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      handleAIGenerate();
+                      toast.success("Regenerated form fields");
+                    }}
+                    className="text-xs text-primary font-bold hover:underline flex items-center gap-1"
+                  >
+                    <SystemRestart className="w-3 h-3" /> Regenerate
+                  </button>
+                </div>
+              )}
+
               {/* Form Details */}
               <FormMetadataPanel
                 formName={formName}
                 privacyPolicyUrl={privacyPolicyUrl}
                 thankYouMessage={thankYouMessage}
-                onFormNameChange={setFormName}
-                onPrivacyPolicyUrlChange={setPrivacyPolicyUrl}
-                onThankYouMessageChange={setThankYouMessage}
+                onFormNameChange={(v) => setValue("formName", v)}
+                onPrivacyPolicyUrlChange={(v) =>
+                  setValue("privacyPolicyUrl", v)
+                }
+                onThankYouMessageChange={(v) => setValue("thankYouMessage", v)}
               />
+              {/* Zod validation errors */}
+              {errors.formName && (
+                <p className="text-xs text-destructive -mt-3">
+                  {errors.formName.message}
+                </p>
+              )}
+              {errors.privacyPolicyUrl && (
+                <p className="text-xs text-destructive -mt-3">
+                  {errors.privacyPolicyUrl.message}
+                </p>
+              )}
+
+              {/* Best Practices Info */}
+              <div className="p-4 bg-primary/5 border border-primary/20 rounded-md">
+                <div className="flex gap-3">
+                  <div className="mt-0.5">
+                    <Check className="w-5 h-5 text-primary shrink-0" />
+                  </div>
+                  <div className="text-xs space-y-1.5">
+                    <p className="font-bold text-foreground">
+                      Best Practices for High-Converting Forms
+                    </p>
+                    <ul className="text-subtle-foreground space-y-1 list-disc list-inside">
+                      <li>
+                        <strong>Group contact fields first</strong> (Name,
+                        Email, Phone) so Meta can auto-fill them
+                      </li>
+                      <li>
+                        <strong>Keep it short</strong> — 3-5 questions is
+                        optimal for conversions
+                      </li>
+                      <li>
+                        <strong>More questions = better quality</strong>, but
+                        fewer leads
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
 
               {/* Field Palette */}
-              <div className="bg-card border border-border rounded-3xl p-5 shadow-soft space-y-4">
+              <div className="bg-card border border-border rounded-lg p-5 shadow-sm space-y-4">
                 <p className="text-sm font-bold uppercase tracking-wider text-foreground">
                   Add Fields
                 </p>
@@ -512,16 +518,44 @@ export function LeadFormStep() {
               </div>
 
               {/* Sortable Field List */}
-              <div className="bg-card border border-border rounded-3xl p-5 shadow-soft space-y-3">
-                <p className="text-sm font-bold uppercase tracking-wider text-foreground">
-                  Form Fields{" "}
-                  <span className="text-xs font-normal text-muted-foreground normal-case">
-                    — drag to reorder
-                  </span>
-                </p>
+              <div className="bg-card border border-border rounded-lg p-5 shadow-sm space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-bold uppercase tracking-wider text-foreground">
+                    Form Fields{" "}
+                    <span className="text-xs font-normal text-muted-foreground normal-case">
+                      — drag to reorder
+                    </span>
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={cn("text-sm font-bold", getFieldCountColor())}
+                    >
+                      {fieldCount} {fieldCount === 1 ? "field" : "fields"}
+                    </span>
+                  </div>
+                </div>
+                {getFieldCountMessage() && (
+                  <div
+                    className={cn(
+                      "p-3 rounded-md text-xs flex items-center gap-2",
+                      fieldCount < 2 &&
+                        "bg-destructive/10 border border-destructive/20 text-destructive",
+                      isOptimalRange &&
+                        "bg-green-50 border border-green-200 text-green-700",
+                      isAcceptableRange &&
+                        "bg-yellow-50 border border-yellow-200 text-yellow-700",
+                      hasTooManyFields &&
+                        "bg-orange-50 border border-orange-200 text-orange-700",
+                    )}
+                  >
+                    <span className="font-medium">
+                      {getFieldCountMessage()}
+                    </span>
+                  </div>
+                )}
 
                 {fields.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-6 border-2 border-dashed border-border rounded-xl">
+                  <p className="text-sm text-muted-foreground text-center py-6 border-2 border-dashed border-border rounded-md">
                     No fields yet. Add some above.
                   </p>
                 ) : (
@@ -553,7 +587,7 @@ export function LeadFormStep() {
 
               {/* Save Button */}
               <Button
-                className="w-full h-14 rounded-2xl font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition-all"
+                className="w-full h-14 rounded-lg font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition-all"
                 onClick={handleCreateNewForm}
                 disabled={!canSave}
               >

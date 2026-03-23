@@ -110,7 +110,7 @@ if (policyCheck.riskLevel === "high") {
 
 **Modified file:** `src/actions/campaigns.ts`
 
-In the `launchCampaign` function, after building `finalUrl` for WhatsApp objective, replace the raw `wa.me` link with an Adsync attribution link.
+In the `launchCampaign` function, after building `finalUrl` for WhatsApp objective, replace the raw `wa.me` link with an Tenzu attribution link.
 
 **Find this section (~line 85 in campaigns.ts):**
 

@@ -1,4 +1,4 @@
-# AdSync Creative System v2 — PRD
+# Tenzu Creative System v2 — PRD
 
 **Status:** Draft  
 **Author:** AI Systems Review  
@@ -8,7 +8,7 @@
 
 ## Background
 
-AdSync's AI creative generation pipeline (FLUX via fal.ai + GPT-4o intermediate) was
+Tenzu's AI creative generation pipeline (FLUX via fal.ai + GPT-4o intermediate) was
 producing street market and outdoor shopfront backgrounds for product ads. Root cause was
 confirmed as two prompt contamination vectors in the v1 system:
 

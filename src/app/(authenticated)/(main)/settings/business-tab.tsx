@@ -125,8 +125,8 @@ function CapiConfigPanel({ account }: { account: any }) {
           {/* Explainer */}
           <p className="text-xs text-muted-foreground leading-relaxed">
             Connect Meta&apos;s Conversions API so every WhatsApp sale recorded
-            in Sellam is sent back to Meta server-side. This teaches Andromeda
-            to find more buyers — no website pixel needed.
+            in Tenzu is sent back to Meta server-side. This teaches Andromeda to
+            find more buyers — no website pixel needed.
             <a
               href="https://www.facebook.com/business/help/2041148702652965"
               target="_blank"
@@ -352,7 +352,7 @@ export function BusinessTab({
           <CardContent className="space-y-6">
             {/* Business Header */}
             <div className="flex items-center gap-6">
-              <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary border-2 border-primary/20">
+              <div className="h-16 w-16 rounded-lg bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary border-2 border-primary/20">
                 {organization.name?.[0]?.toUpperCase() || "B"}
               </div>
               <div>
@@ -373,7 +373,7 @@ export function BusinessTab({
             </div>
 
             {isEditing ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-muted/30 p-6 rounded-xl border border-border">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-muted/30 p-6 rounded-md border border-border">
                 <div className="space-y-2">
                   <Label htmlFor="orgName">Company Name</Label>
                   <Input
@@ -472,7 +472,7 @@ export function BusinessTab({
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-muted/30 p-6 rounded-xl border border-border">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-muted/30 p-6 rounded-md border border-border">
                 <div>
                   <p className="text-xs font-semibold text-subtle-foreground uppercase tracking-wider mb-1">
                     Company Name
@@ -601,7 +601,7 @@ export function BusinessTab({
 
               {/* Tier limit warning */}
               {!canConnect && (
-                <div className="flex items-center gap-2 p-3 rounded-xl bg-destructive/5 border border-destructive/20 text-sm text-destructive">
+                <div className="flex items-center gap-2 p-3 rounded-md bg-destructive/5 border border-destructive/20 text-sm text-destructive">
                   <WarningTriangle className="h-4 w-4 shrink-0" />
                   <p>
                     Your{" "}
@@ -625,12 +625,12 @@ export function BusinessTab({
                   Loading accounts...
                 </div>
               ) : !accounts || accounts.length === 0 ? (
-                <div className="p-6 text-center text-muted-foreground text-sm border border-dashed border-border rounded-xl">
+                <div className="p-6 text-center text-muted-foreground text-sm border border-dashed border-border rounded-md">
                   No ad accounts connected yet. Click &quot;Add Ad Account&quot;
                   to get started.
                 </div>
               ) : (
-                <div className="border border-border rounded-xl overflow-hidden">
+                <div className="border border-border rounded-md overflow-hidden">
                   {/* Table header */}
                   <div className="grid grid-cols-[1fr_auto_auto] items-center gap-4 px-5 py-3 bg-muted/50 border-b border-border">
                     <p className="text-xs font-semibold text-subtle-foreground uppercase tracking-wider">
@@ -716,7 +716,7 @@ export function BusinessTab({
               <p className="font-semibold text-foreground">Delete Business</p>
               <p className="text-sm text-muted-foreground mt-1">
                 Permanently remove <strong>{organization.name}</strong>, along
-                with all its campaigns, ad accounts, and data from Sellam. This
+                with all its campaigns, ad accounts, and data from Tenzu. This
                 action cannot be undone.
               </p>
             </div>

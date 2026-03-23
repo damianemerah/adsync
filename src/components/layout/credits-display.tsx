@@ -22,7 +22,7 @@ export function CreditsDisplay({
       <Link
         href="/settings/subscription"
         className={cn(
-          "rounded-xl p-2 flex items-center justify-center border transition-colors shadow-soft",
+          "rounded-md p-2 flex items-center justify-center border transition-colors shadow-sm border border-border",
           percentUsed >= 100
             ? "bg-red-50 border-red-200"
             : percentUsed >= 80
@@ -51,7 +51,7 @@ export function CreditsDisplay({
     <Link
       href="/settings/subscription"
       className={cn(
-        "rounded-xl px-4 py-2 flex items-center gap-3 border transition-colors shadow-soft min-w-[200px]",
+        "rounded-md px-4 py-2 flex items-center gap-3 border transition-colors shadow-sm border border-border min-w-[200px]",
         percentUsed >= 100
           ? "bg-red-50 border-red-200 hover:bg-red-100"
           : percentUsed >= 80

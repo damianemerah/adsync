@@ -101,7 +101,7 @@ export function PerformanceChart({
             backgroundColor: "hsl(var(--popover))",
             border: "1px solid hsl(var(--border))",
             borderRadius: "12px",
-            boxShadow: "var(--shadow-soft)",
+            boxShadow: "var(--shadow-sm border border-border)",
             color: "hsl(var(--popover-foreground))",
           }}
           labelStyle={{ color: "hsl(var(--subtle-foreground))" }}

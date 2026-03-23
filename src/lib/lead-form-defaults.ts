@@ -6,13 +6,14 @@ interface LeadFormDefaults {
   thankYouMessage: string;
 }
 
+// Best Practice: Group all contact info fields (FULL_NAME, EMAIL, PHONE) at the top
+// so Meta can prefill them from the user's profile, creating a seamless experience.
 const INDUSTRY_FIELD_MAP: Record<string, LeadFormDefaults> = {
   "E-commerce (Fashion/Beauty)": {
     fields: [
       { id: nanoid(), type: "FULL_NAME" },
       { id: nanoid(), type: "EMAIL" },
       { id: nanoid(), type: "PHONE" },
-      { id: nanoid(), type: "CITY" },
       {
         id: nanoid(),
         type: "USER_CHOICE",
@@ -27,7 +28,6 @@ const INDUSTRY_FIELD_MAP: Record<string, LeadFormDefaults> = {
       { id: nanoid(), type: "FULL_NAME" },
       { id: nanoid(), type: "EMAIL" },
       { id: nanoid(), type: "PHONE" },
-      { id: nanoid(), type: "CITY" },
       {
         id: nanoid(),
         type: "USER_CHOICE",
@@ -41,7 +41,7 @@ const INDUSTRY_FIELD_MAP: Record<string, LeadFormDefaults> = {
     fields: [
       { id: nanoid(), type: "FULL_NAME" },
       { id: nanoid(), type: "PHONE" },
-      { id: nanoid(), type: "CITY" },
+      { id: nanoid(), type: "EMAIL" },
       {
         id: nanoid(),
         type: "USER_CHOICE",
@@ -70,7 +70,6 @@ const INDUSTRY_FIELD_MAP: Record<string, LeadFormDefaults> = {
       { id: nanoid(), type: "FULL_NAME" },
       { id: nanoid(), type: "EMAIL" },
       { id: nanoid(), type: "PHONE" },
-      { id: nanoid(), type: "DATE_OF_BIRTH" },
       {
         id: nanoid(),
         type: "USER_CHOICE",

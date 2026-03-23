@@ -10,7 +10,7 @@ export function Footer() {
           {/* Brand Column */}
           <div className="lg:col-span-2">
             <div className="flex items-center gap-2 mb-6">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-soft">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm border border-border">
                 <Sparks className="h-5 w-5 fill-current" />
               </div>
               <span className="font-heading text-2xl font-bold tracking-tight text-foreground">
@@ -26,28 +26,28 @@ export function Footer() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-2xl w-10 h-10"
+                className="text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg w-10 h-10"
               >
                 <Twitter className="w-5 h-5" />
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-2xl w-10 h-10"
+                className="text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg w-10 h-10"
               >
                 <Facebook className="w-5 h-5" />
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-2xl w-10 h-10"
+                className="text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg w-10 h-10"
               >
                 <Linkedin className="w-5 h-5" />
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-2xl w-10 h-10"
+                className="text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg w-10 h-10"
               >
                 <Instagram className="w-5 h-5" />
               </Button>

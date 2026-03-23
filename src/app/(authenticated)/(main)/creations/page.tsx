@@ -69,7 +69,7 @@ export default function CreationsHubPage() {
               <div
                 key={mode.id}
                 onClick={!mode.comingSoon ? mode.action : undefined}
-                className={`group relative flex flex-col bg-card border border-border rounded-3xl overflow-hidden shadow-sm transition-all duration-300
+                className={`group relative flex flex-col bg-card border border-border rounded-lg overflow-hidden shadow-sm transition-all duration-300
                   ${
                     mode.comingSoon
                       ? "opacity-75 cursor-not-allowed"

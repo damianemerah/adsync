@@ -100,4 +100,6 @@ export interface AIInput {
     headline: string;
     primary: string;
   };
+  /** ISO country code of the org — drives AI persona (default: 'NG') */
+  orgCountryCode?: string;
 }

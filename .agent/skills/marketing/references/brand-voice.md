@@ -1,6 +1,6 @@
-# AdSync Brand Voice Reference
+# Tenzu Brand Voice Reference
 
-This document contains the complete vocabulary and tone guidelines for all AdSync marketing communications.
+This document contains the complete vocabulary and tone guidelines for all Tenzu marketing communications.
 
 ## Vocabulary Rules
 
@@ -46,7 +46,7 @@ This document contains the complete vocabulary and tone guidelines for all AdSyn
 
 ## Tone Spectrum
 
-AdSync's voice adapts to context while maintaining core principles:
+Tenzu's voice adapts to context while maintaining core principles:
 
 ### Professional (Settings, Billing, Legal)
 - **Style:** Clear, direct, no fluff
@@ -100,7 +100,7 @@ AdSync's voice adapts to context while maintaining core principles:
 
 ### Sentence Structure
 - **Short is strong:** Average 10-15 words per sentence
-- **Active voice:** "AdSync builds your campaign" not "Your campaign is built"
+- **Active voice:** "Tenzu builds your campaign" not "Your campaign is built"
 - **Second person:** "You launch in minutes" not "Users launch in minutes"
 
 ### Paragraph Structure
@@ -117,7 +117,7 @@ AdSync's voice adapts to context while maintaining core principles:
 
 ### Payment Success Message
 ```
-✅ "Payment confirmed! Your AdSync membership is active. Launch your first campaign now."
+✅ "Payment confirmed! Your Tenzu membership is active. Launch your first campaign now."
 ❌ "Transaction successful. Subscription renewed. Return to dashboard."
 ```
 
@@ -135,7 +135,7 @@ AdSync's voice adapts to context while maintaining core principles:
 
 ### Competitor Comparison
 ```
-✅ "Unlike Wask, AdSync works with your Nigerian bank card. No international payment hassles."
+✅ "Unlike Wask, Tenzu works with your Nigerian bank card. No international payment hassles."
 ❌ "Wask sucks. We're better. Join us."
 ```
 
@@ -166,4 +166,4 @@ Before publishing any copy, verify:
 - [ ] Clear and actionable (no jargon or ambiguity)
 - [ ] Emotionally appropriate (relief, empowerment, not desperation)
 - [ ] Culturally sensitive (no Western assumptions)
-- [ ] Brand-consistent (AdSync = reliable fintech vibe)
+- [ ] Brand-consistent (Tenzu = reliable fintech vibe)

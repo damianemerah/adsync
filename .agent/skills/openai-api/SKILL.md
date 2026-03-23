@@ -5,7 +5,7 @@ description: Source of truth and coding guidelines for building with the OpenAI 
 
 # OpenAI API Integration Guidelines
 
-This skill defines the source of truth for developing with the OpenAI API inside AdSync, specifically focusing on the advanced Responses API (`openai.responses.create`), Structured Outputs, Tool Use, and the Agent Skills (`/v1/skills`) integrations. ALWAYS reference this skill when building or fixing OpenAI-related features.
+This skill defines the source of truth for developing with the OpenAI API inside Tenzu, specifically focusing on the advanced Responses API (`openai.responses.create`), Structured Outputs, Tool Use, and the Agent Skills (`/v1/skills`) integrations. ALWAYS reference this skill when building or fixing OpenAI-related features.
 
 **Important Instruction for Agents:** If you are unsure about any syntax or you lack full context during an implementation involving OpenAI, **you MUST explicitly read these documentation links using your tools before writing code**:
 
@@ -13,7 +13,7 @@ This skill defines the source of truth for developing with the OpenAI API inside
 - [Structured Outputs Guide](https://platform.openai.com/docs/guides/structured-outputs)
 - [Tools and Skills Guide](https://developers.openai.com/api/docs/guides/tools-skills)
 - [Prompt Caching Guide](https://developers.openai.com/api/docs/guides/prompt-caching)
-- Internal AdSync Reference: `src/lib/ai/service.ts`
+- Internal Tenzu Reference: `src/lib/ai/service.ts`
 
 ## 1. Using the Responses API
 

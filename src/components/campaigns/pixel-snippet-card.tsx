@@ -17,13 +17,13 @@ interface PixelSnippetCardProps {
 export function PixelSnippetCard({ pixelToken }: PixelSnippetCardProps) {
   const [copied, setCopied] = useState(false);
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://sellam.app";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://Tenzu.app";
 
-  const snippet = `<!-- Sellam Pixel — paste once in <head> -->
+  const snippet = `<!-- Tenzu Pixel — paste once in <head> -->
 <script>
 (function(t){
   new Image().src = "${appUrl}/api/pixel?t="+t+"&e=view";
-  document.addEventListener("sellam_purchase", function(e){
+  document.addEventListener("Tenzu_purchase", function(e){
     new Image().src = "${appUrl}/api/pixel?t="+t+"&e=purchase&v="+(e.detail?.value||0);
   });
 })("${pixelToken}");

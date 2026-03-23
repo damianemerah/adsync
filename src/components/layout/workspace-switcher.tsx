@@ -72,7 +72,7 @@ export function WorkspaceSwitcher({ activeOrgId }: WorkspaceSwitcherProps) {
       <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
         <DropdownMenuTrigger asChild>
           <button
-            className="flex items-center gap-2 p-2 rounded-xl hover:bg-muted hover:text-foreground transition-colors text-left group flex-1 border border-border shadow-soft bg-background disabled:opacity-60 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 p-2 rounded-md hover:bg-muted hover:text-foreground transition-colors text-left group flex-1 border border-border shadow-sm border border-border bg-background disabled:opacity-60 disabled:cursor-not-allowed"
             disabled={isSwitching}
           >
             <OrgAvatar name={organization?.name || "B"} size="sm" />
@@ -91,7 +91,7 @@ export function WorkspaceSwitcher({ activeOrgId }: WorkspaceSwitcherProps) {
 
         <DropdownMenuContent
           align="start"
-          className="bg-popover rounded-xl shadow-soft border-border w-60 p-2"
+          className="bg-popover rounded-md shadow-sm border border-border border-border w-60 p-2"
         >
           {/* List of all orgs */}
           <div className="space-y-0.5">

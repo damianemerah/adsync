@@ -9,7 +9,7 @@ const steps = [
     icon: <MessageText className="w-7 h-7" />,
     title: "Chat with AI",
     description:
-      "Tell Sellam what you sell, who buys from you, and how much you want to spend. That's it. AI handles targeting, budget, and setup — in under 2 minutes.",
+      "Tell Tenzu what you sell, who buys from you, and how much you want to spend. That's it. AI handles targeting, budget, and setup — in under 2 minutes.",
   },
   {
     number: "02",
@@ -23,7 +23,7 @@ const steps = [
     icon: <StatsUpSquare className="w-7 h-7" />,
     title: "See Who Messaged & What You Made",
     description:
-      "Every ad gets a smart link. When someone clicks your ad and messages you on WhatsApp, Sellam records it. You see ₦ spent vs ₦ made — clearly.",
+      "Every ad gets a smart link. When someone clicks your ad and messages you on WhatsApp, Tenzu records it. You see ₦ spent vs ₦ made — clearly.",
   },
 ];
 
@@ -42,8 +42,8 @@ export function ContentSection() {
             From Zero to Running Ad in 2 Minutes
           </h3>
           <p className="mt-4 text-lg text-subtle-foreground">
-            No marketing degree. No agency. No dollar card. Just tell Sellam
-            what you sell — it does the rest.
+            No marketing degree. No agency. No dollar card. Just tell Tenzu what
+            you sell — it does the rest.
           </p>
         </div>
 
@@ -51,7 +51,7 @@ export function ContentSection() {
           {steps.map((step) => (
             <div
               key={step.number}
-              className="relative flex flex-col gap-6 rounded-3xl border border-border/60 bg-background p-8 shadow-soft hover:shadow-soft hover:border-primary/20 transition-all duration-300"
+              className="relative flex flex-col gap-6 rounded-lg border border-border/60 bg-background p-8 shadow-sm border border-border hover:shadow-sm border border-border hover:border-primary/20 transition-all duration-300"
             >
               {/* Step number */}
               <span className="absolute top-6 right-8 text-5xl font-bold font-heading text-muted/40 select-none leading-none">
@@ -59,7 +59,7 @@ export function ContentSection() {
               </span>
 
               {/* Icon */}
-              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+              <div className="w-14 h-14 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
                 {step.icon}
               </div>
 

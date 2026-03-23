@@ -34,7 +34,7 @@ export async function POST(request: Request) {
       // Fetch Balance, Currency, Status, Funding Source
       const fields =
         "balance,currency,account_status,funding_source_details,amount_spent";
-      const url = `https://graph.facebook.com/v24.0/${account.platform_account_id}?fields=${fields}&access_token=${accessToken}`;
+      const url = `https://graph.facebook.com/v25.0/${account.platform_account_id}?fields=${fields}&access_token=${accessToken}`;
 
       const res = await fetch(url);
       const fbData = await res.json();

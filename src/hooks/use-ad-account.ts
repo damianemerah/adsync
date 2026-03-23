@@ -72,10 +72,12 @@ const fetchAdAccounts = async (
   }
 
   // 3. Fetch Accounts (Explicitly scoped to Org)
+  // ✅ Filter out soft-deleted (disconnected) accounts
   const { data, error } = await supabase
     .from("ad_accounts")
     .select("*")
     .eq("organization_id", orgId)
+    .is("disconnected_at", null) // Only show connected accounts
     .order("connected_at", { ascending: false });
 
   if (error) throw new Error(error.message);

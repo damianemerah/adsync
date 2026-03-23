@@ -1,17 +1,19 @@
 "use client";
 
-import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { syncCampaignInsights, syncCampaignAds } from "@/actions/campaigns";
-import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { ROIMetricsCard } from "@/components/campaigns/roi-metrics-card";
 import { MarkAsSoldButton } from "@/components/campaigns/mark-as-sold-button";
 import { PixelSnippetCard } from "@/components/campaigns/pixel-snippet-card";
 import { SubPlacementROICard } from "@/components/campaigns/sub-placement-roi-card";
 import { PostLaunchRuleAlert } from "@/components/campaigns/post-launch-rule-alert";
 import { DemographicsCard } from "@/components/campaigns/demographics-card";
+import { LeadsList } from "@/components/campaigns/leads-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,6 +36,9 @@ import {
   Edit,
   ArrowRight,
   GraphUp,
+  Refresh,
+  Mail,
+  BarChart,
 } from "iconoir-react";
 import { DataTable, Column } from "@/components/ui/data-table";
 import { Campaign } from "@/lib/api/campaigns";
@@ -55,47 +60,62 @@ interface CampaignDetailViewProps {
 
 export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { updateStatus, isUpdating } = useCampaigns();
   const [activeMetrics, setActiveMetrics] = useState<MetricKey[]>([
     "revenue",
     "spend",
   ]);
+  const [isSyncing, setIsSyncing] = useState(false);
   const { dateRange } = useDashboardStore();
 
-  // Auto-sync insights and ads when component mounts if data is stale or missing
-  useEffect(() => {
-    const syncData = async () => {
-      // Only sync for active/paused campaigns (not drafts)
-      if (campaign.status === "draft") return;
+  // Tab management: read from URL query param
+  const activeTab = searchParams.get("tab") || "overview";
 
-      // Check if performance data exists and is recent (within last hour)
-      const hasRecentData =
-        campaign.performance && campaign.performance.length > 0;
-      const lastUpdate = campaign.updatedAt
-        ? new Date(campaign.updatedAt)
-        : null;
-      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-      const isStale = !lastUpdate || lastUpdate < oneHourAgo;
+  const handleTabChange = (value: string) => {
+    const current = new URLSearchParams(searchParams.toString());
+    if (value === "overview") {
+      current.delete("tab"); // Keep URL clean for default tab
+    } else {
+      current.set("tab", value);
+    }
+    router.push(`/campaigns?${current.toString()}`);
+  };
 
-      console.log("hasRecentData", hasRecentData);
-      console.log("isStale", isStale);
-      console.log("Campaign", campaign);
+  // Determine if this is a lead gen campaign
+  const isLeadGenCampaign = campaign.objective === "leads";
 
-      if (!hasRecentData || isStale) {
-        // Sync in background without blocking UI
-        Promise.all([
-          syncCampaignInsights(campaign.id).catch((err) =>
-            console.error("Insights sync failed:", err),
-          ),
-          syncCampaignAds(campaign.id).catch((err) =>
-            console.error("Ads sync failed:", err),
-          ),
-        ]);
+  // Manual refresh handler
+  const handleRefresh = async () => {
+    if (campaign.status === "draft") return;
+
+    setIsSyncing(true);
+    toast.loading("Syncing campaign data...", { id: "sync-campaign" });
+
+    try {
+      const [insightsResult, adsResult] = await Promise.all([
+        syncCampaignInsights(campaign.id),
+        syncCampaignAds(campaign.id),
+      ]);
+
+      if (insightsResult.success && adsResult.success) {
+        toast.success(
+          `Synced ${insightsResult.count || 0} days of insights and ${adsResult.count || 0} ads`,
+          { id: "sync-campaign" }
+        );
+        router.refresh(); // Refresh the page to show new data
+      } else {
+        throw new Error(insightsResult.error || adsResult.error || "Sync failed");
       }
-    };
-
-    syncData();
-  }, [campaign.id, campaign.status, campaign.updatedAt, campaign.performance]);
+    } catch (error: any) {
+      toast.error("Failed to sync campaign", {
+        id: "sync-campaign",
+        description: error.message,
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // Calculate CTR for chart data since API might return it or we compute it
   const chartData = useMemo(() => {
@@ -155,7 +175,7 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
           </div>
           <Button
             onClick={() => router.push(`/campaigns/new?draftId=${campaign.id}`)}
-            className="bg-primary hover:bg-primary/90 font-bold shadow-lg"
+            className="bg-primary hover:bg-primary/90 font-bold shadow-sm border border-border"
           >
             Resume Editing <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
@@ -185,11 +205,11 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
             {campaign.platform === "meta" ? (
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
+              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-blue-100 text-blue-600">
                 <Facebook className="h-6 w-6" />
               </div>
             ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-black text-white">
+              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-black text-white">
                 <span className="font-bold">Tk</span>
               </div>
             )}
@@ -209,6 +229,18 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9"
+              onClick={handleRefresh}
+              disabled={isSyncing}
+            >
+              <Refresh
+                className={`h-4 w-4 mr-2 ${isSyncing ? "animate-spin" : ""}`}
+              />
+              Refresh
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -321,10 +353,44 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
         />
       </div>
 
-      {/* Main Scrollable Content */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        {/* Post-launch intelligence alert — surfaces highest-severity triggered rule */}
-        <PostLaunchRuleAlert campaign={campaign} />
+      {/* Tabs */}
+      <Tabs
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className="flex-1 flex flex-col"
+      >
+        <div className="border-b border-slate-200 bg-white px-6">
+          <TabsList className="bg-transparent h-12 p-0 gap-6">
+            <TabsTrigger
+              value="overview"
+              className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none bg-transparent px-0 pb-3 pt-3 h-full font-semibold"
+            >
+              <Dashboard className="h-4 w-4 mr-2" />
+              Overview
+            </TabsTrigger>
+            {isLeadGenCampaign && (
+              <TabsTrigger
+                value="leads"
+                className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none bg-transparent px-0 pb-3 pt-3 h-full font-semibold"
+              >
+                <Mail className="h-4 w-4 mr-2" />
+                Leads
+              </TabsTrigger>
+            )}
+            <TabsTrigger
+              value="analytics"
+              className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none bg-transparent px-0 pb-3 pt-3 h-full font-semibold"
+            >
+              <GraphUp className="h-4 w-4 mr-2" />
+              Analytics
+            </TabsTrigger>
+          </TabsList>
+        </div>
+
+        {/* Overview Tab */}
+        <TabsContent value="overview" className="flex-1 overflow-y-auto p-6 space-y-6 m-0">
+          {/* Post-launch intelligence alert — surfaces highest-severity triggered rule */}
+          <PostLaunchRuleAlert campaign={campaign} />
 
         {/* Attribution & ROI Section */}
         <div className="space-y-3">
@@ -367,13 +433,6 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
             </CardContent>
           </Card>
         </div>
-
-        {/* Demographics Visualization */}
-        {campaign.demographics && (
-          <div className="space-y-3">
-            <DemographicsCard demographics={campaign.demographics} />
-          </div>
-        )}
 
         {/* Ads Table */}
         <AdsTable ads={campaign.ads || []} formatMoney={formatMoney} />
@@ -420,11 +479,40 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
             </div>
           </div>
 
-          <div className="h-[300px] w-full bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+          <div className="h-[300px] w-full bg-white border border-slate-200 rounded-md p-4 shadow-sm">
             <PerformanceChart data={chartData} activeMetrics={activeMetrics} />
           </div>
         </div>
-      </div>
+        </TabsContent>
+
+        {/* Leads Tab */}
+        {isLeadGenCampaign && (
+          <TabsContent value="leads" className="flex-1 overflow-y-auto p-6 m-0">
+            <LeadsList campaignId={campaign.id} />
+          </TabsContent>
+        )}
+
+        {/* Analytics Tab */}
+        <TabsContent value="analytics" className="flex-1 overflow-y-auto p-6 space-y-6 m-0">
+          {/* Demographics Visualization */}
+          {campaign.demographics && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <StatsReport className="h-4 w-4" /> Demographics
+              </h3>
+              <DemographicsCard demographics={campaign.demographics} />
+            </div>
+          )}
+
+          {/* Sub-Placement ROI */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+              <ViewGrid className="h-4 w-4" /> Placement Performance
+            </h3>
+            <SubPlacementROICard campaignId={campaign.id} />
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

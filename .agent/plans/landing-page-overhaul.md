@@ -1,7 +1,7 @@
 # Landing Page Overhaul — Implementation Plan
 
 **Persona Target:** Nigerian small business owner selling via WhatsApp. Tried Meta Ads once. Got confused.
-**Product Name:** Sellam (never "AdSync" in user-facing copy)
+**Product Name:** Tenzu (never "Tenzu" in user-facing copy)
 **Workflows Applied:** /fix-layout · /remodel · frontend-design SKILL
 **Date:** 2026-02-19
 
@@ -11,7 +11,7 @@
 
 | #   | Issue                                                               | File                    | Severity    |
 | --- | ------------------------------------------------------------------- | ----------------------- | ----------- |
-| 1   | Product called "AdSync" in hero sub-headline + image alt            | `hero-section.tsx`      | 🔴 Critical |
+| 1   | Product called "Tenzu" in hero sub-headline + image alt            | `hero-section.tsx`      | 🔴 Critical |
 | 2   | "optimize your campaigns" — banned jargon                           | `hero-section.tsx`      | 🔴 Critical |
 | 3   | Hero headline is generic, no WhatsApp or Naira sales promise        | `hero-section.tsx`      | 🔴 Critical |
 | 4   | "Watch Demo" links to `#video-demo` which doesn't exist             | `hero-section.tsx`      | 🔴 Critical |
@@ -60,20 +60,20 @@ _Rationale: "More Sales" is the outcome Emeka cares about. "Naira" is the instan
 **Sub-headline:**
 
 ```
-Before: "Stop struggling with dollar cards. AdSync lets you launch, manage,
+Before: "Stop struggling with dollar cards. Tenzu lets you launch, manage,
         and optimize your campaigns with AI-powered precision—at a flat Naira price."
 
 After:  "Stop spending on ads and not knowing if they sold anything.
-        Sellam tells you who messaged, how many bought, and what you made — in Naira."
+        Tenzu tells you who messaged, how many bought, and what you made — in Naira."
 ```
 
-_Removes: "AdSync", "optimize", "campaigns". Adds: outcome, WhatsApp implicit, Naira._
+_Removes: "Tenzu", "optimize", "campaigns". Adds: outcome, WhatsApp implicit, Naira._
 
 **Hero Image alt text:**
 
 ```
-Before: alt="AdSync Dashboard Interface"
-After:  alt="Sellam Dashboard — WhatsApp Sales Tracking"
+Before: alt="Tenzu Dashboard Interface"
+After:  alt="Tenzu Dashboard — WhatsApp Sales Tracking"
 ```
 
 **Primary CTA:**
@@ -148,7 +148,7 @@ After:  "Pay your monthly plan in Naira via Paystack. Your local card works ever
 ```
 Icon: ChatBubble (iconoir)
 Title: "Built for WhatsApp Sellers"
-Description: "Sellam wraps every ad with a smart link that tracks who
+Description: "Tenzu wraps every ad with a smart link that tracks who
               messaged you from that ad. Know which ad drove sales."
 ```
 
@@ -158,7 +158,7 @@ _"Enterprise" is banned. Replace with our biggest differentiator for the persona
 
 ```
 Before: "Set rules to automatically pause losing ads and scale winning ones 24/7."
-After:  "Sellam watches your ads 24/7 and pauses the ones wasting money — automatically."
+After:  "Tenzu watches your ads 24/7 and pauses the ones wasting money — automatically."
 ```
 
 ---
@@ -176,10 +176,10 @@ After:  "Every Feature Built for How You Actually Sell"
 
 ```
 Badge:  "Auto-Pilot" (was "Smart Automation")
-Title:  "Sellam Stops Wasted Ad Spend Automatically"
-Description: "If an ad isn't bringing messages or sales, Sellam pauses it.
+Title:  "Tenzu Stops Wasted Ad Spend Automatically"
+Description: "If an ad isn't bringing messages or sales, Tenzu pauses it.
              If one is working, it gets more budget. You set your goal once —
-             Sellam handles the rest."
+             Tenzu handles the rest."
 Remove: "duplicate ad sets" (jargon)
 ```
 
@@ -187,7 +187,7 @@ Remove: "duplicate ad sets" (jargon)
 
 ```
 Title:  "Know Exactly What's Working in Your Ad — Before You Waste Money"
-Description: "Sellam's AI looks at your ad image and copy, then tells you
+Description: "Tenzu's AI looks at your ad image and copy, then tells you
              what to fix to get more people messaging you. Plain English. No jargon."
 Remove: "CTR and ROAS" — replace with "people reaching out" and "sales"
 ```
@@ -228,7 +228,7 @@ Remove: "Magic Redesign" internal label from user-facing copy
 **Section Headline:**
 
 ```
-Before: "Who uses AdSync?" / "Designed for All Marketers"
+Before: "Who uses Tenzu?" / "Designed for All Marketers"
 After:  "Made For You If..."
 ```
 
@@ -238,7 +238,7 @@ After:  "Made For You If..."
 | ----------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | Small Business Owners (generic)     | **WhatsApp Sellers** — "You sell daily on WhatsApp and want more people finding you"                      |
 | E-commerce Managers (wrong persona) | **Fashion & Beauty Vendors** — "Your products are visual. AI turns your photos into ads that sell."       |
-| Digital Agencies (wrong persona)    | **First-Time Advertisers** — "You've never run an ad. Sellam's AI sets everything up — you just approve." |
+| Digital Agencies (wrong persona)    | **First-Time Advertisers** — "You've never run an ad. Tenzu's AI sets everything up — you just approve." |
 
 _Remove: all Shopify/WooCommerce/cart references. Remove: "Agency" persona._
 
@@ -256,8 +256,8 @@ After:  "Real Results"
 **Section count claim (align with CTA claim):**
 
 ```
-Before: "Join thousands of marketers who are scaling their businesses with AdSync."
-After:  "Join 2,000+ Nigerian businesses already selling more with Sellam."
+Before: "Join thousands of marketers who are scaling their businesses with Tenzu."
+After:  "Join 2,000+ Nigerian businesses already selling more with Tenzu."
 ```
 
 **Replace testimonial copy (keep realistic, Nigeria-grounded, WhatsApp-specific):**
@@ -265,11 +265,11 @@ After:  "Join 2,000+ Nigerian businesses already selling more with Sellam."
 | Person    | Role                  | New Quote                                                                                                                                          |
 | --------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Chisom O. | Fashion Vendor, Lagos | "I took a photo of my ankara bags, uploaded it, and the AI turned it into a proper ad. People were messaging me asking for prices within an hour." |
-| Ahmed I.  | Dropshipper, Abuja    | "I tried paying for Wask — card declined twice. Sellam I paid with my Opay card. No stress. The ad was live the same day."                         |
+| Ahmed I.  | Dropshipper, Abuja    | "I tried paying for Wask — card declined twice. Tenzu I paid with my Opay card. No stress. The ad was live the same day."                         |
 | Grace U.  | Skincare Vendor       | "I used to spend on ads and never know if they sold anything. Now I see exactly who messaged me from the ad and record my sales right there."      |
 | Tunde A.  | Electronics Reseller  | "The Naira payment is the main thing for me. I don't want to be thinking about exchange rates when I just want to sell my phones."                 |
 | Sarah O.  | Food Vendor, PH       | "I don't understand targeting at all. I just typed what I sell and who buys from me. The AI figured out the rest."                                 |
-| Emeka N.  | Clothing Store, Kano  | "My old ads were running for 3 days spending money with no messages. Sellam paused it and told me why. That alone saved me ₦18,000."               |
+| Emeka N.  | Clothing Store, Kano  | "My old ads were running for 3 days spending money with no messages. Tenzu paused it and told me why. That alone saved me ₦18,000."               |
 
 **Fix avatar strategy:** Remove DiceBear API avatars (they break offline/look fake). Use static initials avatars (`AvatarFallback`) with styled colored backgrounds instead — e.g. `bg-primary/10 text-primary`.
 
@@ -278,8 +278,8 @@ After:  "Join 2,000+ Nigerian businesses already selling more with Sellam."
 ### 1.6 `cta-section.tsx` — Fix Brand + Hex Codes
 
 ```
-Before: "Join 2,000+ Nigerian businesses scaling with AdSync. cancel anytime."
-After:  "Join 2,000+ Nigerian sellers already running ads with Sellam. Cancel anytime."
+Before: "Join 2,000+ Nigerian businesses scaling with Tenzu. cancel anytime."
+After:  "Join 2,000+ Nigerian sellers already running ads with Tenzu. Cancel anytime."
 ```
 
 **Design token violations:**
@@ -453,7 +453,7 @@ Step 12 Browser agent           — Visual verification + squint test
 
 ## Definition of Done
 
-- [ ] No instance of "AdSync" in user-facing copy
+- [ ] No instance of "Tenzu" in user-facing copy
 - [ ] No banned words: optimize, campaign, impressions, CTR, ROAS, Enterprise, bot, dollar
 - [ ] "WhatsApp" mentioned at least 3 times across the page
 - [ ] "₦" symbol visible in hero/sub-headline

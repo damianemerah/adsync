@@ -11,14 +11,14 @@ This is the payment friction solution. The goal is for SMEs to never see a dolla
 ### Architecture: Model 1 (Recommended — Per-User Isolated Cards)
 
 ```
-SME pays ₦ to Adsync via Paystack
-  → Adsync calls Grey/Geegpay API to fund a virtual USD card assigned to this organization
+SME pays ₦ to Tenzu via Paystack
+  → Tenzu calls Grey/Geegpay API to fund a virtual USD card assigned to this organization
   → That virtual card is attached to the SME's own Meta ad account
   → Meta charges the virtual card
   → Each organization has their own card (ban isolation)
 ```
 
-This is the safest architecture. Adsync is a payment facilitator, not the advertiser of record.
+This is the safest architecture. Tenzu is a payment facilitator, not the advertiser of record.
 
 ---
 
@@ -252,7 +252,7 @@ export function AdBudgetTopup({ currentBalanceNgn, organizationId }: Props) {
           Ad Budget Wallet
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Pay in Naira. Adsync handles your Meta ad spend.
+          Pay in Naira. Tenzu handles your Meta ad spend.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -309,6 +309,6 @@ After this phase:
 - SMEs top up ad budget in Naira via Paystack — no dollar card ever required
 - Each organization has an isolated virtual card on their Meta account — ban risk isolated
 - High-risk Nigerian ad copy is caught before launch, not after Meta rejects it
-- Adsync's `AdSyncGuard` has a new pre-flight layer
+- Tenzu's `TenzuGuard` has a new pre-flight layer
 
 ---

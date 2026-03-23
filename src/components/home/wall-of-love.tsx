@@ -23,7 +23,7 @@ const testimonials: Testimonial[] = [
     role: "Dropshipper, Abuja",
     image: "",
     quote:
-      "I tried paying for Wask — card declined twice. Sellam I paid with my Opay card. No stress. The ad was live the same day.",
+      "I tried paying for Facebook ads — card declined twice. With Tenzu I paid with my Opay card. No stress. The ad was live the same day.",
   },
   {
     name: "Grace U.",
@@ -51,7 +51,7 @@ const testimonials: Testimonial[] = [
     role: "Clothing Store, Kano",
     image: "",
     quote:
-      "My ad was running for 3 days with no messages. Sellam paused it and told me why. That alone saved me ₦18,000 that week.",
+      "My ad was running for 3 days with no messages. Tenzu paused it and told me why. That alone saved me ₦18,000 that week.",
   },
 ];
 
@@ -68,16 +68,11 @@ const chunkArray = (
 };
 
 export function WallOfLove() {
-  // Mobile: 1 column, Tablet: 2 columns, Desktop: 3 columns
-  // We'll render a responsive grid. For simplicity in SSR/hydration matching, we'll use CSS grid columns
-  // but to get the masonry effect cleanly with different heights, vertical stacks per column is best.
-  // Here we'll just pre-calculate 3 chunks and stack them on large screens.
-
   const chunks = chunkArray(testimonials, 3);
 
   return (
     <section id="testimonials" className="py-16 md:py-32 bg-background">
-      <div className="container px-6">
+      <div className="container px-6 max-w-6xl mx-auto">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <span className="text-primary font-bold tracking-widest uppercase text-sm mb-4 block">
             Real Results
@@ -86,7 +81,7 @@ export function WallOfLove() {
             Loved by Nigerian Sellers
           </h2>
           <p className="mt-6 text-xl text-subtle-foreground">
-            Join 2,000+ Nigerian businesses already selling more with Sellam.
+            Join 2,000+ Nigerian businesses already selling more with Tenzu.
           </p>
         </div>
 
@@ -96,7 +91,7 @@ export function WallOfLove() {
               {chunk.map((testimonial, index) => (
                 <Card
                   key={index}
-                  className="bg-muted/30 border-none shadow-none hover:shadow-soft transition-all"
+                  className="bg-background shadow-sm border border-border"
                 >
                   <CardContent className="pt-6">
                     <div className="flex items-center gap-4 mb-4">

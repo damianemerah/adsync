@@ -55,7 +55,7 @@ import {
 } from "../lib/constants/meta-behaviors";
 
 const PATCH = process.argv.includes("--patch");
-const API_VERSION = "v24.0";
+const API_VERSION = "v25.0";
 const BASE_URL = `https://graph.facebook.com/${API_VERSION}`;
 
 // ─── AES-256 Decrypt (mirrors src/lib/crypto.ts) ─────────────────────────────
@@ -245,7 +245,7 @@ async function validateSeeds(
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 async function main() {
-  console.log("\n🔍 Sellam — Meta Behaviors & Life Events Validator");
+  console.log("\n🔍 Tenzu — Meta Behaviors & Life Events Validator");
   console.log("=========================================================");
   console.log(
     `Mode: ${PATCH ? "PATCH (will rewrite meta-behaviors.ts)" : "DRY-RUN (read-only)"}`,

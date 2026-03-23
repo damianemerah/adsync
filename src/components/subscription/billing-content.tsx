@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Check,
   SystemRestart,
@@ -34,14 +35,9 @@ import {
   getPaymentContext,
 } from "@/actions/paystack";
 import { verifyAndActivate } from "@/actions/verify-payment";
-import {
-  getVirtualCard,
-  createOrganizationVirtualCard,
-} from "@/actions/ad-budget";
-import { AdBudgetTopup } from "@/components/billing/ad-budget-topup";
 import { toast } from "sonner";
 import { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 // Plan feature definitions
@@ -129,44 +125,56 @@ export function BillingContent() {
   const { data: subscription, isLoading, refetch } = useSubscription();
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const searchParams = useSearchParams();
+  const router = useRouter();
   const verifiedRef = useRef(false);
+
+  const [activeTab, setActiveTab] = useState<string>("plans");
+
+  // Sync tab state with URL hash
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace("#", "");
+
+      if (["plans", "credits"].includes(hash)) {
+        setActiveTab(hash);
+      }
+    };
+
+    // Initial check on mount
+    handleHashChange();
+
+    if (!["plans", "credits"].includes(window.location.hash.replace("#", ""))) {
+      // Default to plans, update hash without refreshing
+      window.history.replaceState(null, "", "#plans");
+    }
+
+    // Listen to changes so clicking a hash link on the same page updates the tab
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
+
+  const handleTabChange = (val: string) => {
+    setActiveTab(val);
+    window.location.hash = val;
+  };
 
   // ── Callback verification: handle redirect from Paystack ────────────────
   useEffect(() => {
     if (verifiedRef.current) return;
 
-    // Handle ad budget top-up callback (webhook already credited the wallet)
-    const isTopupSuccess = searchParams.get("topup_success") === "true";
-    if (isTopupSuccess) {
+    const isSuccess = searchParams.get("success") === "true";
+    const isPackSuccess = searchParams.get("pack_success") === "true";
+    const reference = searchParams.get("reference") || searchParams.get("trxref");
+
+    if (reference && (isSuccess || isPackSuccess)) {
       verifiedRef.current = true;
-      toast.success("Ad budget topped up successfully!");
+      
+      if (isPackSuccess) {
+         handleTabChange("credits");
+      } else if (isSuccess) {
+         handleTabChange("plans");
+      }
 
-      // Auto-create virtual card on first top-up
-      getVirtualCard()
-        .then(async (card) => {
-          if (!card) {
-            try {
-              await createOrganizationVirtualCard();
-              toast.success("Virtual card created for your ad account.");
-            } catch (err) {
-              console.error("Virtual card creation failed:", err);
-            }
-          }
-        })
-        .catch((err) => {
-          console.error("Failed to check virtual card:", err);
-        });
-      return;
-    }
-
-    const isSuccess =
-      searchParams.get("success") === "true" ||
-      searchParams.get("pack_success") === "true";
-    const reference =
-      searchParams.get("reference") || searchParams.get("trxref");
-
-    if (isSuccess && reference) {
-      verifiedRef.current = true;
       verifyAndActivate(reference)
         .then((result) => {
           if (result.success) {
@@ -183,9 +191,14 @@ export function BillingContent() {
           toast.error(
             "Could not verify payment. If charged, credits will be added shortly.",
           );
+        })
+        .finally(() => {
+           // Clean up URL
+           const hash = isPackSuccess ? "#credits" : "#plans";
+           router.replace(`/settings/subscription${hash}`, { scroll: false });
         });
     }
-  }, [searchParams, refetch]);
+  }, [searchParams, refetch, router]);
 
   const handleUpgrade = async (planId: string) => {
     setIsProcessing(planId);
@@ -246,263 +259,249 @@ export function BillingContent() {
     creditQuota > 0 ? Math.round((creditsUsed / creditQuota) * 100) : 0;
 
   return (
-    <div className="space-y-10">
-      {/* Current Plan */}
-      <section>
-        <h2 className="text-lg font-heading font-bold mb-4">
-          Current Subscription
-        </h2>
-        <Card className="bg-muted/40 border-border">
-          <CardContent className="p-6 flex flex-col md:flex-row items-start justify-between gap-6">
-            <div className="flex-1 space-y-4">
-              <div className="flex items-center gap-3">
-                <h3 className="text-xl font-bold capitalize">
-                  {currentTier} Plan
-                </h3>
-                <Badge
-                  variant={orgStatus === "active" ? "default" : "secondary"}
-                  className="capitalize"
-                >
-                  {orgStatus}
-                </Badge>
-              </div>
-              <p className="text-subtle-foreground text-sm">
-                {orgStatus === "active"
-                  ? `Renews ${formatDate(subscription?.org?.expiresAt?.toISOString() ?? null)}`
-                  : `Expired ${formatDate(subscription?.org?.expiresAt?.toISOString() ?? null)}`}
-              </p>
-
-              {/* Credit meter */}
-              {creditQuota > 0 && (
-                <div className="space-y-1 max-w-sm">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-subtle-foreground">
-                      AI Credits used
-                    </span>
-                    <span className="font-medium">
-                      {creditsUsed} / {creditQuota}
-                    </span>
-                  </div>
-                  <Progress value={creditsPercent} className="h-2" />
-                  <p className="text-xs text-subtle-foreground">
-                    {creditsBalance} credits remaining - resets on renewal
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {orgStatus !== "active" && (
-              <Button
-                onClick={() => handleUpgrade(currentTier)}
-                disabled={isProcessing !== null}
-              >
-                {isProcessing === currentTier ? (
-                  <SystemRestart className="w-4 h-4 animate-spin" />
-                ) : (
-                  "Renew Subscription"
-                )}
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      </section>
-
-      {/* Credit Cost Breakdown */}
-      <section>
-        <h2 className="text-lg font-heading font-bold mb-1">Credit Costs</h2>
-        <p className="text-subtle-foreground text-sm mb-4">
-          1 credit = {"\u20a6"}50 of AI value. Text & copy generation is always
-          free.
-        </p>
-        {/* <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {CREDIT_BREAKDOWN.map(
-            ({ icon: Icon, label, credits, isFree, note }) => (
-              <div
-                key={label}
-                className="flex items-center gap-3 rounded-xl border border-border bg-muted/30 p-4"
-              >
-                <div
-                  className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
-                    isFree ? "bg-green-500/10" : "bg-ai/10"
-                  }`}
-                >
-                  <Icon
-                    className={`w-5 h-5 ${isFree ? "text-green-600" : "text-ai"}`}
-                  />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold">{label}</p>
-                  {isFree ? (
-                    <p className="text-xs font-bold text-green-600">
-                      FREE - {note}
-                    </p>
-                  ) : (
-                    <p className="text-xs text-subtle-foreground">
-                      {credits} credit{credits !== 1 ? "s" : ""} - {note}
-                    </p>
-                  )}
-                </div>
-              </div>
-            ),
-          )}
-        </div> */}
-      </section>
-
-      {/* Credit Pack Top-Ups */}
-      <section>
-        <h2 className="text-lg font-heading font-bold mb-1">
-          Need More Credits?
-        </h2>
-        <p className="text-subtle-foreground text-sm mb-4">
-          One-off top-ups that stack on your plan. Credits never expire
-          mid-cycle.
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {CREDIT_PACKS.map((pack) => {
-            const processingKey = `pack_${pack.id}`;
-            const isProcessingThis = isProcessing === processingKey;
-            const pricePerCredit = Math.round(pack.price / pack.credits);
-            return (
-              <div
-                key={pack.id}
-                className="flex flex-col rounded-xl border border-border bg-muted/30 p-5 gap-4"
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <Gift className="w-4 h-4 text-primary" />
-                      <p className="text-sm font-bold">{pack.name}</p>
-                    </div>
-                    <p className="text-2xl font-black">
-                      {pack.credits}{" "}
-                      <span className="text-sm font-normal text-subtle-foreground">
-                        credits
-                      </span>
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold">
-                      {formatCurrency(pack.price)}
-                    </p>
-                    <p className="text-xs text-subtle-foreground">
-                      {"\u20a6"}
-                      {pricePerCredit}/credit
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => handleBuyPack(pack.id)}
-                  disabled={isProcessingThis || orgStatus !== "active"}
-                >
-                  {isProcessingThis ? (
-                    <SystemRestart className="w-4 h-4 animate-spin" />
-                  ) : (
-                    `Buy ${pack.name}`
-                  )}
-                </Button>
-              </div>
-            );
-          })}
+    <div className="space-y-6">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+        {/* Tabs Navigation */}
+        <div className="border-b border-border mb-8">
+          <TabsList className="bg-transparent h-12 p-0 w-full justify-start gap-8">
+            <TabsTrigger 
+              value="plans" 
+              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none h-12 px-2 text-subtle-foreground font-medium transition-none"
+            >
+              Plans &amp; Usage
+            </TabsTrigger>
+            <TabsTrigger
+              value="credits"
+              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none h-12 px-2 text-subtle-foreground font-medium transition-none"
+            >
+              AI Credits
+            </TabsTrigger>
+          </TabsList>
         </div>
-        {orgStatus !== "active" && (
-          <p className="text-xs text-subtle-foreground mt-3">
-            You need an active subscription to purchase credit packs.
-          </p>
-        )}
-      </section>
 
-      {/* Ad Budget Wallet */}
-      <section>
-        <h2 className="text-lg font-heading font-bold mb-1">
-          Ad Budget Wallet
-        </h2>
-        <p className="text-subtle-foreground text-sm mb-4">
-          Fund your wallet in Naira — we convert and pay Meta in USD
-          automatically.
-        </p>
-        <AdBudgetTopup />
-      </section>
-
-      {/* Plan Cards */}
-      <section>
-        <h2 className="text-lg font-heading font-bold mb-4">Available Plans</h2>
-        <div className="grid md:grid-cols-3 gap-6">
-          {PLANS.map((plan) => {
-            const isCurrent = currentTier === plan.id;
-            const isProcessingThis = isProcessing === plan.id;
-
-            return (
-              <Card
-                key={plan.id}
-                className={`relative flex flex-col ${
-                  plan.highlight
-                    ? "border-primary ring-2 ring-primary/20"
-                    : "border-border"
-                } ${isCurrent ? "opacity-90" : ""}`}
-              >
-                {plan.highlight && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge className="bg-primary text-primary-foreground px-3 py-0.5 text-xs font-bold">
-                      Most Popular
+        {/* ───────────────────────────────────────────────────────────────── */}
+        {/* Tab 1: Plans & Usage */}
+        <TabsContent value="plans" className="space-y-12 focus-visible:outline-none focus-visible:ring-0">
+          
+          {/* Current Subscription */}
+          <section>
+            <h2 className="text-lg font-heading font-bold mb-4">
+              Current Subscription
+            </h2>
+            <Card className="bg-card border-border shadow-sm">
+              <CardContent className="p-6 flex flex-col md:flex-row items-start justify-between gap-6">
+                <div className="flex-1 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <h3 className="text-xl font-bold capitalize">
+                      {currentTier} Plan
+                    </h3>
+                    <Badge
+                      variant={orgStatus === "active" ? "default" : "secondary"}
+                      className="capitalize"
+                    >
+                      {orgStatus}
                     </Badge>
                   </div>
-                )}
+                  <p className="text-subtle-foreground text-sm">
+                    {orgStatus === "active"
+                      ? `Renews ${formatDate(subscription?.org?.expiresAt?.toISOString() ?? null)}`
+                      : `Expired ${formatDate(subscription?.org?.expiresAt?.toISOString() ?? null)}`}
+                  </p>
 
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    {plan.name}
-                    {isCurrent && <Check className="text-primary w-5 h-5" />}
-                  </CardTitle>
-                  <CardDescription>{plan.tagline}</CardDescription>
-                </CardHeader>
+                  {/* Credit meter */}
+                  {creditQuota > 0 && (
+                    <div className="space-y-1 flex-1 max-w-sm">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-subtle-foreground font-medium">
+                          AI Credits used
+                        </span>
+                        <span className="font-bold">
+                          {creditsUsed} <span className="text-muted-foreground font-normal">/ {creditQuota}</span>
+                        </span>
+                      </div>
+                      <Progress value={creditsPercent} className="h-2" />
+                      <p className="text-xs text-subtle-foreground">
+                        {creditsBalance} credits remaining - resets on renewal
+                      </p>
+                    </div>
+                  )}
+                </div>
 
-                <CardContent className="flex flex-col flex-1">
-                  <div className="mb-5">
-                    <span className="text-3xl font-black">
-                      {formatCurrency(plan.price)}
-                    </span>
-                    <span className="text-subtle-foreground text-sm">
-                      /month
-                    </span>
-                  </div>
-
-                  <ul className="space-y-2 mb-6 text-sm text-subtle-foreground flex-1">
-                    {plan.features.map((f) => (
-                      <li key={f} className="flex items-start gap-2">
-                        <Check className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-
+                {orgStatus !== "active" && (
                   <Button
-                    className="w-full"
-                    variant={
-                      isCurrent
-                        ? "outline"
-                        : plan.highlight
-                          ? "default"
-                          : "outline"
-                    }
-                    onClick={() => handleUpgrade(plan.id)}
-                    disabled={isCurrent || isProcessing !== null}
+                    onClick={() => handleUpgrade(currentTier)}
+                    disabled={isProcessing !== null}
+                    size="lg"
                   >
-                    {isProcessingThis ? (
-                      <SystemRestart className="w-4 h-4 animate-spin" />
-                    ) : isCurrent ? (
-                      "Current Plan"
+                    {isProcessing === currentTier ? (
+                      <SystemRestart className="w-5 h-5 animate-spin" />
                     ) : (
-                      `Upgrade to ${plan.name}`
+                      "Renew Subscription"
                     )}
                   </Button>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      </section>
+                )}
+              </CardContent>
+            </Card>
+          </section>
+
+          {/* Plan Cards */}
+          <section>
+            <h2 className="text-lg font-heading font-bold mb-4">Available Plans</h2>
+            <div className="grid md:grid-cols-3 gap-6">
+              {PLANS.map((plan) => {
+                const isCurrent = currentTier === plan.id;
+                const isProcessingThis = isProcessing === plan.id;
+
+                return (
+                  <Card
+                    key={plan.id}
+                    className={`relative flex flex-col ${
+                      plan.highlight
+                        ? "border-primary ring-1 ring-primary/20"
+                        : "border-border shadow-sm"
+                    } ${isCurrent ? "opacity-90 bg-muted/20" : "bg-card"}`}
+                  >
+                    {plan.highlight && (
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                        <Badge className="bg-primary hover:bg-primary text-primary-foreground px-3 py-0.5 text-xs font-bold shadow-none">
+                          Most Popular
+                        </Badge>
+                      </div>
+                    )}
+
+                    <CardHeader>
+                      <CardTitle className="flex items-center justify-between text-lg">
+                        {plan.name}
+                        {isCurrent && <Check className="text-primary w-5 h-5" />}
+                      </CardTitle>
+                      <CardDescription>{plan.tagline}</CardDescription>
+                    </CardHeader>
+
+                    <CardContent className="flex flex-col flex-1">
+                      <div className="mb-6">
+                        <span className="text-4xl font-black">
+                          {formatCurrency(plan.price)}
+                        </span>
+                        <span className="text-subtle-foreground text-sm font-medium">
+                          /month
+                        </span>
+                      </div>
+
+                      <ul className="space-y-3 mb-8 text-sm text-subtle-foreground flex-1">
+                        {plan.features.map((f) => (
+                          <li key={f} className="flex items-start gap-2.5">
+                            <Check className="w-4 h-4 text-primary mt-0.5 shrink-0" strokeWidth={3} />
+                            <span className="font-medium">{f}</span>
+                          </li>
+                        ))}
+                      </ul>
+
+                      <Button
+                        className="w-full font-bold"
+                        variant={
+                          isCurrent
+                            ? "outline"
+                            : plan.highlight
+                              ? "default"
+                              : "secondary"
+                        }
+                        onClick={() => handleUpgrade(plan.id)}
+                        disabled={isCurrent || isProcessing !== null}
+                      >
+                        {isProcessingThis ? (
+                          <SystemRestart className="w-4 h-4 animate-spin" />
+                        ) : isCurrent ? (
+                          "Current Plan"
+                        ) : (
+                          `Upgrade to ${plan.name}`
+                        )}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </section>
+
+        </TabsContent>
+
+        {/* ───────────────────────────────────────────────────────────────── */}
+        {/* Tab 2: AI Credits */}
+        <TabsContent value="credits" className="space-y-10 focus-visible:outline-none focus-visible:ring-0">
+          
+          {/* Credit Pack Top-Ups */}
+          <section>
+            <div className="mb-6">
+              <h2 className="text-xl font-heading font-bold text-foreground">
+                Need More Credits?
+              </h2>
+              <p className="text-subtle-foreground text-sm mt-1">
+                One-off top-ups that stack on your plan. Credits never expire mid-cycle.
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {CREDIT_PACKS.map((pack) => {
+                const processingKey = `pack_${pack.id}`;
+                const isProcessingThis = isProcessing === processingKey;
+                const pricePerCredit = Math.round(pack.price / pack.credits);
+                
+                return (
+                  <div
+                    key={pack.id}
+                    className="flex flex-col rounded-md border border-border bg-card shadow-sm p-6 gap-6 transition-all hover:border-ai/30"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Gift className="w-5 h-5 text-ai" />
+                          <p className="text-sm font-bold text-ai">{pack.name}</p>
+                        </div>
+                        <p className="text-3xl font-black">
+                          {pack.credits}{" "}
+                          <span className="text-sm font-medium text-subtle-foreground">
+                            credits
+                          </span>
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xl font-bold">
+                          {formatCurrency(pack.price)}
+                        </p>
+                        <p className="text-xs font-medium text-subtle-foreground mt-0.5">
+                          {"\u20a6"}
+                          {pricePerCredit}/credit
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="w-full font-bold border-border hover:bg-ai hover:text-ai-foreground hover:border-ai"
+                      onClick={() => handleBuyPack(pack.id)}
+                      disabled={isProcessingThis || orgStatus !== "active"}
+                    >
+                      {isProcessingThis ? (
+                        <SystemRestart className="w-4 h-4 animate-spin" />
+                      ) : (
+                        `Buy ${pack.name}`
+                      )}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+            {orgStatus !== "active" && (
+              <div className="mt-4 p-4 rounded-md bg-muted/40 border border-border text-sm text-subtle-foreground">
+                You need an active subscription to purchase credit packs.
+              </div>
+            )}
+          </section>
+
+        </TabsContent>
+
+        {/* ───────────────────────────────────────────────────────────────── */}
+        {/* Tab 3: Ad Budget Wallet */}
+      </Tabs>
     </div>
   );
 }

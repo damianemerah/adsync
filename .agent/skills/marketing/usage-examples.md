@@ -1,6 +1,6 @@
-# AdSync Marketing Skill - Usage Examples
+# Tenzu Marketing Skill - Usage Examples
 
-This document shows practical examples of how to use the AdSync marketing skill for different marketing tasks.
+This document shows practical examples of how to use the Tenzu marketing skill for different marketing tasks.
 
 ## Example 1: Creating a Landing Page Hero Section
 
@@ -54,11 +54,11 @@ Over 2,000 Nigerian vendors launch campaigns daily without payment friction.
 
 **Output:**
 ```
-Subject: Welcome to AdSync, Chioma! Your first campaign in 2 minutes
+Subject: Welcome to Tenzu, Chioma! Your first campaign in 2 minutes
 
 Hi Chioma,
 
-Welcome to AdSync! You're now part of 2,000+ Nigerian businesses running professional Facebook ads without the headaches.
+Welcome to Tenzu! You're now part of 2,000+ Nigerian businesses running professional Facebook ads without the headaches.
 
 Here's what happens next:
 
@@ -67,7 +67,7 @@ Here's what happens next:
 3. Upload a product photo—AI will make it look professional
 4. Launch and watch the leads roll in
 
-The fastest way to see AdSync's power? Launch a simple campaign today. Even a small ₦5,000 test budget will show you the quality of leads.
+The fastest way to see Tenzu's power? Launch a simple campaign today. Even a small ₦5,000 test budget will show you the quality of leads.
 
 Ready to start?
 
@@ -77,7 +77,7 @@ Questions? Reply to this email or WhatsApp us: +234 803 123 4567
 
 — 
 Chisom
-Head of Growth, AdSync
+Head of Growth, Tenzu
 ```
 
 ---
@@ -85,7 +85,7 @@ Head of Growth, AdSync
 ## Example 3: Competitive Twitter Thread
 
 ### User Request:
-> "Write a Twitter thread explaining why AdSync is better than Wask for Nigerian businesses"
+> "Write a Twitter thread explaining why Tenzu is better than Wask for Nigerian businesses"
 
 ### Skill Application:
 
@@ -97,7 +97,7 @@ Head of Growth, AdSync
 
 **Output:**
 ```
-🧵 Why Nigerian businesses struggle with Wask (and how AdSync fixes it):
+🧵 Why Nigerian businesses struggle with Wask (and how Tenzu fixes it):
 
 1/ Wask is a great tool. Seriously—their template library is huge, their UI is polished, they've been around for years.
 
@@ -119,21 +119,21 @@ Result: You waste 2 hours trying different cards. Nothing works.
 
 4/ Meanwhile, your competitor—who found a better way—just launched their 5th campaign this week.
 
-They're using AdSync.
+They're using Tenzu.
 
 5/ The difference? Payment infrastructure.
 
-AdSync uses Paystack—same processor as Piggyvest, Cowrywise, thousands of Nigerian businesses.
+Tenzu uses Paystack—same processor as Piggyvest, Cowrywise, thousands of Nigerian businesses.
 
 Your card works. First try. Every time.
 
-6/ Plus: AdSync's AI actually redesigns your photos (removes backgrounds, improves lighting).
+6/ Plus: Tenzu's AI actually redesigns your photos (removes backgrounds, improves lighting).
 
-Wask gives you templates. AdSync transforms your phone photos into professional ads.
+Wask gives you templates. Tenzu transforms your phone photos into professional ads.
 
 7/ Bottom line:
 
-If you've ever seen "Payment Declined" on Wask, you need AdSync.
+If you've ever seen "Payment Declined" on Wask, you need Tenzu.
 
 Try it free for 7 days → [link]
 
@@ -189,7 +189,7 @@ Slide 5 (How it works):
 Slide 6 (CTA):
 "Try it free for 7 days"
 [Screenshot of AI Studio interface]
-"Link in bio → @adsync_ng"
+"Link in bio → @tenzu_ng"
 
 CAPTION:
 "Stop hiring photographers for lifestyle shots 📸
@@ -205,7 +205,7 @@ All from one phone photo. 30 seconds. No model. No photographer.
 
 Try it free (link in bio)
 
-#AIDesign #ProductPhotography #NigerianBusiness #AdSync"
+#AIDesign #ProductPhotography #NigerianBusiness #Tenzu"
 ```
 
 ---
@@ -213,7 +213,7 @@ Try it free (link in bio)
 ## Example 5: Objection Handling for Sales
 
 ### User Request:
-> "Customer says AdSync is too expensive compared to just using Ads Manager for free. How do I respond?"
+> "Customer says Tenzu is too expensive compared to just using Ads Manager for free. How do I respond?"
 
 ### Skill Application:
 
@@ -231,15 +231,15 @@ Ads Manager (Free):
 → 2 hours per campaign setup
 → Real cost: ₦50k+ (time + errors)
 
-AdSync (₦15k/month):
+Tenzu (₦15k/month):
 → 2-minute setup (no tutorials needed)
 → AI prevents costly mistakes
 → Unlimited campaigns
 → Real cost: ₦15k (flat)
 
-After your first successful campaign, AdSync pays for itself. Every campaign after that is pure profit.
+After your first successful campaign, Tenzu pays for itself. Every campaign after that is pure profit.
 
-Plus: If Ads Manager works better for you after learning it through AdSync's AI guidance, you can always switch. We're fine with that—our goal is to get you running ads, not trap you.
+Plus: If Ads Manager works better for you after learning it through Tenzu's AI guidance, you can always switch. We're fine with that—our goal is to get you running ads, not trap you.
 
 Try 7-day free trial. See which approach saves you more time and money."
 ```
@@ -277,7 +277,7 @@ This guide walks you through your first campaign step-by-step. No jargon. No ass
 
 Let's start...
 
-[Continue with step-by-step guide using AdSync's AI Consultant approach]
+[Continue with step-by-step guide using Tenzu's AI Consultant approach]
 ```
 
 **Why it works:**
@@ -292,7 +292,7 @@ Let's start...
 ## Example 7: Product Comparison Table
 
 ### User Request:
-> "Create a comparison table for our pricing page showing AdSync vs. traditional agencies"
+> "Create a comparison table for our pricing page showing Tenzu vs. traditional agencies"
 
 ### Skill Application:
 
@@ -302,7 +302,7 @@ Let's start...
 
 **Output:**
 ```
-| Dimension | Traditional Agency | AdSync |
+| Dimension | Traditional Agency | Tenzu |
 |-----------|-------------------|---------|
 | **Cost per Campaign** | ₦150,000+ | ₦15,000/month (unlimited) |
 | **Setup Time** | 5-7 days | 2 minutes |
@@ -316,9 +316,9 @@ Let's start...
 | **Best For** | Complex brand strategy | Fast execution & testing |
 
 **The Bottom Line:**
-Agencies deliver expertise. AdSync delivers efficiency. 
+Agencies deliver expertise. Tenzu delivers efficiency. 
 
-If you need strategic consultation on brand positioning, hire an agency. If you know what you want to sell and need professional ads fast, AdSync is 10x more cost-effective.
+If you need strategic consultation on brand positioning, hire an agency. If you know what you want to sell and need professional ads fast, Tenzu is 10x more cost-effective.
 ```
 
 ---
@@ -340,7 +340,7 @@ Subject: What's holding you back, Emeka?
 
 Hi Emeka,
 
-It's been 2 weeks since you joined AdSync, but I notice you haven't launched a campaign yet.
+It's been 2 weeks since you joined Tenzu, but I notice you haven't launched a campaign yet.
 
 I want to understand why. Is it:
 
@@ -368,17 +368,17 @@ No pressure. Just want to make sure nothing's blocking your success.
 
 — 
 Chisom
-Head of Growth, AdSync
+Head of Growth, Tenzu
 +234 803 123 4567 (WhatsApp)
 
-P.S. - If you've decided AdSync isn't for you, that's totally fine too. Just hit "Unsubscribe" below. No hard feelings.
+P.S. - If you've decided Tenzu isn't for you, that's totally fine too. Just hit "Unsubscribe" below. No hard feelings.
 ```
 
 ---
 
 ## Skill Usage Checklist
 
-When using the AdSync marketing skill, always:
+When using the Tenzu marketing skill, always:
 
 - [ ] Identify the primary pillar (Payment / Creative / Simplicity)
 - [ ] Check relevant reference files before writing

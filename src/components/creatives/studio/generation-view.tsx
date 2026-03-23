@@ -193,7 +193,7 @@ export function GenerationView({
                 }
               }}
               disabled={isUsingInCampaign}
-              className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl shadow-soft text-sm gap-2"
+              className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-md shadow-sm border border-border text-sm gap-2"
             >
               {isUsingInCampaign ? (
                 <>
@@ -237,7 +237,7 @@ export function GenerationView({
           <Button
             onClick={handleRefine}
             disabled={isGenerating || !prompt}
-            className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground shadow-soft rounded-2xl font-bold transition-all"
+            className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm border border-border rounded-lg font-bold transition-all"
           >
             {isGenerating ? (
               <>
@@ -261,7 +261,7 @@ export function GenerationView({
             onClick={handleSave}
             disabled={isSaving || isCurrentSaved}
             className={cn(
-              "w-full h-10 rounded-xl font-medium transition-all",
+              "w-full h-10 rounded-md font-medium transition-all",
               isCurrentSaved
                 ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/10 cursor-default"
                 : "border-border text-foreground hover:bg-muted",
@@ -287,7 +287,7 @@ export function GenerationView({
             variant="outline"
             onClick={handleDownload}
             disabled={isDownloading}
-            className="w-full h-10 rounded-xl border-border font-medium text-foreground hover:bg-muted transition-all"
+            className="w-full h-10 rounded-md border-border font-medium text-foreground hover:bg-muted transition-all"
           >
             {isDownloading ? (
               <>
@@ -320,7 +320,7 @@ export function GenerationView({
               onClick={handleSave}
               disabled={isSaving || isCurrentSaved}
               className={cn(
-                "h-8 px-3 text-xs shadow-soft rounded-lg",
+                "h-8 px-3 text-xs shadow-sm border border-border rounded-lg",
                 isCurrentSaved
                   ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/10"
                   : "bg-background hover:bg-muted border-border text-foreground",
@@ -340,7 +340,7 @@ export function GenerationView({
               size="sm"
               onClick={handleDownload}
               disabled={isDownloading}
-              className="h-8 px-3 text-xs bg-background hover:bg-muted border-border text-foreground shadow-soft rounded-lg"
+              className="h-8 px-3 text-xs bg-background hover:bg-muted border-border text-foreground shadow-sm border border-border rounded-lg"
             >
               {isDownloading ? (
                 <Sparks className="w-3.5 h-3.5 mr-1.5 animate-spin" />
@@ -356,7 +356,7 @@ export function GenerationView({
         <div className="flex-1 flex flex-col items-center justify-center p-8 min-h-0 relative z-0">
           <div
             className={cn(
-              "relative shadow-soft rounded-2xl overflow-hidden bg-card ring-1 ring-border group",
+              "relative shadow-sm border border-border rounded-lg overflow-hidden bg-card ring-1 ring-border group",
               ratioClasses[aspectRatio] || "h-[50vh] aspect-square",
             )}
           >
@@ -370,14 +370,14 @@ export function GenerationView({
           </div>
 
           {/* Dimensions label — now using real values */}
-          <div className="mt-4 px-4 py-1.5 bg-card border border-border rounded-full text-xs font-medium text-subtle-foreground shadow-soft">
+          <div className="mt-4 px-4 py-1.5 bg-card border border-border rounded-full text-xs font-medium text-subtle-foreground shadow-sm border border-border">
             {dims.w} × {dims.h} px
           </div>
         </div>
 
         {/* Version History Strip — chronological (oldest left → newest right) */}
         {history.length > 1 && (
-          <div className="shrink-0 border border-border p-4 rounded-3xl m-3 bg-card shadow-soft z-10">
+          <div className="shrink-0 border border-border p-4 rounded-lg m-3 bg-card shadow-sm border border-border z-10">
             <p className="text-[10px] font-bold uppercase tracking-wider text-subtle-foreground mb-3">
               Version History
             </p>
@@ -390,7 +390,7 @@ export function GenerationView({
                   key={idx}
                   onClick={() => setCurrentImage(img)}
                   className={cn(
-                    "relative h-16 w-16 shrink-0 rounded-xl overflow-hidden border-2 transition-all hover:scale-105",
+                    "relative h-16 w-16 shrink-0 rounded-md overflow-hidden border-2 transition-all hover:scale-105",
                     currentImage === img
                       ? "border-primary ring-2 ring-primary/20 ring-offset-2"
                       : "border-border hover:border-muted-foreground/30 opacity-70 hover:opacity-100",

@@ -51,7 +51,7 @@ export function HelpCenterSheet() {
       <SheetTrigger asChild>
         <Button
           variant="outline"
-          className="gap-2 border-border bg-background text-foreground hover:bg-muted font-bold shadow-sm h-9 rounded-xl"
+          className="gap-2 border-border bg-background text-foreground hover:bg-muted font-bold shadow-sm h-9 rounded-md"
         >
           <HelpCircle className="h-4 w-4" />
           Help Center
@@ -77,7 +77,7 @@ export function HelpCenterSheet() {
             {HELP_VIDEOS.map((video) => (
               <div
                 key={video.id}
-                className="group relative aspect-video w-full overflow-hidden rounded-xl border border-border bg-muted shadow-sm transition-all hover:shadow-md cursor-pointer"
+                className="group relative aspect-video w-full overflow-hidden rounded-md border border-border bg-muted shadow-sm transition-all hover:shadow-md cursor-pointer"
               >
                 {/* Thumbnail Layer */}
                 <div className="absolute inset-0 bg-black/10 transition-colors group-hover:bg-black/20" />
@@ -104,7 +104,7 @@ export function HelpCenterSheet() {
             ))}
           </div>
 
-          <div className="rounded-xl bg-primary/5 p-4 border border-primary/10">
+          <div className="rounded-md bg-primary/5 p-4 border border-primary/10">
             <h4 className="font-semibold text-primary text-sm mb-1">
               Need more help?
             </h4>

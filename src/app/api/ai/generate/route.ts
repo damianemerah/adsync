@@ -70,13 +70,6 @@ export async function POST(request: Request) {
     refinementInstruction,
     conversationHistory,
   } = body;
-  console.log("\n====================================");
-  console.log("🚀 [API Route: /api/ai/generate] Request received");
-  console.log("   - Location:", location);
-  console.log("   - Objective:", objective);
-  console.log("   - Description Length:", description?.length || 0);
-  console.log("   - Is Refinement:", !!refinementInstruction);
-  console.log("====================================\n");
 
   // Resolve objective context
   const objId = objective as AdSyncObjective;

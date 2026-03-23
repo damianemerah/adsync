@@ -1,6 +1,6 @@
 ---
 name: ai-context
-description: Manages the Sellam org-level AI context layer (Layer 1). Use when working on `compileContextPrompt`, `useOrgContext`, `context-compiler.ts`, `service.ts`, `category-playbooks.ts`, org profile DB columns, onboarding or settings business page fields, or any OpenAI/Fal.ai call that should be context-enriched with org data.
+description: Manages the Tenzu org-level AI context layer (Layer 1). Use when working on `compileContextPrompt`, `useOrgContext`, `context-compiler.ts`, `service.ts`, `category-playbooks.ts`, org profile DB columns, onboarding or settings business page fields, or any OpenAI/Fal.ai call that should be context-enriched with org data.
 ---
 
 # AI Context Skill

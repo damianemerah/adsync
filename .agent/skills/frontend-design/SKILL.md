@@ -1,88 +1,64 @@
 ---
 name: frontend-design
-description: Create production-grade, "Soft Modern" dashboards following the Wask/AdSync aesthetic. Uses Nano Banana Pro for visual mockups and Browser Agent for layout verification.
+description: Create production-grade, "Crisp Modern" dashboards for Tenzu. Driven by precision, 1px borders, tight radiuses, and high-contrast typography.
 ---
 
 ## Core Strategy
 
-You are a lead frontend engineer. Your mission is to refactor existing code into UIs that match the "Soft Modern" style of Wask.co, characterized by high-contrast emerald actions, deep navy foundations, and layered, tactile surfaces.
+You are a lead frontend engineer. Your mission is to refactor and build UIs that match the Tenzu "Crisp Modern" style, characterized by high-contrast emerald actions, deep navy foundations, tight grid alignments, and flat, border-driven surfaces rather than floating shadows.
 
 ## Resource Utilization
 
-1. **Design Tokens**: Read `resources/theme-presets.json` before writing any code. Apply these as the absolute source of truth for colors and radius.
-2. **Visual Baseline**: Reference the screenshots in `resources/wask_ss/`. Mirror the spacing, "Soft Lift" depth, and information density seen in these reference images.
-3. **Mockup Workflow**: For complex requests, use native **Nano Banana Pro** to generate a high-fidelity mockup. Present this as an **Artifact** for approval before implementing code.
+1. **Design Tokens**: Read `src/app/globals.css` before writing any code. Apply these as the absolute source of truth for colors and radius.
+2. **Visual Baseline**: Think "Stripe, Linear, or Vercel." Crisp, fast, and structured.
+3. **Mockup Workflow**: For complex requests, use native **Nano Banana Pro** or generated images using the fal.ai MCP to create mockups.
 
-## Visual Standards (The Wask Look)
+## Visual Standards (The Tenzu Crisp Look)
 
 - **Palette**:
   - **Primary Action**: Emerald Green (Token: `bg-primary`)
-  - **Foundation Text/Headers**: Deep Navy (Token: `text-foreground`) - Use heavily as _background_ on Landing Page (`src/app/page.tsx`), but _sparingly_ as background on Dashboard (`src/app/(authenticated)`).
+  - **Foundation Text/Headers**: Deep Navy / Crisp Black (Token: `text-foreground`). Use heavily as _background_ on the Landing Page (`src/app/(public)`), but _sparingly_ as background on Dashboard (`src/app/(authenticated)`).
   - **Secondary Text**: State Slate (Token: `text-subtle-foreground`) - Use for sidebar links, metadata, and descriptions. **Do not use `muted-foreground` for text you want people to read.**
-  - **Subtle Scaffolding**: Marketing Gray (Token: `text-muted-foreground`) - Use only for disabled states, placeholders, or tertiary info.
+  - **Subtle Scaffolding**: Marketing Gray (Token: `text-muted-foreground`) - Use only for borders (`border-border`), disabled states, or tertiary info.
   - **AI Features**: AI Purple (Token: `text-ai` / `bg-ai`) - **ALWAYS** use for AI-powered tools, links, and "Generate" buttons.
-- **Shape & Depth**: Use `rounded-3xl` (1.5rem) and "Soft Lift" shadows.
+- **Shape & Depth**: Use `rounded-md` or `rounded-lg`. **NEVER** use `rounded-3xl` or massive pill shapes for main containers—those are for "Soft" style. Rely on `border border-border` for separation instead of shadows.
 - **Layout Architecture**:
-  - **Sidebar**: Fixed left sidebar with a `bg-sidebar` background and subtle border (`border-sidebar-border`).
-  - **Active Items**: Use a `bg-accent` or `bg-primary` pill for the current active state.
-  - **Account Footer**: MUST include a "Micro Plan" section with a credit progress bar.
+  - **Sidebar**: Fixed left sidebar with a `bg-sidebar` background and absolute crisp right border (`border-r border-sidebar-border`).
+  - **Active Items**: Use a crisp `bg-accent` or subtle `bg-primary/10` block for the current active state.
+  - **Grid**: Use "Bento Grid" layouts (`grid-cols-12`) with tight `gap-4` or `gap-6` spacing.
 
-## Shadows & Elevation (The "Anti-Bold" Rule)
+## Shadows & Elevation (The "Flat UI" Rule)
 
-- **Neutralize Defaults**: Automatically identify and remove any standard Tailwind shadows (e.g., `shadow-md`, `shadow-lg`) that use high-opacity black.
-- **Color Sanitization**: Proactively remove generic Tailwind color classes (e.g., `bg-blue-600`, `text-gray-900`) and replace them with the semantic tokens or hex codes defined in the "Visual Standards" section and global.css.
-- **The Wask Shadow**: Apply a custom "Soft Lift" shadow using the `--shadow-soft` and `--shadow-xs` token.
-  - **Formula**: `0 4px 20px -2px rgba(3, 0, 24, 0.05)` (Navy-tinted black at 5% opacity).
-  - **Crisp Edges**: Always use a negative spread (e.g., `-2px`) to prevent a "dirty" or blurry look.
+- **Neutralize Shadows**: Automatically identify and remove any standard Tailwind shadows (e.g., `shadow-md`, `shadow-lg`, `shadow-soft`).
+- **Use Borders Instead**: Depth is created by 1px `border-border` lines and background color shifts (`bg-card` vs `bg-background`), NOT floating shadows.
+- **Popovers/Modals**: If a shadow is absolutely required (e.g., for a dropdown menu), use a very tight, hard shadow `shadow-sm` combined with a border.
 
 ## Technical Execution (Tailwind v4 + Shadcn)
 
-- **Overrides**: Heavily override default Shadcn components via `className` to match the 1.5rem radius and emerald palette.
-- **Empty States**: Use centered, light-gray icons with an "Improve with AI" emerald CTA.
-- **Data Density**: Use "Bento Grid" layouts (`grid-cols-12`) for complex dashboard metrics.
+- **Overrides**: Heavily override default Shadcn components if they are too bubbly. Force `rounded-md`.
+- **Empty States**: Use centered, light-gray line-art icons (Iconoir) with an "Improve with AI" emerald CTA.
 
 ## Design System & Theming (Strict)
 
-Adhere to the `.cursor/rules/shadcn-theme.mdc` rules:
+Adhere to the `.agent/rules/shadcn-theme.md` rules:
 
-- **Semantic Tokens Only**: **NEVER** use hex codes (e.g., `#12E193`, `bg-[#030018]`) or arbitrary tailwind colors (`bg-blue-500`) in code.
-  - **ALWAYS** use semantic tokens: `bg-primary`, `text-foreground`, `border-input`, `bg-sidebar`, etc. refer to `src/app/globals.css`.
+- **Semantic Tokens Only**: **NEVER** use hex codes (e.g., `#12E193`, `bg-[#030018]`) or arbitrary tailwind colors (`bg-blue-500`).
 - **Icons**: Use `iconoir-react`. Never use Lucide.
-- **Radius**: Use `rounded-lg` (maps to `1.5rem`) for cards/containers.
 - **Typography**:
-  - **Headings**: `font-heading`, `text-foreground`, `font-bold`.
-  - **Body**: `font-sans`, `text-foreground` (or `text-subtle-foreground` for non-critical text).
-  - **Links/Actions**: `text-subtle-foreground` -> `hover:text-foreground`.
+  - **Headings**: `font-heading`, `text-foreground`, `font-bold` or `font-semibold`.
+  - **Body**: `font-sans`, `text-foreground`
+  - **Links/Actions**: `text-subtle-foreground` -> `hover:text-foreground` transition.
 
-## The "Gary Simon" Polish Protocol
+## The Polish Protocol
 
-To avoid "messy" amateur UIs, apply these 3 golden rules during refinement:
-
-1.  **Visual Hierarchy (The Squint Test)**
-    - **Rule:** If everything is bold, nothing is bold.
-    - **Fix:** Ensure the primary action is the _only_ thing that screams for attention. Demote everything else using `text-subtle-foreground`, smaller font sizes, or `font-normal`.
-
-2.  **Whitespace (Let it Breathe)**
-    - **Rule:** Amateur designs are cramped. Professional designs are spacious.
-    - **Fix:** Double your margins. Use `py-24` or `py-32` for section spacing. Ensure cards have ample internal padding (`p-8`+).
-
-3.  **Contrast & Readability**
-    - **Rule:** Never place gray text on a dark background if it's meant to be read.
-    - **Fix:** Use `text-white` or `text-foreground` on contrasting backgrounds. Check specifically for `text-muted-foreground` on dark cards—it's often too dim.
-
-## Registry & Pattern Integration
-
-- **Tailark / Shadcn Blocks:** When building landing page sections (Heroes, Features, Pricing), mimic the structure of **Tailark** or **Shadcn Blocks**.
-  - _Concept:_ Clean, modular `section > container > grid` architecture.
-  - _Pattern:_ Use `bg-background` for the page and `bg-card` with `border-border` for isolated components.
-  - _Glassmorphism:_ Use `bg-white/5 backdrop-blur-sm border-white/10` for premium overlays.
+To avoid "messy" amateur UIs, apply these rules:
+1.  **Visual Hierarchy**: The primary action (Emerald green) should be the ONLY thing popping. Demote everything else using `text-subtle-foreground`.
+2.  **Structural Grid**: Align everything to strict grid lines. If cards are next to each other, their borders should form a clean grid without messy extra margins.
+3.  **Readability**: Never place gray text on a dark background if it's meant to be read.
 
 ## Validation Protocol
 
 After implementation:
-
-- Use the **Browser Agent** to capture a screenshot of the rendered UI.
 - **Squint Test:** Can you identify the #1 action immediately?
-- **Spacing Check:** Is there at least 100px (py-24) between major sections?
-- **Dummy Data Check:** If the UI relies on hardcoded data, **EXPLICITLY** ask the user: _"The UI is polished, but it's using static mock data. Should I connect this to real data?"_
+- **Border Check:** Are we heavily relying on borders instead of shadows?
 - Run `npx tsc --noemit` for code error and fix.

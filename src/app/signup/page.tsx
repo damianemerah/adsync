@@ -52,7 +52,7 @@ export default function SignupPage() {
           {/* Wrap the form in Suspense boundary */}
           <Suspense
             fallback={
-              <div className="h-80 animate-pulse bg-muted rounded-3xl" />
+              <div className="h-80 animate-pulse bg-muted rounded-lg" />
             }
           >
             <SignupForm />

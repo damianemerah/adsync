@@ -1,5 +1,5 @@
 ---
-description: Create a new Supabase migration file with correct timestamp naming, RLS policies, indexes, and monetary value conventions for the Sellam database.
+description: Create a new Supabase migration file with correct timestamp naming, RLS policies, indexes, and monetary value conventions for the Tenzu database.
 ---
 
 # /new-migration

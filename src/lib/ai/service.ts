@@ -11,7 +11,14 @@ import {
 import { buildInterestCatalogPrompt } from "@/lib/constants/meta-interests";
 
 // ─── Minimal System Instruction ──────────────────────────────────────────────
-const BASE_INSTRUCTION = `You are an expert Nigerian ad copywriter and marketing strategist. Use your available skills to determine the best strategy and generate high-converting ad copy. Structure your response according to the provided JSON schema.
+const NG_PERSONA = `You are an expert Nigerian ad copywriter and marketing strategist.`;
+const GLOBAL_PERSONA = `You are an expert global ad copywriter and marketing strategist.`;
+
+function buildBaseInstruction(orgCountryCode?: string): string {
+  const persona =
+    !orgCountryCode || orgCountryCode === "NG" ? NG_PERSONA : GLOBAL_PERSONA;
+
+  return `${persona} Use your available skills to determine the best strategy and generate high-converting ad copy. Structure your response according to the provided JSON schema.
 
 INTERESTS — prefer names from this catalog (5-8, 1-3 words each):
 ${buildInterestCatalogPrompt()}
@@ -25,6 +32,7 @@ LIFE EVENTS — output ONLY names from this exact list (0–2), or an empty arra
 ${buildLifeEventCatalogPrompt()}
 
 Outputting any behavior or life event name NOT in the above lists is a critical error.`;
+}
 
 // ─── Full Strategy JSON Schema ────────────────────────────────────────────────
 const AI_STRATEGY_SCHEMA = {
@@ -451,7 +459,7 @@ async function generateWithOpenAI(
 
   const response = await (openai.responses.create as any)({
     model: tierAi.strategyModel,
-    instructions: BASE_INSTRUCTION,
+    instructions: buildBaseInstruction(input.orgCountryCode),
     input: buildUserMessage(input, extracted),
     ...(useSkills
       ? {

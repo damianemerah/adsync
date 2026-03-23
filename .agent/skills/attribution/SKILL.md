@@ -1,6 +1,6 @@
 ---
 name: attribution
-description: Manages Sellam's smart link attribution system and Meta Conversions API (CAPI) offline conversion integration. Use when working on `/l/[token]` redirect route, `/api/pixel` endpoint, `attribution_links` or `link_clicks` tables, `generateAttributionToken`, `buildAttributionUrl`, WhatsApp/website click counters on campaigns, ROI dashboard, `useCampaignROI` hook, Mark as Sold, `whatsapp_sales` table, `fbclid` capture, `updateAdAccountCapi`, CAPI event firing, Meta Pixel ID, or CAPI access token settings.
+description: Manages Tenzu's smart link attribution system and Meta Conversions API (CAPI) offline conversion integration. Use when working on `/l/[token]` redirect route, `/api/pixel` endpoint, `attribution_links` or `link_clicks` tables, `generateAttributionToken`, `buildAttributionUrl`, WhatsApp/website click counters on campaigns, ROI dashboard, `useCampaignROI` hook, Mark as Sold, `whatsapp_sales` table, `fbclid` capture, `updateAdAccountCapi`, CAPI event firing, Meta Pixel ID, or CAPI access token settings.
 ---
 
 # Attribution Layer Skill
@@ -62,15 +62,15 @@ Read the relevant reference file before writing any code for this feature.
 
 ### The Problem
 
-Every ad Sellam launches currently sends raw URLs to Meta:
+Every ad Tenzu launches currently sends raw URLs to Meta:
 
 - WhatsApp: raw `wa.me/234...` link
 - Website: raw `https://...` link
-  When someone clicks, Sellam sees nothing. Zero attribution.
+  When someone clicks, Tenzu sees nothing. Zero attribution.
 
 ### The Solution
 
-Wrap every destination in a Sellam smart link: `sellam.app/l/[token]`
+Wrap every destination in a Tenzu smart link: `tenzu.africa/l/[token]`
 The token lookup is instant. The redirect is imperceptible. The data is captured.
 
 ### Nigerian SME Segments (all served by same architecture)
@@ -85,17 +85,17 @@ The token lookup is instant. The redirect is imperceptible. The data is captured
 Campaign launch
   → generateAttributionToken() → 8-char nanoid
   → insert attribution_links row { token, destination_url, destination_type }
-  → finalUrl = sellam.app/l/[token]  ← this goes to Meta, not the raw URL
+  → finalUrl = tenzu.africa/l/[token]  ← this goes to Meta, not the raw URL
   → after campaign inserted, update attribution_links.campaign_id
 
 User clicks ad
-  → hits sellam.app/l/[token]
+  → hits tenzu.africa/l/[token]
   → route.ts looks up token → gets destination_url + destination_type
   → fire-and-forget: insert link_clicks row + call increment_campaign_clicks RPC
   → 302 redirect to destination_url immediately
 
 Website owner (optional)
-  → Sellam shows pixel snippet in campaign detail after launch
+  → Tenzu shows pixel snippet in campaign detail after launch
   → SME pastes 4-line script into site <head> once
   → Script calls /api/pixel?t=[pixel_token]&e=purchase&v=15000
   → Auto-credits revenue to campaign — same as "Mark as Sold" but automatic
@@ -122,12 +122,12 @@ revenue_ngn       INTEGER DEFAULT 0
 
 ## CAPI Integration (Phase 2)
 
-Meta Conversions API lets Sellam send conversion signals **server-to-server**, bypassing browser limitations. This is especially important for Nigerian SMEs because most sales happen on WhatsApp (offline), not on a website.
+Meta Conversions API lets Tenzu send conversion signals **server-to-server**, bypassing browser limitations. This is especially important for Nigerian SMEs because most sales happen on WhatsApp (offline), not on a website.
 
 ### How It Works
 
 ```
-User clicks Meta ad → sellam.app/l/[token]?fbclid=XXXXX
+User clicks Meta ad → tenzu.africa/l/[token]?fbclid=XXXXX
   → fbclid saved in link_clicks row (fire-and-forget)
   → redirect to WhatsApp/website
 

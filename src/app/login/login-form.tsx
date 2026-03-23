@@ -16,7 +16,7 @@ function SubmitButton() {
   return (
     <Button
       type="submit"
-      className="w-full h-14 rounded-3xl bg-foreground hover:bg-foreground/90 text-background text-base font-bold shadow-soft transition-all scale-100 hover:scale-[1.02] active:scale-[0.98]"
+      className="w-full h-14 rounded-lg bg-foreground hover:bg-foreground/90 text-background text-base font-bold shadow-sm border border-border transition-all scale-100 hover:scale-[1.02] active:scale-[0.98]"
       disabled={pending}
     >
       {pending ? (
@@ -48,7 +48,7 @@ export function LoginForm() {
           name="email"
           type="email"
           placeholder="name@company.com"
-          className="h-12 rounded-2xl bg-muted/40 border-transparent hover:bg-muted/60 focus:bg-background focus:border-ring transition-all px-4"
+          className="h-12 rounded-lg bg-muted/40 border-transparent hover:bg-muted/60 focus:bg-background focus:border-ring transition-all px-4"
           defaultValue=""
           aria-invalid={!!state?.fieldErrors?.email}
         />
@@ -79,7 +79,7 @@ export function LoginForm() {
             id="password"
             name="password"
             type={showPassword ? "text" : "password"}
-            className="h-12 rounded-2xl bg-muted/40 border-transparent hover:bg-muted/60 focus:bg-background focus:border-ring transition-all px-4 pr-12"
+            className="h-12 rounded-lg bg-muted/40 border-transparent hover:bg-muted/60 focus:bg-background focus:border-ring transition-all px-4 pr-12"
             defaultValue=""
           />
           <button
@@ -104,7 +104,7 @@ export function LoginForm() {
       </div>
 
       {state?.error && (
-        <p className="text-sm text-destructive bg-destructive/10 p-4 rounded-2xl font-medium">
+        <p className="text-sm text-destructive bg-destructive/10 p-4 rounded-lg font-medium">
           {state.error}
         </p>
       )}

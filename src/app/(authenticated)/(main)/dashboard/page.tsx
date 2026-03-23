@@ -35,6 +35,7 @@ export default async function DashboardPage() {
       .from("ad_accounts")
       .select("id")
       .eq("organization_id", activeOrgId)
+      .is("disconnected_at", null)
       .limit(1),
 
     // Has verified WhatsApp?

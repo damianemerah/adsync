@@ -9,6 +9,7 @@ import {
 import { CreativeFormat } from "@/lib/ai/prompts";
 import { GenerationView } from "@/components/creatives/studio/generation-view";
 import { Sparks } from "iconoir-react";
+import { CreditsDisplay } from "@/components/layout/credits-display";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -229,6 +230,10 @@ export default function EditCreativePage({ params }: EditCreativePageProps) {
         campaignContext: campaignContext || undefined,
       });
 
+      if (!result) {
+        throw new Error("Failed to generate creative - no result returned");
+      }
+
       if (result.seed && !seed) {
         setSeed(result.seed);
       }
@@ -291,6 +296,9 @@ export default function EditCreativePage({ params }: EditCreativePageProps) {
               {campaignName.length > 25 ? "..." : ""}
             </Badge>
           )}
+        </div>
+        <div className="flex items-center gap-3">
+          <CreditsDisplay />
         </div>
       </div>
     </header>

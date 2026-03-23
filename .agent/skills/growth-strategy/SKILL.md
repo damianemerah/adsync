@@ -1,6 +1,6 @@
 ---
 name: growth-strategy
-description: Governs Sellam's "Connect for Free, Pay to Launch" growth model. Use when working on `SubscriptionGate`, free-tier routing, read-only dashboard access, date range limits, action gating (pause/edit/create), AI insight blurring, or any upsell trigger placement. Core principle — "Monitoring is Free, Action is Paid."
+description: Governs Tenzu's "Connect for Free, Pay to Launch" growth model. Use when working on `SubscriptionGate`, free-tier routing, read-only dashboard access, date range limits, action gating (pause/edit/create), AI insight blurring, or any upsell trigger placement. Core principle — "Monitoring is Free, Action is Paid."
 ---
 
 # Growth Strategy Skill — Free Dashboard ("Insight vs. Action")
@@ -11,7 +11,7 @@ description: Governs Sellam's "Connect for Free, Pay to Launch" growth model. Us
 
 Users connect their Meta Ad Account for free and instantly see a beautiful read-only dashboard of their _existing_ campaigns. They upgrade when they need to **act** — pause a wasteful ad, create a new one, or unlock AI optimization.
 
-This is the primary acquisition funnel. Sellam is a **"Trojan Horse"** — let them into the fortress (the dashboard) for free, but lock the armory (the tools to fight).
+This is the primary acquisition funnel. Tenzu is a **"Trojan Horse"** — let them into the fortress (the dashboard) for free, but lock the armory (the tools to fight).
 
 ---
 
@@ -39,7 +39,7 @@ Business owners are obsessed with "What happened today?" but they _need_ "What h
 
 **Upsell UX:** The `DateRangePicker` component shows all dates, but selecting a date older than 30 days triggers a glassmorphism modal:
 
-> _"See the Full Picture — Analyze seasonal trends with Lifetime History on Sellam Pro."_
+> _"See the Full Picture — Analyze seasonal trends with Lifetime History on Tenzu Pro."_
 
 **Server enforcement:**
 
@@ -66,7 +66,7 @@ if (tier === "free" && isBefore(startDate, subDays(new Date(), 30))) {
 
 **Upsell UX:** The "Pause" toggle, "Edit" button, and "New Campaign" CTA are all visible but trigger a paywall on click:
 
-> _"Control your ad spend instantly from Sellam. Upgrade to Pause, Edit, and Optimize in one click."_
+> _"Control your ad spend instantly from Tenzu. Upgrade to Pause, Edit, and Optimize in one click."_
 
 **Why it converts:** They are emotionally invested in stopping the loss. The subscription cost (₦10,000/mo) is likely less than the money they're wasting on that bad ad.
 

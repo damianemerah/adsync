@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useInsights } from "@/hooks/use-insights";
 import { useAdAccounts } from "@/hooks/use-ad-account";
 import { useCampaigns } from "@/hooks/use-campaigns";
@@ -123,6 +123,38 @@ export function GlobalContextBar({
     }
   }, [insightsForExport]);
 
+  // Auto-select platform and account if missing
+  useEffect(() => {
+    if (!accounts?.length) return;
+
+    // ✅ Reset stale account ID if it no longer exists (fixes disconnect/reconnect bug)
+    if (selectedAccountId && !accounts.find((a) => a.id === selectedAccountId)) {
+      setSelectedAccountId("");
+    }
+
+    if (!selectedPlatform) {
+      setSelectedPlatform(accounts[0].platform);
+    }
+
+    if (!selectedAccountId) {
+      const platformAccounts = accounts.filter(
+        (a) => a.platform === (selectedPlatform || accounts[0].platform),
+      );
+      if (platformAccounts.length > 0) {
+        setSelectedAccountId(platformAccounts[0].id);
+      } else {
+        setSelectedAccountId(accounts[0].id);
+        setSelectedPlatform(accounts[0].platform);
+      }
+    }
+  }, [
+    accounts,
+    selectedAccountId,
+    selectedPlatform,
+    setSelectedAccountId,
+    setSelectedPlatform,
+  ]);
+
   // Filter Accounts based on selected platform
   const filteredAccounts = accounts?.filter(
     (acc) => acc.platform === selectedPlatform,
@@ -137,7 +169,7 @@ export function GlobalContextBar({
 
   return (
     <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border">
-      <div className="container mx-auto px-4 lg:px-8 py-4 flex flex-col lg:flex-row gap-6 items-end justify-between">
+      <div className="mx-auto px-4 lg:px-8 py-4 flex flex-col lg:flex-row gap-6 items-end justify-between">
         {/* Left Side: Filters */}
         <div className="flex items-end gap-3 flex-1 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0 no-scrollbar">
           {/* 1. Ad Platform */}
@@ -148,7 +180,7 @@ export function GlobalContextBar({
                   variant="outline"
                   role="combobox"
                   aria-expanded={openPlatform}
-                  className="w-full h-14 justify-between rounded-2xl border-border bg-card hover:border-primary/50 transition-all px-4 py-2 items-center shadow-soft group"
+                  className="w-full h-14 justify-between rounded-md bg-card hover:border-primary/50 transition-all px-4 py-2 items-center border border-border group"
                 >
                   <div className="flex flex-col items-start gap-0.5 overflow-hidden text-left">
                     <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none group-hover:text-primary transition-colors">
@@ -174,7 +206,7 @@ export function GlobalContextBar({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
-                className="w-[220px] rounded-2xl border-border shadow-soft"
+                className="w-[220px] rounded-md border border-border p-1"
                 align="start"
               >
                 <DropdownMenuCheckboxItem
@@ -189,7 +221,7 @@ export function GlobalContextBar({
                     setSelectedPlatform("meta");
                     setOpenPlatform(false);
                   }}
-                  className="py-2.5 font-medium cursor-pointer rounded-xl"
+                  className="py-2.5 font-medium cursor-pointer rounded-md"
                 >
                   Meta Ads
                 </DropdownMenuCheckboxItem>
@@ -208,7 +240,7 @@ export function GlobalContextBar({
                     setSelectedPlatform("tiktok");
                     setOpenPlatform(false);
                   }}
-                  className="py-2.5 font-medium cursor-pointer rounded-xl"
+                  className="py-2.5 font-medium cursor-pointer rounded-md"
                 >
                   TikTok Ads
                 </DropdownMenuCheckboxItem>
@@ -224,7 +256,7 @@ export function GlobalContextBar({
                   variant="outline"
                   role="combobox"
                   aria-expanded={openAccount}
-                  className="w-full h-14 justify-between rounded-2xl border-border bg-card hover:border-primary/50 transition-all px-4 py-2 items-center shadow-soft group"
+                  className="w-full h-14 justify-between rounded-md bg-card hover:border-primary/50 transition-all px-4 py-2 items-center border border-border group"
                 >
                   <div className="flex flex-col items-start gap-0.5 overflow-hidden text-left">
                     <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none group-hover:text-primary transition-colors">
@@ -240,7 +272,7 @@ export function GlobalContextBar({
                 </Button>
               </PopoverTrigger>
               <PopoverContent
-                className="w-[280px] p-0 rounded-2xl border-border shadow-soft"
+                className="w-[280px] p-0 rounded-md border border-border"
                 align="start"
               >
                 <Command>
@@ -292,7 +324,7 @@ export function GlobalContextBar({
                   variant="outline"
                   role="combobox"
                   aria-expanded={openCampaign}
-                  className="w-full h-14 justify-between rounded-2xl border-border bg-card hover:border-primary/50 transition-all px-4 py-2 items-center shadow-soft group"
+                  className="w-full h-14 justify-between rounded-md bg-card hover:border-primary/50 transition-all px-4 py-2 items-center border border-border group"
                 >
                   <div className="flex flex-col items-start gap-0.5 overflow-hidden text-left">
                     <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none group-hover:text-primary transition-colors">
@@ -308,7 +340,7 @@ export function GlobalContextBar({
                 </Button>
               </PopoverTrigger>
               <PopoverContent
-                className="w-[290px] p-0 rounded-2xl border-border shadow-soft"
+                className="w-[290px] p-0 rounded-md border border-border"
                 align="start"
               >
                 <Command>
@@ -382,22 +414,6 @@ export function GlobalContextBar({
 
         {/* Right Side: Filters & Date */}
         <div className="flex items-center gap-3 w-full lg:w-auto mt-4 lg:mt-0">
-          {/* Status Filter */}
-          <div className="hidden md:block">
-            <Select value={status} onValueChange={(val) => setStatus(val)}>
-              <SelectTrigger className="w-[140px] h-11 border-border bg-card rounded-xl font-medium text-foreground shadow-sm hover:border-primary/50 transition-colors">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent className="rounded-xl border-border shadow-soft">
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="paused">Paused</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="draft">Draft</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
           {/* Account Health Button */}
           <Button
             variant="ghost"
@@ -405,10 +421,10 @@ export function GlobalContextBar({
             onClick={onHealthCheckClick}
             title="Account Health Check"
             className={cn(
-              "relative h-11 w-11 rounded-full transition-colors",
+              "relative h-11 w-11 rounded-md transition-colors border border-border bg-card",
               hasProblems
-                ? "text-orange-500 hover:text-orange-600 hover:bg-orange-50"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted",
+                ? "text-orange-500 hover:text-orange-600 hover:bg-orange-50/50 hover:border-orange-500/50"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
             )}
           >
             {/* Shield / warning icon from iconoir */}
@@ -449,7 +465,7 @@ export function GlobalContextBar({
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
-                  className="w-full lg:w-[220px] h-11 justify-start text-left font-semibold border-border rounded-xl bg-card hover:bg-muted/50 transition-colors shadow-sm"
+                  className="w-full lg:w-[220px] h-11 justify-start text-left font-semibold border-border rounded-md bg-card hover:bg-muted/50 transition-colors"
                 >
                   <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
                   <span className="text-foreground">
@@ -470,7 +486,7 @@ export function GlobalContextBar({
                 </Button>
               </PopoverTrigger>
               <PopoverContent
-                className="w-auto p-0 rounded-2xl border-border shadow-soft"
+                className="w-auto p-0 rounded-md border border-border"
                 align="end"
               >
                 <Calendar
@@ -488,7 +504,7 @@ export function GlobalContextBar({
             variant="outline"
             onClick={handleExport}
             disabled={isExporting || !insightsForExport?.performance?.length}
-            className="h-11 px-5 gap-2 border-border rounded-xl bg-card font-bold text-subtle-foreground hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all shadow-sm disabled:opacity-50"
+            className="h-11 px-5 gap-2 border-border rounded-md bg-card font-bold text-subtle-foreground hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all disabled:opacity-50"
           >
             <Download className="h-4 w-4" />
             <span className="hidden sm:inline">

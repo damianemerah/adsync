@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import { Database } from "@/types/supabase";
-import { creditAdBudget, ensureVirtualCardForOrg } from "@/actions/ad-budget";
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -62,51 +61,35 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ status: "ignored: no org_id" });
     }
 
+    // Resolve the org owner (credits are user-scoped)
+    const { data: ownerMember } = await supabase
+      .from("organization_members")
+      .select("user_id")
+      .eq("organization_id", orgId)
+      .eq("role", "owner")
+      .single();
+    const ownerId: string | undefined = ownerMember?.user_id ?? undefined;
+
     switch (eventType) {
       // ──────────────────────────────────────────────────────────────────────
       // Payment confirmed — branches into subscription, credit pack, or ad budget
       // ──────────────────────────────────────────────────────────────────────
       case "charge.success": {
-        const paymentType: string = data.metadata?.payment_type;
-        const txType: string = data.metadata?.tx_type || "subscription";
+        // Idempotency check: verify this payment hasn't already been processed
+        const { data: existingTransaction } = await supabase
+          .from("transactions")
+          .select("id")
+          .eq("provider_reference", data.reference)
+          .single();
 
-        // ── Ad Budget Top-Up (Phase 2A) ────────────────────────────────────
-        if (paymentType === "ad_budget_topup") {
-          // Extract fee breakdown from metadata (set by initializeAdBudgetTopup)
-          const baseAmountKobo: number =
-            data.metadata?.base_amount_kobo ?? data.amount;
-          const feeAmountKobo: number = data.metadata?.fee_amount_kobo ?? 0;
-          const totalAmountKobo: number =
-            data.metadata?.total_amount_kobo ?? data.amount;
-
-          console.log(
-            `Ad budget top-up for org ${orgId}: total ₦${totalAmountKobo / 100} (base ₦${baseAmountKobo / 100}, fee ₦${feeAmountKobo / 100})`,
-          );
-
-          await creditAdBudget({
-            organizationId: orgId,
-            totalAmountKobo,
-            baseAmountKobo, // Only this goes into the wallet
-            feeAmountKobo, // This is our profit
-            paystackReference: data.reference,
-          });
-
-          console.log(`✅ Ad budget credited for org ${orgId}`);
-
-          // Ensure the org has a virtual USD card (idempotent — no-op if already exists).
-          // This runs server-side so card creation is reliable even if the user
-          // closes the browser before the Paystack callback page loads.
-          try {
-            await ensureVirtualCardForOrg(orgId);
-          } catch (cardErr) {
-            // Don't fail the webhook — budget was already credited. Card creation
-            // will retry on the next top-up or on the billing page callback.
-            console.error(`⚠️ Virtual card creation failed for org ${orgId}:`, cardErr);
-          }
-          break;
+        if (existingTransaction) {
+          console.log(`[Webhook] Payment ${data.reference} already processed, skipping`);
+          return NextResponse.json({ status: "already_processed" });
         }
 
-        // ── Credit Pack Top-Up (Existing) ──────────────────────────────────
+        const txType: string = data.metadata?.tx_type || "subscription";
+
+        // ── Credit Pack Top-Up ──────────────────────────────────────
         if (txType === "credit_pack") {
           // ── Credit Pack Top-Up ─────────────────────────────────────────────
           const packCredits: number = data.metadata?.credits ?? 0;
@@ -126,15 +109,16 @@ export async function POST(req: NextRequest) {
             { onConflict: "provider_reference" },
           );
 
-          const { error: creditError } = await supabase.rpc("add_credits", {
-            p_org_id: orgId,
-            p_credits: packCredits,
-            p_reason: `credit_pack:${packName.toLowerCase().replace(/ /g, "_")}`,
-            p_reference: undefined,
-          });
-
-          if (creditError)
-            console.error("Failed to add pack credits:", creditError);
+          if (ownerId) {
+            const { error: creditError } = await supabase.rpc("add_credits", {
+              p_user_id: ownerId,
+              p_credits: packCredits,
+              p_reason: `credit_pack:${packName.toLowerCase().replace(/ /g, "_")}`,
+              p_org_id: orgId,
+            });
+            if (creditError)
+              console.error("Failed to add pack credits:", creditError);
+          }
           console.log(`Credit pack: +${packCredits} credits for org ${orgId}`);
         } else {
           // ── Subscription Payment ───────────────────────────────────────────
@@ -151,7 +135,6 @@ export async function POST(req: NextRequest) {
               subscription_tier: planId as "starter" | "growth" | "agency",
               subscription_expires_at: expiresAt,
               plan_interval: planInterval,
-              plan_credits_quota: creditsToGrant,
               paystack_customer_code: data.customer?.customer_code ?? undefined,
               updated_at: new Date().toISOString(),
             })
@@ -173,15 +156,22 @@ export async function POST(req: NextRequest) {
             { onConflict: "provider_reference" },
           );
 
-          const { error: creditError } = await supabase.rpc("add_credits", {
-            p_org_id: orgId,
-            p_credits: creditsToGrant,
-            p_reason: `plan_renewal:${planId}`,
-            p_reference: undefined,
-          });
+          if (ownerId) {
+            // Update user-level quota and grant credits
+            await supabase
+              .from("users")
+              .update({ plan_credits_quota: creditsToGrant })
+              .eq("id", ownerId);
 
-          if (creditError)
-            console.error("Failed to grant credits:", creditError);
+            const { error: creditError } = await supabase.rpc("add_credits", {
+              p_user_id: ownerId,
+              p_credits: creditsToGrant,
+              p_reason: `plan_renewal:${planId}`,
+              p_org_id: orgId,
+            });
+            if (creditError)
+              console.error("Failed to grant credits:", creditError);
+          }
           console.log(
             `Activated ${planId} for org ${orgId}, granted ${creditsToGrant} credits`,
           );

@@ -31,8 +31,8 @@ const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "alerts@sellam.app";
-const APP_NAME = "Sellam";
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "alerts@Tenzu.app";
+const APP_NAME = "Tenzu";
 
 export async function sendNotification(params: SendNotificationParams) {
   const supabase = params.supabaseClient ?? (await createClient());
@@ -84,23 +84,33 @@ export async function sendNotification(params: SendNotificationParams) {
 
   const shouldWhatsApp = Boolean(
     settings.verified &&
-      settings.whatsapp_number &&
-      (
-        (params.category === "billing" && isCritical && settings.alert_payment_failed) ||
-        (params.category === "campaign" && (isCritical || isWarning) && settings.alert_ad_rejected) ||
-        (params.category === "billing" && isWarning && settings.alert_low_funds) ||
-        (params.category === "campaign" && isWarning && settings.alert_low_funds)
-      ),
+    settings.whatsapp_number &&
+    ((params.category === "billing" &&
+      isCritical &&
+      settings.alert_payment_failed) ||
+      (params.category === "campaign" &&
+        (isCritical || isWarning) &&
+        settings.alert_ad_rejected) ||
+      (params.category === "billing" &&
+        isWarning &&
+        settings.alert_low_funds) ||
+      (params.category === "campaign" &&
+        isWarning &&
+        settings.alert_low_funds)),
   );
 
   const shouldEmail = Boolean(
     userEmail &&
-      (
-        (params.category === "billing" && isCritical && settings.alert_payment_failed) ||
-        (params.category === "campaign" && (isCritical || isWarning) && settings.alert_ad_rejected) ||
-        (params.category === "billing" && isWarning && settings.alert_low_funds) ||
-        (params.category === "system" && settings.alert_weekly_report)
-      ),
+    ((params.category === "billing" &&
+      isCritical &&
+      settings.alert_payment_failed) ||
+      (params.category === "campaign" &&
+        (isCritical || isWarning) &&
+        settings.alert_ad_rejected) ||
+      (params.category === "billing" &&
+        isWarning &&
+        settings.alert_low_funds) ||
+      (params.category === "system" && settings.alert_weekly_report)),
   );
 
   // ── 5. WhatsApp via Twilio ─────────────────────────────────────────────────
@@ -118,33 +128,41 @@ export async function sendNotification(params: SendNotificationParams) {
           from: fromNumber,
           to: `whatsapp:${settings.whatsapp_number}`,
         });
-        console.log(`[WhatsApp] Sent to ${settings.whatsapp_number}: ${params.title}`);
+        console.log(
+          `[WhatsApp] Sent to ${settings.whatsapp_number}: ${params.title}`,
+        );
       } catch (err: any) {
         console.error("[WhatsApp] Send failed:", err.message);
       }
     } else {
-      console.warn(`[WhatsApp] Twilio not configured. Would have sent: ${params.title}`);
+      console.warn(
+        `[WhatsApp] Twilio not configured. Would have sent: ${params.title}`,
+      );
     }
   }
 
   // ── 6. Email via Resend ────────────────────────────────────────────────────
   if (shouldEmail && resend) {
     try {
-      const ctaHtml = params.actionLabel && params.actionUrl
-        ? `<div style="margin: 28px 0;">
+      const ctaHtml =
+        params.actionLabel && params.actionUrl
+          ? `<div style="margin: 28px 0;">
              <a href="${process.env.NEXT_PUBLIC_APP_URL ?? ""}${params.actionUrl}"
                 style="background:#111827;color:#fff;padding:12px 24px;border-radius:8px;
                        text-decoration:none;font-weight:600;font-size:14px;display:inline-block;">
                ${params.actionLabel}
              </a>
            </div>`
-        : "";
+          : "";
 
       const borderColor =
-        params.type === "critical" ? "#ef4444"
-        : params.type === "warning" ? "#f97316"
-        : params.type === "success" ? "#22c55e"
-        : "#3b82f6";
+        params.type === "critical"
+          ? "#ef4444"
+          : params.type === "warning"
+            ? "#f97316"
+            : params.type === "success"
+              ? "#22c55e"
+              : "#3b82f6";
 
       await resend.emails.send({
         from: `${APP_NAME} <${FROM_EMAIL}>`,
@@ -177,7 +195,9 @@ export async function sendNotification(params: SendNotificationParams) {
       console.error("[Email] Resend failed:", err.message);
     }
   } else if (shouldEmail && !resend) {
-    console.warn(`[Email] Resend not configured. Would have sent: ${params.title} → ${userEmail}`);
+    console.warn(
+      `[Email] Resend not configured. Would have sent: ${params.title} → ${userEmail}`,
+    );
   }
 
   return { ok: true };

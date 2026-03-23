@@ -6,7 +6,7 @@ import Link from "next/link";
 export default function NotFound() {
   return (
     <div className="min-h-screen bg-linear-to-b from-slate-50 to-blue-50/20 flex flex-col items-center justify-center p-4">
-      <Card className="w-full max-w-lg shadow-2xl rounded-2xl p-12 bg-white/80 backdrop-blur text-center">
+      <Card className="w-full max-w-lg shadow-2xl rounded-lg p-12 bg-white/80 backdrop-blur text-center">
         {/* Icon */}
         <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-red-100 mb-6">
           <Search className="w-12 h-12 text-red-600" />

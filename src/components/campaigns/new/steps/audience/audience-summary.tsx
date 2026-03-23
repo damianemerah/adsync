@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Sparks, MapPin, Xmark, WarningTriangle } from "iconoir-react";
 import { cn } from "@/lib/utils";
 import { AsyncTagInput } from "./async-tag-input";
-import { LeadFormPreviewCompact } from "./lead-form-preview-compact";
+
 
 /** Real Meta IDs are always numeric strings (e.g. "6003107902433"). */
 function isResolvedId(id: string): boolean {
@@ -64,7 +64,7 @@ export function AudienceSummaryPanel() {
   return (
     <div className="space-y-5 flex-1 overflow-y-auto pr-1 no-scrollbar pb-4">
       {/* Demographics */}
-      <div className="p-4 bg-muted/20 rounded-2xl border border-border space-y-4">
+      <div className="p-4 bg-muted/20 rounded-lg border border-border space-y-4">
         <label className="text-xs font-bold text-subtle-foreground uppercase tracking-wider">
           Demographics
         </label>
@@ -84,7 +84,7 @@ export function AudienceSummaryPanel() {
                   },
                 })
               }
-              className="h-9 w-20 text-center bg-background rounded-xl border-border"
+              className="h-9 w-20 text-center bg-background rounded-md border-border"
             />
             <div className="h-px bg-border flex-1" />
             <Input
@@ -100,7 +100,7 @@ export function AudienceSummaryPanel() {
                   },
                 })
               }
-              className="h-9 w-20 text-center bg-background rounded-xl border-border"
+              className="h-9 w-20 text-center bg-background rounded-md border-border"
             />
           </div>
         </div>
@@ -339,8 +339,6 @@ export function AudienceSummaryPanel() {
         </div>
       </div>
 
-      {/* Lead Form Preview (only for leads objective) */}
-      <LeadFormPreviewCompact />
 
       {/* Interests */}
       <div className="space-y-3">
@@ -385,7 +383,7 @@ export function AudienceSummaryPanel() {
         <Button
           onClick={() => setStep(3)}
           disabled={targetInterests.length === 0}
-          className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-2xl shadow-soft"
+          className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-lg shadow-sm border border-border"
         >
           Confirm Audience <ArrowRight className="ml-2 h-5 w-5" />
         </Button>

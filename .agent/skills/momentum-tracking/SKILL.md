@@ -1,13 +1,13 @@
 ---
 name: momentum-tracking
-description: Manages Sellam's stalled-ad detection system. Use when building logic to detect when an ad has gone quiet (no chats in 72h, no sales recorded in 5+ days), generating re-engagement prompts for the SME, or triggering follow-up suggestions inside the dashboard. Think of this as "deal momentum" but for ads — an early warning system so the SME knows when to act.
+description: Manages Tenzu's stalled-ad detection system. Use when building logic to detect when an ad has gone quiet (no chats in 72h, no sales recorded in 5+ days), generating re-engagement prompts for the SME, or triggering follow-up suggestions inside the dashboard. Think of this as "deal momentum" but for ads — an early warning system so the SME knows when to act.
 ---
 
 # Momentum Tracking Skill
 
 ## What Is Momentum Tracking?
 
-In traditional sales tools, this is called "deal stall detection" — alerting the rep when a lead hasn't been touched in N days. Sellam's equivalent is **detecting when an ad has gone quiet and prompting the SME to take action.**
+In traditional sales tools, this is called "deal stall detection" — alerting the rep when a lead hasn't been touched in N days. Tenzu's equivalent is **detecting when an ad has gone quiet and prompting the SME to take action.**
 
 Nigerian SMEs often launch an ad, check it once, and then forget it. A stalled ad silently drains the budget. Momentum tracking surfaces the problem with a clear, actionable prompt.
 

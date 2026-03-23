@@ -16,7 +16,7 @@ function SubmitButton() {
   return (
     <Button
       type="submit"
-      className="w-full h-14 rounded-3xl bg-primary hover:bg-primary/90 text-primary-foreground text-base font-bold shadow-soft hover:shadow-md transition-all scale-100 hover:scale-[1.02] active:scale-[0.98]"
+      className="w-full h-14 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-base font-bold shadow-sm border border-border hover:shadow-md transition-all scale-100 hover:scale-[1.02] active:scale-[0.98]"
       disabled={pending}
     >
       {pending ? (
@@ -50,7 +50,7 @@ export function SignupForm() {
           id="fullName"
           name="fullName"
           placeholder="e.g. Adeola Smith"
-          className="h-12 rounded-2xl bg-muted/40 border-transparent hover:bg-muted/60 focus:bg-background focus:border-ring transition-all px-4"
+          className="h-12 rounded-lg bg-muted/40 border-transparent hover:bg-muted/60 focus:bg-background focus:border-ring transition-all px-4"
           required
           aria-invalid={!!state?.fieldErrors?.fullName}
         />
@@ -71,7 +71,7 @@ export function SignupForm() {
           id="email"
           name="email"
           type="email"
-          className="h-12 rounded-2xl bg-muted/40 border-transparent hover:bg-muted/60 focus:bg-background focus:border-ring transition-all px-4"
+          className="h-12 rounded-lg bg-muted/40 border-transparent hover:bg-muted/60 focus:bg-background focus:border-ring transition-all px-4"
           required
           aria-invalid={!!state?.fieldErrors?.email}
         />
@@ -93,7 +93,7 @@ export function SignupForm() {
             id="password"
             name="password"
             type={showPassword ? "text" : "password"}
-            className="h-12 rounded-2xl bg-muted/40 border-transparent hover:bg-muted/60 focus:bg-background focus:border-ring transition-all px-4 pr-12"
+            className="h-12 rounded-lg bg-muted/40 border-transparent hover:bg-muted/60 focus:bg-background focus:border-ring transition-all px-4 pr-12"
             required
             minLength={8}
             aria-invalid={!!state?.fieldErrors?.password}
@@ -120,7 +120,7 @@ export function SignupForm() {
       </div>
 
       {state?.error && (
-        <p className="text-sm text-destructive bg-destructive/10 p-4 rounded-2xl font-medium">
+        <p className="text-sm text-destructive bg-destructive/10 p-4 rounded-lg font-medium">
           {state.error}
         </p>
       )}

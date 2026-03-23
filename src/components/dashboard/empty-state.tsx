@@ -27,7 +27,7 @@ export function DashboardEmptyState({
 
   return (
     <div className="container max-w-4xl mx-auto py-6 sm:py-8 h-full flex flex-col justify-center">
-      <Empty className="border-border border-solid bg-card shadow-soft rounded-3xl p-6 sm:p-10 mb-6 flex-1 min-h-fit overflow-y-auto">
+      <Empty className="border-border border-solid bg-card shadow-sm border border-border rounded-lg p-6 sm:p-10 mb-6 flex-1 min-h-fit overflow-y-auto">
         <EmptyHeader className="mb-4">
           <EmptyMedia
             variant="icon"
@@ -36,7 +36,7 @@ export function DashboardEmptyState({
             <Rocket className="h-6 w-6" />
           </EmptyMedia>
           <EmptyTitle className="text-2xl sm:text-3xl font-heading font-bold text-foreground">
-            Welcome to Sellam, {userName}!
+            Welcome to Tenzu, {userName}!
           </EmptyTitle>
           <EmptyDescription className="max-w-lg mx-auto text-sm sm:text-base mt-2">
             You are one step away from launching your first ad in 2 minutes.

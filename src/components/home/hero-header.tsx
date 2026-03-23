@@ -10,7 +10,6 @@ import React from "react";
 const menuItems = [
   { name: "Features", href: "#features" },
   { name: "Pricing", href: "#pricing" },
-  { name: "Testimonials", href: "#testimonials" },
 ];
 
 export const HeroHeader = () => {
@@ -22,19 +21,14 @@ export const HeroHeader = () => {
   React.useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
-
-      // Determine if scrolled (for background style)
       setIsScrolled(currentScrollY > 50);
 
-      // Determine visibility (Smart Scroll)
+      // Smart Scroll
       if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
-        // Scrolling down & past threshold -> Hide
         setIsVisible(false);
       } else {
-        // Scrolling up -> Show
         setIsVisible(true);
       }
-
       lastScrollY.current = currentScrollY;
     };
 
@@ -45,14 +39,14 @@ export const HeroHeader = () => {
   return (
     <header
       className={cn(
-        "fixed top-0 left-0 right-0 z-50 transition-transform duration-300 ease-in-out",
+        "dark fixed top-0 left-0 right-0 z-50 transition-transform duration-300 ease-in-out",
         isVisible ? "translate-y-0" : "-translate-y-full",
       )}
     >
       <nav data-state={menuState && "active"} className="w-full px-2 mt-4">
         <div
           className={cn(
-            "mx-auto max-w-6xl px-6 transition-all duration-300 lg:px-12 py-3 rounded-2xl",
+            "mx-auto max-w-6xl px-6 transition-all duration-300 lg:px-12 py-3 rounded-lg",
             isScrolled
               ? "bg-background/80 max-w-4xl border border-border/50 backdrop-blur-lg lg:px-5 shadow-sm text-foreground"
               : "bg-transparent text-white",
@@ -60,11 +54,7 @@ export const HeroHeader = () => {
         >
           <div className="relative flex flex-wrap items-center justify-between gap-6 lg:gap-0">
             <div className="flex w-full justify-between lg:w-auto">
-              <Link
-                href="/"
-                aria-label="home"
-                className="flex items-center space-x-2"
-              >
+              <Link href="/" aria-label="home" className="flex items-center space-x-2">
                 <Logo />
               </Link>
 
@@ -73,7 +63,7 @@ export const HeroHeader = () => {
                 aria-label={menuState ? "Close Menu" : "Open Menu"}
                 className={cn(
                   "relative z-20 -m-2.5 -mr-4 block cursor-pointer p-2.5 lg:hidden",
-                  isScrolled ? "text-foreground" : "text-white",
+                  isScrolled ? "text-foreground" : "text-white"
                 )}
               >
                 <Menu className="in-data-[state=active]:rotate-180 in-data-[state=active]:scale-0 in-data-[state=active]:opacity-0 m-auto h-6 w-6 duration-200 transition-all" />
@@ -90,9 +80,7 @@ export const HeroHeader = () => {
                       href={item.href}
                       className={cn(
                         "transition-colors duration-150",
-                        isScrolled
-                          ? "text-muted-foreground hover:text-foreground"
-                          : "text-white/80 hover:text-white",
+                        isScrolled ? "text-subtle-foreground hover:text-foreground" : "text-white/80 hover:text-white"
                       )}
                     >
                       <span>{item.name}</span>
@@ -103,16 +91,12 @@ export const HeroHeader = () => {
             </div>
 
             {/* Mobile Menu & Actions */}
-            <div className="bg-background in-data-[state=active]:block lg:in-data-[state=active]:flex mb-6 hidden w-full flex-col items-center justify-end space-y-8 rounded-3xl border border-border p-6 shadow-2xl md:flex-nowrap lg:m-0 lg:flex lg:w-fit lg:flex-row lg:gap-6 lg:space-y-0 lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none">
+            <div className="bg-background in-data-[state=active]:block lg:in-data-[state=active]:flex mb-6 hidden w-full flex-col items-center justify-end space-y-8 rounded-lg border border-border p-6 shadow-sm md:flex-nowrap lg:m-0 lg:flex lg:w-fit lg:flex-row lg:gap-4 lg:space-y-0 lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none">
               <div className="lg:hidden w-full text-foreground">
                 <ul className="space-y-6 text-base font-medium text-center">
                   {menuItems.map((item, index) => (
                     <li key={index}>
-                      <Link
-                        href={item.href}
-                        className="text-muted-foreground hover:text-foreground block duration-150"
-                        onClick={() => setMenuState(false)}
-                      >
+                      <Link href={item.href} className="text-subtle-foreground hover:text-foreground block duration-150" onClick={() => setMenuState(false)}>
                         <span>{item.name}</span>
                       </Link>
                     </li>
@@ -120,35 +104,20 @@ export const HeroHeader = () => {
                 </ul>
               </div>
 
-              <div
-                className={cn(
-                  "flex w-full flex-col gap-3 sm:flex-row sm:gap-3 md:w-fit",
-                  isScrolled ? "hidden lg:flex" : "flex",
-                )}
-              >
+              <div className={cn("flex w-full flex-col gap-3 sm:flex-row sm:gap-3 md:w-fit", isScrolled ? "hidden lg:flex" : "flex")}>
                 <Button
                   asChild
                   variant="ghost"
                   size="sm"
                   className={cn(
-                    "rounded-full hidden lg:inline-flex",
-                    isScrolled
-                      ? "text-muted-foreground hover:text-primary"
-                      : "text-white hover:text-white hover:bg-white/10",
+                    "hidden lg:inline-flex rounded-md",
+                    isScrolled ? "text-subtle-foreground hover:text-foreground" : "text-white hover:text-white hover:bg-white/10"
                   )}
                 >
-                  <Link href="/login">
-                    <span>Log In</span>
-                  </Link>
+                  <Link href="/login">Log In</Link>
                 </Button>
-                <Button
-                  asChild
-                  size="sm"
-                  className="rounded-full shadow-soft hover:shadow-lg transition-all"
-                >
-                  <Link href="/signup">
-                    <span>Get Started</span>
-                  </Link>
+                <Button asChild size="sm" className="rounded-md ring-1 ring-primary/20">
+                  <Link href="/signup">Start Free Trial</Link>
                 </Button>
               </div>
             </div>

@@ -18,6 +18,8 @@ import { pickGeoStrategy } from "@/lib/utils/geo-strategy";
 import { getActiveOrgId } from "@/lib/active-org";
 import type { CTAData } from "@/types/cta-types";
 import type { Database } from "@/types/supabase";
+import { handleMetaError, getUserErrorDisplay } from "@/lib/meta-error-handler";
+import { isMetaAPIError } from "@/types/meta-errors";
 
 export async function fetchCampaignById(id: string) {
   const supabase = await createClient();
@@ -65,6 +67,13 @@ interface LaunchConfig {
   leadGenFormId?: string; // leads: Meta Lead Gen Form ID
   appStoreUrl?: string; // app_promotion: Play Store or App Store URL
   metaApplicationId?: string; // app_promotion: Meta App ID
+  // Carousel support (2-10 cards)
+  carouselCards?: Array<{
+    imageUrl: string;
+    headline: string;
+    description?: string;
+    link?: string;
+  }>;
 }
 
 export async function launchCampaign(config: LaunchConfig) {
@@ -84,7 +93,7 @@ export async function launchCampaign(config: LaunchConfig) {
 
   const { data: org } = await supabase
     .from("organizations")
-    .select("subscription_status, subscription_expires_at")
+    .select("subscription_status, subscription_expires_at, country_code")
     .eq("id", orgId)
     .single();
 
@@ -202,15 +211,22 @@ export async function launchCampaign(config: LaunchConfig) {
 
   if (config.objective === "whatsapp") {
     // ... existing whatsapp attribution block unchanged ...
+    const orgCountryCode = org.country_code ?? "NG";
     let rawPhone = config.destinationValue || "2348012345678";
     rawPhone = rawPhone.replace(/\D/g, ""); // strip spaces, dashes, +
-    if (rawPhone.startsWith("0")) {
-      rawPhone = "234" + rawPhone.slice(1);
-    } else if (!rawPhone.startsWith("234")) {
-      rawPhone = "234" + rawPhone; // assume missing country code
+    if (orgCountryCode === "NG") {
+      if (rawPhone.startsWith("0")) {
+        rawPhone = "234" + rawPhone.slice(1);
+      } else if (!rawPhone.startsWith("234")) {
+        rawPhone = "234" + rawPhone; // assume missing country code
+      }
     }
     const defaultMessage = `Hi, I saw your ad about "${config.adCopy.headline}". Is it available?`;
-    const whatsappUrl = generateWhatsAppLink(rawPhone, defaultMessage);
+    const whatsappUrl = generateWhatsAppLink(
+      rawPhone,
+      defaultMessage,
+      orgCountryCode,
+    );
     finalUrl = whatsappUrl;
 
     try {
@@ -394,7 +410,6 @@ export async function launchCampaign(config: LaunchConfig) {
       geo_locations.cities = cities;
     }
 
-    // Note: location_types was removed in Meta v24 — Meta now targets
     // "living or recently in" by default and rejects the field.
 
     console.log(
@@ -447,32 +462,71 @@ export async function launchCampaign(config: LaunchConfig) {
 
     console.log("🎯 [Meta API - Ad Set Created]:", adSetRes);
 
-    // Step F: Upload Image (Binary)
-    // We take the first creative from the list (MVP Single Image)
-    const imageRes = await MetaService.createAdImage(
-      accessToken,
-      adAccountId,
-      config.creatives[0],
-    );
+    // Step F: Upload Images
+    // Determine if this is a carousel (2+ cards) or single image ad
+    const isCarousel = config.carouselCards && config.carouselCards.length >= 2;
 
-    console.log("🖼️ [Meta API - Image Uploaded]:", imageRes);
+    let imageHash: string | undefined;
+    let carouselImageData: Array<{
+      imageHash: string;
+      headline: string;
+      description?: string;
+      link?: string;
+    }> = [];
 
-    // Extract Image Hash
-    const imageKey = Object.keys(imageRes.images)[0];
-    const imageHash = imageRes.images[imageKey].hash;
+    if (isCarousel && config.carouselCards) {
+      // Carousel: Upload all images and build carousel cards
+      console.log(
+        `🎠 [Meta API - Uploading ${config.carouselCards.length} carousel images]`,
+      );
+
+      for (const card of config.carouselCards) {
+        const imageRes = await MetaService.createAdImage(
+          accessToken,
+          adAccountId,
+          card.imageUrl,
+        );
+        const imageKey = Object.keys(imageRes.images)[0];
+        const hash = imageRes.images[imageKey].hash;
+
+        carouselImageData.push({
+          imageHash: hash,
+          headline: card.headline,
+          description: card.description,
+          link: card.link,
+        });
+      }
+
+      console.log(
+        "🖼️ [Meta API - Carousel Images Uploaded]:",
+        carouselImageData.length,
+      );
+    } else {
+      // Single Image: Upload only the first creative
+      const imageRes = await MetaService.createAdImage(
+        accessToken,
+        adAccountId,
+        config.creatives[0],
+      );
+
+      console.log("🖼️ [Meta API - Image Uploaded]:", imageRes);
+
+      const imageKey = Object.keys(imageRes.images)[0];
+      imageHash = imageRes.images[imageKey].hash;
+    }
 
     // Step G: Create Ad Creative & Ad
     const adRes = await MetaService.createAd(
       accessToken,
       adAccountId,
       adSetRes.id,
-      imageHash,
+      isCarousel ? carouselImageData.map((c) => c.imageHash) : imageHash!,
       {
         pageId,
         primaryText: config.adCopy.primary,
         headline: config.adCopy.headline,
         destinationUrl: finalUrl,
-        leadGenFormId: config.leadGenFormId, // leads objective — may be undefined for others
+        leadGenFormId: config.leadGenFormId,
       },
       typeof config.adCopy.cta === "object" && config.adCopy.cta.platformCode
         ? config.adCopy.cta.platformCode
@@ -480,6 +534,7 @@ export async function launchCampaign(config: LaunchConfig) {
           ? config.adCopy.cta
           : undefined,
       config.objective,
+      isCarousel ? carouselImageData : undefined,
     );
 
     console.log("📣 [Meta API - Ad Creative/Ad Created]:", adRes);
@@ -492,7 +547,7 @@ export async function launchCampaign(config: LaunchConfig) {
       platform_campaign_id: campaignRes.id,
       name: config.name,
       objective: config.objective,
-      status: "active", // It's created as 'PAUSED' on FB, but 'active' in our list means 'created'
+      status: "pending_review", // Created as PAUSED on Meta while under review
       daily_budget_cents: budgetInCents,
       placement_type: config.metaPlacement ?? "automatic",
       targeting_snapshot: {
@@ -509,6 +564,7 @@ export async function launchCampaign(config: LaunchConfig) {
         creatives: config.creatives,
         ad_copy: config.adCopy,
         destination: finalUrl,
+        ...(isCarousel && { carousel_cards: config.carouselCards }),
       } as any,
       ai_context: config.aiContext,
     };
@@ -633,47 +689,33 @@ export async function launchCampaign(config: LaunchConfig) {
   } catch (error: any) {
     console.error("Launch Error:", error);
 
-    // [INTEGRATION] Handle Meta "No Payment Method" Error
-    if (error.subcode === 1359188) {
-      console.log(
-        "💳 Detected Meta missing payment method error, sending notification...",
-      );
-      try {
-        // Find owner ID to send the notification
-        const { data: owner } = await supabase
-          .from("organization_members")
-          .select("user_id")
-          .eq("organization_id", orgId)
-          .eq("role", "owner")
-          .limit(1);
+    // Find owner ID for notifications
+    const { data: owner } = await supabase
+      .from("organization_members")
+      .select("user_id")
+      .eq("organization_id", orgId)
+      .eq("role", "owner")
+      .limit(1)
+      .single();
 
-        if (owner && owner.length > 0) {
-          await sendNotification({
-            userId: owner[0].user_id as string,
-            organizationId: orgId as string,
-            title: "Payment Method Required",
-            message:
-              "Your Meta Ad Account requires a valid payment method before launching campaigns.",
-            type: "critical",
-            category: "budget",
-            actionUrl: "/ad-accounts",
-            actionLabel: "Fix Account",
-          });
-        }
-
-        await supabase
-          .from("ad_accounts")
-          .update({ health_status: "payment_issue" })
-          .eq("id", adAccount.id);
-      } catch (notifyErr) {
-        console.error("⚠️ Failed to send payment notification:", notifyErr);
-      }
+    // v25.0: Use enhanced error handler for Meta API errors
+    if (isMetaAPIError(error)) {
+      await handleMetaError(error, {
+        userId: owner?.user_id || undefined,
+        organizationId: orgId,
+        supabase,
+        adAccountId: adAccount.id,
+      });
     }
 
-    // Return error message to UI
+    // Get user-facing error display (works for both Meta and non-Meta errors)
+    const errorDisplay = getUserErrorDisplay(error);
+
+    // Return enhanced error information to UI
     return {
       success: false,
-      error: error.message || "Failed to launch campaign",
+      error: errorDisplay.message,
+      errorDetails: errorDisplay, // v25.0: Include full error context for UI
     };
   }
 }
@@ -776,7 +818,12 @@ export async function updateCampaignStatus(
       await MetaService.request(`/${metaId}`, "DELETE", token);
 
       // DB: Delete row (or soft delete if you prefer)
-      await supabase.from("campaigns").delete().eq("id", campaignId);
+      // SECURITY: Always scope deletes to organization to prevent cross-tenant deletion
+      await supabase
+        .from("campaigns")
+        .delete()
+        .eq("id", campaignId)
+        .eq("organization_id", orgId);
     } else {
       await MetaService.request(`/${metaId}`, "POST", token, {
         status: action,
@@ -833,17 +880,18 @@ export async function syncCampaignInsights(campaignId: string) {
     // Fetch insights for the campaign's lifetime with daily breakdown.
     // Meta uses pagination for large date ranges, so we must loop to get all data.
     let insightsData: any[] = [];
-    let nextUrl: string | null = `/${metaId}/insights?date_preset=maximum&time_increment=1&fields=spend,impressions,clicks,reach,ctr,cpc,date_start`;
+    let nextUrl: string | null =
+      `/${metaId}/insights?date_preset=maximum&time_increment=1&fields=spend,impressions,clicks,reach,ctr,cpc,date_start`;
 
     while (nextUrl) {
       // If nextUrl includes the graph URL root, strip it out so we can pass it to MetaService.request
       if (nextUrl.startsWith("https://graph.facebook.com")) {
         const urlObj = new URL(nextUrl);
-        nextUrl = urlObj.pathname.replace("/v24.0", "") + urlObj.search;
+        nextUrl = urlObj.pathname.replace("/v25.0", "") + urlObj.search;
       }
 
       const res = await MetaService.request(nextUrl, "GET", token);
-      
+
       if (res.data && res.data.length > 0) {
         insightsData = [...insightsData, ...res.data];
       }

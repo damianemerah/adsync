@@ -119,7 +119,7 @@ export async function createLookalikeAudience({
   try {
     const token = decrypt(account.access_token);
     const ratioLabel = `${Math.round(ratio * 100)}%`;
-    const name = `Sellam Lookalike ${ratioLabel} ${country} — auto`;
+    const name = `Tenzu Lookalike ${ratioLabel} ${country} — auto`;
 
     const result = await MetaService.createLookalikeAudience(token, account.platform_account_id, {
       sourceAudienceId,
@@ -203,7 +203,7 @@ const allAudienceIds = [
 
 ## 3E — Lookalike UI Flow
 
-1. User opens audience step → Sellam detects Agency tier
+1. User opens audience step → Tenzu detects Agency tier
 2. "Scale with Lookalikes" section appears below retargeting
 3. Show available custom audiences as source options with audience size
 4. Let user pick: 1% (best quality), 3% (sweet spot), 5% (scale)
@@ -244,7 +244,7 @@ if (
 
 ---
 
-## Sellam Gold Strategy (The Paystack Lookalike)
+## Tenzu Gold Strategy (The Paystack Lookalike)
 
 This is the highest-value use case. When the user has Paystack payment data connected:
 

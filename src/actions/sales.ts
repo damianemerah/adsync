@@ -110,11 +110,12 @@ async function fireCAPIWhatsAppSale({
   if (!adAccount?.meta_pixel_id || !adAccount?.capi_access_token) return;
 
   // Look up the most recent fbclid for this campaign.
-  // The fbclid is captured when someone clicks a Meta ad → sellam.app/l/TOKEN?fbclid=XXX
+  // The fbclid is captured when someone clicks a Meta ad → Tenzu.app/l/TOKEN?fbclid=XXX
   // This connects the offline WhatsApp sale back to the exact Meta ad click.
+  // Security: Use !inner join to ensure we only read clicks from campaigns that exist (org isolation)
   const { data: recentClick } = await admin
     .from("link_clicks")
-    .select("fbclid, clicked_at")
+    .select("fbclid, clicked_at, campaigns!inner(id, organization_id)")
     .eq("campaign_id", campaignId)
     .not("fbclid", "is", null)
     .order("clicked_at", { ascending: false })

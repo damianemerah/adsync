@@ -19,7 +19,7 @@ const personas: Persona[] = [
     icon: <Whatsapp className="w-8 h-8 text-primary" />,
     title: "WhatsApp Sellers",
     description:
-      "You already sell daily on WhatsApp. Sellam runs ads that bring more people to your WhatsApp chat — and shows you how many bought.",
+      "You already sell daily on WhatsApp. Tenzu runs ads that bring more people to your WhatsApp chat — and shows you how many bought.",
     linkText: "For WhatsApp Sellers",
     image: "bg-primary/5",
   },
@@ -35,7 +35,7 @@ const personas: Persona[] = [
     icon: <User className="w-8 h-8 text-orange-500" />,
     title: "First-Time Advertisers",
     description:
-      "Never run an ad before? Good. Sellam's AI asks what you sell, then sets everything up. You just approve and launch.",
+      "Never run an ad before? Good. Tenzu's AI asks what you sell, then sets everything up. You just approve and launch.",
     linkText: "Start Your First Ad",
     image: "bg-orange-500/5",
   },
@@ -47,7 +47,7 @@ export function PersonasGrid() {
       <div className="container px-6">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <h2 className="text-sm font-bold tracking-widest text-primary uppercase mb-3">
-            Who is Sellam for?
+            Who is Tenzu for?
           </h2>
           <h3 className="text-3xl md:text-5xl font-heading font-bold text-foreground">
             Made For You If...
@@ -58,14 +58,14 @@ export function PersonasGrid() {
           {personas.map((persona, index) => (
             <Card
               key={index}
-              className="group relative overflow-hidden border-border/60 shadow-sm hover:shadow-soft transition-all duration-300 h-full"
+              className="group relative overflow-hidden border-border/60 shadow-sm hover:shadow-sm border border-border transition-all duration-300 h-full"
             >
               <div
                 className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none ${persona.image}`}
               />
 
               <CardContent className="p-8 flex flex-col h-full gap-6">
-                <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-300">
+                <div className="w-14 h-14 rounded-lg bg-muted flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-300">
                   {persona.icon}
                 </div>
 

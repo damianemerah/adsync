@@ -1,15 +1,15 @@
 ---
 name: lead-scoring
-description: Manages Sellam's SME-adapted lead scoring model — prioritizing which ads and targeting profiles to optimize based on chat-to-sale conversion rate, cost-per-chat, and revenue-per-ad. Use when building ad performance ranking, optimization suggestions, "best audience" recommendations, or any feature that helps the SME identify which ads or targeting profiles are worth scaling.
+description: Manages Tenzu's SME-adapted lead scoring model — prioritizing which ads and targeting profiles to optimize based on chat-to-sale conversion rate, cost-per-chat, and revenue-per-ad. Use when building ad performance ranking, optimization suggestions, "best audience" recommendations, or any feature that helps the SME identify which ads or targeting profiles are worth scaling.
 ---
 
 # Lead Scoring Skill
 
-## What "Lead Scoring" Means for Sellam
+## What "Lead Scoring" Means for Tenzu
 
-Traditional CRM lead scoring (Salesforce, HubSpot) ranks individual prospects. Sellam's context is different: **there is no CRM, the "leads" are anonymous ad clickers, and the SME is a single owner on a phone.**
+Traditional CRM lead scoring (Salesforce, HubSpot) ranks individual prospects. Tenzu's context is different: **there is no CRM, the "leads" are anonymous ad clickers, and the SME is a single owner on a phone.**
 
-Instead, Sellam scores **ad campaigns and targeting profiles** — answering the question: _"Which of your ads is actually making you money, and which is wasting ₦?"_
+Instead, Tenzu scores **ad campaigns and targeting profiles** — answering the question: _"Which of your ads is actually making you money, and which is wasting ₦?"_
 
 ---
 
@@ -141,7 +141,7 @@ GPT-4o Vision analysis. The extracted visual traits (patterns, colour palette, c
 are written to `organizations.design_insights JSONB` and injected into future Flux image
 generation calls via `compileContextPrompt()`.
 
-Think of this as: **"your winning ad teaches Sellam how to make the next winning ad."**
+Think of this as: **"your winning ad teaches Tenzu how to make the next winning ad."**
 
 The scoring model itself does not change for Phase 3 — the phase simply adds a consumer
 of the existing score output. The `scoreCampaign()` function can be reused as-is.

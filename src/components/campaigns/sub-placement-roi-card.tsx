@@ -136,7 +136,7 @@ export function SubPlacementROICard({ campaignId }: SubPlacementROICardProps) {
             >
               {/* Left: Placement Info */}
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 shrink-0 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center">
+                <div className="h-10 w-10 shrink-0 rounded-md bg-slate-100 border border-slate-200 flex items-center justify-center">
                   {getPlatformIcon(row.publisher_platform)}
                 </div>
                 <div>

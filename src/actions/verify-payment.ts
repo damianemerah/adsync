@@ -61,7 +61,7 @@ export async function verifyAndActivate(reference: string): Promise<{
       "[verifyAndActivate] No org_id in metadata for ref:",
       reference,
     );
-    return { success: true, alreadyProcessed: false };
+    return { success: false, alreadyProcessed: false };
   }
 
   // 2. Check if webhook already processed this reference
@@ -81,6 +81,15 @@ export async function verifyAndActivate(reference: string): Promise<{
   const expiresAt = new Date(Date.now() + THIRTY_DAYS_MS).toISOString();
   const planInterval: string = txData.metadata?.plan_interval || "monthly";
 
+  // Resolve the org owner (credits are user-scoped)
+  const { data: ownerMember } = await supabase
+    .from("organization_members")
+    .select("user_id")
+    .eq("organization_id", orgId)
+    .eq("role", "owner")
+    .single();
+  const ownerId: string | undefined = ownerMember?.user_id ?? undefined;
+
   // Activate subscription
   await supabase
     .from("organizations")
@@ -89,7 +98,6 @@ export async function verifyAndActivate(reference: string): Promise<{
       subscription_tier: planId as "starter" | "growth" | "agency",
       subscription_expires_at: expiresAt,
       plan_interval: planInterval,
-      plan_credits_quota: creditsToGrant,
       paystack_customer_code: txData.customer?.customer_code ?? null,
       updated_at: new Date().toISOString(),
     })
@@ -110,16 +118,23 @@ export async function verifyAndActivate(reference: string): Promise<{
     { onConflict: "provider_reference" },
   );
 
-  // Grant credits (atomic RPC)
-  const { error: creditError } = await supabase.rpc("add_credits", {
-    p_org_id: orgId,
-    p_credits: creditsToGrant,
-    p_reason: `plan_renewal:${planId}:callback_fallback`,
-    p_reference: undefined,
-  });
+  // Grant credits (atomic RPC) — credits are user-scoped
+  if (ownerId) {
+    await supabase
+      .from("users")
+      .update({ plan_credits_quota: creditsToGrant })
+      .eq("id", ownerId);
 
-  if (creditError) {
-    console.error("[verifyAndActivate] Failed to grant credits:", creditError);
+    const { error: creditError } = await supabase.rpc("add_credits", {
+      p_user_id: ownerId,
+      p_credits: creditsToGrant,
+      p_reason: `plan_renewal:${planId}:callback_fallback`,
+      p_org_id: orgId,
+    });
+
+    if (creditError) {
+      console.error("[verifyAndActivate] Failed to grant credits:", creditError);
+    }
   }
 
   console.log(

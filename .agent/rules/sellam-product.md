@@ -1,12 +1,12 @@
-# Sellam Product Rules
+# Tenzu Product Rules
 
-## What Sellam Is
+## What Tenzu Is
 
-Sellam (formerly Adsync) is an AI-powered Meta ads tool for Nigerian SMEs.
-Core loop: SME pays ₦ → Sellam creates Meta ad → ad drives WhatsApp conversations
-or website visits → SME closes sales → Sellam shows ₦ ROI.
+Tenzu (formerly Tenzu) is an AI-powered Meta ads tool for Nigerian SMEs.
+Core loop: SME pays ₦ → Tenzu creates Meta ad → ad drives WhatsApp conversations
+or website visits → SME closes sales → Tenzu shows ₦ ROI.
 
-The name "Sellam" is Nigerian Pidgin for "sell it." It repositions from B2B SaaS
+The name "Tenzu" is Nigerian Pidgin for "sell it." It repositions from B2B SaaS
 to a hustle/commerce tool for everyday Nigerian business owners.
 
 ## The User
@@ -28,12 +28,12 @@ Always read the relevant reference file for the phase being implemented before w
 
 ## Non-Negotiable Product Decisions
 
-- Every ad destination MUST be wrapped in a Sellam smart link (sellam.app/l/[token])
+- Every ad destination MUST be wrapped in a Tenzu smart link (tenzu.africa/l/[token])
   regardless of type — WhatsApp URL, website URL, or any other destination.
   Never send raw wa.me links or raw website URLs to Meta directly.
 - "Mark as Sold" is the only manual revenue input. No full CRM.
 - Naira-first always. SMEs never see a dollar amount.
-- Per-org isolated virtual cards for Meta spend. NEVER a shared Sellam card on Meta.
+- Per-org isolated virtual cards for Meta spend. NEVER a shared Tenzu card on Meta.
 - 1 campaign → 1 ad set → 1 ad. Never break this structure.
 - TikTok is deferred. It is gated in backend. Remove from UI if visible.
 - No agency dashboard, no web store builder in Phase 1.

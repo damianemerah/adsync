@@ -97,7 +97,7 @@ export function PostLaunchRuleAlert({ campaign }: PostLaunchRuleAlertProps) {
     SUGGESTION_PATHS[topRule.suggestion] || `/campaigns/${campaign.id}`;
 
   return (
-    <Alert className={`${variantClass} rounded-xl`}>
+    <Alert className={`${variantClass} rounded-md`}>
       <Icon className="h-4 w-4" />
       <AlertTitle className="font-bold text-sm">
         {topRule.severity === "success"

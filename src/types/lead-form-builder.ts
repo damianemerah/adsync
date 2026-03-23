@@ -4,7 +4,7 @@ export type MetaStandardFieldType =
   | "LAST_NAME"
   | "EMAIL"
   | "WORK_EMAIL"
-  | "PHONE"
+  | "PHONE_NUMBER"
   | "WORK_PHONE_NUMBER"
   | "STREET_ADDRESS"
   | "CITY"
@@ -31,7 +31,7 @@ export const STANDARD_FIELD_LABELS: Record<MetaStandardFieldType, string> = {
   LAST_NAME: "Last Name",
   EMAIL: "Email",
   WORK_EMAIL: "Work Email",
-  PHONE: "Phone Number",
+  PHONE_NUMBER: "Phone Number",
   WORK_PHONE_NUMBER: "Work Phone",
   STREET_ADDRESS: "Street Address",
   CITY: "City",
@@ -47,7 +47,7 @@ export const STANDARD_FIELD_LABELS: Record<MetaStandardFieldType, string> = {
 export const META_STANDARD_FIELDS: MetaStandardFieldType[] = [
   "FULL_NAME",
   "EMAIL",
-  "PHONE",
+  "PHONE_NUMBER",
   "COMPANY_NAME",
   "JOB_TITLE",
   "CITY",
@@ -56,3 +56,14 @@ export const META_STANDARD_FIELDS: MetaStandardFieldType[] = [
   "DATE_OF_BIRTH",
   "GENDER",
 ];
+
+/** Fields that Meta pre-fills from the user's Facebook profile — shown with a badge in the builder. */
+export const META_PREFILLED_FIELDS = new Set<MetaStandardFieldType>([
+  "FULL_NAME",
+  "FIRST_NAME",
+  "LAST_NAME",
+  "EMAIL",
+  "WORK_EMAIL",
+  "PHONE_NUMBER",
+  "WORK_PHONE_NUMBER",
+]);

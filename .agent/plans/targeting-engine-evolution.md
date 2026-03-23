@@ -7,12 +7,12 @@
 
 ## Why This Order Matters
 
-New Sellam users start with zero pixel data and zero AdSync attribution clicks. Building warm retargeting or lookalike audiences before cold traffic has run is technically possible but strategically empty — Meta won't have enough source data to create meaningful audiences. The phases enforce a logical data dependency:
+New Tenzu users start with zero pixel data and zero Tenzu attribution clicks. Building warm retargeting or lookalike audiences before cold traffic has run is technically possible but strategically empty — Meta won't have enough source data to create meaningful audiences. The phases enforce a logical data dependency:
 
 ```
 Phase 1 (Cold Traffic) → generates clicks/impressions
          ↓
-Phase 2 (Custom Audiences) → retargets people who clicked AdSync links or fired pixels
+Phase 2 (Custom Audiences) → retargets people who clicked Tenzu links or fired pixels
          ↓
 Phase 3 (Lookalikes) → finds new people who look like the ones who converted
 ```
@@ -49,7 +49,7 @@ Phase 3 (Lookalikes) → finds new people who look like the ones who converted
 
 ## Phase 2 — Custom Audiences (Warm Traffic Engine)
 
-**Goal:** Retarget people who already engaged with previous campaigns via AdSync Links or pixel.  
+**Goal:** Retarget people who already engaged with previous campaigns via Tenzu Links or pixel.  
 **Tier:** Growth + Agency  
 **Store bump:** v9 → v10  
 **Prerequisite:** User has run at least 1 campaign and has link click or pixel data
@@ -71,7 +71,7 @@ Phase 3 (Lookalikes) → finds new people who look like the ones who converted
 
 ## Phase 3 — Lookalike Audiences (Pro Tier Scaler)
 
-**Goal:** Find new customers who look like existing converters. The "Sellam Gold" strategy.  
+**Goal:** Find new customers who look like existing converters. The "Tenzu Gold" strategy.  
 **Tier:** Agency only  
 **Store bump:** v10 → v11  
 **Prerequisite:** User has a custom audience with 1,000+ people

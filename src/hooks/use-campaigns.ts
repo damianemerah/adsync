@@ -73,10 +73,12 @@ export function useCampaigns() {
   const syncMutation = useMutation({
     mutationFn: async () => {
       // Get all active ad accounts first
+      // ✅ Filter out soft-deleted (disconnected) accounts
       let q = supabase
         .from("ad_accounts")
         .select("id")
-        .eq("health_status", "healthy");
+        .eq("health_status", "healthy")
+        .is("disconnected_at", null); // Only sync connected accounts
       if (activeOrgId) q = q.eq("organization_id", activeOrgId);
       const { data: accounts } = await q;
 

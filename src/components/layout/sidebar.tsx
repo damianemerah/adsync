@@ -122,7 +122,7 @@ export function Sidebar({ activeOrgId }: { activeOrgId?: string | null }) {
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 z-50 h-screen flex flex-col bg-sidebar border-r border-border text-subtle-foreground transition-all duration-300 font-sans shadow-soft", // [UPDATED] bg-sidebar, shadow-soft
+        "fixed left-0 top-0 z-50 h-screen flex flex-col bg-sidebar border-r border-border text-subtle-foreground transition-all duration-300 font-sans shadow-sm border border-border", // [UPDATED] bg-sidebar, shadow-sm border border-border
         isOpen ? "w-65" : "w-20",
       )}
     >
@@ -137,7 +137,7 @@ export function Sidebar({ activeOrgId }: { activeOrgId?: string | null }) {
 
         {/* Collapsed Logo View */}
         {!isOpen && (
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold text-xl mb-2 border border-border">
+          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary font-bold text-xl mb-2 border border-border">
             {(subscription?.org?.name?.[0] || "A").toUpperCase()}
           </div>
         )}
@@ -315,7 +315,7 @@ export function Sidebar({ activeOrgId }: { activeOrgId?: string | null }) {
         <Link
           href="/notifications"
           className={cn(
-            "flex items-center gap-3 rounded-xl px-3 py-2.5 border border-border transition-colors hover:bg-muted/50 hover:text-foreground text-subtle-foreground relative",
+            "flex items-center gap-3 rounded-md px-3 py-2.5 border border-border transition-colors hover:bg-muted/50 hover:text-foreground text-subtle-foreground relative",
             pathname === "/notifications" &&
               "bg-primary/10 text-primary border-primary/20",
             !isOpen && "justify-center px-0 border-0 bg-transparent",
@@ -345,7 +345,7 @@ export function Sidebar({ activeOrgId }: { activeOrgId?: string | null }) {
           <DropdownMenuTrigger asChild>
             <div
               className={cn(
-                "bg-background rounded-2xl p-3 border border-border flex items-center gap-3 shadow-soft cursor-pointer hover:bg-muted/50 transition-colors", // [UPDATED] shadow-soft
+                "bg-background rounded-lg p-3 border border-border flex items-center gap-3 shadow-sm border border-border cursor-pointer hover:bg-muted/50 transition-colors", // [UPDATED] shadow-sm border border-border
                 !isOpen &&
                   "p-1 border-0 shadow-none justify-center bg-transparent",
               )}
@@ -375,7 +375,7 @@ export function Sidebar({ activeOrgId }: { activeOrgId?: string | null }) {
           <DropdownMenuContent
             align="end"
             side={isOpen ? "top" : "right"}
-            className="w-56 p-2 rounded-xl shadow-soft border-border bg-popover" // [UPDATED] bg-popover
+            className="w-56 p-2 rounded-md shadow-sm border border-border border-border bg-popover" // [UPDATED] bg-popover
           >
             <div className="px-2 py-1.5 text-sm font-semibold border-b border-border mb-1 text-foreground">
               {user?.user_metadata?.full_name || "User"}

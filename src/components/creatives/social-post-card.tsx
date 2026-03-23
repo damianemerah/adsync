@@ -16,7 +16,7 @@ export function SocialPostCard({
   return (
     <div
       onClick={onSelect}
-      className={`group relative bg-white rounded-3xl border shadow-soft cursor-pointer hover:shadow-lg transition-all ${
+      className={`group relative bg-white rounded-lg border shadow-sm border border-border cursor-pointer hover:shadow-sm border border-border transition-all ${
         selected ? "ring-2 ring-primary border-primary" : "border-border"
       }`}
     >
@@ -55,7 +55,7 @@ export function SocialPostCard({
         </div>
         {selected && (
           <div className="absolute inset-0 bg-primary/20 flex items-center justify-center backdrop-blur-[1px]">
-            <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center shadow-lg">
+            <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center shadow-sm border border-border">
               <CheckCircle className="w-6 h-6 text-primary" />
             </div>
           </div>

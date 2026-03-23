@@ -86,7 +86,7 @@ export function ChatInterface({
   );
 
   return (
-    <div className="flex flex-col bg-background border border-border rounded-3xl shadow-soft overflow-hidden relative">
+    <div className="flex flex-col bg-background border border-border rounded-lg shadow-sm border border-border overflow-hidden relative">
       {/* Header */}
       <div className="p-4 border-b border-border bg-muted/30 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
@@ -94,7 +94,7 @@ export function ChatInterface({
             <Sparks className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h2 className="font-bold text-foreground">Sellam AI</h2>
+            <h2 className="font-bold text-foreground">Tenzu AI</h2>
             <p className="text-xs text-subtle-foreground">
               Tell me what you sell — I'll build the ad
             </p>
@@ -141,7 +141,7 @@ export function ChatInterface({
               <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                 <Sparks className="h-4 w-4 text-primary" />
               </div>
-              <div className="bg-muted px-4 py-3 rounded-2xl rounded-tl-none">
+              <div className="bg-muted px-4 py-3 rounded-lg rounded-tl-none">
                 <StrategyProgressIndicator />
               </div>
             </div>
@@ -158,13 +158,13 @@ export function ChatInterface({
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
-            className="h-14 pl-5 pr-14 rounded-2xl border-border bg-muted/30 shadow-none focus-visible:ring-primary/20 text-md"
+            className="h-14 pl-5 pr-14 rounded-lg border-border bg-muted/30 shadow-none focus-visible:ring-primary/20 text-md"
           />
           <Button
             size="icon"
             onClick={() => handleSend()}
             disabled={!inputValue.trim() || isTyping}
-            className="absolute right-2 h-10 w-10 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-soft"
+            className="absolute right-2 h-10 w-10 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm border border-border"
           >
             <Send className="h-4 w-4" />
           </Button>

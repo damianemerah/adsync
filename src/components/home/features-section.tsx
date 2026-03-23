@@ -54,7 +54,7 @@ export function FeaturesSection() {
           <FeatureCard
             icon={<ChatBubble className="size-6" />}
             title="Ads That Work While You Sleep"
-            description="Sellam watches your ads 24/7 and pauses the ones wasting money — automatically. No rules to configure."
+            description="Tenzu watches your ads 24/7 and pauses the ones wasting money — automatically. No rules to configure."
           />
         </div>
       </div>
@@ -72,7 +72,7 @@ function FeatureCard({
   description: string;
 }) {
   return (
-    <Card className="group shadow-sm hover:shadow-soft transition-all duration-300 border-border/60 bg-card">
+    <Card className="group shadow-sm hover:shadow-sm border border-border transition-all duration-300 bg-card">
       <CardHeader className="pb-4">
         <CardDecorator>{icon}</CardDecorator>
         <h3 className="mt-6 font-bold text-xl text-foreground">{title}</h3>
@@ -85,8 +85,8 @@ function FeatureCard({
 }
 
 const CardDecorator = ({ children }: { children: ReactNode }) => (
-  <div className="relative mx-auto size-20 rounded-2xl flex items-center justify-center bg-muted/50 group-hover:bg-primary/10 transition-colors duration-300 text-foreground group-hover:text-primary">
-    <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-foreground/10 group-hover:ring-primary/20 transition-all" />
+  <div className="relative mx-auto size-20 rounded-lg flex items-center justify-center bg-muted/50 group-hover:bg-primary/10 transition-colors duration-300 text-foreground group-hover:text-primary">
+    <div className="absolute inset-0 rounded-lg ring-1 ring-inset ring-foreground/10 group-hover:ring-primary/20 transition-all" />
     {children}
   </div>
 );

@@ -8,6 +8,7 @@
 
 import type { AdSyncObjective } from "@/lib/constants";
 import { BUDGET_CONSTRAINTS, ACCOUNT_TIERS, RISKY_TERMS } from "./benchmarks";
+import { formatCurrency } from "@/lib/utils";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -25,6 +26,9 @@ interface RuleContext {
   totalHistoricalSpend?: number;
   campaignCount?: number;
   adCopy?: string[]; // Arrays of text strings (headline, primary text) to check for violations
+  // Globalization params — default to NG/NGN for existing callers
+  orgCountryCode?: string;
+  currency?: string;
 }
 
 export interface ValidationIssue {
@@ -51,10 +55,11 @@ const rules: Rule[] = [
   // ERRORS — block launch
   (ctx) => {
     if (ctx.budget < BUDGET_CONSTRAINTS.floorNgn) {
+      const cur = ctx.currency ?? "NGN";
       return {
         id: "budget_floor",
         severity: "error",
-        message: `Minimum daily budget is ₦${BUDGET_CONSTRAINTS.floorNgn.toLocaleString()}. Below this, Meta's algorithm can't optimize delivery.`,
+        message: `Minimum daily budget is ${formatCurrency(BUDGET_CONSTRAINTS.floorNgn, cur)}. Below this, Meta's algorithm can't optimize delivery.`,
       };
     }
     return null;
@@ -67,18 +72,21 @@ const rules: Rule[] = [
       (ctx.campaignCount || 0) === 0;
 
     if (isStarter && ctx.budget > ACCOUNT_TIERS.STARTER.maxDailySpend) {
+      const cur = ctx.currency ?? "NGN";
       return {
         id: "starter_cap",
         severity: "error", // Strict block for safety
-        message: `New Account Safety: To prevent immediate bans, your first campaign is limited to ₦${ACCOUNT_TIERS.STARTER.maxDailySpend.toLocaleString()}/day. Scale up after your first successful payment.`,
+        message: `New Account Safety: To prevent immediate bans, your first campaign is limited to ${formatCurrency(ACCOUNT_TIERS.STARTER.maxDailySpend, cur)}/day. Scale up after your first successful payment.`,
       };
     }
     return null;
   },
 
   (ctx) => {
+    // Only validate Nigerian phone format when org is in NG
     if (
       ctx.objective === "whatsapp" &&
+      (!ctx.orgCountryCode || ctx.orgCountryCode === "NG") &&
       !NG_PHONE_RE.test(ctx.destinationValue.replace(/[\s\-]/g, ""))
     ) {
       return {

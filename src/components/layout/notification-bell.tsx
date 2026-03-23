@@ -50,7 +50,7 @@ export function NotificationBell() {
 
       <PopoverContent
         align="end"
-        className="w-[380px] p-0 rounded-2xl border-border shadow-soft overflow-hidden"
+        className="w-[380px] p-0 rounded-lg shadow-sm border border-border overflow-hidden"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
@@ -159,7 +159,7 @@ function NotificationRow({
     <div
       className={cn(
         "flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-muted/40 transition-colors",
-        !notification.is_read && "bg-primary/[0.03]",
+        !notification.is_read && "bg-primary/3",
       )}
       onClick={onRead}
     >
@@ -193,7 +193,14 @@ function NotificationRow({
         <p className="text-[12px] text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">
           {notification.message}
         </p>
-        <span className="text-[10px] text-muted-foreground/70 mt-1 block font-medium">
+        {notification.action_label && notification.action_url && (
+          <div className="mt-1.5 flex items-center">
+            <span className="text-[11px] font-semibold text-primary hover:underline">
+              {notification.action_label} &rarr;
+            </span>
+          </div>
+        )}
+        <span className="text-[10px] text-muted-foreground/70 mt-1.5 block font-medium">
           {timeAgo}
         </span>
       </div>
@@ -203,7 +210,7 @@ function NotificationRow({
   // If there's an action URL, wrap with a link
   if (notification.action_url) {
     return (
-      <Link href={notification.action_url} onClick={onRead}>
+      <Link href={notification.action_url} onClick={onRead} className="block">
         {content}
       </Link>
     );

@@ -49,7 +49,7 @@ loadEnvLocal();
 import { META_INTEREST_SEEDS } from "../lib/constants/meta-interests";
 
 const PATCH = process.argv.includes("--patch");
-const API_VERSION = "v24.0";
+const API_VERSION = "v25.0";
 const BASE_URL = `https://graph.facebook.com/${API_VERSION}`;
 
 // ─── AES-256 Decrypt (mirrors src/lib/crypto.ts) ─────────────────────────────
@@ -117,10 +117,7 @@ async function metaGet(endpoint: string, token: string): Promise<any> {
   return json;
 }
 
-async function searchInterests(
-  token: string,
-  query: string,
-) {
+async function searchInterests(token: string, query: string) {
   const params = new URLSearchParams({
     type: "adinterest",
     q: query,
@@ -216,7 +213,7 @@ async function validateSeeds(
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 async function main() {
-  console.log("\nSellam — Meta Interests Validator");
+  console.log("\nTenzu — Meta Interests Validator");
   console.log("=========================================================");
   console.log(
     `Mode: ${PATCH ? "PATCH (will rewrite meta-interests.ts)" : "DRY-RUN (read-only)"}`,
@@ -224,14 +221,11 @@ async function main() {
   console.log("\nFetching Meta credentials from DB...");
 
   const { token } = await getMetaCredentials();
-  console.log(
-    `Got token (${token.substring(0, 8)}...) \n`,
-  );
+  console.log(`Got token (${token.substring(0, 8)}...) \n`);
 
   console.log(`Validating ${META_INTEREST_SEEDS.length} interests...\n`);
-  const results = await validateSeeds(
-    META_INTEREST_SEEDS,
-    (q) => searchInterests(token, q),
+  const results = await validateSeeds(META_INTEREST_SEEDS, (q) =>
+    searchInterests(token, q),
   );
 
   // ── Summary ─────────────────────────────────────────────────────────────────

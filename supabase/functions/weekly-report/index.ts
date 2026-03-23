@@ -9,8 +9,8 @@ const corsHeaders = {
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const RESEND_FROM_EMAIL =
-  Deno.env.get("RESEND_FROM_EMAIL") || "alerts@sellam.app";
-const APP_NAME = "Sellam";
+  Deno.env.get("RESEND_FROM_EMAIL") || "alerts@Tenzu.app";
+const APP_NAME = "Tenzu";
 
 async function sendResendEmail(to: string, subject: string, html: string) {
   if (!RESEND_API_KEY) {
@@ -201,7 +201,7 @@ serve(async (req) => {
                 </div>
                 <p><strong>Insight:</strong> ${topCampMessage}</p>
                 <div style="margin-top:30px;">
-                  <a href="${Deno.env.get("NEXT_PUBLIC_APP_URL") || "https://sellam.app"}/dashboard"
+                  <a href="${Deno.env.get("NEXT_PUBLIC_APP_URL") || "https://Tenzu.app"}/dashboard"
                      style="background:#111827;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;">
                     Open Dashboard
                   </a>

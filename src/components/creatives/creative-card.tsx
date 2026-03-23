@@ -31,7 +31,7 @@ export function CreativeCard({
   return (
     <div
       className={cn(
-        "group relative bg-card rounded-3xl border shadow-soft hover:shadow-lg transition-all duration-300 overflow-hidden",
+        "group relative bg-card rounded-lg shadow-sm hover:shadow-sm border border-border transition-all duration-300 overflow-hidden",
         selected ? "ring-2 ring-primary border-primary" : "border-border",
       )}
     >
@@ -70,7 +70,7 @@ export function CreativeCard({
 
         {/* AI-generated watermark on hover */}
         {data.media_type === "generated_image" && (
-          <div className="absolute bottom-2 left-2 right-2 px-3 py-1.5 rounded-xl bg-black/70 backdrop-blur-md border border-white/10 text-white text-[10px] font-medium flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0 pointer-events-none">
+          <div className="absolute bottom-2 left-2 right-2 px-3 py-1.5 rounded-md bg-black/70 backdrop-blur-md border border-white/10 text-white text-[10px] font-medium flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0 pointer-events-none">
             <span className="h-1.5 w-1.5 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.8)]" />
             Generated with AdSync
           </div>

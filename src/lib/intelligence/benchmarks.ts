@@ -8,7 +8,8 @@
 import type { AdSyncObjective } from "@/lib/constants";
 
 // ── FX Rate ────────────────────────────────────────────────────────────────
-// Consolidated here; previously isolated in use-campaign-roi.ts
+// Static FX_RATE for client-safe benchmark calculations.
+// For dynamic DB-fetched rate on the server, import getFxRate from "@/lib/fx-rate" directly.
 export const FX_RATE = Number(process.env.NEXT_PUBLIC_USD_NGN_RATE) || 1_600;
 
 // ── Meta Ad Benchmarks (Nigeria 2025) ──────────────────────────────────────
@@ -177,6 +178,36 @@ export const ACCOUNT_TIERS = {
   SCALER: {
     maxDailySpend: 1_000_000,
     minHistorySpend: 500_000,
+    label: "Scaler",
+    description: "High volume trusted account",
+  },
+} as const;
+
+// ── Budget Constraints (USD) — for global orgs ─────────────────────────────
+export const BUDGET_CONSTRAINTS_USD = {
+  floorNgn: 5,      // ~$5/day floor
+  defaultNgn: 10,   // ~$10/day recommended
+  ceilingNgn: 100,  // ~$100/day soft ceiling
+  minDurationDays: 7,
+} as const;
+
+// ── Account Health Tiers (USD) — for global orgs ───────────────────────────
+export const ACCOUNT_TIERS_USD = {
+  STARTER: {
+    maxDailySpend: 10,
+    minHistorySpend: 0,
+    label: "Starter",
+    description: "New account warm-up phase",
+  },
+  ESTABLISHED: {
+    maxDailySpend: 100,
+    minHistorySpend: 50,
+    label: "Established",
+    description: "Proven payment history",
+  },
+  SCALER: {
+    maxDailySpend: 1_000,
+    minHistorySpend: 500,
     label: "Scaler",
     description: "High volume trusted account",
   },

@@ -66,7 +66,7 @@ export function CompactAccountCard({
   return (
     <Card
       className={cn(
-        `group hover:shadow-lg transition-all duration-300`,
+        `group hover:shadow-sm border border-border transition-all duration-300`,
         account.isDefault ? "ring-1 ring-blue-600 border-blue-600/50" : "",
       )}
     >

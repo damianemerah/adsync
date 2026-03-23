@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   generateAdCreative,
   getCreativeHistory,
@@ -10,23 +10,23 @@ import { Button } from "@/components/ui/button";
 import {
   PromptInput,
   AspectRatio,
-} from "@/components/creatives/studio/prompt-input"; // Updated Import
+} from "@/components/creatives/studio/prompt-input";
 import { HelpCenterSheet } from "@/components/layout/help-center-sheet";
 import { CreditsDisplay } from "@/components/layout/credits-display";
-import { CreativeFormat } from "@/lib/ai/prompts"; // [NEW]
+import { CreativeFormat } from "@/lib/ai/prompts";
 import { GenerationView } from "@/components/creatives/studio/generation-view";
 import { Sparks, Link as LinkIcon, Plus } from "iconoir-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
-import { useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useCreativeHistory } from "@/hooks/use-creatives";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/components/providers/auth-provider";
 import { type CampaignContext } from "@/lib/ai/context-compiler";
 import { Badge } from "@/components/ui/badge";
 import { useCampaignStore } from "@/stores/campaign-store";
+import { useStudioStore } from "@/store/studio-store";
 import { useBeforeLeave } from "@/hooks/use-before-leave";
 import { isPermanentCreativeUrl } from "@/lib/creative-utils";
 import { CREDIT_COSTS } from "@/lib/constants";
@@ -56,39 +56,37 @@ export default function StudioPage() {
     }
   }, [editId, campaignId, router]);
 
-  // [NEW] Track the ACTIVE creative ID (starts with editId, updates on new generations)
-  const [activeCreativeId, setActiveCreativeId] = useState<string | null>(
-    editId || null,
-  );
+  // ── Studio store (persisted session) ──────────────────────────────────────
+  const {
+    prompt,
+    aspectRatio,
+    creativeFormat,
+    isEnhanced,
+    creationMode,
+    generatedImage,
+    imageUrls,
+    generationHistory,
+    lastUsedFullPrompt,
+    seed,
+    activeCreativeId,
+    viewMode,
+    setPrompt,
+    setAspectRatio,
+    setCreativeFormat,
+    setIsEnhanced,
+    setCreationMode,
+    setGeneratedImage,
+    setImageUrls,
+    appendGenerationHistory,
+    setLastUsedFullPrompt,
+    setSeed,
+    setActiveCreativeId,
+    setViewMode,
+    resetSession,
+  } = useStudioStore();
 
-  // State: 'input' | 'result'
-  const [viewMode, setViewMode] = useState<"input" | "result">("input");
 
-  // Data State
-  const [prompt, setPrompt] = useState("");
-  const [isEnhanced, setIsEnhanced] = useState(true);
-  const [aspectRatio, setAspectRatio] = useState<AspectRatio>("1:1"); // Default: Square
-  const [creativeFormat, setCreativeFormat] = useState<CreativeFormat>("auto"); // [NEW] Default: Auto
-  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [creationMode, setCreationMode] = useState<"prompt" | "url">("prompt");
-  const [seed, setSeed] = useState<number | undefined>(undefined);
-  const [imageUrls, setImageUrls] = useState<string[]>([]); // [NEW]
-
-  // History State for GenerationView
-  const [generationHistory, setGenerationHistory] = useState<
-    { imageUrl: string; id: string }[]
-  >([]);
-
-  // [NEW] Track the full enhanced prompt for continuity
-  const [lastUsedFullPrompt, setLastUsedFullPrompt] = useState<string | null>(
-    null,
-  );
-
-  // [NEW] Campaign context for auto-enrichment
-  const [campaignContext, setCampaignContext] =
-    useState<CampaignContext | null>(null);
-  const [campaignName, setCampaignName] = useState<string | null>(null);
 
   // Warn on page close/refresh when an image has been generated but not saved
   useBeforeLeave(
@@ -96,66 +94,64 @@ export default function StudioPage() {
     "You have a generated image that hasn't been saved to your library yet. Leave anyway?",
   );
 
+
   // Use Hook for History
   const { data: historyData, isLoading: isHistoryLoading } =
     useCreativeHistory(activeCreativeId);
 
-  // Handle initial image from campaign chat ("Edit in Studio" button)
+  // ─── Fetch Campaign Context ──────────────────────────────────────────────
+  const { data: campaignData } = useQuery({
+    queryKey: ["campaign-context", campaignId],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("campaigns")
+        .select("ai_context, name")
+        .eq("id", campaignId!)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!campaignId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const campaignContext = (campaignData?.ai_context as unknown as CampaignContext) ?? null;
+  const campaignName = campaignData?.name ?? null;
+
+  // ─── Fetch Edit Creative Metadata ────────────────────────────────────────
+  const { data: editCreative } = useQuery({
+    queryKey: ["creative", editId],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("creatives")
+        .select("*")
+        .eq("id", editId!)
+        .single();
+      return data;
+    },
+    enabled: !!editId,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  // Sync edit creative data to view state
   useEffect(() => {
-    if (initialImageParam) {
-      setGeneratedImage(initialImageParam);
-      setViewMode("result");
-
-      const promptParam = searchParams.get("prompt");
-      if (promptParam) {
-        setPrompt(promptParam);
-        setLastUsedFullPrompt(promptParam);
-      }
-
-      // Restore the aspect ratio that was used when the image was generated.
-      // Without this, Studio defaults to 1:1 and all refinements produce the wrong size.
-      const ratioParam = searchParams.get("aspectRatio") as AspectRatio | null;
-      const validRatios: AspectRatio[] = ["1:1", "9:16", "4:5", "16:9"];
-      if (ratioParam && validRatios.includes(ratioParam)) {
-        setAspectRatio(ratioParam);
-      }
+    if (!editCreative) return;
+    setGeneratedImage(editCreative.original_url);
+    setViewMode("result");
+    if (!activeCreativeId) setActiveCreativeId(editCreative.id);
+    if (editCreative.width && editCreative.height) {
+      const ratio = editCreative.width / editCreative.height;
+      if (Math.abs(ratio - 1) < 0.05) setAspectRatio("1:1");
+      else if (Math.abs(ratio - 9 / 16) < 0.05) setAspectRatio("9:16");
+      else if (Math.abs(ratio - 16 / 9) < 0.05) setAspectRatio("16:9");
+      else if (Math.abs(ratio - 4 / 5) < 0.05) setAspectRatio("4:5");
+      else setAspectRatio("1:1");
     }
-  }, [initialImageParam, searchParams]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editCreative]);
 
-  // [NEW] Load Campaign Context from URL
-  useEffect(() => {
-    async function loadCampaignContext() {
-      if (!campaignId) {
-        setCampaignContext(null);
-        setCampaignName(null);
-        return;
-      }
-
-      try {
-        const supabase = createClient();
-        const { data, error } = await supabase
-          .from("campaigns")
-          .select("ai_context, name")
-          .eq("id", campaignId)
-          .single();
-
-        if (error) throw error;
-
-        if (data?.ai_context) {
-          setCampaignContext(data.ai_context as unknown as CampaignContext);
-          setCampaignName(data.name);
-          console.log("✅ Loaded campaign context:", data.name);
-        } else {
-          console.warn("⚠️ Campaign found but no AI context available");
-        }
-      } catch (error) {
-        console.error("Failed to load campaign context:", error);
-        toast.error("Could not load campaign context");
-      }
-    }
-
-    loadCampaignContext();
-  }, [campaignId]);
 
   // Aspect Ratio Auto-Selection from Placement
   // Uses metaPlacement (automatic/instagram/facebook) to pick the best default ratio.
@@ -197,57 +193,40 @@ export default function StudioPage() {
     initialImageParam,
   ]);
 
-  // [NEW] Sync Hook Data to Local State
+  // Sync Hook Data to Local State
   useEffect(() => {
     if (historyData) {
-      console.log("🪝 Hook: Loaded History", historyData);
       setLastUsedFullPrompt(historyData.prompt);
       setSeed(historyData.seed);
 
       if (historyData.history) {
-        setGenerationHistory(historyData.history);
+        // Replace history in the store by resetting then appending each entry
+        historyData.history.forEach((entry: { imageUrl: string; id: string }) =>
+          appendGenerationHistory(entry),
+        );
       }
     }
   }, [historyData]);
 
-  // [UPDATED] Load Edit Context (Image/Metadata only, History handled by Hook)
+  // Handle initial image from campaign chat ("Edit in Studio" button)
   useEffect(() => {
-    async function loadEditContext() {
-      if (!editId) return;
+    if (initialImageParam) {
+      setGeneratedImage(initialImageParam);
+      setViewMode("result");
 
-      try {
-        // 1. Fetch the creative URL from Supabase (Client Side for speed/auth)
-        const supabase = createClient();
-        const { data: creative } = await supabase
-          .from("creatives")
-          .select("*")
-          .eq("id", editId)
-          .single();
+      const promptParam = searchParams.get("prompt");
+      if (promptParam) {
+        setPrompt(promptParam);
+        setLastUsedFullPrompt(promptParam);
+      }
 
-        if (creative) {
-          setGeneratedImage(creative.original_url);
-          setViewMode("result");
-          if (!activeCreativeId) setActiveCreativeId(creative.id); // Set ID if not set
-
-          // Set Aspect Ratio based on dimensions
-          if (creative.width && creative.height) {
-            const ratio = creative.width / creative.height;
-            // Tolerance for float inaccuracies
-            if (Math.abs(ratio - 1) < 0.05) setAspectRatio("1:1");
-            else if (Math.abs(ratio - 9 / 16) < 0.05) setAspectRatio("9:16");
-            else if (Math.abs(ratio - 16 / 9) < 0.05) setAspectRatio("16:9");
-            else if (Math.abs(ratio - 4 / 5) < 0.05) setAspectRatio("4:5");
-            else setAspectRatio("1:1"); // Fallback
-          }
-        }
-      } catch (e) {
-        console.error("Failed to load edit context", e);
-        toast.error("Could not load creative statistics");
+      const ratioParam = searchParams.get("aspectRatio") as AspectRatio | null;
+      const validRatios: AspectRatio[] = ["1:1", "9:16", "4:5", "16:9"];
+      if (ratioParam && validRatios.includes(ratioParam)) {
+        setAspectRatio(ratioParam);
       }
     }
-
-    loadEditContext();
-  }, [editId]); // removed activeCreativeId dependency to avoid circles
+  }, [initialImageParam, searchParams]);
 
   const handleGenerate = async () => {
     if (!prompt) {
@@ -283,15 +262,12 @@ export default function StudioPage() {
         campaignContext: campaignContext || undefined, // [NEW] Pass campaign context for auto-enrichment
       });
 
-      if (result.imageUrl) {
+      if (result?.imageUrl) {
         setGeneratedImage(result.imageUrl);
         setPrompt(result.usedPrompt); // Update prompt to the one actually used by AI
         setSeed(result.seed); // Update seed so future refinements use this new base
         // Update History UI
-        setGenerationHistory((prev) => [
-          ...prev,
-          { imageUrl: result.imageUrl, id: "temp-" + Date.now() },
-        ]);
+        appendGenerationHistory({ imageUrl: result.imageUrl, id: "temp-" + Date.now() });
 
         if (result.seed) setSeed(result.seed);
         // Capture the enhanced prompt for future refinements
@@ -301,7 +277,11 @@ export default function StudioPage() {
         toast.dismiss();
       }
     } catch (error: any) {
-      toast.error("Generation Failed", { description: error.message });
+      if (error?.message?.includes("Body exceeded 5 MB limit") || error?.message?.includes("limit")) {
+        toast.error("Image Too Large", { description: "The uploaded reference image is too large. Please use an image under 5MB." });
+      } else {
+        toast.error("Generation Failed", { description: error.message });
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -334,7 +314,7 @@ export default function StudioPage() {
       } as any); // Cast as any to bypass strict checks if type inference is lagging
 
       // [NEW] Capture seed if we don't have one (e.g. from URL import) so subsequent edits range consistent
-      if (result.seed && !seed) {
+      if (result?.seed && !seed) {
         setSeed(result.seed);
       }
 
@@ -345,9 +325,13 @@ export default function StudioPage() {
         });
       }
 
-      return result.imageUrl;
+      return result?.imageUrl;
     } catch (error: any) {
-      toast.error("Refinement Failed", { description: error.message });
+      if (error?.message?.includes("Body exceeded 5 MB limit") || error?.message?.includes("limit")) {
+        toast.error("Image Too Large", { description: "The uploaded reference image is too large. Please use an image under 5MB." });
+      } else {
+        toast.error("Refinement Failed", { description: error.message });
+      }
       throw error;
     }
   };
@@ -379,17 +363,7 @@ export default function StudioPage() {
     }
     setViewMode("input");
     router.push("/creations");
-    setPrompt("");
-    setActiveCreativeId(null);
-    setImageUrls([]);
-    setGeneratedImage(null);
-    setSeed(undefined);
-    setLastUsedFullPrompt(null);
-    setGenerationHistory([]);
-    setAspectRatio("1:1");
-    setCreativeFormat("auto");
-    setIsEnhanced(true);
-    setCreationMode("prompt");
+    resetSession();
   };
 
   // ── Use in Campaign: save image to campaign store then navigate back ──────
@@ -518,13 +492,13 @@ export default function StudioPage() {
           </div>
 
           {/* Mode Tabs */}
-          <div className="mx-auto flex w-fit gap-2 rounded-xl bg-muted p-1.5 border border-border/60 shadow-inner">
+          <div className="mx-auto flex w-fit gap-2 rounded-md bg-muted p-1.5 border border-border/60 shadow-inner">
             <button
               onClick={() => setCreationMode("prompt")}
               className={cn(
                 "flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-semibold transition-all duration-300 ease-in-out",
                 creationMode === "prompt"
-                  ? "bg-background text-foreground shadow-soft ring-1 ring-border/50 scale-100"
+                  ? "bg-background text-foreground shadow-sm border border-border ring-1 ring-border/50 scale-100"
                   : "text-muted-foreground hover:text-foreground hover:bg-background/50 scale-95 opacity-70 hover:opacity-100",
               )}
             >
@@ -535,7 +509,7 @@ export default function StudioPage() {
               className={cn(
                 "flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-semibold transition-all duration-300 ease-in-out",
                 creationMode === "url"
-                  ? "bg-background text-foreground shadow-soft ring-1 ring-border/50 scale-100"
+                  ? "bg-background text-foreground shadow-sm border border-border ring-1 ring-border/50 scale-100"
                   : "text-muted-foreground hover:text-foreground hover:bg-background/50 scale-95 opacity-70 hover:opacity-100",
               )}
             >
@@ -550,7 +524,7 @@ export default function StudioPage() {
           {/* URL mode placeholder — shown instead of prompt input */}
           {creationMode === "url" ? (
             <div className="mx-auto w-full max-w-2xl">
-              <div className="rounded-2xl border-2 border-dashed border-border bg-card/50 p-10 flex flex-col items-center gap-4 text-center">
+              <div className="rounded-lg border-2 border-dashed border-border bg-card/50 p-10 flex flex-col items-center gap-4 text-center">
                 <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
                   <LinkIcon className="h-6 w-6 text-primary" />
                 </div>
@@ -566,7 +540,7 @@ export default function StudioPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="rounded-xl"
+                  className="rounded-md"
                   onClick={() => setCreationMode("prompt")}
                 >
                   Switch to Prompt Mode
@@ -598,7 +572,7 @@ export default function StudioPage() {
               <Button
                 onClick={handleGenerate}
                 disabled={isGenerating || !prompt}
-                className="w-full h-14 mt-6 bg-primary hover:bg-primary/90 text-primary-foreground text-lg font-bold shadow-soft hover:shadow-lg transition-all rounded-xl"
+                className="w-full h-14 mt-6 bg-primary hover:bg-primary/90 text-primary-foreground text-lg font-bold shadow-sm hover:shadow-sm border border-border transition-all rounded-md"
               >
                 {isGenerating ? (
                   <>

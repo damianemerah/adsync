@@ -98,7 +98,7 @@ export function CreativeSelectorDialog({
                       }
                     }}
                     className={cn(
-                      "group relative aspect-square rounded-xl border bg-muted/30 overflow-hidden focus:outline-hidden transition-all",
+                      "group relative aspect-square rounded-md border bg-muted/30 overflow-hidden focus:outline-hidden transition-all",
                       isSelected
                         ? "ring-2 ring-primary border-primary"
                         : "border-border hover:ring-2 hover:ring-primary/20",
@@ -138,7 +138,7 @@ export function CreativeSelectorDialog({
           <Button
             onClick={handleConfirm}
             disabled={selectedUrls.length === 0}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-soft"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm border border-border"
           >
             Add Selected ({selectedUrls.length})
           </Button>

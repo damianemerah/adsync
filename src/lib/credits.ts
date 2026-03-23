@@ -3,6 +3,9 @@
 /**
  * credits.ts — Central credit guard for all AI actions.
  *
+ * Credits are USER-scoped (not org-scoped). All orgs owned by a user share
+ * one credit pool stored in `users.credits_balance`.
+ *
  * Usage pattern in every server action:
  *
  *   const { orgId, userId } = await requireCredits(supabase, CREDIT_COSTS.IMAGE_GEN_PRO);
@@ -12,6 +15,7 @@
 
 import { SupabaseClient } from "@supabase/supabase-js";
 import { Database } from "@/types/supabase";
+import { getActiveOrgId } from "@/lib/active-org";
 
 type Supabase = SupabaseClient<Database>;
 
@@ -33,7 +37,10 @@ export async function requireCredits(
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
-  // 2. Resolve org + subscription state in one query
+  const activeOrgId = await getActiveOrgId();
+  if (!activeOrgId) throw new Error("No organization found");
+
+  // 2. Resolve org subscription state
   const { data: member, error: memberError } = await supabase
     .from("organization_members")
     .select(
@@ -41,11 +48,11 @@ export async function requireCredits(
        organizations (
          id,
          subscription_status,
-         subscription_expires_at,
-         credits_balance
+         subscription_expires_at
        )`,
     )
     .eq("user_id", user.id)
+    .eq("organization_id", activeOrgId)
     .single();
 
   if (memberError || !member) throw new Error("No organization found");
@@ -55,7 +62,6 @@ export async function requireCredits(
     id: string;
     subscription_status: string;
     subscription_expires_at: string | null;
-    credits_balance: number;
   };
 
   // 3. Subscription gate — block if not active or trialing
@@ -76,11 +82,20 @@ export async function requireCredits(
     );
   }
 
-  // 4. Credit gate — only check if this action actually costs credits
-  if (cost > 0 && org.credits_balance < cost) {
-    throw new Error(
-      `Insufficient credits. You need ${cost} credit${cost !== 1 ? "s" : ""} but have ${org.credits_balance}. Top up or upgrade your plan.`,
-    );
+  // 4. Credit gate — check USER-level balance (shared across all orgs)
+  if (cost > 0) {
+    const { data: userRecord } = await supabase
+      .from("users")
+      .select("credits_balance")
+      .eq("id", user.id)
+      .single();
+
+    const balance = userRecord?.credits_balance ?? 0;
+    if (balance < cost) {
+      throw new Error(
+        `Insufficient credits. You need ${cost} credit${cost !== 1 ? "s" : ""} but have ${balance}. Top up or upgrade your plan.`,
+      );
+    }
   }
 
   return { orgId: org.id, userId: user.id };
@@ -136,19 +151,20 @@ export async function spendCredits(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// getOrgCredits
+// getUserCredits
 //
-// Lightweight helper to read current balance without doing a full auth flow.
+// Lightweight helper to read the user's current credit balance.
+// Credits are user-scoped — all orgs owned by the user share one pool.
 // Used by hooks / non-gated reads.
 // ─────────────────────────────────────────────────────────────────────────────
-export async function getOrgCredits(
+export async function getUserCredits(
   supabase: Supabase,
-  orgId: string,
+  userId: string,
 ): Promise<{ balance: number; quota: number }> {
   const { data, error } = await supabase
-    .from("organizations")
+    .from("users")
     .select("credits_balance, plan_credits_quota")
-    .eq("id", orgId)
+    .eq("id", userId)
     .single();
 
   if (error || !data) return { balance: 0, quota: 0 };

@@ -1,12 +1,12 @@
-# Adsync × Sellam — Campaign Flow Audit & Repositioning Plan
+# Tenzu × Tenzu — Campaign Flow Audit & Repositioning Plan
 
-> Compared against: _SME Psychology-First Campaign Design_ (Sellam brief)
+> Compared against: _SME Psychology-First Campaign Design_ (Tenzu brief)
 
 ---
 
 ## 1. What You've Already Built (Credit Where It's Due)
 
-The codebase is significantly ahead of where the Sellam doc assumes you are. Before listing gaps, here's what's **genuinely functional**:
+The codebase is significantly ahead of where the Tenzu doc assumes you are. Before listing gaps, here's what's **genuinely functional**:
 
 | Feature                                                  | Status        | Location                                   |
 | -------------------------------------------------------- | ------------- | ------------------------------------------ |
@@ -56,13 +56,13 @@ Both actions exist in `campaigns.ts` but have no trigger — no cron, no UI butt
 ### 🟠 High Priority — UX Cognitive Overload
 
 **E. No "What are you selling?" first moment**
-The Sellam brief's core insight is that SMEs struggle _before_ Step 1. Your wizard starts with **Goal selection** — an abstract UX concept most Nigerian SMEs don't map to their mental model. The business description that powers the AI (the `aiPrompt`) is only asked in the chat in Step 2.
+The Tenzu brief's core insight is that SMEs struggle _before_ Step 1. Your wizard starts with **Goal selection** — an abstract UX concept most Nigerian SMEs don't map to their mental model. The business description that powers the AI (the `aiPrompt`) is only asked in the chat in Step 2.
 
 - **Current:** `Goal → Platform → AI Chat (asks "what are you promoting?") → Creative → Budget`
 - **Should be:** `"What are you selling?" → AI classifies → Everything else auto-fills`
 
 **F. Budget recommendation is input-first, not outcome-first**
-`BudgetLaunchStep` shows estimated reach/conversations _after_ you type a budget. The Sellam brief specifically asks for outcome-first language:
+`BudgetLaunchStep` shows estimated reach/conversations _after_ you type a budget. The Tenzu brief specifically asks for outcome-first language:
 
 > _"To generate ~20–35 WhatsApp conversations, we recommend ₦12,000 over 5 days."_
 
@@ -86,14 +86,14 @@ The `BudgetLaunchStep` shows "Ad Account Active" and "Subscription Active" alway
 ### 🟡 Medium Priority — Missing Intelligence Surfaces
 
 **I. No image quality scoring**
-The Sellam brief lists: text density, lighting, face visibility, color contrast, social proof signals — scored 1-100. Nothing like this exists.
+The Tenzu brief lists: text density, lighting, face visibility, color contrast, social proof signals — scored 1-100. Nothing like this exists.
 
 - `creative-step.tsx` is a pure grid picker with no AI evaluation.
 - The `probe-image-size` library is already used in `ai-images.ts` for compliance checking.
 - **Fix:** When an image is selected, call a lightweight scoring endpoint (can use OpenAI Vision with a structured prompt to return a score + improvement tips).
 
 **J. No "broad targeting" recommendation UX**
-The Sellam brief recommends: if research shows broad targeting outperforms interest-based for Nigerian SMEs, show:
+The Tenzu brief recommends: if research shows broad targeting outperforms interest-based for Nigerian SMEs, show:
 
 > _"Most beauty businesses in Lagos see better results with broad targeting."_
 
@@ -124,9 +124,9 @@ In `creative-step.tsx`, the destination input shows `"080 1234 5678"` as placeho
 
 ---
 
-## 3. Where Sellam is Ahead of Adsync
+## 3. Where Tenzu is Ahead of Tenzu
 
-| Sellam Concept                                         | Adsync Status              |
+| Tenzu Concept                                         | Tenzu Status              |
 | ------------------------------------------------------ | -------------------------- |
 | Product category → auto-classifies targeting           | ❌ Not implemented         |
 | Outcome-first budget framing ("~20 conversations")     | ❌ Inverted — budget-first |
@@ -139,7 +139,7 @@ In `creative-step.tsx`, the destination input shows `"080 1234 5678"` as placeho
 
 ---
 
-## 4. Sellam UX Repositioning — Recommended New Flow
+## 4. Tenzu UX Repositioning — Recommended New Flow
 
 ```
 ┌─────────────────────────────────────────────┐

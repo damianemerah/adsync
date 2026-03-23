@@ -1,4 +1,4 @@
-# Sellam Code Conventions
+# Tenzu Code Conventions
 
 ## Stack
 
@@ -10,7 +10,7 @@ Tailwind CSS, Shadcn UI, Zod, OpenAI, Flux via Fal.ai, Paystack
 - Server actions: `src/actions/[domain].ts`
 - API route handlers: `src/app/api/[domain]/route.ts`
 - Exception: attribution redirect lives at `src/app/l/[token]/route.ts` (not under /api)
-  — this is intentional: produces clean `sellam.app/l/[token]` URLs embedded in Meta ads
+  — this is intentional: produces clean `tenzu.africa/l/[token]` URLs embedded in Meta ads
 - Exception: pixel endpoint lives at `src/app/api/pixel/route.ts`
   — returns 1x1 transparent GIF, handles purchase events from website pixel snippets
 - Client hooks: `src/hooks/use-[noun].ts`
@@ -62,7 +62,7 @@ Tailwind CSS, Shadcn UI, Zod, OpenAI, Flux via Fal.ai, Paystack
 
 - Never throw from `launchCampaign` — always return `{ success: boolean, error?: string }`
 - Meta API failures: log with console.error, return `{ success: false, error: message }`
-- AdSyncGuard wraps all fragile Meta API calls
+- TenzuGuard wraps all fragile Meta API calls
 - Attribution link creation failure = fall back to raw destination URL silently
   Never block campaign launch because of attribution failure
 

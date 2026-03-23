@@ -40,93 +40,59 @@ export function useCreatives() {
       dimensions: { width: number; height: number };
       thumbnailDataUrl?: string;
     }) => {
-      // A. Get User & Org
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      // A. Upload to Storage using server action (prevents org folder pollution)
+      const { uploadCreativeFile } = await import("@/actions/creatives");
+      const { publicUrl } = await uploadCreativeFile({
+        file,
+        bucket: "creatives",
+      });
 
-      let orgId = activeOrgId;
-
-      if (!orgId) {
-        const { data: member } = await supabase
-          .from("organization_members")
-          .select("organization_id")
-          .eq("user_id", user.id)
-          .limit(1);
-
-        if (!member || member.length === 0)
-          throw new Error("No organization found");
-        orgId = member[0].organization_id as string;
-      }
-
-      // B. Upload to Storage
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${orgId}/${Math.random()
-        .toString(36)
-        .slice(2)}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("creatives")
-        .upload(fileName, file);
-
-      console.log("Uploading file to storage:", fileName, uploadError);
-
-      if (uploadError) throw uploadError;
-
-      // C. Get Public URL
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("creatives").getPublicUrl(fileName);
-
-      // D. Optionally Upload Thumbnail
+      // B. Optionally Upload Thumbnail
       let thumbnailUrl = null;
       if (thumbnailDataUrl) {
         try {
           const thumbRes = await fetch(thumbnailDataUrl);
           const thumbBlob = await thumbRes.blob();
+          const thumbFile = new File([thumbBlob], "thumbnail.jpg", {
+            type: "image/jpeg",
+          });
 
-          const thumbFileName = `${orgId}/${Math.random()
-            .toString(36)
-            .slice(2)}_thumb.jpg`;
-
-          const { error: thumbUploadError } = await supabase.storage
-            .from("creatives")
-            .upload(thumbFileName, thumbBlob, { contentType: "image/jpeg" });
-
-          if (!thumbUploadError) {
-            const {
-              data: { publicUrl: thumbPublicUrl },
-            } = supabase.storage.from("creatives").getPublicUrl(thumbFileName);
-            thumbnailUrl = thumbPublicUrl;
-          }
+          const { publicUrl: thumbPublicUrl } = await uploadCreativeFile({
+            file: thumbFile,
+            bucket: "creatives",
+          });
+          thumbnailUrl = thumbPublicUrl;
         } catch (err) {
           console.error("Warning: Failed to upload thumbnail", err);
         }
       }
 
-      // E. Insert into DB
-      const creativeData = {
-        organization_id: orgId,
-        name: file.name,
-        media_type: file.type.startsWith("video") ? "video" : "image",
-        original_url: publicUrl,
-        thumbnail_url: thumbnailUrl,
+      // E. Insert into DB using server action (prevents RLS bypass)
+      const { saveCreative } = await import("@/actions/creatives");
+
+      const result = await saveCreative({
+        originalUrl: publicUrl,
+        thumbnailUrl: thumbnailUrl ?? undefined,
         width: dimensions.width,
         height: dimensions.height,
-        file_size_bytes: file.size,
-        uploaded_by: user.id,
-      };
+        format: file.type,
+        aiGenerated: false,
+      });
 
-      const { data, error: dbError } = await supabase
-        .from("creatives")
-        .insert(creativeData)
-        .select()
-        .single();
+      if (!result.success) throw new Error("Failed to save creative");
 
-      if (dbError) throw dbError;
+      return result.creative;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["creatives", activeOrgId] });
+    },
+  });
 
-      return data;
+  // 3. Delete Mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { deleteCreatives } = await import("@/actions/creatives");
+      return deleteCreatives(ids);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["creatives", activeOrgId] });
@@ -138,6 +104,8 @@ export function useCreatives() {
     isLoading: query.isLoading,
     uploadCreative: uploadMutation.mutateAsync,
     isUploading: uploadMutation.isPending,
+    deleteCreatives: deleteMutation.mutateAsync,
+    isDeleting: deleteMutation.isPending,
   };
 }
 

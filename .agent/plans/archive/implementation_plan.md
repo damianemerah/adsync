@@ -1,4 +1,4 @@
-# Sellam (formerly Adsync) — Full Implementation Plan
+# Tenzu (formerly Tenzu) — Full Implementation Plan
 
 ## "Close the Loop: From Naira Spend to Sales"
 
@@ -16,7 +16,7 @@ After deep research into the Nigerian SME market and a full read of the codebase
 - `saveCampaignContext` in `src/lib/ai/service.ts` saves per-campaign AI context to DB
 - WhatsApp as a campaign objective with `OUTCOME_APP_MESSAGING`
 - Paystack billing in Naira for subscriptions
-- Meta API integration with `AdSync Guard` error handling
+- Meta API integration with `Tenzu Guard` error handling
 - Credits system, notifications (including WhatsApp alerts), targeting profiles
 - `notification_settings` already has `whatsapp_number` field
 - Onboarding captures `orgName` and `industry` — seeds for org-level AI context
@@ -25,7 +25,7 @@ After deep research into the Nigerian SME market and a full read of the codebase
 **The two critical gaps:**
 
 **Gap 1 — Attribution blackhole:**
-The current flow is `Chat → Creative → Launch → [blackhole]`. Raw `wa.me` links and raw website URLs go directly to Meta. When someone clicks, Sellam sees nothing. The SME cannot answer: _"Is my ₦10,000 working?"_
+The current flow is `Chat → Creative → Launch → [blackhole]`. Raw `wa.me` links and raw website URLs go directly to Meta. When someone clicks, Tenzu sees nothing. The SME cannot answer: _"Is my ₦10,000 working?"_
 
 **Gap 2 — AI context is campaign-scoped, not org-scoped:**
 `CampaignContext` exists but is built fresh per campaign from user input. There is no persistent org-level profile that enriches every AI call from session one. Every new campaign starts blind — the AI doesn't know the business until the user types something in chat.
@@ -38,7 +38,7 @@ The entire 12-month roadmap closes both gaps.
 
 | Phase  | Timeline           | Theme                   | Core Deliverable                                                                 |
 | ------ | ------------------ | ----------------------- | -------------------------------------------------------------------------------- |
-| **1A** | Now → Month 2      | Close the gap           | Sellam Attribution Link — wraps WhatsApp AND website destinations                |
+| **1A** | Now → Month 2      | Close the gap           | Tenzu Attribution Link — wraps WhatsApp AND website destinations                |
 | **1B** | Month 2 → Month 4  | Make it legible         | Naira ROI Dashboard + "Mark as Sold"                                             |
 | **1C** | Month 2 → Month 4  | AI that knows you       | Org-level context — extends existing `CampaignContext` and `context-compiler.ts` |
 | **2A** | Month 4 → Month 7  | Remove payment friction | Naira ad budget top-up (Grey/Geegpay card abstraction)                           |
@@ -70,7 +70,7 @@ The research shows Nigerian SMEs aren't a monolith. Attribution must serve all o
 | Website with pixel  | ~5–10%    | Tracking already works | Served well by Meta natively               |
 | Linktree / bio link | Scattered | Partial tracking       | Inconsistent                               |
 
-**The Sellam Attribution Link solves segments 1 and 2 identically.** The destination doesn't matter — WhatsApp URL or website URL, the wrapper is the same. Segment 3 already has tracking; the optional pixel snippet gives them a Sellam-native layer on top.
+**The Tenzu Attribution Link solves segments 1 and 2 identically.** The destination doesn't matter — WhatsApp URL or website URL, the wrapper is the same. Segment 3 already has tracking; the optional pixel snippet gives them a Tenzu-native layer on top.
 
 ---
 
@@ -78,11 +78,11 @@ The research shows Nigerian SMEs aren't a monolith. Attribution must serve all o
 
 Add the "Connect Pixel" UI to the campaign creation flow for users running Website ads.
 
-#### [MODIFY] [budget-launch-step.tsx](file:///home/chisom/projects/adsync/src/components/campaigns/new/steps/budget-launch-step.tsx)
+#### [MODIFY] [budget-launch-step.tsx](file:///home/chisom/projects/tenzu/src/components/campaigns/new/steps/budget-launch-step.tsx)
 
 - Add a "Website Tracking" section right above the Launch button for users whose `objective` is `traffic` or `sales`.
 - If the organization does _not_ have a pixel installed (we will mock this state for now or check settings), show:
-  > **To track how much Naira this ad makes, you need the Sellam Pixel.**
+  > **To track how much Naira this ad makes, you need the Tenzu Pixel.**
   > [Shopify] [WordPress] [Bumpa] [Copy Code]
 - Include a "Skip for now" button.
 - If skipped, show a warning in the "Campaign Check" checklist: ⚠️ _Sales tracking disabled. Connect Pixel to see ROI._
@@ -105,7 +105,7 @@ Add the "Connect Pixel" UI to the campaign creation flow for users running Websi
 
 ### What We're Building
 
-Every ad destination, regardless of type, gets wrapped in a **Sellam-hosted micro-redirect** (`sellam.app/l/[token]`) that:
+Every ad destination, regardless of type, gets wrapped in a **Tenzu-hosted micro-redirect** (`tenzu.africa/l/[token]`) that:
 
 1. Records the visit (which campaign, which ad, timestamp, device, destination type)
 2. Immediately redirects to the real destination — WhatsApp, website, or any URL
@@ -286,11 +286,11 @@ export function generateAttributionToken(length = 8): string {
 }
 
 /**
- * Builds the full Adsync redirect URL
+ * Builds the full Tenzu redirect URL
  */
 export function buildAttributionUrl(token: string, baseUrl?: string): string {
   const base =
-    baseUrl || process.env.NEXT_PUBLIC_APP_URL || "https://adsync.app";
+    baseUrl || process.env.NEXT_PUBLIC_APP_URL || "https://tenzu.africa";
   return `${base}/l/${token}`;
 }
 ```
@@ -299,7 +299,7 @@ export function buildAttributionUrl(token: string, baseUrl?: string): string {
 
 ### 1.3b Optional Pixel Snippet (Website Owners)
 
-For SMEs with websites who want conversion tracking beyond the click, Sellam provides a 4-line pixel snippet they paste once into their site `<head>`. **Not required — never a gate.**
+For SMEs with websites who want conversion tracking beyond the click, Tenzu provides a 4-line pixel snippet they paste once into their site `<head>`. **Not required — never a gate.**
 
 **New file:** `src/app/api/pixel/route.ts`
 
@@ -366,14 +366,14 @@ export async function GET(request: NextRequest) {
 **The snippet website owners paste once:**
 
 ```html
-<!-- Sellam Pixel — paste once in <head> -->
+<!-- Tenzu Pixel — paste once in <head> -->
 <script>
   (function (t) {
-    new Image().src = "https://sellam.app/api/pixel?t=" + t + "&e=view";
-    // Fire purchase event: document.dispatchEvent(new CustomEvent("sellam_purchase", {detail:{value:15000}}))
-    document.addEventListener("sellam_purchase", function (e) {
+    new Image().src = "https://tenzu.africa/api/pixel?t=" + t + "&e=view";
+    // Fire purchase event: document.dispatchEvent(new CustomEvent("tenzu_purchase", {detail:{value:15000}}))
+    document.addEventListener("tenzu_purchase", function (e) {
       new Image().src =
-        "https://sellam.app/api/pixel?t=" +
+        "https://tenzu.africa/api/pixel?t=" +
         t +
         "&e=purchase&v=" +
         (e.detail?.value || 0);
@@ -390,7 +390,7 @@ Where to show this snippet in the UI: campaign detail view, after launch, for ca
 
 **Modified file:** `src/actions/campaigns.ts`
 
-In the `launchCampaign` function, after building `finalUrl` for WhatsApp objective, replace the raw `wa.me` link with an Adsync attribution link.
+In the `launchCampaign` function, after building `finalUrl` for WhatsApp objective, replace the raw `wa.me` link with an Tenzu attribution link.
 
 **Find this section (~line 85 in campaigns.ts):**
 
@@ -467,9 +467,9 @@ CREATE POLICY "public_read_attribution_links" ON attribution_links
 
 ### Phase 1A Deliverable Check
 
-After this phase, for every WhatsApp campaign launched via Adsync:
+After this phase, for every WhatsApp campaign launched via Tenzu:
 
-- Ad destination is `adsync.app/l/[token]` not raw WhatsApp
+- Ad destination is `tenzu.africa/l/[token]` not raw WhatsApp
 - Every click is recorded in `link_clicks`
 - `campaigns.whatsapp_clicks` increments in real-time
 - The redirect is imperceptible to end users (<50ms overhead)
@@ -1250,7 +1250,7 @@ Add to the existing business settings form:
     className="bg-muted border-border resize-none"
   />
   <p className="text-xs text-muted-foreground">
-    Helps Sellam's AI write better ads without you re-explaining every time.
+    Helps Tenzu's AI write better ads without you re-explaining every time.
   </p>
 </div>
 
@@ -1366,14 +1366,14 @@ This is the payment friction solution. The goal is for SMEs to never see a dolla
 ### Architecture: Model 1 (Recommended — Per-User Isolated Cards)
 
 ```
-SME pays ₦ to Adsync via Paystack
-  → Adsync calls Grey/Geegpay API to fund a virtual USD card assigned to this organization
+SME pays ₦ to Tenzu via Paystack
+  → Tenzu calls Grey/Geegpay API to fund a virtual USD card assigned to this organization
   → That virtual card is attached to the SME's own Meta ad account
   → Meta charges the virtual card
   → Each organization has their own card (ban isolation)
 ```
 
-This is the safest architecture. Adsync is a payment facilitator, not the advertiser of record.
+This is the safest architecture. Tenzu is a payment facilitator, not the advertiser of record.
 
 ---
 
@@ -1607,7 +1607,7 @@ export function AdBudgetTopup({ currentBalanceNgn, organizationId }: Props) {
           Ad Budget Wallet
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Pay in Naira. Adsync handles your Meta ad spend.
+          Pay in Naira. Tenzu handles your Meta ad spend.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -1772,7 +1772,7 @@ After this phase:
 - SMEs top up ad budget in Naira via Paystack — no dollar card ever required
 - Each organization has an isolated virtual card on their Meta account — ban risk isolated
 - High-risk Nigerian ad copy is caught before launch, not after Meta rejects it
-- Adsync's `AdSyncGuard` has a new pre-flight layer
+- Tenzu's `TenzuGuard` has a new pre-flight layer
 
 ---
 
@@ -1932,7 +1932,7 @@ if (campaignContext?.businessDescription) {
 The pipeline:
 
 1. SME uploads a raw phone video (or takes one in-app)
-2. Adsync uses `fal.ai` video models to add: captions, trim, add CTA text overlay, music bed
+2. Tenzu uses `fal.ai` video models to add: captions, trim, add CTA text overlay, music bed
 3. Output is a 15–30 second Reels/Stories-ready ad video
 
 **New file:** `src/actions/ai-video.ts`
@@ -2005,7 +2005,7 @@ export async function processUGCVideo({
 
 **Target: Months 9–12**
 
-This is where Adsync builds its moat. By this point, you have real attribution data across hundreds of Nigerian SME campaigns. Phase 3 is about turning that data into recommendations.
+This is where Tenzu builds its moat. By this point, you have real attribution data across hundreds of Nigerian SME campaigns. Phase 3 is about turning that data into recommendations.
 
 ---
 
@@ -2162,7 +2162,7 @@ These will be requested. The answer is no for 12 months.
 | TikTok Ads (it's in the UI)      | Remove from Phase 1 UI. Nigeria is Facebook/Instagram. Keeping it visible confuses SMEs and splits roadmap focus. Ship it in Phase 3 or later. |
 | Full CRM / pipeline stages       | "Mark as Sold" is enough. A full CRM means competing with WhatsApp's own native features and adding onboarding complexity.                     |
 | Web store / Shopify-like builder | SMEs don't want websites. They want more WhatsApp sales. Completely different product and market.                                              |
-| Agency white-label dashboard     | Agencies' incentives are opposed to Adsync's value prop. Their SME clients would own nothing.                                                  |
+| Agency white-label dashboard     | Agencies' incentives are opposed to Tenzu's value prop. Their SME clients would own nothing.                                                  |
 | Google Ads integration           | Wrong market right now.                                                                                                                        |
 | Desktop-first features           | Your users are on phones.                                                                                                                      |
 
@@ -2217,7 +2217,7 @@ These will be requested. The answer is no for 12 months.
 
 # The North Star Metric
 
-Track one number internally that defines whether Adsync is winning:
+Track one number internally that defines whether Tenzu is winning:
 
 > **% of campaigns where the SME has recorded at least one sale**
 

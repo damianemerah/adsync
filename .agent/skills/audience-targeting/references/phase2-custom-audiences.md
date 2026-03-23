@@ -1,6 +1,6 @@
 # Phase 2: Custom Audiences (Warm Traffic Engine)
 
-Prerequisite: User must have run at least one campaign via Sellam with AdSync Link attribution OR have a Meta Pixel with recorded fires. Without this data, custom audiences will be empty and Meta will reject the ad set.
+Prerequisite: User must have run at least one campaign via Tenzu with Tenzu Link attribution OR have a Meta Pixel with recorded fires. Without this data, custom audiences will be empty and Meta will reject the ad set.
 
 ---
 

@@ -1,5 +1,5 @@
 ---
-description: Start implementing a Sellam phase from the plan. Loads the right skill files, checks decisions, and walks through the correct build order (DB → actions → hooks → UI).
+description: Start implementing a Tenzu phase from the plan. Loads the right skill files, checks decisions, and walks through the correct build order (DB → actions → hooks → UI).
 ---
 
 # /implement-phase
@@ -8,7 +8,7 @@ Use this workflow when starting implementation of a plan phase.
 
 ## Steps
 
-1. Read `.agent/rules/sellam-product.md` fully
+1. Read `.agent/rules/tenzu-product.md` fully
 2. Read `.agent/rules/decisions.md` fully
 3. Ask which phase: 1A (attribution) | 1B (ROI dashboard) | 1C (AI context) |
    2A (Naira payments) | 2B (creative intelligence) | 3 (AI optimizer)

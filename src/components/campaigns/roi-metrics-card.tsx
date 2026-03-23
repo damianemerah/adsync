@@ -14,7 +14,7 @@ interface ROIMetricsCardProps {
 }
 
 /**
- * ROI Metrics Card — shows Sellam attribution metrics in the campaign detail view.
+ * ROI Metrics Card — shows Tenzu attribution metrics in the campaign detail view.
  * Displays total clicks (split by WhatsApp/website), cost per click, sales count,
  * revenue, and ROI percentage. All monetary values in ₦ (Naira).
  */
@@ -27,7 +27,7 @@ export function ROIMetricsCard({ campaignId }: ROIMetricsCardProps) {
         {Array.from({ length: 4 }).map((_, i) => (
           <div
             key={i}
-            className="bg-white border border-slate-200 rounded-xl p-4 animate-pulse"
+            className="bg-white border border-slate-200 rounded-md p-4 animate-pulse"
           >
             <div className="h-3 w-20 bg-slate-100 rounded mb-3" />
             <div className="h-6 w-16 bg-slate-100 rounded" />
@@ -37,8 +37,8 @@ export function ROIMetricsCard({ campaignId }: ROIMetricsCardProps) {
     );
   }
 
-  if (!roi) return null;
   console.log("roi🔥", roi);
+  if (!roi) return null;
 
   const metrics = [
     {
@@ -64,6 +64,18 @@ export function ROIMetricsCard({ campaignId }: ROIMetricsCardProps) {
       icon: HandCash,
       color: "text-amber-600 bg-amber-50",
     },
+    // v25.0: Show media metrics only if they exist (for video/reel campaigns)
+    ...(roi.mediaViews > 0
+      ? [
+          {
+            label: "Media Views",
+            value: roi.mediaViews.toLocaleString(),
+            detail: `${roi.mediaViewers.toLocaleString()} unique viewers`,
+            icon: Globe, // Using Globe for video views
+            color: "text-purple-600 bg-purple-50",
+          },
+        ]
+      : []),
     {
       label: "Sales",
       value: roi.salesCount > 0 ? roi.salesCount.toLocaleString() : "—",
@@ -101,7 +113,7 @@ export function ROIMetricsCard({ campaignId }: ROIMetricsCardProps) {
         return (
           <div
             key={m.label}
-            className="bg-white border border-slate-200 rounded-xl p-4 space-y-1"
+            className="bg-white border border-slate-200 rounded-md p-4 space-y-1"
           >
             <div className="flex items-center gap-2 mb-2">
               <div

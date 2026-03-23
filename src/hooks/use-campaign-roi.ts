@@ -15,9 +15,9 @@ export interface CampaignROI {
   costPerClickNgn: number;
   costPerSaleNgn: number;
   roiPercent: number;
+  mediaViews: number; // v25.0
+  mediaViewers: number; // v25.0
 }
-
-import { FX_RATE } from "@/lib/intelligence";
 
 export function useCampaignROI(campaignId: string) {
   const supabase = createClient();
@@ -36,7 +36,9 @@ export function useCampaignROI(campaignId: string) {
           total_link_clicks,
           daily_budget_cents,
           sales_count,
-          revenue_ngn
+          revenue_ngn,
+          media_views,
+          media_viewers
         `,
         )
         .eq("id", campaignId)
@@ -68,6 +70,8 @@ export function useCampaignROI(campaignId: string) {
           spendNgn > 0
             ? Math.round(((revenue - spendNgn) / spendNgn) * 100)
             : 0,
+        mediaViews: campaign.media_views || 0, // v25.0
+        mediaViewers: campaign.media_viewers || 0, // v25.0
       };
     },
     staleTime: 1000 * 60 * 5,

@@ -36,6 +36,8 @@ import { useCreditBalance } from "@/hooks/use-subscription";
 import { PaymentDialog } from "@/components/billing/payment-dialog";
 import { toast } from "sonner";
 import { Refresh, EditPencil } from "iconoir-react";
+import { CarouselEditor } from "./creative/carousel-editor";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export function CreativeStep({
   persistedDraftId,
@@ -59,6 +61,8 @@ export function CreativeStep({
     setStep,
     updateDraft,
     pendingGeneratedImage,
+    carouselCards,
+    destinationValue,
   } = useCampaignStore();
 
   const { creatives, isLoading: isLoadingCreatives } = useCreatives();
@@ -66,8 +70,27 @@ export function CreativeStep({
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
   const [customPrompt, setCustomPrompt] = useState("");
+  const [adFormat, setAdFormat] = useState<"single" | "carousel">("single");
   const { balance } = useCreditBalance();
   const router = useRouter();
+
+  // Auto-populate carousel cards when user selects 2+ images
+  useEffect(() => {
+    if (selectedCreatives.length >= 2 && carouselCards.length === 0) {
+      // Initialize carousel cards from selected images
+      const initialCards = selectedCreatives.map((url, idx) => ({
+        imageUrl: url,
+        headline: `Card ${idx + 1}`,
+        description: "",
+        link: "",
+      }));
+      updateDraft({ carouselCards: initialCards });
+      setAdFormat("carousel");
+    } else if (selectedCreatives.length < 2 && adFormat === "carousel") {
+      // Switch back to single if user deselects images
+      setAdFormat("single");
+    }
+  }, [selectedCreatives.length]);
 
   useEffect(() => {
     if (selectedCreatives.length === 0) return;
@@ -161,18 +184,19 @@ export function CreativeStep({
         campaignContext,
       });
 
-      if (result.imageUrl) {
+      if (result?.imageUrl) {
         toast.loading("Preparing your image...", { id: toastId });
-        let stashedUrl = result.imageUrl;
+        const imageUrl = result.imageUrl;
+        let stashedUrl = imageUrl;
         try {
-          stashedUrl = await stashGeneratedImage(result.imageUrl);
+          stashedUrl = await stashGeneratedImage(imageUrl);
         } catch (err) {
           console.warn("Could not stash image", err);
         }
         updateDraft({
           pendingGeneratedImage: {
             url: stashedUrl,
-            prompt: result.usedPrompt ?? "",
+            prompt: result?.usedPrompt ?? "",
             aspectRatio,
             savedAt: Date.now(),
           },
@@ -264,7 +288,7 @@ export function CreativeStep({
             </div>
 
             {/* Media Selection */}
-            <Card className="rounded-3xl shadow-soft border-border overflow-hidden bg-card">
+            <Card className="rounded-lg shadow-sm border border-border overflow-hidden bg-card">
               <CardHeader className="pb-3 border-b border-border bg-muted/20">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-sm font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
@@ -275,12 +299,12 @@ export function CreativeStep({
               <CardContent className="p-4 flex flex-col gap-4">
                 {/* ── Pending Generated Image ─────────────────────────────── */}
                 {pendingGeneratedImage && (
-                  <div className="rounded-2xl border-2 border-primary/20 bg-primary/5 p-4 flex flex-col gap-4 animate-in fade-in slide-in-from-top-2">
+                  <div className="rounded-lg border-2 border-primary/20 bg-primary/5 p-4 flex flex-col gap-4 animate-in fade-in slide-in-from-top-2">
                     <div className="flex gap-4">
                       <img
                         src={pendingGeneratedImage.url}
                         alt="AI Generated"
-                        className="h-32 w-auto object-cover rounded-xl shadow-soft"
+                        className="h-32 w-auto object-cover rounded-md shadow-sm border border-border"
                       />
                       <div className="flex flex-col gap-2 flex-1 justify-center">
                         <h4 className="text-sm font-bold text-primary flex items-center gap-1.5">
@@ -357,7 +381,7 @@ export function CreativeStep({
                     onClick={() => handleGenerateWithAI()}
                     disabled={isGeneratingAI || !!pendingGeneratedImage}
                     className={cn(
-                      "h-8 px-3 rounded-xl border-primary/30 text-primary hover:bg-primary/5 hover:border-primary text-xs font-semibold gap-1.5 transition-all",
+                      "h-8 px-3 rounded-md border-primary/30 text-primary hover:bg-primary/5 hover:border-primary text-xs font-semibold gap-1.5 transition-all",
                       (isGeneratingAI || !!pendingGeneratedImage) &&
                         "opacity-60 cursor-not-allowed",
                     )}
@@ -384,7 +408,7 @@ export function CreativeStep({
                     {/* Upload Placeholder */}
                     <div
                       onClick={() => setUploadModalOpen(true)}
-                      className="aspect-square rounded-2xl border-2 border-dashed border-border flex flex-col items-center justify-center text-subtle-foreground hover:bg-muted/50 hover:border-primary/50 cursor-pointer transition-colors group"
+                      className="aspect-square rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center text-subtle-foreground hover:bg-muted/50 hover:border-primary/50 cursor-pointer transition-colors group"
                     >
                       <MediaImage className="h-6 w-6 group-hover:text-primary transition-colors" />
                       <span className="text-[10px] font-bold mt-1 group-hover:text-primary transition-colors">
@@ -394,7 +418,7 @@ export function CreativeStep({
 
                     {/* AI-generating placeholder */}
                     {isGeneratingAI && !pendingGeneratedImage && (
-                      <div className="aspect-square rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 flex flex-col items-center justify-center gap-2">
+                      <div className="aspect-square rounded-lg border-2 border-dashed border-primary/40 bg-primary/5 flex flex-col items-center justify-center gap-2">
                         <SystemRestart className="h-6 w-6 animate-spin text-primary" />
                         <span className="text-[10px] font-semibold text-primary">
                           AI working…
@@ -408,7 +432,7 @@ export function CreativeStep({
                         key={item.id}
                         onClick={() => toggleCreative(item.original_url)}
                         className={cn(
-                          "aspect-square rounded-2xl overflow-hidden border-2 cursor-pointer relative transition-all",
+                          "aspect-square rounded-lg overflow-hidden border-2 cursor-pointer relative transition-all",
                           selectedCreatives.includes(item.original_url)
                             ? "border-primary ring-2 ring-primary/20 ring-offset-1"
                             : "border-transparent ring-1 ring-border hover:ring-primary/50",
@@ -428,7 +452,7 @@ export function CreativeStep({
                         )}
                         {selectedCreatives.includes(item.original_url) && (
                           <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
-                            <div className="bg-primary text-primary-foreground p-1.5 rounded-full shadow-lg">
+                            <div className="bg-primary text-primary-foreground p-1.5 rounded-full shadow-sm border border-border">
                               <Check className="h-4 w-4" />
                             </div>
                           </div>
@@ -454,8 +478,42 @@ export function CreativeStep({
               </CardContent>
             </Card>
 
+            {/* Carousel Card Editor - shown when 2+ images selected */}
+            {selectedCreatives.length >= 2 && (
+              <Card className="rounded-lg shadow-sm border border-border overflow-hidden bg-card">
+                <CardHeader className="pb-3 border-b border-border bg-muted/20">
+                  <CardTitle className="text-sm font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
+                    <MediaImage className="h-4 w-4 text-primary" /> Carousel Setup
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4">
+                  <Tabs value={adFormat} onValueChange={(v) => setAdFormat(v as "single" | "carousel")}>
+                    <TabsList className="grid w-full grid-cols-2 mb-4">
+                      <TabsTrigger value="single">Single Image</TabsTrigger>
+                      <TabsTrigger value="carousel">Carousel ({selectedCreatives.length} cards)</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="single" className="mt-0">
+                      <div className="text-sm text-muted-foreground py-4 text-center">
+                        Using first selected image only. Switch to Carousel to use all {selectedCreatives.length} images.
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="carousel" className="mt-0">
+                      <CarouselEditor
+                        cards={carouselCards}
+                        onChange={(cards) => updateDraft({ carouselCards: cards })}
+                        availableImages={selectedCreatives}
+                        mainDestinationUrl={destinationValue}
+                      />
+                    </TabsContent>
+                  </Tabs>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Copy Editor */}
-            <Card className="rounded-3xl shadow-soft border-border overflow-hidden bg-card">
+            <Card className="rounded-lg shadow-sm border border-border overflow-hidden bg-card">
               <CardHeader className="pb-3 border-b border-border bg-muted/20">
                 <CardTitle className="text-sm font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
                   <Sparks className="h-4 w-4 text-primary" /> Copywriting
@@ -474,7 +532,7 @@ export function CreativeStep({
                       })
                     }
                     placeholder="e.g. Limited Time Offer!"
-                    className="h-12 font-bold border-border bg-muted/30 focus-visible:ring-primary/20 rounded-xl"
+                    className="h-12 font-bold border-border bg-muted/30 focus-visible:ring-primary/20 rounded-md"
                   />
                 </div>
                 <div className="space-y-2">
@@ -490,7 +548,7 @@ export function CreativeStep({
                     }
                     rows={5}
                     placeholder="Tell people what your ad is about..."
-                    className="border-border bg-muted/30 focus-visible:ring-primary/20 resize-none rounded-xl text-base"
+                    className="border-border bg-muted/30 focus-visible:ring-primary/20 resize-none rounded-md text-base"
                   />
                 </div>
 
@@ -510,7 +568,7 @@ export function CreativeStep({
                         ? "080 1234 5678"
                         : "www.yoursite.com"
                     }
-                    className="h-12 font-bold border-border bg-muted/30 focus-visible:ring-primary/20 rounded-xl"
+                    className="h-12 font-bold border-border bg-muted/30 focus-visible:ring-primary/20 rounded-md"
                   />
                   {objective === "whatsapp" && (
                     <p className="text-[10px] text-subtle-foreground flex items-center gap-1">
@@ -541,7 +599,7 @@ export function CreativeStep({
                       }
                       rows={3}
                       placeholder="e.g. Hi! I saw your ad and I'm interested. What's available?"
-                      className="border-border bg-muted/30 focus-visible:ring-primary/20 resize-none rounded-xl text-sm"
+                      className="border-border bg-muted/30 focus-visible:ring-primary/20 resize-none rounded-md text-sm"
                     />
                     <p className="text-[10px] text-subtle-foreground flex items-center gap-1">
                       <Sparks className="h-3 w-3 text-primary" />
@@ -556,7 +614,7 @@ export function CreativeStep({
             <div className="pt-4 border-t border-border">
               <Button
                 onClick={() => setStep(4)}
-                className="w-full h-14 bg-primary hover:bg-primary/90 font-bold text-primary-foreground rounded-2xl shadow-soft text-lg"
+                className="w-full h-14 bg-primary hover:bg-primary/90 font-bold text-primary-foreground rounded-lg shadow-sm border border-border text-lg"
                 disabled={selectedCreatives.length === 0}
               >
                 Set Budget &amp; Launch <ArrowRight className="ml-2 h-5 w-5" />

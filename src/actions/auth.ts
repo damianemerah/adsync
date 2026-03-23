@@ -68,6 +68,8 @@ export async function signup(
   const supabase = await createClient();
 
   // 3. Supabase Auth
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
   const { error } = await supabase.auth.signUp({
     email,
     password,
@@ -76,7 +78,7 @@ export async function signup(
         full_name: fullName,
         // avatar_url: `https://ui-avatars.com/api/?name=${fullName}&background=2563EB&color=fff`,
       },
-      emailRedirectTo: "http://localhost:3000/onboarding",
+      emailRedirectTo: `${appUrl}/onboarding`,
     },
   });
 
@@ -90,11 +92,12 @@ export async function signup(
 
 export async function resendVerificationEmail(email: string) {
   const supabase = await createClient();
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const { error } = await supabase.auth.resend({
     type: "signup",
     email,
     options: {
-      emailRedirectTo: "http://localhost:3000/onboarding",
+      emailRedirectTo: `${appUrl}/onboarding`,
     },
   });
 

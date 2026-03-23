@@ -36,7 +36,7 @@ export function AppInfoStep() {
         </p>
       </div>
 
-      <div className="space-y-6 bg-card border border-border rounded-3xl p-6 md:p-8 shadow-sm">
+      <div className="space-y-6 bg-card border border-border rounded-lg p-6 md:p-8 shadow-sm">
         <div className="space-y-3">
           <label className="text-sm font-bold text-foreground">
             App Store / Play Store Link

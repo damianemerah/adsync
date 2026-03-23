@@ -17,7 +17,7 @@ import { grantFreeTrialCredits } from "@/actions/paystack";
 
 /**
  * Called by the WorkspaceSwitcher component when the user selects a different
- * organization. Sets the `sellam_active_org` cookie and revalidates the layout.
+ * organization. Sets the `Tenzu_active_org` cookie and revalidates the layout.
  */
 export async function setActiveOrganization(orgId: string): Promise<void> {
   const supabase = await createClient();
@@ -116,7 +116,7 @@ async function _insertOrgWithMember(
   }
 
   if (grantTrialCredits) {
-    await grantFreeTrialCredits(org.id);
+    await grantFreeTrialCredits(userId, org.id);
   }
 
   return { orgId: org.id, error: null };
@@ -321,13 +321,6 @@ export async function createOrganization(
   const inheritedStatus =
     orgData?.subscription_status || SUBSCRIPTION_STATUS.TRIALING;
   let inheritedExpiresAt = orgData?.subscription_expires_at || null;
-
-  console.log("[createOrganization] Add Business - Tier inheritance:", {
-    highestTier,
-    inheritedStatus,
-    inheritedExpiresAt,
-    ownedOrgsCount: ownedMemberships?.length ?? 0,
-  });
 
   // Fallback to auth metadata if it's trialing and missing for some reason
   if (inheritedStatus === SUBSCRIPTION_STATUS.TRIALING && !inheritedExpiresAt) {

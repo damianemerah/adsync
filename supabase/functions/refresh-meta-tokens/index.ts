@@ -7,7 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const META_API_VERSION = "v24.0";
+const META_API_VERSION = "v25.0";
 const STALE_DAYS = 50;
 
 // ── AES-GCM helpers (Deno Web Crypto API) ─────────────────────────────────────
@@ -158,13 +158,16 @@ serve(async (req) => {
       Date.now() - STALE_DAYS * 24 * 60 * 60 * 1000,
     ).toISOString();
 
-    // Fetch all Meta accounts that are not expired/disabled and have a token
+    // Fetch all Meta accounts that have a token (including expired ones - we'll try to refresh them)
+    // Only exclude permanently disabled accounts
+    // ✅ Filter out soft-deleted (disconnected) accounts
     const { data: accounts, error: accErr } = await supabase
       .from("ad_accounts")
       .select("*")
       .eq("platform", "meta")
-      .not("health_status", "in", '("token_expired","disabled")')
-      .not("access_token", "is", null);
+      .neq("health_status", "disabled")
+      .not("access_token", "is", null)
+      .is("disconnected_at", null); // Only refresh tokens for connected accounts
 
     if (accErr) throw accErr;
 
@@ -181,14 +184,18 @@ serve(async (req) => {
       (accounts ?? []).map(async (account: any) => {
         checked++;
 
-        // Determine staleness: use token_refreshed_at if set, else last_health_check
+        // Determine staleness: use token_refreshed_at (or connected_at if never refreshed)
+        // We use connected_at as fallback because that's when the long-lived token was issued
         const referenceTs: string | null =
-          account.token_refreshed_at ?? account.last_health_check ?? null;
+          account.token_refreshed_at ?? account.connected_at ?? null;
 
         const isStale =
           referenceTs === null || referenceTs <= staleThreshold;
 
-        if (!isStale) {
+        // For expired tokens, always attempt refresh regardless of staleness
+        const isExpired = account.health_status === "token_expired";
+
+        if (!isStale && !isExpired) {
           skipped++;
           return { id: account.id, status: "skipped" };
         }
@@ -211,9 +218,15 @@ serve(async (req) => {
 
         if (data.error) {
           const code = data.error.code;
-          console.error(
-            `[TokenRefresh] Meta error for account ${account.id}: code=${code} msg=${data.error.message}`,
-          );
+          // v25.0 enhanced error logging
+          console.error(`[TokenRefresh] Meta error for account ${account.id}:`, {
+            code: data.error.code,
+            subcode: data.error.error_subcode,
+            message: data.error.message,
+            user_title: data.error.error_user_title,
+            user_msg: data.error.error_user_msg,
+            fbtrace_id: data.error.fbtrace_id,
+          });
 
           if (code === 190) {
             // Token is truly expired — mark it and notify owner
@@ -252,13 +265,33 @@ serve(async (req) => {
 
         const encryptedToken = await encrypt(newToken, ENCRYPTION_KEY);
 
+        // Update token and restore health status if it was expired
         await supabase
           .from("ad_accounts")
           .update({
             access_token: encryptedToken,
             token_refreshed_at: new Date().toISOString(),
+            health_status: "healthy",
+            last_health_check: new Date().toISOString(),
           })
           .eq("id", account.id);
+
+        // If this was an expired token that we just recovered, notify the owner
+        if (isExpired) {
+          const ownerId = await getOrgOwner(supabase, account.organization_id);
+          if (ownerId) {
+            await sendInAppNotification(supabase, {
+              userId: ownerId,
+              type: "success",
+              category: "account",
+              title: "Meta Account Reconnected",
+              message: `Your Meta ad account "${account.name ?? account.platform_account_id}" has been successfully reconnected. Your campaigns can now resume.`,
+              actionLabel: "View Account",
+              actionUrl: "/settings/business",
+              dedupKey: `token_restored:${account.id}:${today}`,
+            });
+          }
+        }
 
         refreshed++;
         console.log(`[TokenRefresh] Successfully refreshed token for account ${account.id}`);

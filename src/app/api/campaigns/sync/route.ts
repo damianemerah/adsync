@@ -1,10 +1,21 @@
 import { NextResponse } from "next/server";
 import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/server";
+import { getActiveOrgId } from "@/lib/active-org";
 import { decrypt } from "@/lib/crypto";
 import { CAMPAIGN_OBJECTIVES } from "@/lib/constants";
 import { Database } from "@/types/supabase";
 
 export async function POST(request: Request) {
+  // Security: Validate the user's active organization before syncing
+  const orgId = await getActiveOrgId();
+  if (!orgId) {
+    return NextResponse.json(
+      { error: "No organization found" },
+      { status: 401 },
+    );
+  }
+
   const supabase = createSupabaseAdmin<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -15,7 +26,8 @@ export async function POST(request: Request) {
 
   console.log(`🔄 [Sync] Starting sync for accountId: ${accountId}`);
 
-  // 1. Get Account & Token
+  // 1. Get Account & Token + validate org ownership
+  console.log("AccountId🔥", accountId);
   const { data: account } = await supabase
     .from("ad_accounts")
     .select("*")
@@ -24,6 +36,22 @@ export async function POST(request: Request) {
 
   if (!account) {
     return NextResponse.json({ error: "Account not found" }, { status: 404 });
+  }
+
+  // Security check: Ensure the ad account belongs to the requesting user's organization
+  if (account.organization_id !== orgId) {
+    return NextResponse.json(
+      { error: "Unauthorized: Account does not belong to your organization" },
+      { status: 403 },
+    );
+  }
+
+  // ✅ Additional check: Don't sync disconnected accounts
+  if (account.disconnected_at) {
+    return NextResponse.json(
+      { error: "Cannot sync disconnected account" },
+      { status: 400 },
+    );
   }
 
   try {
@@ -42,12 +70,13 @@ export async function POST(request: Request) {
       ads{id,name,status,creative{id,title,body,image_url,thumbnail_url}}
     `;
     const cleanFields = fields.replace(/\s/g, "");
-    let nextPageUrl: string | null = `https://graph.facebook.com/v24.0/${adAccountId}/campaigns?fields=${cleanFields}&limit=50&access_token=${token}`;
+    let nextPageUrl: string | null =
+      `https://graph.facebook.com/v25.0/${adAccountId}/campaigns?fields=${cleanFields}&limit=50&access_token=${token}`;
     const campaigns: any[] = [];
 
     while (nextPageUrl) {
-      const res = await fetch(nextPageUrl);
-      const data = await res.json();
+      const response: Response = await fetch(nextPageUrl);
+      const data: any = await response.json();
       if (data.error) {
         console.error("[Sync] Meta API Error:", data.error);
         throw new Error(data.error.message);
@@ -134,7 +163,8 @@ export async function POST(request: Request) {
         // B. Fetch per-campaign daily metrics and write to campaign_metrics
         // We do this fire-and-forget style — don't let a failure here block the rest
         try {
-          let dailyCursor: string | null = `https://graph.facebook.com/v24.0/${c.id}/insights?date_preset=last_30d&time_increment=1&fields=spend,impressions,clicks,reach,ctr,date_start&access_token=${token}`;
+          let dailyCursor: string | null =
+            `https://graph.facebook.com/v25.0/${c.id}/insights?date_preset=last_30d&time_increment=1&fields=spend,impressions,clicks,reach,ctr,date_start&access_token=${token}`;
           const allDailyRows: any[] = [];
 
           while (dailyCursor) {

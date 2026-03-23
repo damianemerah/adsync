@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useActiveOrgContext } from "@/components/providers/active-org-provider";
 import { GlobalContextBar } from "@/components/layout/global-context-bar";
 import { MetricCards } from "@/components/dashboard/metric-cards";
@@ -68,16 +68,14 @@ export function UnifiedDashboard({
 
   // Track which metric cards the user has toggled ON
   const [healthDialogOpen, setHealthDialogOpen] = useState(false);
-  const [hasProblems, setHasProblems] = useState(false);
 
-  // Run a quick health check on mount to know if we should flash the button
-  useEffect(() => {
-    getAccountHealth()
-      .then((result) => {
-        setHasProblems(result.totalProblems > 0);
-      })
-      .catch(() => {});
-  }, []);
+  // Run a quick background health check to know if we should flash the button
+  const { data: healthData } = useQuery({
+    queryKey: ["account-health"],
+    queryFn: getAccountHealth,
+    staleTime: 5 * 60 * 1000,
+  });
+  const hasProblems = (healthData?.totalProblems ?? 0) > 0;
 
   const [activeMetrics, setActiveMetrics] =
     useState<MetricKey[]>(CHARTABLE_METRICS);
@@ -174,7 +172,7 @@ export function UnifiedDashboard({
           {isLoadingInsights && !liveData ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
               {[...Array(5)].map((_, i) => (
-                <Skeleton key={i} className="h-24 w-full rounded-2xl" />
+                <Skeleton key={i} className="h-24 w-full rounded-lg" />
               ))}
             </div>
           ) : (
@@ -184,7 +182,7 @@ export function UnifiedDashboard({
           )}
 
           {/* Performance Chart */}
-          <Card className="shadow-soft">
+          <Card className="shadow-sm border border-border">
             <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-3">
               <CardTitle>Performance Trends</CardTitle>
               <div className="flex flex-wrap gap-2">
@@ -220,7 +218,7 @@ export function UnifiedDashboard({
             </CardHeader>
             <CardContent>
               {isLoadingInsights && !liveData ? (
-                <Skeleton className="h-[400px] w-full rounded-xl" />
+                <Skeleton className="h-[400px] w-full rounded-md" />
               ) : (
                 <div className="h-[400px] w-full">
                   <PerformanceChart

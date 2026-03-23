@@ -1,6 +1,6 @@
 # Email Campaign Sequences
 
-Proven email templates and automation sequences for AdSync marketing.
+Proven email templates and automation sequences for Tenzu marketing.
 
 ## General Email Guidelines
 
@@ -28,13 +28,13 @@ Proven email templates and automation sequences for AdSync marketing.
 
 ### Email 1: Welcome + Quick Win (Send immediately)
 
-**Subject:** Welcome to AdSync, [Name]! Your first campaign in 2 minutes
+**Subject:** Welcome to Tenzu, [Name]! Your first campaign in 2 minutes
 
 **Body:**
 ```
 Hi [Name],
 
-Welcome to AdSync! You're now part of 2,000+ Nigerian businesses running professional Facebook ads without the headaches.
+Welcome to Tenzu! You're now part of 2,000+ Nigerian businesses running professional Facebook ads without the headaches.
 
 Here's what happens next:
 
@@ -43,7 +43,7 @@ Here's what happens next:
 3. Upload a product photo—AI will make it look professional
 4. Launch and watch the leads roll in
 
-The fastest way to see AdSync's power? Launch a simple campaign today. Even a small ₦5,000 test budget will show you the quality of leads.
+The fastest way to see Tenzu's power? Launch a simple campaign today. Even a small ₦5,000 test budget will show you the quality of leads.
 
 Ready to start?
 
@@ -53,7 +53,7 @@ Questions? Reply to this email or WhatsApp us: +234 XXX XXX XXXX
 
 — 
 Chisom
-Head of Growth, AdSync
+Head of Growth, Tenzu
 ```
 
 ### Email 2: Education (Day 2)
@@ -98,9 +98,9 @@ Hi [Name],
 
 I want to share a quick win from one of our users:
 
-Emeka runs a phone accessories business in Abuja. Before AdSync, he was paying an agency ₦150k per campaign.
+Emeka runs a phone accessories business in Abuja. Before Tenzu, he was paying an agency ₦150k per campaign.
 
-His first AdSync campaign:
+His first Tenzu campaign:
 - Budget: ₦15,000
 - Duration: 48 hours
 - Results: 2,300 WhatsApp messages
@@ -122,25 +122,25 @@ Chisom
 
 ### Email 4: Objection Handling (Day 7)
 
-**Subject:** "Is AdSync actually different from Wask?"
+**Subject:** "Is Tenzu actually different from Wask?"
 
 **Body:**
 ```
 Hi [Name],
 
-I've noticed you haven't launched a campaign yet. That's totally fine—AdSync isn't for everyone.
+I've noticed you haven't launched a campaign yet. That's totally fine—Tenzu isn't for everyone.
 
 But I want to address the #1 question we get: "How is this different from Wask?"
 
 Three key differences:
 
-1. Payment: Wask requires USD payment (fails with most Nigerian cards). AdSync uses Paystack—your local card works perfectly.
+1. Payment: Wask requires USD payment (fails with most Nigerian cards). Tenzu uses Paystack—your local card works perfectly.
 
-2. Creative: Wask gives you templates. AdSync's AI actually redesigns your photos (removes backgrounds, improves lighting, generates scenes).
+2. Creative: Wask gives you templates. Tenzu's AI actually redesigns your photos (removes backgrounds, improves lighting, generates scenes).
 
-3. Focus: Wask is built for US/EU desktop users. AdSync is built for Nigerian mobile-first businesses.
+3. Focus: Wask is built for US/EU desktop users. Tenzu is built for Nigerian mobile-first businesses.
 
-Bottom line: If you've ever seen "Payment Declined" on Wask, you need AdSync.
+Bottom line: If you've ever seen "Payment Declined" on Wask, you need Tenzu.
 
 Still unsure? Reply with your biggest concern and I'll address it personally.
 
@@ -160,7 +160,7 @@ Chisom
 ```
 Hi [Name],
 
-It's been 2 weeks since you joined AdSync, but I notice you haven't launched a campaign yet.
+It's been 2 weeks since you joined Tenzu, but I notice you haven't launched a campaign yet.
 
 What's holding you back?
 
@@ -181,7 +181,7 @@ Chisom
 
 ### Email 2: Payment Win-Back (21 days inactive)
 
-**Subject:** Card declined? Here's why AdSync is different
+**Subject:** Card declined? Here's why Tenzu is different
 
 **Body:**
 ```
@@ -191,7 +191,7 @@ I'm going to guess why you haven't launched: Payment issues with other tools?
 
 You're not alone. 60% of Nigerian cards get rejected by international gateways (Wask, Shopify, Canva Pro, etc.).
 
-That's actually why we built AdSync.
+That's actually why we built Tenzu.
 
 Unlike those tools, we use Paystack—the payment processor trusted by Piggyvest, Flutterwave, and thousands of Nigerian businesses.
 
@@ -209,7 +209,7 @@ Chisom
 
 ### Email 3: Competitor Comparison (28 days inactive)
 
-**Subject:** Wask vs. AdSync: An honest comparison
+**Subject:** Wask vs. Tenzu: An honest comparison
 
 **Body:**
 ```
@@ -217,14 +217,14 @@ Hi [Name],
 
 I know you're probably comparing tools right now. Smart move.
 
-Here's an honest breakdown of AdSync vs. Wask:
+Here's an honest breakdown of Tenzu vs. Wask:
 
 **Where Wask Wins:**
 → More template options
 → Desktop experience is slightly more polished
 → Brand recognition (they've been around longer)
 
-**Where AdSync Wins:**
+**Where Tenzu Wins:**
 → Payment: Your Nigerian card actually works (Paystack)
 → Creative: AI redesigns your photos (not just templates)
 → Setup: Chat-based (not 50-field forms)
@@ -233,7 +233,7 @@ Here's an honest breakdown of AdSync vs. Wask:
 **The Real Question:**
 Do you want a tool that looks pretty but rejects your payment? Or one that actually works for Nigerian businesses?
 
-Try AdSync free for 7 days. If Wask is better for you, keep using Wask. No hard feelings.
+Try Tenzu free for 7 days. If Wask is better for you, keep using Wask. No hard feelings.
 
 [CTA Button]: Start Free Trial →
 
@@ -284,7 +284,7 @@ Chisom
 ```
 Hi [Name],
 
-I noticed you just cancelled your AdSync subscription. That's totally fine—no hard feelings.
+I noticed you just cancelled your Tenzu subscription. That's totally fine—no hard feelings.
 
 But I have one quick question: What made you leave?
 
@@ -312,7 +312,7 @@ Chisom
 ```
 Hi [Name],
 
-Congrats! Your first AdSync campaign just went live.
+Congrats! Your first Tenzu campaign just went live.
 
 Here's what to expect in the next 24 hours:
 
@@ -361,7 +361,7 @@ Your campaign has been live for 2 days. Here's what I'm seeing:
 
 **3 Quick Wins:**
 
-1. **If cost per message > ₦20:** Try narrowing your audience in AdSync AI > "Edit Targeting"
+1. **If cost per message > ₦20:** Try narrowing your audience in Tenzu AI > "Edit Targeting"
 
 2. **If clicks are high but messages are low:** Your product pricing might be too high for cold traffic. Consider a lower-price "entry offer."
 
@@ -379,7 +379,7 @@ Chisom
 
 ### Monthly Newsletter Template
 
-**Subject:** February AdSync Insider: 3 campaign strategies that worked this month
+**Subject:** February Tenzu Insider: 3 campaign strategies that worked this month
 
 **Body:**
 ```

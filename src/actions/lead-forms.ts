@@ -10,7 +10,6 @@ export async function fetchMetaPages(adAccountId: string) {
   try {
     const supabase = await createClient();
     const orgId = await getActiveOrgId();
-    console.log("orgId🔥", orgId);
     if (!orgId) throw new Error("No organization found");
 
     const { data: accountData } = await supabase
@@ -25,7 +24,7 @@ export async function fetchMetaPages(adAccountId: string) {
     }
 
     const token = decrypt(accountData.access_token as string);
-    const pages = await MetaService.getMetaPages(token);
+    const pages = await MetaService.getMetaPages(token, adAccountId);
 
     return { success: true, pages };
   } catch (error: any) {

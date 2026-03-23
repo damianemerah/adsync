@@ -98,6 +98,14 @@ export interface CampaignState {
     cta: CTAData;
   };
 
+  // Carousel Support (2-10 cards)
+  carouselCards: Array<{
+    imageUrl: string; // Supabase public URL
+    headline: string;
+    description?: string;
+    link?: string; // Optional per-card link (defaults to main destinationValue)
+  }>;
+
   // NEW: Template Prediction
   selectedTemplate: string | null; // "nollywood" | "bet9ja" | "afrobeat" | "jumia"
 
@@ -187,6 +195,7 @@ export const useCampaignStore = create<CampaignState>()((set, get) => ({
       displayLabel: "Shop now",
     },
   },
+  carouselCards: [],
   selectedTemplate: null,
   pendingGeneratedImage: null,
   suggestedLeadForm: null,
@@ -320,6 +329,7 @@ export const useCampaignStore = create<CampaignState>()((set, get) => ({
           displayLabel: "Shop now",
         },
       },
+      carouselCards: [],
       selectedTemplate: null,
       pendingGeneratedImage: null,
       suggestedLeadForm: null,

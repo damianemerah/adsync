@@ -23,8 +23,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // 1. Exchange Code for Short-Lived Token (Updated to v24.0)
-  const tokenUrl = `https://graph.facebook.com/v24.0/oauth/access_token?client_id=${process.env.META_APP_ID}&redirect_uri=${process.env.NEXT_PUBLIC_APP_URL}/api/connect/meta/callback&client_secret=${process.env.META_APP_SECRET}&code=${code}`;
+  // 1. Exchange Code for Short-Lived Token (Updated to v25.0)
+  const tokenUrl = `https://graph.facebook.com/v25.0/oauth/access_token?client_id=${process.env.META_APP_ID}&redirect_uri=${process.env.NEXT_PUBLIC_APP_URL}/api/connect/meta/callback&client_secret=${process.env.META_APP_SECRET}&code=${code}`;
   console.debug("[Meta Callback] Exchanging code for short-lived token", {
     tokenUrl,
   });
@@ -41,8 +41,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // 2. Exchange Short-Lived for Long-Lived Token (60 Days) (Updated to v24.0)
-  const longLivedUrl = `https://graph.facebook.com/v24.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${process.env.META_APP_ID}&client_secret=${process.env.META_APP_SECRET}&fb_exchange_token=${tokenData.access_token}`;
+  // 2. Exchange Short-Lived for Long-Lived Token (60 Days) (Updated to v25.0)
+  const longLivedUrl = `https://graph.facebook.com/v25.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${process.env.META_APP_ID}&client_secret=${process.env.META_APP_SECRET}&fb_exchange_token=${tokenData.access_token}`;
   console.debug("[Meta Callback] Exchanging for long-lived token", {
     longLivedUrl,
   });
@@ -55,6 +55,10 @@ export async function GET(request: NextRequest) {
   console.debug("[Meta Callback] Final access token selected", {
     finalToken: finalToken ? "[REDACTED]" : "undefined",
   });
+  console.log(
+    "longData.access_token === finalToken",
+    longData.access_token === finalToken,
+  );
 
   // 3. Get User's Organization
   const supabase = await createClient(); // Await not needed for creating client, but needed for DB calls
@@ -149,9 +153,9 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // 4. Fetch the Ad Accounts attached to this token (Updated to v24.0)
+  // 4. Fetch the Ad Accounts attached to this token (Updated to v25.0)
   // We fetch 'amount_spent' to check activity, though funding details might be in a different edge
-  const adAccountsUrl = `https://graph.facebook.com/v24.0/me/adaccounts?fields=name,account_id,currency,amount_spent&access_token=${finalToken}`;
+  const adAccountsUrl = `https://graph.facebook.com/v25.0/me/adaccounts?fields=name,account_id,currency,amount_spent&access_token=${finalToken}`;
   console.debug("[Meta Callback] Fetching ad accounts from Meta", {
     adAccountsUrl,
   });
@@ -184,6 +188,8 @@ export async function GET(request: NextRequest) {
         access_token: encrypt(finalToken), // 🔒 Secure storage
         health_status: "healthy",
         last_health_check: new Date().toISOString(),
+        token_refreshed_at: new Date().toISOString(), // Track when this long-lived token was obtained
+        disconnected_at: null, // ✅ Clear soft delete flag on reconnection (preserves history)
         // Note: You might want to fetch/store funding source details here too if available
       },
       { onConflict: "organization_id, platform, platform_account_id" },

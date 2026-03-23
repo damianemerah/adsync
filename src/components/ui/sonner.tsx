@@ -22,7 +22,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
             "group-[.toaster]:bg-card",
             "group-[.toaster]:text-foreground",
             "group-[.toaster]:border group-[.toaster]:border-border",
-            "group-[.toaster]:rounded-xl",
+            "group-[.toaster]:rounded-md",
             // Soft Lift shadow — navy-tinted, no harsh black
             "group-[.toaster]:[box-shadow:0_4px_20px_-2px_rgba(3,0,24,0.08)]",
           ].join(" "),

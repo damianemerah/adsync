@@ -62,7 +62,7 @@ export default function NotificationsSettingsPage() {
   return (
     <div className="space-y-6">
       {/* WhatsApp Section */}
-      <Card className="border-primary/20 shadow-soft bg-primary/5">
+      <Card className="border-primary/20 shadow-sm border border-border bg-primary/5">
         <CardHeader>
           <div className="flex items-start justify-between">
             <div>
@@ -142,7 +142,7 @@ export default function NotificationsSettingsPage() {
             </div>
           ) : (
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 text-sm text-primary bg-primary/10 p-3 rounded-xl border border-primary/20 w-fit">
+              <div className="flex items-center gap-2 text-sm text-primary bg-primary/10 p-3 rounded-md border border-primary/20 w-fit">
                 <Check className="h-4 w-4" /> Connected to{" "}
                 {settings.whatsapp_number}
               </div>
@@ -230,8 +230,8 @@ function PreferenceRow({
 function NotificationsSkeleton() {
   return (
     <div className="space-y-6">
-      <Skeleton className="h-[200px] w-full rounded-xl" />
-      <Skeleton className="h-[300px] w-full rounded-xl" />
+      <Skeleton className="h-[200px] w-full rounded-md" />
+      <Skeleton className="h-[300px] w-full rounded-md" />
     </div>
   );
 }

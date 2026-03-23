@@ -5,6 +5,7 @@ import { useCampaignStore } from "@/stores/campaign-store";
 import { useCampaigns } from "@/hooks/use-campaigns";
 import { useAdAccounts } from "@/hooks/use-ad-account";
 import { useOrgROI } from "@/hooks/use-org-roi";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -27,10 +28,6 @@ import Link from "next/link";
 import { estimateBudget, predictROAS } from "@/lib/intelligence";
 import { createLeadForm, fetchMetaPages } from "@/actions/lead-forms";
 import { saveDraft } from "@/actions/drafts";
-import {
-  getAdBudgetWallet,
-  type AdBudgetWallet,
-} from "@/actions/ad-budget";
 import { toast } from "sonner";
 
 // ─── Outcome Tiers ────────────────────────────────────────────────────────────
@@ -105,6 +102,7 @@ export function BudgetLaunchStep({
     aiPrompt,
     leadGenFormId,
     suggestedLeadForm,
+    carouselCards,
   } = useCampaignStore();
 
   const orgROI = useOrgROI();
@@ -114,7 +112,6 @@ export function BudgetLaunchStep({
   const [dbCampaignId, setDbCampaignId] = useState<string | null>(null);
   const [showPixelPrompt, setShowPixelPrompt] = useState(false);
   const [skipPixel, setSkipPixel] = useState(false);
-  const [wallet, setWallet] = useState<AdBudgetWallet | null>(null);
 
   // Derive initial selected tier from store budget so phone mockup + this step always agree
   const [selectedTier, setSelectedTier] = useState<string | null>(
@@ -132,18 +129,13 @@ export function BudgetLaunchStep({
     !isLoadingAccounts &&
     (adAccounts ?? []).some((a) => a.status === "payment_issue");
 
-  // Wallet sufficiency: balance covers 7 days of budget (budget is in NGN, balance is in kobo)
-  const walletSufficient = wallet
-    ? wallet.balance_ngn >= budget * 100 * 7
-    : false;
-
   // Mock check for if the org has a pixel configured
   const hasPixel = false;
   // If objective is website/sales, and they haven't connected a pixel or skipped it, we pause them
   const isWebsiteObjective = objective === "traffic";
   const needsPixel = isWebsiteObjective && !hasPixel && !skipPixel;
 
-  const canLaunch = !isLaunching && hasHealthyAccount && !needsPixel && walletSufficient;
+  const canLaunch = !isLaunching && hasHealthyAccount && !needsPixel;
 
   useEffect(() => {
     if (!budget || !campaignName) return;
@@ -163,13 +155,6 @@ export function BudgetLaunchStep({
   useEffect(() => {
     const match = OUTCOME_TIERS.find((t) => t.amount === budget);
     setSelectedTier(match?.key ?? null);
-  }, []);
-
-  // Fetch ad budget wallet on mount
-  useEffect(() => {
-    getAdBudgetWallet()
-      .then(setWallet)
-      .catch(() => setWallet(null));
   }, []);
 
   // ─── Live Estimates ──────────────────────────────────────────────────────────
@@ -288,7 +273,7 @@ export function BudgetLaunchStep({
         const formName = `${campaignName || "Campaign"} - Lead Form`;
         const res = await createLeadForm(adAccountId, pageId, {
           name: formName,
-          privacyPolicyUrl: "https://sellam.app/privacy", // Default privacy policy
+          privacyPolicyUrl: "https://Tenzu.app/privacy", // Default privacy policy
           thankYouMessage: suggestedLeadForm.thankYouMessage,
           questions: suggestedLeadForm.fields.map((f) => ({
             id: crypto.randomUUID(),
@@ -352,6 +337,8 @@ export function BudgetLaunchStep({
       },
       campaignId: persistedDraftId || undefined,
       leadGenFormId: finalLeadGenFormId || undefined,
+      // Include carousel data if present (2+ cards)
+      ...(carouselCards && carouselCards.length >= 2 && { carouselCards }),
     };
 
     console.log("🚀 [UI Start Launch] Payload sent to action:", launchPayload);
@@ -415,7 +402,7 @@ export function BudgetLaunchStep({
                     key={tier.key}
                     onClick={() => handleTierSelect(tier)}
                     className={cn(
-                      "p-4 rounded-2xl border-2 text-left transition-all relative group",
+                      "p-4 rounded-lg border-2 text-left transition-all relative group",
                       active
                         ? `ring-1 bg-primary/5 ${tier.activeColor}`
                         : `${tier.color} bg-card/50 hover:border-primary/50 hover:bg-card`,
@@ -461,7 +448,7 @@ export function BudgetLaunchStep({
                   updateDraft({ budget: parseInt(e.target.value) || 0 });
                   setSelectedTier(null); // clear tier highlight on custom input
                 }}
-                className="pl-10 h-14 text-lg font-bold bg-card border-border rounded-xl shadow-sm focus-visible:ring-primary/20"
+                className="pl-10 h-14 text-lg font-bold bg-card border-border rounded-md shadow-sm focus-visible:ring-primary/20"
               />
             </div>
             <p className="text-xs text-subtle-foreground text-right">
@@ -470,7 +457,7 @@ export function BudgetLaunchStep({
           </div>
 
           {/* ── Live Outcome Projection ── */}
-          <div className="p-4 rounded-2xl bg-primary/5 border border-primary/20 space-y-2">
+          <div className="p-4 rounded-lg bg-primary/5 border border-primary/20 space-y-2">
             <p className="text-xs font-bold text-primary uppercase tracking-wider">
               What ₦{budget.toLocaleString()}/day gets you
             </p>
@@ -496,14 +483,14 @@ export function BudgetLaunchStep({
               value={campaignName}
               onChange={(e) => updateDraft({ campaignName: e.target.value })}
               placeholder="e.g. December Holiday Sale"
-              className="font-medium h-12 rounded-xl border-border bg-card shadow-sm focus-visible:ring-primary/20"
+              className="font-medium h-12 rounded-md border-border bg-card shadow-sm focus-visible:ring-primary/20"
             />
           </div>
         </div>
 
         {/* Right Column — Launch Card */}
         <div className="md:col-span-5 space-y-4">
-          <Card className="bg-foreground border-border text-primary-foreground rounded-3xl shadow-soft h-full flex flex-col justify-between">
+          <Card className="bg-foreground text-primary-foreground rounded-lg shadow-sm border border-border h-full flex flex-col justify-between">
             <CardContent className="p-6 space-y-5">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold flex items-center gap-2 text-lg">
@@ -539,44 +526,14 @@ export function BudgetLaunchStep({
                 />
                 {hasPaymentIssue && (
                   <p className="text-xs text-red-400 pl-9 -mt-1">
-                    {wallet ? (
-                      <Link
-                        href="/settings/subscription"
-                        className="underline"
-                      >
-                        Fund your ad budget wallet →
-                      </Link>
-                    ) : (
-                      <a
-                        href="https://business.facebook.com/billing_hub/payment_settings"
-                        target="_blank"
-                        className="underline"
-                        rel="noreferrer"
-                      >
-                        Add payment method on Meta →
-                      </a>
-                    )}
-                  </p>
-                )}
-                {wallet && (
-                  <CheckItem
-                    label={
-                      walletSufficient
-                        ? "Ad Budget Funded"
-                        : "Ad Budget Low"
-                    }
-                    status={walletSufficient ? "success" : "warning"}
-                    inverse
-                  />
-                )}
-                {wallet && !walletSufficient && (
-                  <p className="text-xs text-yellow-400 pl-9 -mt-1">
-                    <Link
-                      href="/settings/subscription"
+                    <a
+                      href="https://business.facebook.com/billing_hub/payment_settings"
+                      target="_blank"
                       className="underline"
+                      rel="noreferrer"
                     >
-                      Fund your wallet for at least 7 days →
-                    </Link>
+                      Add payment method on Meta →
+                    </a>
                   </p>
                 )}
                 <CheckItem
@@ -608,7 +565,7 @@ export function BudgetLaunchStep({
 
               {/* Post-launch tracking text */}
               <div className="pt-3 border-t border-white/10 space-y-3">
-                <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 flex gap-3 text-left">
+                <div className="p-3 rounded-md bg-primary/5 border border-primary/20 flex gap-3 text-left">
                   <div className="mt-0.5">
                     <StatUp className="w-5 h-5 text-primary" />
                   </div>
@@ -659,7 +616,7 @@ export function BudgetLaunchStep({
       {/* Website Tracking Section */}
       {needsPixel && (
         <div className="pt-8 border-t border-border animate-in fade-in slide-in-from-bottom-2">
-          <div className="bg-yellow-50 border-2 border-yellow-200 rounded-3xl p-6 md:p-8 relative overflow-hidden">
+          <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-6 md:p-8 relative overflow-hidden">
             <div className="absolute top-0 right-0 p-8 opacity-10">
               <StatUp className="w-32 h-32 text-yellow-600" />
             </div>
@@ -671,8 +628,7 @@ export function BudgetLaunchStep({
               </div>
 
               <h3 className="text-2xl font-bold text-yellow-900 mb-2">
-                To track how much Naira this ad makes, you need the Sellam
-                Pixel.
+                To track how much Naira this ad makes, you need the Tenzu Pixel.
               </h3>
               <p className="text-yellow-800/80 mb-6">
                 Without it, you won't know if your ₦{budget.toLocaleString()}{" "}
@@ -690,7 +646,7 @@ export function BudgetLaunchStep({
                           `Would open ${platform} integration instructions`,
                         );
                       }}
-                      className="p-3 bg-white border border-yellow-200 rounded-xl hover:border-yellow-400 hover:shadow-sm transition-all text-center text-sm font-bold text-yellow-900"
+                      className="p-3 bg-white border border-yellow-200 rounded-md hover:border-yellow-400 hover:shadow-sm transition-all text-center text-sm font-bold text-yellow-900"
                     >
                       {platform}
                     </button>
@@ -711,30 +667,42 @@ export function BudgetLaunchStep({
 
       {/* Unresolved targeting warning */}
       {(() => {
-        const unresolvedInterests = targetInterests.filter((i) => !/^\d+$/.test(i.id));
-        const unresolvedBehaviors = (targetBehaviors || []).filter((b) => !/^\d+$/.test(b.id));
-        const totalUnresolved = unresolvedInterests.length + unresolvedBehaviors.length;
-        const totalTargets = targetInterests.length + (targetBehaviors || []).length;
-        const unresolvedRatio = totalTargets > 0 ? totalUnresolved / totalTargets : 0;
+        const unresolvedInterests = targetInterests.filter(
+          (i) => !/^\d+$/.test(i.id),
+        );
+        const unresolvedBehaviors = (targetBehaviors || []).filter(
+          (b) => !/^\d+$/.test(b.id),
+        );
+        const totalUnresolved =
+          unresolvedInterests.length + unresolvedBehaviors.length;
+        const totalTargets =
+          targetInterests.length + (targetBehaviors || []).length;
+        const unresolvedRatio =
+          totalTargets > 0 ? totalUnresolved / totalTargets : 0;
 
         if (totalUnresolved === 0) return null;
 
         const isSevere = unresolvedRatio > 0.3;
 
         return (
-          <div className={cn(
-            "p-4 rounded-2xl border flex items-start gap-3",
-            isSevere
-              ? "bg-red-50 border-red-200 text-red-800"
-              : "bg-amber-50 border-amber-200 text-amber-800",
-          )}>
-            <WarningTriangle className={cn(
-              "h-5 w-5 mt-0.5 shrink-0",
-              isSevere ? "text-red-500" : "text-amber-500",
-            )} />
+          <div
+            className={cn(
+              "p-4 rounded-lg border flex items-start gap-3",
+              isSevere
+                ? "bg-red-50 border-red-200 text-red-800"
+                : "bg-amber-50 border-amber-200 text-amber-800",
+            )}
+          >
+            <WarningTriangle
+              className={cn(
+                "h-5 w-5 mt-0.5 shrink-0",
+                isSevere ? "text-red-500" : "text-amber-500",
+              )}
+            />
             <div className="text-sm">
               <p className="font-bold mb-0.5">
-                {totalUnresolved} targeting option{totalUnresolved > 1 ? "s" : ""} could not be verified
+                {totalUnresolved} targeting option
+                {totalUnresolved > 1 ? "s" : ""} could not be verified
               </p>
               <p className="text-xs opacity-80">
                 {isSevere
@@ -750,7 +718,7 @@ export function BudgetLaunchStep({
       <div className="pt-4 border-t border-border">
         <Button
           size="lg"
-          className="w-full h-16 text-xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-soft rounded-2xl transition-all hover:scale-[1.01]"
+          className="w-full h-16 text-xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm border border-border rounded-lg transition-all hover:scale-[1.01]"
           onClick={handleLaunch}
           disabled={!canLaunch}
         >
@@ -786,14 +754,14 @@ export function BudgetLaunchStep({
                   </h2>
                   <p className="text-muted-foreground">
                     {showPixelPrompt
-                      ? "To track the exact Naira your ad makes, you need to install the Sellam Pixel."
+                      ? "To track the exact Naira your ad makes, you need to install the Tenzu Pixel."
                       : "Meta is reviewing it now. Messages should start coming in within 24 hours."}
                   </p>
                 </div>
               </div>
 
               {showPixelPrompt ? (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-left">
+                <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 text-left">
                   <div className="flex items-start gap-3">
                     <div className="bg-yellow-100 p-2 rounded-full mt-0.5">
                       <StatUp className="w-5 h-5 text-yellow-700" />
@@ -819,7 +787,7 @@ export function BudgetLaunchStep({
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-3 p-4 bg-muted/30 rounded-xl">
+                <div className="grid grid-cols-2 gap-3 p-4 bg-muted/30 rounded-md">
                   <div className="text-center">
                     <div className="text-xs text-muted-foreground">
                       Daily Budget
@@ -844,7 +812,7 @@ export function BudgetLaunchStep({
                 <Button
                   variant="outline"
                   size="lg"
-                  className="w-full h-12 rounded-2xl font-bold"
+                  className="w-full h-12 rounded-lg font-bold"
                   onClick={() => {
                     resetDraft();
                     setShowSuccess(false);
@@ -856,7 +824,7 @@ export function BudgetLaunchStep({
                 </Button>
                 <Button
                   size="lg"
-                  className="w-full h-14 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-2xl shadow-soft"
+                  className="w-full h-14 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-lg shadow-sm border border-border"
                   onClick={() => {
                     if (dbCampaignId)
                       router.push(
@@ -950,7 +918,7 @@ function AdPreviewCard({
   platform: any;
 }) {
   return (
-    <div className="rounded-3xl border border-border bg-card overflow-hidden shadow-soft animate-in fade-in slide-in-from-bottom-4">
+    <div className="rounded-lg bg-card overflow-hidden shadow-sm border border-border animate-in fade-in slide-in-from-bottom-4">
       {/* Header (Fake User) */}
       <div className="p-3 flex items-center gap-3 border-b border-border/50">
         <div className="h-8 w-8 rounded-full bg-linear-to-br from-purple-500 to-indigo-500 flex items-center justify-center text-white text-xs font-bold">

@@ -88,7 +88,7 @@ export default function NotificationsPage() {
         {/* List */}
         <div className="space-y-3">
           {filteredList.length === 0 ? (
-            <div className="text-center py-20 bg-white rounded-xl border border-dashed border-slate-200">
+            <div className="text-center py-20 bg-white rounded-md border border-dashed border-slate-200">
               <div className="h-12 w-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
                 <Bell className="h-6 w-6 text-slate-300" />
               </div>
@@ -160,7 +160,7 @@ function NotificationItem({
   return (
     <div
       className={cn(
-        "group flex items-start gap-4 p-4 rounded-xl border transition-all hover:shadow-sm bg-white relative cursor-pointer",
+        "group flex items-start gap-4 p-4 rounded-md border transition-all hover:shadow-sm bg-white relative cursor-pointer",
         notification.is_read
           ? "border-slate-200"
           : "border-l-4 border-l-blue-600 border-y-slate-200 border-r-slate-200 bg-blue-50/10",
@@ -200,20 +200,22 @@ function NotificationItem({
         {notification.action_label && (
           <div className="mt-3">
             {notification.action_url ? (
-              <Link href={notification.action_url}>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 text-xs font-semibold"
-                >
+              <Button
+                asChild
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs font-semibold"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Link href={notification.action_url}>
                   {notification.action_label}
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             ) : (
               <Button
                 size="sm"
                 variant="outline"
-                className="h-8 text-xs font-semibold"
+                className="h-8 text-xs font-semibold pointer-events-none"
               >
                 {notification.action_label}
               </Button>

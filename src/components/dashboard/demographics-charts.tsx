@@ -30,7 +30,7 @@ export function DemographicsCharts({ demographics }: { demographics: any }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
       {/* Age Chart */}
-      <Card className="shadow-soft">
+      <Card className="shadow-sm border border-border">
         <CardHeader>
           <CardTitle>Age Distribution</CardTitle>
         </CardHeader>
@@ -63,7 +63,7 @@ export function DemographicsCharts({ demographics }: { demographics: any }) {
                       backgroundColor: "hsl(var(--popover))",
                       border: "none",
                       borderRadius: "8px",
-                      boxShadow: "var(--shadow-soft)",
+                      boxShadow: "var(--shadow-sm border border-border)",
                       color: "hsl(var(--popover-foreground))",
                     }}
                     labelStyle={{ color: "hsl(var(--muted-foreground))" }}
@@ -86,7 +86,7 @@ export function DemographicsCharts({ demographics }: { demographics: any }) {
       </Card>
 
       {/* Gender Chart */}
-      <Card className="shadow-soft">
+      <Card className="shadow-sm border border-border">
         <CardHeader>
           <CardTitle>Gender Distribution</CardTitle>
         </CardHeader>
@@ -117,7 +117,7 @@ export function DemographicsCharts({ demographics }: { demographics: any }) {
                       backgroundColor: "hsl(var(--popover))",
                       border: "none",
                       borderRadius: "8px",
-                      boxShadow: "var(--shadow-soft)",
+                      boxShadow: "var(--shadow-sm border border-border)",
                       color: "hsl(var(--popover-foreground))",
                     }}
                   />
@@ -136,7 +136,7 @@ export function DemographicsCharts({ demographics }: { demographics: any }) {
       </Card>
 
       {/* Region Chart (Full Width) */}
-      <Card className="lg:col-span-2 shadow-soft">
+      <Card className="lg:col-span-2 shadow-sm border border-border">
         <CardHeader>
           <CardTitle>Top Regions</CardTitle>
         </CardHeader>
@@ -176,7 +176,7 @@ export function DemographicsCharts({ demographics }: { demographics: any }) {
                       backgroundColor: "hsl(var(--popover))",
                       borderRadius: "8px",
                       border: "none",
-                      boxShadow: "var(--shadow-soft)",
+                      boxShadow: "var(--shadow-sm border border-border)",
                       color: "hsl(var(--popover-foreground))",
                     }}
                     labelStyle={{ color: "hsl(var(--muted-foreground))" }}

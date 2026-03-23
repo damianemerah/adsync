@@ -1,4 +1,4 @@
-const API_VERSION = "v24.0";
+const API_VERSION = "v25.0";
 const BASE_URL = `https://graph.facebook.com/${API_VERSION}`;
 
 import {
@@ -7,6 +7,7 @@ import {
   META_PLACEMENTS,
   MetaPlacement,
 } from "@/lib/constants";
+import { MetaAPIError, parseMetaError } from "@/types/meta-errors";
 
 const getPlacementSpec = (placementId: MetaPlacement) => {
   const config = META_PLACEMENTS.find((p) => p.id === placementId);
@@ -41,10 +42,10 @@ export const MetaService = {
 
     if (data.error) {
       console.error("Meta API Error:", data.error);
-      const err = new Error(data.error.message || "Meta API Failed") as any;
-      err.subcode = data.error.error_subcode;
-      err.metaCode = data.error.code;
-      throw err;
+      // v25.0: Enhanced error handling with user-friendly messages
+      const metaError = parseMetaError(data.error);
+      console.error("Parsed Meta Error:", metaError.toDebugInfo());
+      throw metaError;
     }
 
     return data;
@@ -215,7 +216,7 @@ export const MetaService = {
       // age_max: params.targeting.age_max,
       age_max: 65, // Required by Meta when advantage_audience: 1 — user's max is passed as a suggestion below
       targeting_automation: {
-        advantage_audience: 1, // Required by Meta Marketing API v24.0+
+        advantage_audience: 1, // Required by Meta Marketing API v25.0+
       },
       // Suggest the user's intended age cap to Meta's AI without hard-restricting it
       // ...(params.targeting.age_max &&
@@ -231,7 +232,7 @@ export const MetaService = {
       // Meta API for Gender: 1=Male, 2=Female. Omit for All.
       ...(params.targeting.gender === "male" && { genders: [1] }),
       ...(params.targeting.gender === "female" && { genders: [2] }),
-      // Life Events — time-sensitive targeting (separate field from behaviors in Meta v24)
+      // Life Events — time-sensitive targeting (separate field from behaviors in Meta v25)
       ...(params.targeting.lifeEvents?.length > 0 && {
         life_events: params.targeting.lifeEvents.map(
           (e: { id: string; name: string }) => ({ id: e.id, name: e.name }),
@@ -328,7 +329,8 @@ export const MetaService = {
 
       if (data.error) {
         console.error("Meta Image Upload Error:", data.error);
-        throw new Error(data.error.message);
+        // v25.0: Use enhanced error parsing
+        throw parseMetaError(data.error);
       }
 
       return data;
@@ -339,22 +341,31 @@ export const MetaService = {
   },
 
   // 4. Create Ad (The Creative)
+  // Supports both single image ads and carousel ads (2-10 images)
   createAd: async (
     token: string,
     adAccountId: string,
     adSetId: string,
-    creativeHash: string,
+    creativeHash: string | string[], // Single hash OR array of hashes for carousel
     copy: any,
     ctaCode: string = "SHOP_NOW",
     objective?: string,
+    carouselCards?: Array<{
+      imageHash: string;
+      headline: string;
+      description?: string;
+      link?: string;
+    }>,
   ) => {
     const id = adAccountId.startsWith("act_")
       ? adAccountId
       : `act_${adAccountId}`;
 
     const isWhatsApp = objective === "whatsapp";
-    // Lead Ads attach form to CTA — no destination URL sent to Meta
     const isLead = objective === "leads";
+    const isCarousel =
+      Array.isArray(creativeHash) ||
+      (carouselCards && carouselCards.length > 1);
 
     let callToAction: Record<string, any>;
     if (isWhatsApp) {
@@ -372,29 +383,61 @@ export const MetaService = {
     }
 
     console.log("📣 [Meta API] createAd - CallToAction:", callToAction);
+    console.log(
+      "📣 [Meta API] createAd - Format:",
+      isCarousel ? "CAROUSEL" : "SINGLE_IMAGE",
+    );
 
-    // Lead Ads: no link URL in the creative — just form reference via CTA
-    const linkData = isLead
-      ? {
-          image_hash: creativeHash,
-          message: copy.primaryText,
-          name: copy.headline,
-          call_to_action: callToAction,
-        }
-      : {
-          image_hash: creativeHash,
-          link: copy.destinationUrl,
-          message: copy.primaryText,
-          name: copy.headline,
-          call_to_action: callToAction,
-        };
+    let linkData: Record<string, any>;
+
+    if (isCarousel && carouselCards && carouselCards.length >= 2) {
+      // Carousel Ad Format (2-10 cards)
+      const childAttachments = carouselCards.map((card) => ({
+        image_hash: card.imageHash,
+        name: card.headline,
+        ...(card.description && { description: card.description }),
+        link: card.link || copy.destinationUrl, // Fallback to main destination
+        call_to_action: callToAction,
+      }));
+
+      linkData = {
+        child_attachments: childAttachments,
+        message: copy.primaryText,
+        name: copy.headline, // Main carousel title
+        ...(isLead ? {} : { link: copy.destinationUrl }), // Lead ads don't need link at parent level
+      };
+
+      console.log(
+        `🎠 [Meta API] Creating carousel with ${childAttachments.length} cards`,
+      );
+    } else {
+      // Single Image Ad Format (legacy path)
+      const singleHash = Array.isArray(creativeHash)
+        ? creativeHash[0]
+        : creativeHash;
+
+      linkData = isLead
+        ? {
+            image_hash: singleHash,
+            message: copy.primaryText,
+            name: copy.headline,
+            call_to_action: callToAction,
+          }
+        : {
+            image_hash: singleHash,
+            link: copy.destinationUrl,
+            message: copy.primaryText,
+            name: copy.headline,
+            call_to_action: callToAction,
+          };
+    }
 
     const creativeRes = await MetaService.request(
       `/${id}/adcreatives`,
       "POST",
       token,
       {
-        name: "AdSync Creative",
+        name: isCarousel ? "AdSync Carousel Creative" : "AdSync Creative",
         object_story_spec: {
           page_id: copy.pageId,
           link_data: linkData,
@@ -403,7 +446,7 @@ export const MetaService = {
     );
 
     return MetaService.request(`/${id}/ads`, "POST", token, {
-      name: "AdSync Ad 1",
+      name: isCarousel ? "AdSync Carousel Ad" : "AdSync Ad 1",
       adset_id: adSetId,
       creative: { creative_id: creativeRes.id },
       status: "PAUSED",
@@ -451,12 +494,16 @@ export const MetaService = {
     });
   },
 
-  // 4b-i. List Facebook Pages connected to the user's access token
+  // 4b-i. List Facebook Pages connected to the user's access token scoped to the Ad Account
   getMetaPages: async (
     token: string,
+    adAccountId: string,
   ): Promise<Array<{ id: string; name: string }>> => {
+    const id = adAccountId.startsWith("act_")
+      ? adAccountId
+      : `act_${adAccountId}`;
     const data = await MetaService.request(
-      `/me/accounts?fields=id,name&limit=25`,
+      `/${id}/promote_pages?fields=id,name&limit=100`,
       "GET",
       token,
     );
@@ -479,13 +526,35 @@ export const MetaService = {
     return data.data || [];
   },
 
+  // 4d. Retrieve Lead Data from Meta API (after webhook notification)
+  getLeadData: async (
+    token: string,
+    leadgenId: string,
+  ): Promise<{
+    id: string;
+    created_time: string;
+    field_data: Array<{ name: string; values: string[] }>;
+  }> => {
+    const data = await MetaService.request(
+      `/${leadgenId}?fields=id,created_time,field_data`,
+      "GET",
+      token,
+    );
+    return {
+      id: data.id,
+      created_time: data.created_time,
+      field_data: data.field_data || [],
+    };
+  },
+
   getAccountInsights: async (token: string, adAccountId: string) => {
     // Fetch Last 30 Days by default
     const id = adAccountId.startsWith("act_")
       ? adAccountId
       : `act_${adAccountId}`;
+    // v25.0: Added media_views, media_viewers (new metrics)
     return MetaService.request(
-      `/${id}/insights?date_preset=last_30d&level=account&fields=spend,impressions,clicks,cpc,ctr,cpm,reach`,
+      `/${id}/insights?date_preset=last_30d&level=account&fields=spend,impressions,clicks,cpc,ctr,cpm,reach,media_views,media_viewers`,
       "GET",
       token,
     );
@@ -498,8 +567,9 @@ export const MetaService = {
   getCampaignInsights: async (token: string, campaignId: string) => {
     // time_increment=1 gives us daily breakdown
     // date_preset=last_30d covers the standard view
+    // v25.0: Added media_views, media_viewers (new metrics for video/reel content)
     return MetaService.request(
-      `/${campaignId}/insights?fields=spend,impressions,clicks,cpc,ctr,reach&time_increment=1&date_preset=last_30d`,
+      `/${campaignId}/insights?fields=spend,impressions,clicks,cpc,ctr,reach,media_views,media_viewers&time_increment=1&date_preset=last_30d`,
       "GET",
       token,
     );
@@ -516,8 +586,9 @@ export const MetaService = {
 
   // [NEW] Fetch Breakdown specifically for Sub-Placements (Reels vs Feed etc)
   getPlacementInsights: async (token: string, campaignId: string) => {
+    // v25.0: Added media_views, media_viewers for video/reel placement insights
     return MetaService.request(
-      `/${campaignId}/insights?fields=reach,impressions,spend,clicks,cpc,ctr,actions,action_values&breakdowns=publisher_platform,platform_position&date_preset=maximum`,
+      `/${campaignId}/insights?fields=reach,impressions,spend,clicks,cpc,ctr,actions,action_values,media_views,media_viewers&breakdowns=publisher_platform,platform_position&date_preset=maximum`,
       "GET",
       token,
     );
@@ -547,7 +618,7 @@ export const MetaService = {
   /**
    * Send a server-side conversion event to Meta via the Conversions API (CAPI).
    *
-   * This is the mechanism that trains Andromeda with Sellam's offline WhatsApp
+   * This is the mechanism that trains Andromeda with Tenzu's offline WhatsApp
    * sales — events Meta would otherwise never see. It runs server-to-server so
    * no browser pixel is required.
    *
@@ -569,6 +640,7 @@ export const MetaService = {
       fbclid?: string | null;
       fbclidClickedAt?: string | null; // ISO timestamp of the original click
       eventId?: string; // Dedup key — use sale row ID or pixel event ID
+      currency?: string; // ISO currency code; defaults to 'NGN' for NG orgs
     },
   ): Promise<void> => {
     const eventTime = Math.floor(Date.now() / 1000);
@@ -591,7 +663,7 @@ export const MetaService = {
       action_source: payload.actionSource,
       user_data: userData,
       custom_data: {
-        currency: "NGN",
+        currency: payload.currency ?? "NGN",
         ...(payload.valueNgn != null && { value: payload.valueNgn }),
       },
     };
@@ -623,5 +695,39 @@ export const MetaService = {
         `✅ [CAPI] ${payload.eventName} sent — events_received: ${result.events_received ?? 0}`,
       );
     }
+  },
+
+  /**
+   * Get campaign-level issues (NEW in v25.0)
+   *
+   * Returns structured diagnostic information about campaign delivery issues,
+   * policy violations, or configuration problems. This replaces the old ad review
+   * status checks with more granular error reporting.
+   *
+   * @param token - Meta access token
+   * @param campaignId - The campaign ID to check
+   * @returns Campaign issues with error codes, messages, and severity levels
+   */
+  getCampaignIssues: async (token: string, campaignId: string) => {
+    return MetaService.request(
+      `/${campaignId}?fields=id,name,status,issues{error_code,error_message,error_summary,error_type,level}`,
+      "GET",
+      token
+    );
+  },
+
+  /**
+   * Get ad set-level issues (NEW in v25.0)
+   *
+   * @param token - Meta access token
+   * @param adSetId - The ad set ID to check
+   * @returns Ad set issues with error details
+   */
+  getAdSetIssues: async (token: string, adSetId: string) => {
+    return MetaService.request(
+      `/${adSetId}?fields=id,name,status,issues{error_code,error_message,error_summary,error_type,level}`,
+      "GET",
+      token
+    );
   },
 };

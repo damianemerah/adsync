@@ -1,9 +1,11 @@
 ---
 name: naira-payments
-description: Manages Sellam's Naira-first payment system. Use when working on ad budget top-up (Phase 2A), Paystack webhooks, virtual USD card provisioning (Grey/Geegpay), `ad_budget_wallets` table, `ad-budget-topup.tsx` component, or anything related to the SME paying in Naira for ad spend.
+description: Manages Tenzu's Naira-first payment system. Use when working on ad budget top-up (Phase 2A), Paystack webhooks, virtual USD card provisioning (Grey/Geegpay), `ad_budget_wallets` table, `ad-budget-topup.tsx` component, or anything related to the SME paying in Naira for ad spend.
 ---
 
 # Naira Payments Skill
+
+> **Note:** This skill documents the NG/NGN payment flow (Paystack + Sudo Africa). For global billing use Stripe. The active provider is determined by `organizations.billing_provider` (`'paystack'` for NG orgs, `'stripe'` for global orgs).
 
 ## When to Load
 
@@ -25,7 +27,7 @@ Full status, provider selection rationale, and integration review notes in:
 
 ## Two Separate Payment Flows — Never Confuse Them
 
-### Flow 1: Sellam Platform Subscription (ALREADY EXISTS)
+### Flow 1: Tenzu Platform Subscription (ALREADY EXISTS)
 
 ```
 SME → Paystack → organizations.subscription_status = 'active'
@@ -55,7 +57,7 @@ If the tab is closed before redirect, card is not created (webhook does not call
 
 Each organization gets their OWN virtual card.
 That card is attached to the SME's OWN Meta ad account.
-Sellam's card is NEVER the payment method on Meta.
+Tenzu's card is NEVER the payment method on Meta.
 
 Why: If one SME runs a banned ad and Meta flags the payment method,
 only their card is affected. Other orgs are completely isolated.
@@ -99,7 +101,7 @@ if (existing) return { success: true, message: "Already processed" };
 
 ## Prepaid Only Rule
 
-SME pays Adsync BEFORE the card is loaded.
+SME pays Tenzu BEFORE the card is loaded.
 No credit. No post-billing.
 Non-refundable once converted and loaded (Meta doesn't reliably refund unspent budget).
 

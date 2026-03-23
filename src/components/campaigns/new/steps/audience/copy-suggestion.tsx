@@ -76,7 +76,7 @@ function EditableField({
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={handleKey}
               rows={3}
-              className="w-full text-sm text-foreground leading-relaxed bg-muted/40 border border-primary/40 rounded-xl px-3 py-2 resize-none focus:outline-none focus:border-primary no-scrollbar"
+              className="w-full text-sm text-foreground leading-relaxed bg-muted/40 border border-primary/40 rounded-md px-3 py-2 resize-none focus:outline-none focus:border-primary no-scrollbar"
             />
           ) : (
             <input
@@ -84,7 +84,7 @@ function EditableField({
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={handleKey}
-              className="w-full font-bold text-foreground text-base bg-muted/40 border border-primary/40 rounded-xl px-3 py-2 focus:outline-none focus:border-primary"
+              className="w-full font-bold text-foreground text-base bg-muted/40 border border-primary/40 rounded-md px-3 py-2 focus:outline-none focus:border-primary"
             />
           )}
           <div className="flex gap-2">
@@ -172,7 +172,7 @@ export function CopySuggestion({
       </div>
       <div
         className={cn(
-          "p-4 rounded-3xl bg-card border shadow-soft space-y-3 transition-all",
+          "p-4 rounded-lg bg-card border shadow-sm border border-border space-y-3 transition-all",
           isSelected
             ? "border-primary ring-2 ring-primary/20"
             : "border-border",
@@ -226,7 +226,7 @@ export function CopySuggestion({
               handleRefine("Make this copy shorter and more punchy", "shorter")
             }
             disabled={isRefining}
-            className="rounded-xl border-border hover:border-primary/50 hover:bg-primary/5 text-xs"
+            className="rounded-md border-border hover:border-primary/50 hover:bg-primary/5 text-xs"
           >
             {activeRefinement === "shorter" ? (
               <Refresh className="h-3.5 w-3.5 mr-1.5 animate-spin" />
@@ -240,7 +240,7 @@ export function CopySuggestion({
               handleRefine("Make this more urgent and exciting", "fire")
             }
             disabled={isRefining}
-            className="rounded-xl border-border hover:border-primary/50 hover:bg-primary/5 text-xs"
+            className="rounded-md border-border hover:border-primary/50 hover:bg-primary/5 text-xs"
           >
             {activeRefinement === "fire" ? (
               <Refresh className="h-3.5 w-3.5 mr-1.5 animate-spin" />
@@ -254,7 +254,7 @@ export function CopySuggestion({
               handleRefine("Rewrite with completely fresh wording", "tryagain")
             }
             disabled={isRefining}
-            className="rounded-xl border-border hover:border-primary/50 hover:bg-primary/5 text-xs"
+            className="rounded-md border-border hover:border-primary/50 hover:bg-primary/5 text-xs"
           >
             <Refresh
               className={cn(

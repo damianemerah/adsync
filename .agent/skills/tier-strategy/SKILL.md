@@ -1,13 +1,13 @@
 ---
 name: tier-strategy
-description: Manages Sellam's subscription tier model and AI credit system. Use when working on `TIER_CONFIG`, tier resolver, credit gates, feature flags, upgrade prompts, `useTierConfig` hook, Starter/Growth/Agency plan differences, or overage logic for AI credit consumption.
+description: Manages Tenzu's subscription tier model and AI credit system. Use when working on `TIER_CONFIG`, tier resolver, credit gates, feature flags, upgrade prompts, `useTierConfig` hook, Starter/Growth/Agency plan differences, or overage logic for AI credit consumption.
 ---
 
 # Tier Strategy Skill
 
 ## Overview
 
-Sellam uses a **subscription + credit** model. SMEs pay a monthly Naira subscription (via Paystack) for platform access, and consume AI credits for image generation. Text/copy generation is free.
+Tenzu uses a **subscription + credit** model. SMEs pay a monthly Naira subscription (via Paystack) for platform access, and consume AI credits for image generation. Text/copy generation is free.
 
 **Single source of truth for all tier config: `src/lib/constants.ts` → `TIER_CONFIG` and `PLAN_PRICES`.**
 

@@ -161,17 +161,21 @@ export async function initializeCreditPackPurchase(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Grant free trial credits to a new organization (called during onboarding)
+// Grant free trial credits to a new user (called during onboarding).
+// Credits are user-scoped; orgId is kept for audit trail only.
 // ─────────────────────────────────────────────────────────────────────────────
-export async function grantFreeTrialCredits(orgId: string): Promise<void> {
+export async function grantFreeTrialCredits(
+  userId: string,
+  orgId: string,
+): Promise<void> {
   const supabase = await createClient();
 
   // Use RPC so the credit transaction is atomic
   const { error } = await supabase.rpc("add_credits", {
-    p_org_id: orgId,
+    p_user_id: userId,
     p_credits: 50,
     p_reason: "free_trial",
-    p_reference: undefined,
+    p_org_id: orgId,
   });
 
   if (error) {
@@ -184,9 +188,53 @@ export async function grantFreeTrialCredits(orgId: string): Promise<void> {
       amount_cents: 0,
       currency: "NGN",
       status: "success",
-      type: "subscription",
+      type: "subscription_payment",
       description: "Free Trial (14 Days)",
       provider_reference: `trial_${Date.now()}`,
     });
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Get transaction history for invoices page
+// ─────────────────────────────────────────────────────────────────────────────
+export interface Invoice {
+  id: string;
+  date: string;
+  type: "subscription" | "credit_pack";
+  description: string;
+  amount_display: string;
+  amount_kobo: number;
+  status: string;
+  reference: string | null;
+}
+
+export async function getInvoices(limit = 50): Promise<Invoice[]> {
+  const supabase = await createClient();
+  const orgId = await getActiveOrgId();
+
+  if (!orgId) throw new Error("No organization found");
+
+  const { data, error } = await supabase
+    .from("transactions")
+    .select("id, created_at, type, description, amount_cents, status, provider_reference")
+    .eq("organization_id", orgId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("Failed to fetch transactions:", error);
+    throw error;
+  }
+
+  return (data || []).map((tx) => ({
+    id: tx.id,
+    date: tx.created_at ?? new Date().toISOString(),
+    type: (tx.type === "credit_pack_purchase" ? "credit_pack" : "subscription") as Invoice["type"],
+    description: tx.description || (tx.type === "credit_pack_purchase" ? "Credit Pack" : "Subscription Payment"),
+    amount_display: `₦${((tx.amount_cents || 0) / 100).toLocaleString()}`,
+    amount_kobo: tx.amount_cents || 0,
+    status: tx.status || "success",
+    reference: tx.provider_reference,
+  }));
 }

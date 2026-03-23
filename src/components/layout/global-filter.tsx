@@ -29,7 +29,7 @@ export function GlobalFilter({ className }: { className?: string }) {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
         <Input
           placeholder="Search campaigns..."
-          className="pl-10 bg-background border-border focus:border-primary/50 rounded-xl shadow-sm transition-all h-10"
+          className="pl-10 bg-background border-border focus:border-primary/50 rounded-md shadow-sm transition-all h-10"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -39,10 +39,10 @@ export function GlobalFilter({ className }: { className?: string }) {
       <div className="flex flex-wrap items-center gap-3">
         {/* Status */}
         <Select value={status} onValueChange={(val) => setStatus(val)}>
-          <SelectTrigger className="w-[140px] bg-background border-border rounded-xl h-10 shadow-sm hover:border-primary/50 transition-colors">
+          <SelectTrigger className="w-[140px] bg-background border-border rounded-md h-10 shadow-sm hover:border-primary/50 transition-colors">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
-          <SelectContent className="rounded-xl border-border shadow-soft">
+          <SelectContent className="rounded-md border-border shadow-sm border border-border">
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="active">Active</SelectItem>
             <SelectItem value="paused">Paused</SelectItem>

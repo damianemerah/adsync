@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { getUnifiedInvoices, type UnifiedInvoice } from "@/actions/ad-budget";
+import { useQuery } from "@tanstack/react-query";
+import { getInvoices, type Invoice } from "@/actions/paystack";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable, Column } from "@/components/ui/data-table";
@@ -12,37 +12,24 @@ import { SystemRestart } from "iconoir-react";
 // Type badge config
 // ─────────────────────────────────────────────────────────────────────────────
 const TYPE_LABELS: Record<
-  UnifiedInvoice["type"],
-  { label: string; variant: "default" | "secondary" | "outline" }
+  Invoice["type"],
+  { label: string; variant: "default" | "secondary" }
 > = {
   subscription: { label: "Subscription", variant: "default" },
   credit_pack: { label: "Credit Pack", variant: "secondary" },
-  ad_budget_topup: { label: "Ad Budget", variant: "outline" },
-  card_load: { label: "Card Load", variant: "outline" },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Page component
 // ─────────────────────────────────────────────────────────────────────────────
 export default function InvoicesPage() {
-  const [invoices, setInvoices] = useState<UnifiedInvoice[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: invoices = [], isLoading } = useQuery({
+    queryKey: ["invoices"],
+    queryFn: () => getInvoices(100),
+    staleTime: 2 * 60 * 1000,
+  });
 
-  useEffect(() => {
-    async function fetchInvoices() {
-      try {
-        const data = await getUnifiedInvoices(100);
-        setInvoices(data);
-      } catch (error) {
-        console.error("Failed to fetch invoices:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchInvoices();
-  }, []);
-
-  const columns: Column<UnifiedInvoice>[] = [
+  const columns: Column<Invoice>[] = [
     {
       key: "date",
       title: "Date",
@@ -73,15 +60,6 @@ export default function InvoicesPage() {
       ),
     },
     {
-      key: "fee_display",
-      title: "Fee",
-      render: (row) => (
-        <span className="text-sm text-muted-foreground">
-          {row.fee_display || "—"}
-        </span>
-      ),
-    },
-    {
       key: "status",
       title: "Status",
       render: (row) => (
@@ -104,7 +82,7 @@ export default function InvoicesPage() {
     },
   ];
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center p-12">
         <SystemRestart className="h-8 w-8 animate-spin text-primary" />
@@ -116,11 +94,10 @@ export default function InvoicesPage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-bold text-foreground">
-          Invoices & Payment History
+          Invoices &amp; Payment History
         </h2>
         <p className="text-sm text-subtle-foreground">
-          All subscription payments, credit pack purchases, and ad budget
-          top-ups in one place.
+          All subscription payments and credit pack purchases in one place.
         </p>
       </div>
 
@@ -154,23 +131,21 @@ export default function InvoicesPage() {
         <Card className="bg-muted/40 border-border">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Fees Paid
+              This Month
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">
-              {invoices.some((inv) => inv.fee_display)
-                ? invoices
-                    .filter((inv) => inv.fee_display)
-                    .reduce((sum, inv) => {
-                      const feeNum =
-                        parseInt(inv.fee_display!.replace(/[₦,]/g, ""), 10) ||
-                        0;
-                      return sum + feeNum;
-                    }, 0)
-                    .toLocaleString()
-                    .replace(/^/, "₦")
-                : "₦0"}
+              ₦
+              {(
+                invoices
+                  .filter((inv) => {
+                    const invDate = new Date(inv.date);
+                    const now = new Date();
+                    return invDate.getMonth() === now.getMonth() && invDate.getFullYear() === now.getFullYear();
+                  })
+                  .reduce((sum, inv) => sum + inv.amount_kobo, 0) / 100
+              ).toLocaleString()}
             </p>
           </CardContent>
         </Card>

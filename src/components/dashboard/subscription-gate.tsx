@@ -86,7 +86,7 @@ export function SubscriptionGate({
       <div className="w-full max-w-2xl">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="mx-auto mb-4 h-14 w-14 rounded-2xl bg-slate-100 flex items-center justify-center">
+          <div className="mx-auto mb-4 h-14 w-14 rounded-lg bg-slate-100 flex items-center justify-center">
             <Lock className="h-6 w-6 text-slate-400" />
           </div>
           <h2 className="text-2xl font-bold text-foreground mb-2">
@@ -105,7 +105,7 @@ export function SubscriptionGate({
               key={plan.id}
               onClick={() => setSelectedPlan(plan.id)}
               className={cn(
-                "relative cursor-pointer rounded-2xl border-2 p-5 transition-all",
+                "relative cursor-pointer rounded-lg border-2 p-5 transition-all",
                 selectedPlan === plan.id
                   ? "border-primary bg-primary/5 shadow-md shadow-primary/10"
                   : "border-slate-200 bg-white hover:border-slate-300",

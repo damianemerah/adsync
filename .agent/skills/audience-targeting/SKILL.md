@@ -1,6 +1,6 @@
 ---
 name: audience-targeting
-description: Governs all Meta Ads audience targeting upgrades for Sellam — the Cold → Warm → Scale engine. Use when working on campaign-store.ts (adding targeting fields), meta.ts (targeting payload), audience-chat-step, meta-behaviors.ts, or any feature involving custom audiences, lookalike audiences, language targeting, income proxies, retargeting, exclusions, or Advantage+ audience signals. Always load this skill when the user mentions: "Phase 1 targeting", "Phase 2 audiences", "Phase 3 lookalikes", "language targeting", "locales", "income proxy", "custom audience", "retargeting toggle", "pixel audiences", or "lookalike percentage".
+description: Governs all Meta Ads audience targeting upgrades for Tenzu — the Cold → Warm → Scale engine. Use when working on campaign-store.ts (adding targeting fields), meta.ts (targeting payload), audience-chat-step, meta-behaviors.ts, or any feature involving custom audiences, lookalike audiences, language targeting, income proxies, retargeting, exclusions, or Advantage+ audience signals. Always load this skill when the user mentions: "Phase 1 targeting", "Phase 2 audiences", "Phase 3 lookalikes", "language targeting", "locales", "income proxy", "custom audience", "retargeting toggle", "pixel audiences", or "lookalike percentage".
 ---
 
 # Audience Targeting Skill
@@ -9,10 +9,10 @@ description: Governs all Meta Ads audience targeting upgrades for Sellam — the
 
 > **Cold → Warm → Scale**  
 > Build cold traffic first (interests + behaviors + demographics).  
-> That data fuels warm retargeting (custom audiences from AdSync link clicks + pixel fires).  
+> That data fuels warm retargeting (custom audiences from Tenzu link clicks + pixel fires).  
 > Warm audiences then seed lookalikes for scaled reach.
 
-**Never skip phases.** A new Sellam user has zero pixel fires and zero AdSync link clicks. Jumping to Phase 2 on Day 1 is technically possible but strategically wrong — empty custom audiences result in Meta rejecting the adset or serving to near-zero people.
+**Never skip phases.** A new Tenzu user has zero pixel fires and zero Tenzu link clicks. Jumping to Phase 2 on Day 1 is technically possible but strategically wrong — empty custom audiences result in Meta rejecting the adset or serving to near-zero people.
 
 ---
 

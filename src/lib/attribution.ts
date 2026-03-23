@@ -18,11 +18,11 @@ export function generatePixelToken(): string {
 }
 
 /**
- * Builds the full Sellam redirect URL for an attribution token.
- * Example: "https://sellam.app/l/xK9mZ2pR"
+ * Builds the full Tenzu redirect URL for an attribution token.
+ * Example: "https://Tenzu.app/l/xK9mZ2pR"
  */
 export function buildAttributionUrl(token: string, baseUrl?: string): string {
   const base =
-    baseUrl || process.env.NEXT_PUBLIC_APP_URL || "https://sellam.app";
+    baseUrl || process.env.NEXT_PUBLIC_APP_URL || "https://Tenzu.app";
   return `${base}/l/${token}`;
 }

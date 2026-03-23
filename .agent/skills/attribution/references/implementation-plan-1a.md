@@ -10,9 +10,9 @@ This is the highest-leverage work in the entire roadmap. Nothing else compounds 
 
 ### What We're Building
 
-When a Nigerian SME's ad runs via Adsync with a WhatsApp objective, the current destination URL is a raw `wa.me/234...` link. When someone clicks, they land in WhatsApp — and Adsync sees nothing.
+When a Nigerian SME's ad runs via Tenzu with a WhatsApp objective, the current destination URL is a raw `wa.me/234...` link. When someone clicks, they land in WhatsApp — and Tenzu sees nothing.
 
-We replace that raw link with an **Adsync-hosted micro-redirect** (`adsync.app/l/[token]`) that:
+We replace that raw link with an **Tenzu-hosted micro-redirect** (`tenzu.africa/l/[token]`) that:
 
 1. Records the visit (which campaign, which ad, timestamp, device)
 2. Immediately redirects to the original WhatsApp deep link
@@ -164,11 +164,11 @@ export function generateAttributionToken(length = 8): string {
 }
 
 /**
- * Builds the full Adsync redirect URL
+ * Builds the full Tenzu redirect URL
  */
 export function buildAttributionUrl(token: string, baseUrl?: string): string {
   const base =
-    baseUrl || process.env.NEXT_PUBLIC_APP_URL || "https://adsync.app";
+    baseUrl || process.env.NEXT_PUBLIC_APP_URL || "https://tenzu.africa";
   return `${base}/l/${token}`;
 }
 ```
@@ -179,7 +179,7 @@ export function buildAttributionUrl(token: string, baseUrl?: string): string {
 
 **Modified file:** `src/actions/campaigns.ts`
 
-In the `launchCampaign` function, after building `finalUrl` for WhatsApp objective, replace the raw `wa.me` link with an Adsync attribution link.
+In the `launchCampaign` function, after building `finalUrl` for WhatsApp objective, replace the raw `wa.me` link with an Tenzu attribution link.
 
 **Find this section (~line 85 in campaigns.ts):**
 
@@ -256,9 +256,9 @@ CREATE POLICY "public_read_attribution_links" ON attribution_links
 
 ### Phase 1A Deliverable Check
 
-After this phase, for every WhatsApp campaign launched via Adsync:
+After this phase, for every WhatsApp campaign launched via Tenzu:
 
-- Ad destination is `adsync.app/l/[token]` not raw WhatsApp
+- Ad destination is `tenzu.africa/l/[token]` not raw WhatsApp
 - Every click is recorded in `link_clicks`
 - `campaigns.whatsapp_clicks` increments in real-time
 - The redirect is imperceptible to end users (<50ms overhead)

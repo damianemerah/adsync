@@ -6,7 +6,7 @@ import { ResendButton } from "./resend-button";
 export default function VerifyEmailPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border border-slate-100 p-8 text-center">
+      <div className="w-full max-w-md bg-white rounded-lg shadow-sm border border-slate-100 p-8 text-center">
         <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
           <Mail className="w-8 h-8 text-blue-600" />
         </div>

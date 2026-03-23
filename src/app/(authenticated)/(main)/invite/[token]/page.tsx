@@ -43,7 +43,7 @@ export default function InvitePage({
 
   return (
     <div className="min-h-screen bg-linear-to-b from-slate-50 to-blue-50/20 flex flex-col items-center justify-center p-4">
-      <Card className="w-full max-w-lg shadow-2xl rounded-2xl p-8 bg-white/80 backdrop-blur">
+      <Card className="w-full max-w-lg shadow-2xl rounded-lg p-8 bg-white/80 backdrop-blur">
         {/* Header */}
         <div className="text-center space-y-4">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 mb-4">
@@ -82,7 +82,7 @@ export default function InvitePage({
         {/* Organization Info */}
         <div className="py-6 space-y-4">
           <div className="text-center">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-linear-to-br from-blue-500 to-purple-600 mb-4">
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-lg bg-linear-to-br from-blue-500 to-purple-600 mb-4">
               <Building className="w-10 h-10 text-white" />
             </div>
             <h2 className="text-3xl font-bold text-slate-900 mb-2">

@@ -390,7 +390,7 @@ Add these fields to the existing business settings form, using `updateOrgProfile
     className="bg-muted border-border resize-none"
   />
   <p className="text-xs text-muted-foreground">
-    Sellam's AI uses this to write better ads without you re-explaining every time.
+    Tenzu's AI uses this to write better ads without you re-explaining every time.
   </p>
 </div>
 

@@ -39,6 +39,8 @@ import { Sparkline } from "@/components/dashboard/sparkline";
 import Link from "next/link";
 
 import { CampaignMetrics } from "@/lib/utils/campaign-metrics";
+import { CampaignIssuesBadge } from "@/components/campaigns/campaign-issues-badge";
+import { AdvantagePlusBadge } from "@/components/campaigns/advantage-plus-badge";
 
 interface CampaignsViewProps {
   campaigns: any[];
@@ -192,14 +194,22 @@ export function CampaignsView({
           failed: "bg-red-100 text-red-700 hover:bg-red-200",
         };
         return (
-          <Badge
-            variant="secondary"
-            className={`rounded-full px-3 py-1 font-semibold border-0 capitalize ${
-              statusStyles[campaign.status] ?? statusStyles.draft
-            }`}
-          >
-            {campaign.status}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge
+              variant="secondary"
+              className={`rounded-full px-3 py-1 font-semibold border-0 capitalize ${
+                statusStyles[campaign.status] ?? statusStyles.draft
+              }`}
+            >
+              {campaign.status}
+            </Badge>
+            {/* v25.0: Show campaign issues and Advantage+ badges */}
+            <CampaignIssuesBadge issues={campaign.meta_issues} compact />
+            <AdvantagePlusBadge
+              config={campaign.advantage_plus_config}
+              compact
+            />
+          </div>
         );
       },
     },
@@ -327,17 +337,17 @@ export function CampaignsView({
               placeholder="Search campaigns..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full h-10 pl-10 pr-4 rounded-xl border border-border bg-background text-sm font-medium outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring transition-all placeholder:text-muted-foreground"
+              className="w-full h-10 pl-10 pr-4 rounded-md border border-border bg-background text-sm font-medium outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring transition-all placeholder:text-muted-foreground"
             />
             <GraphUp className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           </div>
 
           {/* Status Dropdown */}
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[160px] h-10 border-border bg-card rounded-xl font-medium text-foreground shadow-sm hover:border-primary/50 transition-colors">
+            <SelectTrigger className="w-[160px] h-10 border-border bg-card rounded-md font-medium text-foreground shadow-sm hover:border-primary/50 transition-colors">
               <SelectValue placeholder="All Statuses" />
             </SelectTrigger>
-            <SelectContent className="rounded-xl border-border shadow-soft">
+            <SelectContent className="rounded-md shadow-sm border border-border">
               <SelectItem value="all">All Statuses</SelectItem>
               <SelectItem value="active">Active</SelectItem>
               <SelectItem value="paused">Paused</SelectItem>

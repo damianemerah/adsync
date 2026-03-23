@@ -1,6 +1,6 @@
 ---
 name: campaign-launch
-description: Governs the Sellam campaign launch flow (1:1:1 structure on Meta). Use when working on `campaigns.ts` launch action, `meta.ts` API service, `policy-guard.ts`, `budget-launch-step.tsx`, attribution URL wrapping at launch time, or any pre-flight check before a Meta API write.
+description: Governs the Tenzu campaign launch flow (1:1:1 structure on Meta). Use when working on `campaigns.ts` launch action, `meta.ts` API service, `policy-guard.ts`, `budget-launch-step.tsx`, attribution URL wrapping at launch time, or any pre-flight check before a Meta API write.
 ---
 
 # Campaign Launch Skill
@@ -150,7 +150,7 @@ implement this speculatively. Until that flag exists, the rule is absolute.
 
 ## Phase 4 Roadmap — Creative Testing (Future)
 
-Sellam's response to Meta's Andromeda update: let Meta's algorithm evaluate multiple
+Tenzu's response to Meta's Andromeda update: let Meta's algorithm evaluate multiple
 creatives and auto-optimise toward the best performer.
 
 ### The Idea

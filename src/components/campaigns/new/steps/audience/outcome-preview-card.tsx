@@ -76,7 +76,7 @@ export function OutcomePreviewCard({
   return (
     <div className="mt-2 space-y-3 animate-in fade-in slide-in-from-top-2">
       {/* Outcome box — most prominent */}
-      <div className="p-4 rounded-2xl bg-primary/5 border border-primary/20">
+      <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
         <div className="flex items-center gap-2 mb-1">
           <StatsUpSquare className="h-4 w-4 text-primary" />
           <span className="text-xs font-bold text-primary uppercase tracking-wider">
@@ -140,7 +140,7 @@ export function OutcomePreviewCard({
 
       {/* Inferred assumptions */}
       {inferredAssumptions && inferredAssumptions.length > 0 && (
-        <div className="space-y-1.5 bg-muted/20 rounded-xl p-2 border border-border/50">
+        <div className="space-y-1.5 bg-muted/20 rounded-md p-2 border border-border/50">
           {inferredAssumptions.length > 3 ? (
             <button
               onClick={() => setShowAssumptions(!showAssumptions)}
@@ -179,7 +179,7 @@ export function OutcomePreviewCard({
       {/* Refinement question */}
       {refinementQuestion && (
         <div className="space-y-2">
-          <div className="flex items-start gap-2 p-3 rounded-xl bg-primary/5 border border-primary/15">
+          <div className="flex items-start gap-2 p-3 rounded-md bg-primary/5 border border-primary/15">
             <Sparks className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
             <p className="text-[13px] text-foreground leading-snug">
               {refinementQuestion}
@@ -209,7 +209,7 @@ export function OutcomePreviewCard({
       <Button
         onClick={onConfirmAudience}
         disabled={currentInterests.length === 0 || !copyReady}
-        className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-2xl shadow-soft text-sm"
+        className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-lg shadow-sm border border-border text-sm"
       >
         {copyReady ? (
           <>

@@ -253,6 +253,52 @@ export async function getDashboardData(
       })
       .eq("id", account.id);
 
+    // Persist daily performance data to campaign_metrics for cache consistency
+    // This ensures the fast path (DB cache) has the same data as the stale path (Meta API)
+    if (performance.length > 0 && filter?.campaignId && filter.campaignId !== "all") {
+      const metricsToUpsert = performance.map((day: any) => ({
+        campaign_id: filter.campaignId,
+        date: day.date_start,
+        impressions: parseInt(day.impressions || "0"),
+        clicks: parseInt(day.clicks || "0"),
+        spend_cents: Math.round(parseFloat(day.spend || "0") * 100),
+        reach: parseInt(day.reach || "0"),
+        ctr: parseFloat(day.ctr || "0"),
+        synced_at: new Date().toISOString(),
+      }));
+
+      // Upsert to handle updates to existing dates
+      await supabase.from("campaign_metrics").upsert(metricsToUpsert, {
+        onConflict: "campaign_id,date",
+      });
+
+      // Update campaign-level aggregates for real-time metrics
+      const totalSpendCents = metricsToUpsert.reduce(
+        (sum: number, m: any) => sum + (m.spend_cents || 0),
+        0,
+      );
+      const totalImpressions = metricsToUpsert.reduce(
+        (sum: number, m: any) => sum + (m.impressions || 0),
+        0,
+      );
+      const totalClicks = metricsToUpsert.reduce(
+        (sum: number, m: any) => sum + (m.clicks || 0),
+        0,
+      );
+      const avgCtr =
+        totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
+
+      await supabase
+        .from("campaigns")
+        .update({
+          spend_cents: totalSpendCents,
+          impressions: totalImpressions,
+          clicks: totalClicks,
+          ctr: avgCtr,
+        })
+        .eq("id", filter.campaignId);
+    }
+
     // Build summary totals from daily rows
     const summary = performance.reduce(
       (acc: any, day: any) => ({

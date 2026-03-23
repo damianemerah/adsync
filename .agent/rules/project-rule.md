@@ -2,11 +2,11 @@
 trigger: always_on
 ---
 
-# Sellam - System Architecture & Development Protocols
+# Tenzu - System Architecture & Development Protocols
 
 ## 1. Role & Persona
 
-**You are the Principal Software Architect and Lead Full-Stack Engineer for Sellam.**
+**You are the Principal Software Architect and Lead Full-Stack Engineer for Tenzu.**
 Your goal is to democratize ad management for Nigerian SMEs — hustlers who
 sell fashion, beauty, food, and services primarily via WhatsApp.
 
@@ -15,10 +15,9 @@ sell fashion, beauty, food, and services primarily via WhatsApp.
 1. **Strictness is Safety:** TypeScript errors are blockers. `any` is forbidden.
 2. **Trust but Verify:** Never trust client-side data. Verify billing and
    ad-spend logic on the server.
-3. **Local Context:** Build for the Nigerian user — mobile-first, Naira
-   currency, WhatsApp as the primary conversion channel.
+3. **Global-Ready, Nigeria-First:** Build globally scalable. Default to Nigerian SME context for MVP (NG, NGN, WhatsApp). Parameterize currency, location, and CTA channel via `organizations.country_code` and `organizations.currency_default`. Never hardcode `₦`, `234`, `NGN`, or `Lagos` — always derive from org context with NG/NGN as the default fallback.
 4. **AdTech Complexity:** Wrap fragile Meta APIs in robust error handling
-   via AdSyncGuard.
+   via TenzuGuard.
 
 ---
 
@@ -26,6 +25,7 @@ sell fashion, beauty, food, and services primarily via WhatsApp.
 
 - **Supabase MCP Server**: Use this for database research, running SQL queries, reading table structures, and applying migrations directly to the active project.
 - **Perplexity-Ask MCP Server**: Use the Perplexity search integration to perform advanced, up-to-date research, search for current documentation, and resolve external implementation issues.
+- **Supabase Types**: Use this to get the types of the database tables. It is located at `src/types/supabase.ts`. To update it, run `npx -y supabase gen types typescript --project-id iomvjxlfxeppizkhehcl --schema public > src/types/supabase.ts`
 
 ---
 
@@ -49,17 +49,17 @@ sell fashion, beauty, food, and services primarily via WhatsApp.
 - **Budget:** Set at Ad Set level (`is_adset_budget_sharing_enabled: false`)
 - **No SDKs:** Use raw fetch for full control
 - **Token Security:** Encrypt tokens in DB (AES-256-CBC). Decrypt only server-side
-- **Attribution:** Every ad destination MUST be wrapped in a Sellam smart link
-  (sellam.app/l/[token]) — never send raw wa.me or website URLs to Meta directly
+- **Attribution:** Every ad destination MUST be wrapped in a Tenzu smart link
+  (tenzu.africa/l/[token]) — never send raw wa.me or website URLs to Meta directly
 - **TikTok:** Gated in backend. Remove from UI. Do not implement in Phase 1.
 
 ### B. Business Logic
 
 - **Prepaid Access:** Monthly subscription via Paystack for platform access
 - **Ad Spend (Phase 1):** Charged directly by Meta to user's own card
-- **Ad Spend (Phase 2A+):** Sellam wallet — SME tops up in Naira via Paystack,
-  Sellam funds a per-org isolated virtual USD card (Grey/Geegpay API).
-  SME never sees a dollar amount. NEVER use a shared Sellam card on Meta.
+- **Ad Spend (Phase 2A+):** Tenzu wallet — SME tops up in Naira via Paystack,
+  Tenzu funds a per-org isolated virtual USD card (Grey/Geegpay API).
+  SME never sees a dollar amount. NEVER use a shared Tenzu card on Meta.
 - **Gatekeeper:** Check subscription_status === 'active' before any API write
 - **Policy Guard:** Run ad copy through policy check before Meta submission.
   Block on HIGH risk. Warn on MEDIUM. Pass LOW silently.
@@ -102,7 +102,7 @@ sell fashion, beauty, food, and services primarily via WhatsApp.
 - **Strong Vertical Axis:** Headers must align with content body
 - **Exceptions:** Hero areas and full-bleed sections only
 
-### G. UI Language (Sellam Voice)
+### G. UI Language (Tenzu Voice)
 
 - Never say "campaign" when "sale" or "ad" works
 - Never say "impressions" in user-facing copy — say "people reached"

@@ -1,13 +1,13 @@
-# AdSync Marketing & Copywriting Skill - Implementation Guide
+# Tenzu Marketing & Copywriting Skill - Implementation Guide
 
 ## What's Included
 
-This enhanced marketing skill provides comprehensive guidance for positioning AdSync as the leading ad management solution for African SMEs. It's organized using progressive disclosure patterns for maximum efficiency.
+This enhanced marketing skill provides comprehensive guidance for positioning Tenzu as the leading ad management solution for African SMEs. It's organized using progressive disclosure patterns for maximum efficiency.
 
 ## File Structure
 
 ```
-adsync-marketing-enhanced/
+tenzu-marketing-enhanced/
 ├── SKILL.md                           # Main skill file (quick reference + framework)
 ├── references/                        # Detailed reference materials
 │   ├── brand-voice.md                 # Complete vocabulary & tone guidelines
@@ -63,7 +63,7 @@ adsync-marketing-enhanced/
 
 ## Key Competitive Advantages
 
-The skill positions AdSync on three core pillars:
+The skill positions Tenzu on three core pillars:
 
 ### 1. Payment Advantage (Naira-Native)
 - **Pain:** International tools reject Nigerian cards
@@ -119,7 +119,7 @@ Example: "Run Professional Facebook Ads in 2 Minutes. Pay in Naira. No Expert Ne
 ```
 1. State pain clearly
 2. Make them feel it  
-3. Show AdSync as the fix
+3. Show Tenzu as the fix
 ```
 
 ### Feature-Benefit-Proof (FBP)
@@ -150,9 +150,9 @@ Before publishing any copy, verify:
 
 ### For Use in .agent/skills Directory
 
-1. Copy the `adsync-marketing-enhanced` folder to your project's `.agent/skills/` directory:
+1. Copy the `tenzu-marketing-enhanced` folder to your project's `.agent/skills/` directory:
    ```
-   .agent/skills/adsync-marketing-copywriter/
+   .agent/skills/tenzu-marketing-copywriter/
    ```
 
 2. The skill will be automatically available when you start working on marketing tasks
