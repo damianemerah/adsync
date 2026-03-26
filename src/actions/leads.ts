@@ -2,16 +2,17 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getActiveOrgId } from "@/lib/active-org";
+import { Database } from "@/types/supabase";
 
-export interface LeadSubmission {
-  id: string;
-  leadgen_id: string;
-  form_id: string;
-  ad_id: string | null;
-  campaign_id: string;
-  field_data: Array<{ name: string; values: string[] }>;
-  submitted_at: string;
-  created_at: string;
+// Type for the field data structure from Meta API
+export type FieldData = { name: string; values: string[] };
+
+// Database row type
+type LeadSubmissionRow = Database["public"]["Tables"]["lead_submissions"]["Row"];
+
+// Our application type with properly typed field_data
+export interface LeadSubmission extends Omit<LeadSubmissionRow, "field_data"> {
+  field_data: FieldData[];
 }
 
 export interface LeadStats {

@@ -33,7 +33,7 @@ export function CampaignIssuesBadge({
   const warningCount = issues.filter((i) => i.error_type === "warning").length;
 
   // Determine the highest severity issue
-  let variant: "destructive" | "warning" | "secondary" = "secondary";
+  let variant: "destructive" | "secondary" = "secondary";
   let icon = <Info className="h-3 w-3" />;
   let label = "";
 
@@ -50,7 +50,7 @@ export function CampaignIssuesBadge({
       ? `${errorCount}`
       : `${errorCount} Error${errorCount > 1 ? "s" : ""}`;
   } else if (warningCount > 0) {
-    variant = "warning";
+    variant = "secondary";
     icon = <AlertTriangle className="h-3 w-3" />;
     label = compact
       ? `${warningCount}`

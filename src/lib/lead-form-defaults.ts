@@ -13,7 +13,7 @@ const INDUSTRY_FIELD_MAP: Record<string, LeadFormDefaults> = {
     fields: [
       { id: nanoid(), type: "FULL_NAME" },
       { id: nanoid(), type: "EMAIL" },
-      { id: nanoid(), type: "PHONE" },
+      { id: nanoid(), type: "PHONE_NUMBER" },
       {
         id: nanoid(),
         type: "USER_CHOICE",
@@ -27,7 +27,7 @@ const INDUSTRY_FIELD_MAP: Record<string, LeadFormDefaults> = {
     fields: [
       { id: nanoid(), type: "FULL_NAME" },
       { id: nanoid(), type: "EMAIL" },
-      { id: nanoid(), type: "PHONE" },
+      { id: nanoid(), type: "PHONE_NUMBER" },
       {
         id: nanoid(),
         type: "USER_CHOICE",
@@ -40,7 +40,7 @@ const INDUSTRY_FIELD_MAP: Record<string, LeadFormDefaults> = {
   "Food & Beverage": {
     fields: [
       { id: nanoid(), type: "FULL_NAME" },
-      { id: nanoid(), type: "PHONE" },
+      { id: nanoid(), type: "PHONE_NUMBER" },
       { id: nanoid(), type: "EMAIL" },
       {
         id: nanoid(),
@@ -55,7 +55,7 @@ const INDUSTRY_FIELD_MAP: Record<string, LeadFormDefaults> = {
     fields: [
       { id: nanoid(), type: "FULL_NAME" },
       { id: nanoid(), type: "EMAIL" },
-      { id: nanoid(), type: "PHONE" },
+      { id: nanoid(), type: "PHONE_NUMBER" },
       {
         id: nanoid(),
         type: "USER_CHOICE",
@@ -69,7 +69,7 @@ const INDUSTRY_FIELD_MAP: Record<string, LeadFormDefaults> = {
     fields: [
       { id: nanoid(), type: "FULL_NAME" },
       { id: nanoid(), type: "EMAIL" },
-      { id: nanoid(), type: "PHONE" },
+      { id: nanoid(), type: "PHONE_NUMBER" },
       {
         id: nanoid(),
         type: "USER_CHOICE",
@@ -83,7 +83,7 @@ const INDUSTRY_FIELD_MAP: Record<string, LeadFormDefaults> = {
     fields: [
       { id: nanoid(), type: "FULL_NAME" },
       { id: nanoid(), type: "WORK_EMAIL" },
-      { id: nanoid(), type: "PHONE" },
+      { id: nanoid(), type: "PHONE_NUMBER" },
       { id: nanoid(), type: "COMPANY_NAME" },
       { id: nanoid(), type: "JOB_TITLE" },
     ],
@@ -95,7 +95,7 @@ const DEFAULT_FORM: LeadFormDefaults = {
   fields: [
     { id: nanoid(), type: "FULL_NAME" },
     { id: nanoid(), type: "EMAIL" },
-    { id: nanoid(), type: "PHONE" },
+    { id: nanoid(), type: "PHONE_NUMBER" },
     {
       id: nanoid(),
       type: "CUSTOM",

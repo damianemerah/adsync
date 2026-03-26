@@ -14,6 +14,19 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
+async function fetchWithRetry(url: string, options: any, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    const res = await fetch(url, options);
+    if (res.status >= 500) {
+      console.log(`     [Retry ${i + 1}/${maxRetries}] Server error ${res.status}. Retrying in ${2 ** i}s...`);
+      await new Promise((resolve) => setTimeout(resolve, (2 ** i) * 1000));
+      continue;
+    }
+    return res;
+  }
+  return fetch(url, options); // last try
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -80,7 +93,7 @@ async function uploadSkill(
       `   Found existing ID (${existingSkillId}). Creating new version... `,
     );
     try {
-      const versionRes = await fetch(
+      const versionRes = await fetchWithRetry(
         `https://api.openai.com/v1/skills/${existingSkillId}/versions`,
         {
           method: "POST",
@@ -94,12 +107,13 @@ async function uploadSkill(
       }
 
       const versionData = await versionRes.json();
+      console.log("VERSION DATA:", JSON.stringify(versionData));
       if (!versionData.id) throw new Error("No version ID returned.");
 
       process.stdout.write(
         `✅\n   Setting default version to ${versionData.id}... `,
       );
-      const updateRes = await fetch(
+      const updateRes = await fetchWithRetry(
         `https://api.openai.com/v1/skills/${existingSkillId}`,
         {
           method: "POST",
@@ -107,7 +121,7 @@ async function uploadSkill(
             Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ default_version: versionData.id }),
+          body: JSON.stringify({ default_version: versionData.id, version: parseInt(versionData.version) }),
         },
       );
 
@@ -123,7 +137,7 @@ async function uploadSkill(
       );
       // Fallback: Delete the existing skill
       try {
-        await fetch(`https://api.openai.com/v1/skills/${existingSkillId}`, {
+        await fetchWithRetry(`https://api.openai.com/v1/skills/${existingSkillId}`, {
           method: "DELETE",
           headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
         });
@@ -134,7 +148,7 @@ async function uploadSkill(
   }
 
   // Normal creation (either new skill, or fallback from failed update)
-  const response = await fetch("https://api.openai.com/v1/skills", {
+  const response = await fetchWithRetry("https://api.openai.com/v1/skills", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
@@ -166,7 +180,7 @@ async function main() {
   const existingSkillsMap: Record<string, string> = {};
 
   try {
-    const listResponse = await fetch("https://api.openai.com/v1/skills", {
+    const listResponse = await fetchWithRetry("https://api.openai.com/v1/skills", {
       headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
     });
 

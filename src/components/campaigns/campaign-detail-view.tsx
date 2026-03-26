@@ -38,7 +38,6 @@ import {
   GraphUp,
   Refresh,
   Mail,
-  BarChart,
 } from "iconoir-react";
 import { DataTable, Column } from "@/components/ui/data-table";
 import { Campaign } from "@/lib/api/campaigns";
@@ -365,7 +364,7 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
               value="overview"
               className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none bg-transparent px-0 pb-3 pt-3 h-full font-semibold"
             >
-              <Dashboard className="h-4 w-4 mr-2" />
+              <ViewGrid className="h-4 w-4 mr-2" />
               Overview
             </TabsTrigger>
             {isLeadGenCampaign && (

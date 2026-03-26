@@ -48,7 +48,7 @@ export async function getFxRate(): Promise<number> {
     }
 
     // Update cache
-    cachedRate = parseFloat(data.rate_ngn_per_usd);
+    cachedRate = Number(data.rate_ngn_per_usd);
     cacheTimestamp = now;
 
     return cachedRate;
