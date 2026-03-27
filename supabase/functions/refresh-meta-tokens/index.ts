@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 const META_API_VERSION = "v25.0";
-const STALE_DAYS = 50;
+const STALE_DAYS = 30; // Refresh at 30 days (30-day buffer before 60-day expiration)
 
 // ── AES-GCM helpers (Deno Web Crypto API) ─────────────────────────────────────
 

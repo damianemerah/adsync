@@ -10,6 +10,7 @@ import { SubPlacementROICard } from "@/components/campaigns/sub-placement-roi-ca
 import { PostLaunchRuleAlert } from "@/components/campaigns/post-launch-rule-alert";
 import { DemographicsCard } from "@/components/campaigns/demographics-card";
 import { LeadsList } from "@/components/campaigns/leads-list";
+import { PixelUpgradeBanner } from "@/components/campaigns/pixel-upgrade-banner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -100,11 +101,13 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
       if (insightsResult.success && adsResult.success) {
         toast.success(
           `Synced ${insightsResult.count || 0} days of insights and ${adsResult.count || 0} ads`,
-          { id: "sync-campaign" }
+          { id: "sync-campaign" },
         );
         router.refresh(); // Refresh the page to show new data
       } else {
-        throw new Error(insightsResult.error || adsResult.error || "Sync failed");
+        throw new Error(
+          insightsResult.error || adsResult.error || "Sync failed",
+        );
       }
     } catch (error: any) {
       toast.error("Failed to sync campaign", {
@@ -387,81 +390,95 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
         </div>
 
         {/* Overview Tab */}
-        <TabsContent value="overview" className="flex-1 overflow-y-auto p-6 space-y-6 m-0">
+        <TabsContent
+          value="overview"
+          className="flex-1 overflow-y-auto p-6 space-y-6 m-0"
+        >
           {/* Post-launch intelligence alert — surfaces highest-severity triggered rule */}
           <PostLaunchRuleAlert campaign={campaign} />
 
-        {/* Attribution & ROI Section */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-              <StatsReport className="h-4 w-4" /> Attribution & ROI
-            </h3>
-            <MarkAsSoldButton campaignId={campaign.id} />
+          {/* Pixel Optimization Upgrade Banner */}
+          {campaign.objective === "traffic" &&
+            !campaign.usesPixelOptimization &&
+            campaign.adAccount?.metaPixelId &&
+            campaign.adAccount?.capiAccessToken && (
+              <PixelUpgradeBanner
+                campaignId={campaign.id}
+                campaignName={campaign.name}
+              />
+            )}
+
+          {/* Attribution & ROI Section */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <StatsReport className="h-4 w-4" /> Attribution & ROI
+              </h3>
+              <MarkAsSoldButton campaignId={campaign.id} />
+            </div>
+            <ROIMetricsCard campaignId={campaign.id} />
+            {campaign.pixelToken && (
+              <PixelSnippetCard pixelToken={campaign.pixelToken} />
+            )}
+            <SubPlacementROICard campaignId={campaign.id} />
           </div>
-          <ROIMetricsCard campaignId={campaign.id} />
-          {campaign.pixelToken && (
-            <PixelSnippetCard pixelToken={campaign.pixelToken} />
-          )}
-          <SubPlacementROICard campaignId={campaign.id} />
-        </div>
 
-        {/* Ad Set / Targeting Summary */}
-        <div className="space-y-3">
-          <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-            <Settings className="h-4 w-4" /> Configuration
-          </h3>
-          <Card className="border-slate-200 shadow-sm">
-            <CardContent className="p-0">
-              <div className="grid grid-cols-2 divide-x divide-slate-100">
-                <div className="p-4 space-y-1">
-                  <span className="text-xs font-semibold text-slate-500 uppercase">
-                    Optimization Goal
-                  </span>
-                  <p className="font-medium text-slate-900 capitalize">
-                    {campaign.objective.replace(/_/g, " ")}
-                  </p>
-                </div>
-                <div className="p-4 space-y-1">
-                  <span className="text-xs font-semibold text-slate-500 uppercase">
-                    Bid Strategy
-                  </span>
-                  <p className="font-medium text-slate-900">Highest Volume</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Ads Table */}
-        <AdsTable ads={campaign.ads || []} formatMoney={formatMoney} />
-
-        {/* Performance Graph */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          {/* Ad Set / Targeting Summary */}
+          <div className="space-y-3">
             <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-              <GraphUp className="h-4 w-4" /> Performance
+              <Settings className="h-4 w-4" /> Configuration
             </h3>
+            <Card className="border-slate-200 shadow-sm">
+              <CardContent className="p-0">
+                <div className="grid grid-cols-2 divide-x divide-slate-100">
+                  <div className="p-4 space-y-1">
+                    <span className="text-xs font-semibold text-slate-500 uppercase">
+                      Optimization Goal
+                    </span>
+                    <p className="font-medium text-slate-900 capitalize">
+                      {campaign.objective.replace(/_/g, " ")}
+                    </p>
+                  </div>
+                  <div className="p-4 space-y-1">
+                    <span className="text-xs font-semibold text-slate-500 uppercase">
+                      Bid Strategy
+                    </span>
+                    <p className="font-medium text-slate-900">Highest Volume</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-            {/* Metric Toggles */}
-            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
-              {(Object.keys(METRIC_CONFIG) as MetricKey[]).map((key) => {
-                const isActive = activeMetrics.includes(key);
-                const config = METRIC_CONFIG[key];
-                const Icon = config.icon;
+          {/* Ads Table */}
+          <AdsTable ads={campaign.ads || []} formatMoney={formatMoney} />
 
-                return (
-                  <button
-                    key={key}
-                    onClick={() => {
-                      if (isActive && activeMetrics.length === 1) return; // Prevent empty
-                      setActiveMetrics((prev) =>
-                        isActive
-                          ? prev.filter((k) => k !== key)
-                          : [...prev, key],
-                      );
-                    }}
-                    className={`
+          {/* Performance Graph */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <GraphUp className="h-4 w-4" /> Performance
+              </h3>
+
+              {/* Metric Toggles */}
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
+                {(Object.keys(METRIC_CONFIG) as MetricKey[]).map((key) => {
+                  const isActive = activeMetrics.includes(key);
+                  const config = METRIC_CONFIG[key];
+                  const Icon = config.icon;
+
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => {
+                        if (isActive && activeMetrics.length === 1) return; // Prevent empty
+                        setActiveMetrics((prev) =>
+                          isActive
+                            ? prev.filter((k) => k !== key)
+                            : [...prev, key],
+                        );
+                      }}
+                      className={`
                       flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all
                       ${
                         isActive
@@ -469,19 +486,22 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
                           : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
                       }
                     `}
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    <span>{config.label}</span>
-                  </button>
-                );
-              })}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      <span>{config.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="h-[300px] w-full bg-white border border-slate-200 rounded-md p-4 shadow-sm">
+              <PerformanceChart
+                data={chartData}
+                activeMetrics={activeMetrics}
+              />
             </div>
           </div>
-
-          <div className="h-[300px] w-full bg-white border border-slate-200 rounded-md p-4 shadow-sm">
-            <PerformanceChart data={chartData} activeMetrics={activeMetrics} />
-          </div>
-        </div>
         </TabsContent>
 
         {/* Leads Tab */}
@@ -492,7 +512,10 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
         )}
 
         {/* Analytics Tab */}
-        <TabsContent value="analytics" className="flex-1 overflow-y-auto p-6 space-y-6 m-0">
+        <TabsContent
+          value="analytics"
+          className="flex-1 overflow-y-auto p-6 space-y-6 m-0"
+        >
           {/* Demographics Visualization */}
           {campaign.demographics && (
             <div className="space-y-3">

@@ -19,7 +19,9 @@ export async function getCampaignById(supabase: SupabaseClient, id: string) {
         platform,
         currency,
         account_name,
-        access_token
+        access_token,
+        meta_pixel_id,
+        capi_access_token
       )
     `,
     )
@@ -372,6 +374,8 @@ export async function getCampaignById(supabase: SupabaseClient, id: string) {
           platform: data.ad_accounts.platform,
           currency: data.ad_accounts.currency || "NGN",
           accountName: data.ad_accounts.account_name,
+          metaPixelId: data.ad_accounts.meta_pixel_id,
+          capiAccessToken: data.ad_accounts.capi_access_token,
         }
       : null,
     // Add new fields to return object
@@ -389,6 +393,8 @@ export async function getCampaignById(supabase: SupabaseClient, id: string) {
     whatsappClicks: data.whatsapp_clicks || 0,
     websiteClicks: data.website_clicks || 0,
     whatsappClickRate: data.whatsapp_click_rate || 0,
+    // Pixel optimization flag
+    usesPixelOptimization: data.uses_pixel_optimization || false,
   };
 }
 

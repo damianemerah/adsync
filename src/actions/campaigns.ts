@@ -1102,3 +1102,144 @@ export async function getCampaignPlacementInsights(campaignId: string) {
     return { success: false, error: error.message };
   }
 }
+
+/**
+ * Upgrade a traffic campaign from OUTCOME_TRAFFIC to OUTCOME_SALES
+ * when Meta Pixel is configured. This optimizes for conversions instead of clicks.
+ *
+ * IMPORTANT: Only works for campaigns with objective='traffic' that haven't been upgraded yet.
+ */
+export async function upgradeToPixelOptimization(campaignId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const orgId = await getActiveOrgId();
+  if (!orgId) throw new Error("No organization");
+
+  try {
+    // 1. Fetch campaign with ad account details
+    const { data: campaign, error: campErr } = await supabase
+      .from("campaigns")
+      .select(
+        `
+        id,
+        objective,
+        uses_pixel_optimization,
+        platform_campaign_id,
+        ad_accounts!inner(
+          id,
+          access_token,
+          meta_pixel_id,
+          capi_access_token
+        )
+      `
+      )
+      .eq("id", campaignId)
+      .eq("organization_id", orgId)
+      .single();
+
+    if (campErr || !campaign) {
+      throw new Error("Campaign not found");
+    }
+
+    // 2. Validate upgrade requirements
+    if (campaign.objective !== "traffic") {
+      throw new Error("Only Website Sales campaigns can be upgraded");
+    }
+
+    if (campaign.uses_pixel_optimization) {
+      throw new Error("Campaign is already using pixel optimization");
+    }
+
+    if (
+      !campaign.ad_accounts.meta_pixel_id ||
+      !campaign.ad_accounts.capi_access_token
+    ) {
+      throw new Error(
+        "Meta Pixel not configured. Please add your Pixel ID in Settings → Business."
+      );
+    }
+
+    if (!campaign.platform_campaign_id) {
+      throw new Error("Campaign not yet launched to Meta");
+    }
+
+    // 3. Decrypt access token
+    const accessToken = decrypt(campaign.ad_accounts.access_token);
+
+    // 4. Update Meta Campaign objective to OUTCOME_SALES
+    await MetaService.request(
+      `/${campaign.platform_campaign_id}`,
+      "POST",
+      accessToken,
+      {
+        objective: "OUTCOME_SALES",
+      }
+    );
+
+    // 5. Get the ad set ID for this campaign
+    const adSetRes = await MetaService.request(
+      `/${campaign.platform_campaign_id}/adsets?fields=id,optimization_goal`,
+      "GET",
+      accessToken
+    );
+
+    if (!adSetRes.data || adSetRes.data.length === 0) {
+      throw new Error("No ad set found for this campaign");
+    }
+
+    const adSetId = adSetRes.data[0].id;
+
+    // 6. Update Ad Set optimization goal to OFFSITE_CONVERSIONS
+    await MetaService.request(`/${adSetId}`, "POST", accessToken, {
+      optimization_goal: "OFFSITE_CONVERSIONS",
+    });
+
+    // 7. Mark campaign as using pixel optimization in our DB
+    const { error: updateErr } = await supabase
+      .from("campaigns")
+      .update({
+        uses_pixel_optimization: true,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", campaignId);
+
+    if (updateErr) {
+      console.error("Failed to update campaign flag:", updateErr);
+      // Non-critical - Meta update succeeded, just log the error
+    }
+
+    // 8. Send success notification
+    await sendNotification(supabase, user.id, {
+      type: "success",
+      category: "campaign",
+      title: "🎯 Campaign Upgraded!",
+      message:
+        "Your campaign now optimizes for purchases instead of clicks. You should see better conversion rates.",
+      actionUrl: `/campaigns/${campaignId}`,
+      actionLabel: "View Campaign",
+    });
+
+    revalidatePath("/campaigns");
+    revalidatePath(`/campaigns/${campaignId}`);
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Upgrade to Pixel Optimization Error:", error);
+
+    // Handle Meta API errors gracefully
+    if (isMetaAPIError(error)) {
+      const display = getUserErrorDisplay(error);
+      return {
+        success: false,
+        error: display.message,
+        details: display.details,
+      };
+    }
+
+    return { success: false, error: error.message };
+  }
+}

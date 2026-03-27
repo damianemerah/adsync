@@ -51,14 +51,45 @@ export async function GET(request: NextRequest) {
   const longData = await longRes.json();
   console.debug("[Meta Callback] Long-Lived Token Response:", longData);
 
-  const finalToken = longData.access_token || tokenData.access_token; // Fallback if exchange fails
-  console.debug("[Meta Callback] Final access token selected", {
-    finalToken: finalToken ? "[REDACTED]" : "undefined",
-  });
-  console.log(
-    "longData.access_token === finalToken",
-    longData.access_token === finalToken,
-  );
+  // ⚠️ CRITICAL: Only accept long-lived token, no fallback to short-lived
+  if (!longData.access_token) {
+    console.error("[Meta Callback] Long-lived token exchange failed:", longData);
+    return NextResponse.redirect(
+      `${process.env.NEXT_PUBLIC_APP_URL}/settings/business?error=token_exchange_failed`,
+    );
+  }
+
+  const finalToken = longData.access_token;
+  console.debug("[Meta Callback] Long-lived token obtained successfully");
+
+  // 2b. Validate token expiration using debug_token endpoint
+  const debugUrl = `https://graph.facebook.com/v25.0/debug_token?input_token=${finalToken}&access_token=${process.env.META_APP_ID}|${process.env.META_APP_SECRET}`;
+  const debugRes = await fetch(debugUrl);
+  const debugData = await debugRes.json();
+
+  if (debugData.data?.expires_at) {
+    const expiresAtSeconds = debugData.data.expires_at;
+    const now = Math.floor(Date.now() / 1000);
+    const daysUntilExpiry = (expiresAtSeconds - now) / (60 * 60 * 24);
+
+    console.debug("[Meta Callback] Token validation:", {
+      expires_at: new Date(expiresAtSeconds * 1000).toISOString(),
+      days_until_expiry: Math.floor(daysUntilExpiry),
+    });
+
+    // Verify we got a long-lived token (should be ~60 days)
+    if (daysUntilExpiry < 30) {
+      console.error("[Meta Callback] Token expiration too short:", {
+        days: daysUntilExpiry,
+        expected: "~60 days",
+      });
+      return NextResponse.redirect(
+        `${process.env.NEXT_PUBLIC_APP_URL}/settings/business?error=token_lifetime_too_short`,
+      );
+    }
+  } else {
+    console.warn("[Meta Callback] Could not validate token expiration");
+  }
 
   // 3. Get User's Organization
   const supabase = await createClient(); // Await not needed for creating client, but needed for DB calls
@@ -188,7 +219,8 @@ export async function GET(request: NextRequest) {
         access_token: encrypt(finalToken), // 🔒 Secure storage
         health_status: "healthy",
         last_health_check: new Date().toISOString(),
-        token_refreshed_at: new Date().toISOString(), // Track when this long-lived token was obtained
+        // ✅ Don't set token_refreshed_at on initial OAuth — only set it when refreshing
+        // The refresh cron uses connected_at as fallback when token_refreshed_at is null
         disconnected_at: null, // ✅ Clear soft delete flag on reconnection (preserves history)
         // Note: You might want to fetch/store funding source details here too if available
       },

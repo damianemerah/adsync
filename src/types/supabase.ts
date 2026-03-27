@@ -515,6 +515,7 @@ export type Database = {
           targeting_snapshot: Json | null
           total_link_clicks: number | null
           updated_at: string | null
+          uses_pixel_optimization: boolean | null
           website_clicks: number | null
           whatsapp_click_rate: number | null
           whatsapp_clicks: number | null
@@ -554,6 +555,7 @@ export type Database = {
           targeting_snapshot?: Json | null
           total_link_clicks?: number | null
           updated_at?: string | null
+          uses_pixel_optimization?: boolean | null
           website_clicks?: number | null
           whatsapp_click_rate?: number | null
           whatsapp_clicks?: number | null
@@ -593,6 +595,7 @@ export type Database = {
           targeting_snapshot?: Json | null
           total_link_clicks?: number | null
           updated_at?: string | null
+          uses_pixel_optimization?: boolean | null
           website_clicks?: number | null
           whatsapp_click_rate?: number | null
           whatsapp_clicks?: number | null

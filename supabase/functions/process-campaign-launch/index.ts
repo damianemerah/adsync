@@ -103,6 +103,15 @@ serve(async (req) => {
 
       const adAccountId = campaign.ad_accounts.platform_account_id;
 
+      // Check if ad account has Meta Pixel configured (for conversion optimization)
+      const hasMetaPixel = !!(
+        campaign.ad_accounts.meta_pixel_id &&
+        campaign.ad_accounts.capi_access_token
+      );
+      console.log(
+        `[Worker] Meta Pixel configured: ${hasMetaPixel ? "YES" : "NO"}${hasMetaPixel ? ` (ID: ${campaign.ad_accounts.meta_pixel_id})` : ""}`
+      );
+
       // ── STEP 1: GET FACEBOOK PAGE ───────────────────────────────────────
       console.log("[Worker] Step 1: Fetching Facebook pages");
       const pagesRes = await metaRequest(
@@ -123,7 +132,8 @@ serve(async (req) => {
         accessToken,
         adAccountId,
         config.name,
-        config.objective
+        config.objective,
+        hasMetaPixel
       );
       metaResources.push({ type: "campaign", id: metaCampaign.id });
       console.log(`[Worker] ✅ Created campaign ${metaCampaign.id}`);
@@ -135,7 +145,8 @@ serve(async (req) => {
         adAccountId,
         metaCampaign.id,
         pageId,
-        config
+        config,
+        hasMetaPixel
       );
       metaResources.push({ type: "adset", id: metaAdSet.id });
       console.log(`[Worker] ✅ Created ad set ${metaAdSet.id}`);
@@ -200,6 +211,7 @@ serve(async (req) => {
           platform_campaign_id: metaCampaign.id,
           status: "pending_review", // Meta will review before activating
           advantage_plus_config: advantagePlusConfig, // v25.0: Track Advantage+ features
+          uses_pixel_optimization: hasMetaPixel && config.objective === "traffic", // Track if using OUTCOME_SALES
           updated_at: new Date().toISOString(),
         })
         .eq("id", campaignId);
@@ -384,17 +396,20 @@ async function createMetaCampaign(
   token: string,
   adAccountId: string,
   name: string,
-  objective: string
+  objective: string,
+  hasMetaPixel: boolean = false
 ) {
   const id = adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
 
   // Map AdSync objectives to Meta objectives
+  // CRITICAL: For "traffic" (Website Sales), use OUTCOME_SALES when Meta Pixel is configured
+  // This enables conversion optimization instead of just click optimization
   const metaObjectiveMap: Record<string, string> = {
-    traffic: "OUTCOME_TRAFFIC",
+    traffic: hasMetaPixel ? "OUTCOME_SALES" : "OUTCOME_TRAFFIC",
     sales: "OUTCOME_SALES",
     awareness: "OUTCOME_AWARENESS",
     engagement: "OUTCOME_ENGAGEMENT",
-    whatsapp: "OUTCOME_TRAFFIC",
+    whatsapp: "OUTCOME_ENGAGEMENT", // Fixed: was OUTCOME_TRAFFIC, should be ENGAGEMENT for CONVERSATIONS
     leads: "OUTCOME_LEADS",
     app_promotion: "OUTCOME_APP_PROMOTION",
   };
@@ -413,7 +428,8 @@ async function createMetaAdSet(
   adAccountId: string,
   campaignId: string,
   pageId: string,
-  config: any
+  config: any,
+  hasMetaPixel: boolean = false
 ) {
   const id = adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
 
@@ -439,15 +455,21 @@ async function createMetaAdSet(
   }
 
   // Optimization goal
+  // CRITICAL: For "traffic" objective, use OFFSITE_CONVERSIONS when Meta Pixel configured
+  // This optimizes for purchases instead of just page views
   const optimizationMap: Record<string, string> = {
-    traffic: "LINK_CLICKS",
-    sales: "LINK_CLICKS",
+    traffic: hasMetaPixel ? "OFFSITE_CONVERSIONS" : "LANDING_PAGE_VIEWS",
+    sales: "OFFSITE_CONVERSIONS",
     awareness: "REACH",
     engagement: "POST_ENGAGEMENT",
     whatsapp: "CONVERSATIONS",
     leads: "LEAD_GENERATION",
     app_promotion: "APP_INSTALLS",
   };
+
+  console.log(
+    `[Worker] Ad Set optimization_goal: ${optimizationMap[config.objective]} (pixel: ${hasMetaPixel})`
+  );
 
   const payload: any = {
     name: `${config.name} - Ad Set`,

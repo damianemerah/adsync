@@ -1,3 +1,10 @@
+-- Update token refresh cron to run every 12 hours instead of daily
+-- This provides better reliability and catches any missed refresh cycles
+
+-- 1. Unschedule existing daily cron
+select cron.unschedule('refresh-meta-tokens');
+
+-- 2. Reschedule to run every 12 hours (3:00 AM and 3:00 PM UTC)
 select cron.schedule(
   'refresh-meta-tokens',
   '0 3,15 * * *',  -- Every 12 hours at 3:00 AM and 3:00 PM UTC (better reliability)
