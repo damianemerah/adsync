@@ -1213,7 +1213,9 @@ export async function upgradeToPixelOptimization(campaignId: string) {
     }
 
     // 8. Send success notification
-    await sendNotification(supabase, user.id, {
+    await sendNotification({
+      userId: user.id,
+      organizationId: orgId,
       type: "success",
       category: "campaign",
       title: "🎯 Campaign Upgraded!",
@@ -1221,7 +1223,7 @@ export async function upgradeToPixelOptimization(campaignId: string) {
         "Your campaign now optimizes for purchases instead of clicks. You should see better conversion rates.",
       actionUrl: `/campaigns/${campaignId}`,
       actionLabel: "View Campaign",
-    });
+    }, supabase);
 
     revalidatePath("/campaigns");
     revalidatePath(`/campaigns/${campaignId}`);
@@ -1236,7 +1238,6 @@ export async function upgradeToPixelOptimization(campaignId: string) {
       return {
         success: false,
         error: display.message,
-        details: display.details,
       };
     }
 
