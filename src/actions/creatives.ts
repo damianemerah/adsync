@@ -62,6 +62,8 @@ export async function saveCreative(params: {
   const orgId = await getActiveOrgId();
   if (!orgId) throw new Error("No organization found");
 
+  const mediaType = params.format.startsWith("video/") ? "video" : "image";
+
   // Insert the creative with server-validated organization_id
   const { data, error } = await supabase
     .from("creatives")
@@ -71,7 +73,7 @@ export async function saveCreative(params: {
       thumbnail_url: params.thumbnailUrl,
       width: params.width,
       height: params.height,
-      media_type: params.format,
+      media_type: mediaType,
       generation_context: params.generationParams,
     })
     .select()
