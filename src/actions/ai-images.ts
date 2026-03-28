@@ -735,7 +735,6 @@ export async function saveCreativeToLibrary({
     width: dims.width,
     height: dims.height,
     format: "image/jpeg",
-    aiGenerated: true,
     generationParams: {
       prompt,
       aspectRatio,

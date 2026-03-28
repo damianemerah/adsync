@@ -1,10 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+// pg_cron-invoked edge function — no CORS headers needed
 
 const API_VERSION = "v25.0";
 
@@ -32,8 +29,8 @@ async function getCampaignInsights(token: string, campaignId: string) {
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST") {
+    return new Response("Method not allowed", { status: 405 });
   }
 
   try {
@@ -52,7 +49,7 @@ serve(async (req) => {
     if (campErr) throw campErr;
     if (!campaigns || campaigns.length === 0) {
       return new Response(JSON.stringify({ message: "No campaigns to sync" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
         status: 200,
       });
     }
@@ -207,13 +204,13 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ success: true, synced: syncedCount, errors: errorCount }),
       {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
         status: 200,
       },
     );
   } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       status: 400,
     });
   }

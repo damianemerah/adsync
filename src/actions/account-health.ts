@@ -194,13 +194,24 @@ export async function getAccountHealth(): Promise<AccountHealthResult> {
   const rejectedCount = rejectedAds?.length ?? 0;
   if (rejectedCount > 0) {
     totalProblems += rejectedCount;
+
+    // Build detailed rejection message including reasons
+    const rejectionDetails = (rejectedAds || [])
+      .map((ad) => {
+        const reason = ad.rejection_reason
+          ? `: ${ad.rejection_reason}`
+          : " (reason pending)";
+        return `• ${ad.name}${reason}`;
+      })
+      .join("\n");
+
     checks.push({
       id: "ad_rejections",
       label: "Ad Approval Status",
       description: `${rejectedCount} ad(s) were rejected by Meta.`,
       status: "critical",
       problemCount: rejectedCount,
-      detail: `Rejected ads: ${(rejectedAds || []).map((a) => a.name).join(", ")}. Review and fix creative or copy to comply with Meta's policies.`,
+      detail: `Rejected ads:\n${rejectionDetails}\n\nReview and fix creative or copy to comply with Meta's policies.`,
       actionLabel: "View Campaigns",
       actionUrl: "/campaigns",
     });

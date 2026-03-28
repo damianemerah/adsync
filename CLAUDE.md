@@ -6,6 +6,10 @@
 
 - **Supabase MCP Server**: Use this for database research, running SQL queries, reading table structures, and applying migrations directly to the active project. Always apply migration with exact name and timestamp as on local files.
 - **Perplexity-Ask MCP Server**: Use the Perplexity search integration to perform advanced, up-to-date research, search for current documentation, and resolve external implementation issues.
+- **Context7 MCP Server**: **CRITICAL FOR META API:** Use this to fetch current Meta Graph API documentation (especially v25+). Meta's API changes frequently, especially regarding Ad Account Webhooks, Lead Forms, and Ad Creation endpoints. NEVER guess or hallucinate Meta Graph API fields (your training data is likely outdated). To verify the structure:
+  1. Ask Context7 to query the `/websites/developers_facebook_graph-api` library ID (e.g., `ad account webhook subscribed fields v25`).
+  2. Use `read_url_content` on the exact Meta Developer documentation URL if you have it.
+  3. Always confirm the behavior for **v25.0** or the currently used version in the app.
 - **Supabase Types**: Use this to get the types of the database tables. It is located at `src/types/supabase.ts`. To update it, run `npx -y supabase gen types typescript --project-id iomvjxlfxeppizkhehcl --schema public > src/types/supabase.ts`
 
 ## Agent Context & Skills
@@ -314,3 +318,5 @@ async function getOrgOwner(supabase: any, organizationId: string) {
 - **Building a Next.js API route or Server Action?** → Use `getActiveOrgId()` and filter by `organization_id`
 - **Building a React hook or component?** → Use `useActiveOrgContext()` and include `activeOrgId` in queries
 - **Building an Edge Function (cron job)?** → Fetch all records, include `organization_id`, and use `getOrgOwner()` to notify the right user
+
+

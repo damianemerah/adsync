@@ -1,11 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+// pg_cron-invoked edge function — no CORS headers needed
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Edge Function: Refresh FX Rate (USD → NGN)
@@ -19,9 +15,8 @@ const FALLBACK_RATE = 1600.0;
 const EXCHANGERATE_API_BASE = "https://open.er-api.com/v6/latest/USD";
 
 serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+  if (req.method !== "POST") {
+    return new Response("Method not allowed", { status: 405 });
   }
 
   try {
@@ -92,7 +87,7 @@ serve(async (req) => {
             currentRate: currentRate.rate_ngn_per_usd,
           }),
           {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json" },
           },
         );
       }
@@ -124,7 +119,7 @@ serve(async (req) => {
         timestamp: new Date().toISOString(),
       }),
       {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
       },
     );
   } catch (error) {
@@ -136,7 +131,7 @@ serve(async (req) => {
       }),
       {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
       },
     );
   }

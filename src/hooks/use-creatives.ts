@@ -76,7 +76,6 @@ export function useCreatives() {
         width: dimensions.width,
         height: dimensions.height,
         format: file.type,
-        aiGenerated: false,
       });
 
       if (!result.success) throw new Error("Failed to save creative");

@@ -25,6 +25,7 @@ sell fashion, beauty, food, and services primarily via WhatsApp.
 
 - **Supabase MCP Server**: Use this for database research, running SQL queries, reading table structures, and applying migrations directly to the active project.
 - **Perplexity-Ask MCP Server**: Use the Perplexity search integration to perform advanced, up-to-date research, search for current documentation, and resolve external implementation issues.
+- **Context7 MCP Server**: **CRITICAL FOR META API:** Use this to fetch current Meta Graph API documentation (especially v25+). Meta's API changes frequently. NEVER rely on training data for Meta Graph API objects; always query `/websites/developers_facebook_graph-api` or fetch the live URL.
 - **Supabase Types**: Use this to get the types of the database tables. It is located at `src/types/supabase.ts`. To update it, run `npx -y supabase gen types typescript --project-id iomvjxlfxeppizkhehcl --schema public > src/types/supabase.ts`
 
 ---
@@ -48,6 +49,7 @@ sell fashion, beauty, food, and services primarily via WhatsApp.
 - **Structure:** 1 Campaign → 1 Ad Set → 1 Ad (enforced, never break this)
 - **Budget:** Set at Ad Set level (`is_adset_budget_sharing_enabled: false`)
 - **No SDKs:** Use raw fetch for full control
+- **Meta API Docs (v25+):** NEVER guess or hallucinate API fields (especially for webhooks, ad creation, lead forms). Your training data is outdated. **Always** use the `Context7 MCP Server` to query `/websites/developers_facebook_graph-api` or use `read_url_content` on the live Meta docs URL directly to verify the exact structure for v25.0+.
 - **Token Security:** Encrypt tokens in DB (AES-256-CBC). Decrypt only server-side
 - **Attribution:** Every ad destination MUST be wrapped in a Tenzu smart link
   (tenzu.africa/l/[token]) — never send raw wa.me or website URLs to Meta directly

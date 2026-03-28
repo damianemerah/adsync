@@ -50,7 +50,6 @@ export async function saveCreative(params: {
   width: number;
   height: number;
   format: string;
-  aiGenerated: boolean;
   generationParams?: any;
 }) {
   const supabase = await createClient();
@@ -72,9 +71,8 @@ export async function saveCreative(params: {
       thumbnail_url: params.thumbnailUrl,
       width: params.width,
       height: params.height,
-      format: params.format,
-      ai_generated: params.aiGenerated,
-      generation_params: params.generationParams,
+      media_type: params.format,
+      generation_context: params.generationParams,
     })
     .select()
     .single();

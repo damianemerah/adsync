@@ -730,4 +730,21 @@ export const MetaService = {
       token
     );
   },
+
+  /**
+   * Get single ad status (used by cron poller for approval detection).
+   * Fetches effective_status and configured_status to confirm whether an
+   * in-review ad has been approved by Meta.
+   *
+   * @param token - Meta access token
+   * @param adId  - The platform ad ID to fetch
+   * @returns Ad object with effective_status and configured_status
+   */
+  getAd: async (token: string, adId: string) => {
+    return MetaService.request(
+      `/${adId}?fields=id,name,effective_status,configured_status`,
+      "GET",
+      token,
+    );
+  },
 };

@@ -11,7 +11,7 @@ export function SocialButtons({ action }: { action: "Sign in" | "Sign up" }) {
     await supabase.auth.signInWithOAuth({
       provider: provider,
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${window.location.origin}/api/auth/callback`,
       },
     });
   };
@@ -21,7 +21,7 @@ export function SocialButtons({ action }: { action: "Sign in" | "Sign up" }) {
       <Button
         type="button"
         variant="outline"
-        className="h-14 rounded-lg border-border/50 bg-background hover:bg-muted/50 hover:border-border transition-all shadow-sm border border-border"
+        className="h-14 rounded-lg bg-background hover:bg-muted/50 hover:border-border transition-all shadow-sm border border-border"
         onClick={() => handleSocialLogin("google")}
       >
         <svg className="h-5 w-5" viewBox="0 0 24 24">
