@@ -4,6 +4,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client"; // Update path if needed
 import { useActiveOrgContext } from "@/components/providers/active-org-provider";
 
+function dataUrlToBlob(dataUrl: string): Blob {
+  const [header, base64] = dataUrl.split(",");
+  const mime = header.match(/:(.*?);/)?.[1] ?? "image/jpeg";
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
+}
+
 export function useCreatives() {
   const queryClient = useQueryClient();
   const supabase = createClient();
@@ -51,8 +60,7 @@ export function useCreatives() {
       let thumbnailUrl = null;
       if (thumbnailDataUrl) {
         try {
-          const thumbRes = await fetch(thumbnailDataUrl);
-          const thumbBlob = await thumbRes.blob();
+          const thumbBlob = dataUrlToBlob(thumbnailDataUrl);
           const thumbFile = new File([thumbBlob], "thumbnail.jpg", {
             type: "image/jpeg",
           });
@@ -71,6 +79,7 @@ export function useCreatives() {
       const { saveCreative } = await import("@/actions/creatives");
 
       const result = await saveCreative({
+        name: file.name,
         originalUrl: publicUrl,
         thumbnailUrl: thumbnailUrl ?? undefined,
         width: dimensions.width,
@@ -79,6 +88,7 @@ export function useCreatives() {
       });
 
       if (!result.success) throw new Error("Failed to save creative");
+      console.log("✅ Creative saved:", result.creative);
 
       return result.creative;
     },

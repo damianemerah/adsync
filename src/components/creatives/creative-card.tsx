@@ -44,12 +44,28 @@ export function CreativeCard({
           onClick();
         }}
       >
-        <Image
-          src={data.thumbnail_url || data.original_url}
-          alt={data.name || "Creative"}
-          fill
-          className="object-cover transition-transform duration-500 group-hover:scale-105"
-        />
+        {/* For videos, only show image if we have a thumbnail — never use the mp4 URL */}
+        {data.media_type === "video" ? (
+          data.thumbnail_url ? (
+            <Image
+              src={data.thumbnail_url}
+              alt={data.name || "Creative"}
+              fill
+              className="object-cover transition-transform duration-500 group-hover:scale-105"
+            />
+          ) : (
+            <div className="w-full h-full bg-muted flex items-center justify-center">
+              <Play className="w-8 h-8 text-muted-foreground" />
+            </div>
+          )
+        ) : (
+          <Image
+            src={data.original_url}
+            alt={data.name || "Creative"}
+            fill
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+        )}
 
         {/* Video play overlay */}
         {data.media_type === "video" && (

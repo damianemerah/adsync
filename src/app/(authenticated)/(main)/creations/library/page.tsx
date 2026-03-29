@@ -19,6 +19,7 @@ import {
   Plus,
   NavArrowDown,
   Bin,
+  Play,
 } from "iconoir-react";
 import {
   DropdownMenu,
@@ -181,13 +182,28 @@ export default function CreativesPage() {
       title: "Asset",
       render: (item: Creative) => (
         <div className="flex items-center gap-3 font-medium text-foreground">
-          <div className="h-10 w-10 rounded-md bg-muted overflow-hidden relative shrink-0">
-            <Image
-              src={item.thumbnail_url || item.original_url}
-              alt={item.name || "Creative"}
-              fill
-              className="object-cover"
-            />
+          <div className="h-10 w-10 rounded-md bg-muted overflow-hidden relative shrink-0 flex items-center justify-center">
+            {item.media_type === "video" ? (
+              item.thumbnail_url ? (
+                <Image
+                  src={item.thumbnail_url}
+                  alt={item.name || "Creative"}
+                  fill
+                  className="object-cover"
+                />
+              ) : (
+                <Play className="w-4 h-4 text-muted-foreground" />
+              )
+            ) : (
+              item.original_url && (
+                <Image
+                  src={item.original_url}
+                  alt={item.name || "Creative"}
+                  fill
+                  className="object-cover"
+                />
+              )
+            )}
           </div>
           <span className="truncate max-w-[240px]" title={item.name || ""}>
             {item.name}
@@ -486,18 +502,14 @@ export default function CreativesPage() {
                   playsInline
                   className="w-full h-full object-cover scale-105 group-hover:scale-100 transition-transform duration-700 ease-out"
                 />
-              ) : (
+              ) : previewItem?.media_url || previewItem?.original_url ? (
                 <Image
-                  src={
-                    previewItem?.media_url ||
-                    previewItem?.original_url ||
-                    "/placeholder.png"
-                  }
+                  src={previewItem.media_url || previewItem.original_url}
                   alt="Preview"
                   fill
                   className="object-cover scale-105 group-hover:scale-100 transition-transform duration-700 ease-out"
                 />
-              )}
+              ) : null}
               {/* Vibe Gradient Overlay */}
               <div className="absolute inset-0 bg-linear-to-t from-black/95 via-black/40 to-transparent opacity-80" />
             </div>

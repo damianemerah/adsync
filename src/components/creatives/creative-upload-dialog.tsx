@@ -29,36 +29,73 @@ const generateVideoMetadata = (
 ): Promise<{ thumbnail: string; width: number; height: number }> =>
   new Promise((resolve) => {
     const video = document.createElement("video");
-    video.autoplay = true;
     video.muted = true;
     video.playsInline = true;
+    video.preload = "auto";
     const url = URL.createObjectURL(file);
-    video.src = url;
+    let resolved = false;
 
-    // Set time after loaded metadata
-    video.onloadedmetadata = () => {
-      // Seek to 1 second or halfway if shorter
-      video.currentTime = Math.min(1, video.duration / 2 || 0);
-    };
+    const cleanup = () => URL.revokeObjectURL(url);
 
-    video.onseeked = () => {
+    const captureFrame = () => {
+      if (resolved) return;
+      const w = video.videoWidth;
+      const h = video.videoHeight;
+      if (!w || !h) return; // dimensions not ready yet
+      resolved = true;
       const canvas = document.createElement("canvas");
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      canvas.width = w;
+      canvas.height = h;
       const ctx = canvas.getContext("2d");
-      ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
-      resolve({
-        thumbnail: canvas.toDataURL("image/jpeg"),
-        width: video.videoWidth,
-        height: video.videoHeight,
-      });
-      URL.revokeObjectURL(url);
+      ctx?.drawImage(video, 0, 0, w, h);
+      cleanup();
+      resolve({ thumbnail: canvas.toDataURL("image/jpeg"), width: w, height: h });
     };
+
+    video.onloadedmetadata = () => {
+      const w = video.videoWidth;
+      const h = video.videoHeight;
+      const duration = isFinite(video.duration) && video.duration > 0 ? video.duration : 2;
+      // Always seek to a non-zero time — browsers skip onseeked if currentTime is already 0
+      video.currentTime = Math.min(1, duration * 0.25);
+
+      // Fallback: if onseeked never fires, try to capture whatever frame is available
+      setTimeout(() => {
+        if (!resolved) {
+          const fw = video.videoWidth;
+          const fh = video.videoHeight;
+          if (fw && fh) {
+            resolved = true;
+            const canvas = document.createElement("canvas");
+            canvas.width = fw;
+            canvas.height = fh;
+            const ctx = canvas.getContext("2d");
+            ctx?.drawImage(video, 0, 0, fw, fh);
+            cleanup();
+            resolve({ thumbnail: canvas.toDataURL("image/jpeg"), width: fw, height: fh });
+          } else {
+            resolved = true;
+            cleanup();
+            resolve({ thumbnail: "", width: w, height: h });
+          }
+        }
+      }, 5000);
+    };
+
+    video.onseeked = captureFrame;
+    // Extra fallback: some browsers fire canplay but not onseeked for certain codecs
+    video.oncanplay = captureFrame;
 
     video.onerror = () => {
-      resolve({ thumbnail: "", width: 0, height: 0 });
-      URL.revokeObjectURL(url);
+      if (!resolved) {
+        resolved = true;
+        cleanup();
+        resolve({ thumbnail: "", width: 0, height: 0 });
+      }
     };
+
+    video.src = url;
+    video.load(); // Explicitly trigger loading
   });
 
 interface UploadQueueItem {

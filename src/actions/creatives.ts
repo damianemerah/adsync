@@ -45,6 +45,7 @@ export async function uploadCreativeFile(params: {
  * This prevents RLS bypass via client-side inserts.
  */
 export async function saveCreative(params: {
+  name?: string;
   originalUrl: string;
   thumbnailUrl?: string;
   width: number;
@@ -69,6 +70,8 @@ export async function saveCreative(params: {
     .from("creatives")
     .insert({
       organization_id: orgId,
+      uploaded_by: user.id,
+      name: params.name ?? null,
       original_url: params.originalUrl,
       thumbnail_url: params.thumbnailUrl,
       width: params.width,
