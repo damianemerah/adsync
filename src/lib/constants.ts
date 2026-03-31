@@ -5,9 +5,9 @@ export const PLAN_IDS = {
 } as const;
 
 export const PLAN_PRICES: Record<string, number> = {
-  starter: 10000,
-  growth: 25000,
-  agency: 60000,
+  starter: 15000,
+  growth: 35000,
+  agency: 75000,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -29,12 +29,13 @@ export const PLAN_CREDITS: Record<string, number> = {
 // Image costs are tier-driven — see TIER_CONFIG below
 export const CREDIT_COSTS = {
   IMAGE_GEN_PREMIUM: 8, // Nano Banana Pro (Agency only, Phase 3)
-  IMAGE_GEN_PRO: 3, // FLUX 2 Pro (default for all tiers)
-  IMAGE_EDIT_PRO: 2, // FLUX 2 Pro edit/refine
+  IMAGE_GEN_PRO: 5, // FLUX 2 Pro (default for all tiers)
+  IMAGE_EDIT_PRO: 3, // FLUX 2 Pro edit/refine
   TEXT_GEN: 0, // FREE — GPT copy / analysis
-  VIDEO_KLING_5S: 35, // Kling v2 5s  (Phase 2)
-  VIDEO_KLING_10S: 60, // Kling v2 10s (Phase 2)
-  VIDEO_VEO3_5S: 42, // Veo 3.1 5s   (Phase 2)
+  CHAT_OVERAGE: 1, // 1 credit per chat message after monthly quota is exhausted
+  VIDEO_KLING_5S: 40, // Kling v2 5s  (Phase 2)
+  VIDEO_KLING_10S: 70, // Kling v2 10s (Phase 2)
+  VIDEO_VEO3_5S: 50, // Veo 3.1 5s   (Phase 2)
 } as const;
 
 // ─── Tier Configuration ──────────────────────────────────────────────────────
@@ -53,13 +54,14 @@ export const TIER_CONFIG = {
       maxCopyVariations: 2,
       maxRefinementsPerCampaign: 3,
     },
-    credits: { monthly: 150, imageCost: 3, premiumImageCost: null },
+    credits: { monthly: 150, imageCost: 5, premiumImageCost: null },
     limits: {
       maxOrganizations: 1,
       maxAdAccounts: 1,
       maxTeamMembers: 1,
       linkAnalyticsDays: 7,
       customLinkSlugs: false,
+      maxMonthlyChats: 50,
     },
   },
   growth: {
@@ -72,13 +74,14 @@ export const TIER_CONFIG = {
       maxCopyVariations: 3,
       maxRefinementsPerCampaign: Infinity,
     },
-    credits: { monthly: 400, imageCost: 3, premiumImageCost: null },
+    credits: { monthly: 400, imageCost: 5, premiumImageCost: null },
     limits: {
       maxOrganizations: 3,
       maxAdAccounts: 3,
       maxTeamMembers: 3,
       linkAnalyticsDays: 30,
       customLinkSlugs: true,
+      maxMonthlyChats: 200,
     },
   },
   agency: {
@@ -91,13 +94,14 @@ export const TIER_CONFIG = {
       maxCopyVariations: 5,
       maxRefinementsPerCampaign: Infinity,
     },
-    credits: { monthly: 1200, imageCost: 3, premiumImageCost: 8 },
+    credits: { monthly: 1200, imageCost: 5, premiumImageCost: 8 },
     limits: {
       maxOrganizations: 999,
       maxAdAccounts: 999,
       maxTeamMembers: 10,
       linkAnalyticsDays: 36500, // "Lifetime"
       customLinkSlugs: true,
+      maxMonthlyChats: 999999, // Effectively unlimited
     },
   },
 } as const;

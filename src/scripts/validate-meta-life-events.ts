@@ -1,16 +1,18 @@
 /**
- * validate-meta-interests.ts
+ * validate-meta-life-events.ts
  *
  * Fetches the real Meta access token + ad account ID from the Supabase
- * `ad_accounts` table, then validates every seed in META_INTEREST_SEEDS
+ * `ad_accounts` table, then validates every seed in META_LIFE_EVENT_SEEDS
  * against the live Meta API.
  *
- * Results -> .agent/audits/meta-interests-audit.json
- * --patch  -> also rewrites meta-interests.ts with confirmed numeric IDs
+ * Results → .agent/audits/meta-life-events-audit.json
+ * --patch  → also rewrites meta-life-events.ts with confirmed numeric IDs
+ *
+ * See also: validate-meta-behaviors.ts — same workflow for behaviors
  *
  * Usage (from project root):
- *   node_modules/.bin/tsx src/scripts/validate-meta-interests.ts
- *   node_modules/.bin/tsx src/scripts/validate-meta-interests.ts --patch
+ *   node_modules/.bin/tsx src/scripts/validate-meta-life-events.ts
+ *   node_modules/.bin/tsx src/scripts/validate-meta-life-events.ts --patch
  */
 
 import fs from "fs";
@@ -28,18 +30,23 @@ import {
 
 loadEnvLocal(__dirname);
 
-import { META_INTEREST_SEEDS } from "../lib/constants/meta-interests";
+import { META_LIFE_EVENT_SEEDS } from "../lib/constants/meta-life-events";
 
 const PATCH = process.argv.includes("--patch");
 
 // ─── Meta API ─────────────────────────────────────────────────────────────────
-async function searchInterests(token: string, query: string) {
+async function searchLifeEvents(
+  token: string,
+  accountId: string,
+  query: string,
+) {
   const params = new URLSearchParams({
-    type: "adinterest",
+    type: "adTargetingCategory",
+    class: "life_events",
     q: query,
     limit: "10",
   });
-  const data = await metaGet(`/search?${params}`, token);
+  const data = await metaGet(`/${accountId}/targetingsearch?${params}`, token);
   return (data.data || []) as Array<{ id: string; name: string }>;
 }
 
@@ -79,7 +86,7 @@ async function validateSeeds(
   const results: AuditEntry[] = [];
 
   for (const seed of seeds) {
-    process.stdout.write(`  -> "${seed.name}" ... `);
+    process.stdout.write(`  → "${seed.name}" ... `);
     const entry: AuditEntry = {
       seedName: seed.name,
       status: "no_match",
@@ -102,9 +109,9 @@ async function validateSeeds(
             : "fuzzy_match";
         entry.metaId = String(match.id);
         entry.metaName = match.name;
-        const icon = entry.status === "exact_match" ? "ok" : "~~";
+        const icon = entry.status === "exact_match" ? "✅" : "🟡";
         console.log(
-          `${icon} ${entry.status} -> ID: ${entry.metaId}  "${entry.metaName}"`,
+          `${icon} ${entry.status} → ID: ${entry.metaId}  "${entry.metaName}"`,
         );
       } else {
         const top =
@@ -112,12 +119,12 @@ async function validateSeeds(
             .slice(0, 2)
             .map((r) => `"${r.name}"`)
             .join(", ") || "none";
-        console.log(`XX no_match  (top returned: ${top})`);
+        console.log(`❌ no_match  (top returned: ${top})`);
       }
     } catch (err: any) {
       entry.status = "api_error";
       entry.error = err.message;
-      console.log(`!! api_error: ${err.message}`);
+      console.log(`💥 api_error: ${err.message}`);
     }
 
     results.push(entry);
@@ -129,19 +136,23 @@ async function validateSeeds(
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 async function main() {
-  console.log("\nTenzu — Meta Interests Validator");
+  console.log("\n🔍 Tenzu — Meta Life Events Validator");
   console.log("=========================================================");
   console.log(
-    `Mode: ${PATCH ? "PATCH (will rewrite meta-interests.ts)" : "DRY-RUN (read-only)"}`,
+    `Mode: ${PATCH ? "PATCH (will rewrite meta-life-events.ts)" : "DRY-RUN (read-only)"}`,
   );
   console.log("\nFetching Meta credentials from DB...");
 
-  const { token } = await getMetaCredentials();
-  console.log(`Got token (${token.substring(0, 8)}...) \n`);
+  const { token, accountId } = await getMetaCredentials();
+  console.log(
+    `✅ Got token (${token.substring(0, 8)}…) for account ${accountId}\n`,
+  );
 
-  console.log(`Validating ${META_INTEREST_SEEDS.length} interests...\n`);
-  const results = await validateSeeds(META_INTEREST_SEEDS, (q) =>
-    searchInterests(token, q),
+  console.log(
+    `📦 Validating ${META_LIFE_EVENT_SEEDS.length} life events...\n`,
+  );
+  const results = await validateSeeds(META_LIFE_EVENT_SEEDS, (q) =>
+    searchLifeEvents(token, accountId, q),
   );
 
   // ── Summary ─────────────────────────────────────────────────────────────────
@@ -152,19 +163,19 @@ async function main() {
   const total = results.length;
 
   console.log("\n=========================================================");
-  console.log("Summary");
-  console.log(`   Exact match : ${exact}/${total}`);
+  console.log("📊 Summary");
+  console.log(`   ✅ Exact match : ${exact}/${total}`);
   console.log(
-    `   Fuzzy match : ${fuzzy}/${total} — confirmed ID, different display name`,
+    `   🟡 Fuzzy match : ${fuzzy}/${total} — confirmed ID, different display name`,
   );
   console.log(
-    `   No match    : ${noMatch}/${total} — seed name may be invalid`,
+    `   ❌ No match    : ${noMatch}/${total} — seed name may be invalid`,
   );
-  console.log(`   API errors  : ${errors}/${total}`);
+  console.log(`   💥 API errors  : ${errors}/${total}`);
 
   if (noMatch > 0) {
     console.log(
-      "\n  Unmatched seeds (review + fix these names in meta-interests.ts):",
+      "\n⚠️  Unmatched seeds (review + fix these names in meta-life-events.ts):",
     );
     results
       .filter((r) => r.status === "no_match")
@@ -178,11 +189,11 @@ async function main() {
               .join(", ")}`,
           );
           console.log(
-            `     -> Consider renaming the seed to one of the above names`,
+            `     → Consider renaming the seed to one of the above names`,
           );
         } else {
           console.log(
-            `     -> No results at all — this interest may not exist in Meta's catalog`,
+            `     → No results at all — this life event may not exist in Meta's catalog`,
           );
         }
       });
@@ -190,16 +201,16 @@ async function main() {
 
   if (fuzzy > 0) {
     console.log(
-      "\n  Fuzzy-matched seeds (Meta uses a slightly different display name):",
+      "\n🟡 Fuzzy-matched seeds (Meta uses a slightly different display name):",
     );
     results
       .filter((r) => r.status === "fuzzy_match")
       .forEach((r) => {
         console.log(
-          `   - "${r.seedName}" -> Meta name: "${r.metaName}" (ID: ${r.metaId})`,
+          `   - "${r.seedName}" → Meta name: "${r.metaName}" (ID: ${r.metaId})`,
         );
         console.log(
-          `     -> Consider updating the seed name to match Meta's exact display name`,
+          `     → Consider updating the seed name to match Meta's exact display name`,
         );
       });
   }
@@ -207,22 +218,22 @@ async function main() {
   // ── Write audit JSON ─────────────────────────────────────────────────────────
   const auditDir = path.join(__dirname, "../../.agent/audits");
   fs.mkdirSync(auditDir, { recursive: true });
-  const auditPath = path.join(auditDir, "meta-interests-audit.json");
+  const auditPath = path.join(auditDir, "meta-life-events-audit.json");
   fs.writeFileSync(auditPath, JSON.stringify(results, null, 2));
-  console.log(`\nFull audit -> ${auditPath}`);
+  console.log(`\n📄 Full audit → ${auditPath}`);
 
   // ── Patch ────────────────────────────────────────────────────────────────────
   if (PATCH) {
-    patchMetaInterests(results);
+    patchMetaLifeEvents(results);
   } else {
     console.log(
-      "Run with --patch to bake confirmed IDs into meta-interests.ts\n",
+      "💡 Run with --patch to bake confirmed IDs into meta-life-events.ts\n",
     );
   }
 }
 
-function patchMetaInterests(audit: AuditEntry[]) {
-  const filePath = path.join(__dirname, "../lib/constants/meta-interests.ts");
+function patchMetaLifeEvents(audit: AuditEntry[]) {
+  const filePath = path.join(__dirname, "../lib/constants/meta-life-events.ts");
   let source = fs.readFileSync(filePath, "utf8");
   let patchCount = 0;
 
@@ -245,11 +256,11 @@ function patchMetaInterests(audit: AuditEntry[]) {
   }
 
   fs.writeFileSync(filePath, source);
-  console.log(`\nPatched meta-interests.ts — ${patchCount} IDs baked in.`);
+  console.log(`\n✅ Patched meta-life-events.ts — ${patchCount} IDs baked in.`);
   console.log("   Unmatched seeds left unchanged for manual review.\n");
 }
 
 main().catch((err) => {
-  console.error("\nScript failed:", err.message);
+  console.error("\n💥 Script failed:", err.message);
   process.exit(1);
 });

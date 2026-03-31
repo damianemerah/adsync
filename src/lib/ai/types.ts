@@ -7,8 +7,7 @@ export interface AIStrategyMeta {
     | "TYPE_D"
     | "TYPE_E"
     | "TYPE_F"
-    | "TYPE_G"
-    | "TYPE_H";
+    | "TYPE_G";
   needs_clarification: boolean;
   clarification_question: string | null;
   clarification_options: string[] | null;
@@ -29,6 +28,10 @@ export interface AIStrategyMeta {
   inferred_assumptions?: string[];
   /** The single refinement question the AI asks after generating a full strategy */
   refinement_question?: string | null;
+  /** For TYPE_G: short summary of what the AI will generate based on org profile */
+  proposed_plan?: string | null;
+  /** For TYPE_G: user must confirm before full generation runs */
+  needs_confirmation?: boolean;
 }
 
 export interface AIStrategyResult {
@@ -36,6 +39,8 @@ export interface AIStrategyResult {
   interests: string[];
   behaviors: string[];
   lifeEvents?: string[];
+  workPositions?: string[];
+  industries?: string[];
   demographics: {
     age_min: number;
     age_max: number;
@@ -102,4 +107,8 @@ export interface AIInput {
   };
   /** ISO country code of the org — drives AI persona (default: 'NG') */
   orgCountryCode?: string;
+  /** Org-level business description from onboarding profile — used by triage for TYPE_G proposals */
+  orgBusinessDescription?: string | null;
+  /** Scraped text content from a URL the user pasted — injected as <site> context */
+  siteContext?: string | null;
 }

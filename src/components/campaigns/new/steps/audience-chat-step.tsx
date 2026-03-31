@@ -6,6 +6,7 @@ import {
   CopyVariation,
 } from "@/stores/campaign-store";
 import { classifyLocally } from "@/lib/ai/preprocessor";
+import { messageContainsUrl } from "@/lib/ai/url-scraper";
 import type { TriageMessage } from "@/lib/ai/service";
 import { useState, useRef, useEffect } from "react";
 import { saveDraft } from "@/actions/drafts";
@@ -34,13 +35,15 @@ import {
   resolveInterests,
   resolveBehaviors,
   resolveLifeEvents,
+  resolveWorkPositions,
+  resolveIndustries,
   resolveLocation,
   normalizeLocationName,
   LAGOS_DEFAULT,
 } from "@/lib/utils/targeting-resolver";
 import { estimateBudget } from "@/lib/intelligence/estimator";
 import type { AdSyncObjective } from "@/lib/constants";
-import { CREDIT_COSTS, TIER_CONFIG } from "@/lib/constants";
+import { TIER_CONFIG } from "@/lib/constants";
 import { useSubscription } from "@/hooks/use-subscription";
 import { PaymentDialog } from "@/components/billing/payment-dialog";
 
@@ -57,6 +60,7 @@ const CHAT_PLACEHOLDERS = [
   "What do you sell? (e.g. 'Men's shoes Port Harcourt')",
   "What do you sell? (e.g. 'Cakes and small chops Yaba')",
   "What do you sell? (e.g. 'Thrift fashion Surulere')",
+  "Analyse jumia.com.ng for ad ideas"
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -163,6 +167,12 @@ export function AudienceChatStep({
   const scrollRef = useRef<HTMLDivElement>(null);
   const lockScrollToCopy = useRef<string | null>(null);
   const [isRefiningCopy, setIsRefiningCopy] = useState(false);
+  const [isReadingUrl, setIsReadingUrl] = useState(false);
+
+  // Clear URL reading indicator once the AI finishes responding
+  useEffect(() => {
+    if (!isTyping) setIsReadingUrl(false);
+  }, [isTyping]);
   const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
   const [copyReady, setCopyReady] = useState(false);
   const [chatPhase, setChatPhase] = useState<"initial" | "refining">("initial");
@@ -488,6 +498,7 @@ export function AudienceChatStep({
     setMessages((prev) => [...prev, userMsg]);
     if (!overrideValue) setInputValue("");
     setIsTyping(true);
+    if (messageContainsUrl(text)) setIsReadingUrl(true);
 
     // ── Sentinel: Objective keep ────────────────────────────────────────────
     if (text.startsWith("__OBJECTIVE_KEEP__")) {
@@ -538,6 +549,23 @@ export function AudienceChatStep({
             conversationHistory: buildTriageHistory(messages),
           }),
         });
+        if (res.status === 429) {
+          const errBody = await res.json().catch(() => ({}));
+          setIsTyping(false);
+          if (errBody?.noCredits) {
+            toast.error(
+              errBody.error || "No credits left. Top up to keep chatting.",
+              { duration: 7000, action: { label: "Top Up", onClick: () => router.push("/settings/subscription") } },
+            );
+          } else if (errBody?.limitReached) {
+            setUpgradeDialogOpen(true);
+            toast.error(
+              errBody.error || "Monthly AI chat limit reached. Upgrade to continue.",
+              { duration: 6000 },
+            );
+          }
+          return;
+        }
         if (!res.ok) throw new Error("Rebuild failed");
         const result: AIStrategyResult = await res.json();
 
@@ -554,10 +582,19 @@ export function AudienceChatStep({
           typeof e === "string" ? e : e.name,
         );
 
+        const rewriteWorkPositionNames = (result.workPositions ?? []).filter(
+          (p: any) => typeof p === "string" && p,
+        );
+        const rewriteIndustryNames = (result.industries ?? []).filter(
+          (i: any) => typeof i === "string" && i,
+        );
+
         const [
           resolvedInterests,
           rewriteResolvedBehaviors,
           rewriteResolvedLifeEvents,
+          rewriteResolvedWorkPositions,
+          rewriteResolvedIndustries,
         ] = await Promise.all([
           resolveInterests(rewriteInterestNames, async (query) => {
             const r = await fetch(
@@ -574,6 +611,18 @@ export function AudienceChatStep({
           resolveLifeEvents(rewriteLifeEventNames, async (query) => {
             const r = await fetch(
               `/api/meta/search-life-events?query=${encodeURIComponent(query)}`,
+            );
+            return r.ok ? r.json() : [];
+          }),
+          resolveWorkPositions(rewriteWorkPositionNames, async (query) => {
+            const r = await fetch(
+              `/api/meta/search-work-position?query=${encodeURIComponent(query)}`,
+            );
+            return r.ok ? r.json() : [];
+          }),
+          resolveIndustries(rewriteIndustryNames, async (query) => {
+            const r = await fetch(
+              `/api/meta/search-industry?query=${encodeURIComponent(query)}`,
             );
             return r.ok ? r.json() : [];
           }),
@@ -614,6 +663,16 @@ export function AudienceChatStep({
             resolved,
           })),
           targetLifeEvents: rewriteResolvedLifeEvents.map(({ id, name, resolved }) => ({
+            id,
+            name,
+            resolved,
+          })),
+          targetWorkPositions: rewriteResolvedWorkPositions.map(({ id, name, resolved }) => ({
+            id,
+            name,
+            resolved,
+          })),
+          targetIndustries: rewriteResolvedIndustries.map(({ id, name, resolved }) => ({
             id,
             name,
             resolved,
@@ -724,8 +783,47 @@ export function AudienceChatStep({
         }),
       });
 
+      if (res.status === 429) {
+        const errBody = await res.json().catch(() => ({}));
+        setIsTyping(false);
+        if (errBody?.noCredits) {
+          toast.error(
+            errBody.error || "No credits left. Top up to keep chatting.",
+            { duration: 7000, action: { label: "Top Up", onClick: () => router.push("/settings/subscription") } },
+          );
+        } else if (errBody?.limitReached) {
+          setUpgradeDialogOpen(true);
+          toast.error(
+            errBody.error || "Monthly AI chat limit reached. Upgrade to continue.",
+            { duration: 6000 },
+          );
+        } else {
+          toast.error("Too many requests. Please wait a moment and try again.");
+        }
+        return;
+      }
       if (!res.ok) throw new Error("AI Failed");
       const result: AIStrategyResult = await res.json();
+
+      // ── TYPE_G — org profile known, showing proposed plan for confirmation ──
+      if (result.meta?.input_type === "TYPE_G") {
+        setIsTyping(false);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now().toString(),
+            role: "ai",
+            content:
+              result.meta.proposed_plan ||
+              "Based on your business profile, I can create an ad now. Want me to proceed, or would you like to adjust anything?",
+            type: "clarification_choice",
+            data: {
+              clarificationOptions: ["Yes, proceed", "Let me adjust"],
+            },
+          },
+        ]);
+        return;
+      }
 
       // ── TYPE_B from triage (single bare word — triage returned early) ──────
       if (result.meta?.input_type === "TYPE_B") {
@@ -765,11 +863,8 @@ export function AudienceChatStep({
         return;
       }
 
-      // ── TYPE_F / TYPE_H — image actions (defer to creative step) ──────────
-      if (
-        result.meta?.input_type === "TYPE_F" ||
-        result.meta?.input_type === "TYPE_H"
-      ) {
+      // ── TYPE_F — out-of-scope request (politely decline) ────────────────────
+      if (result.meta?.input_type === "TYPE_F") {
         setIsTyping(false);
         setMessages((prev) => [
           ...prev,
@@ -777,7 +872,8 @@ export function AudienceChatStep({
             id: Date.now().toString(),
             role: "ai",
             content:
-              "You can generate and edit images in the next 'Creative' step.",
+              result.meta.question_answer ||
+              "I can only help with ad campaigns. Tell me what you're selling and I'll build your ad.",
             type: "text",
           },
         ]);
@@ -801,10 +897,13 @@ export function AudienceChatStep({
       const lifeEventNames = (result.lifeEvents || []).map((e: any) =>
         typeof e === "string" ? e : e.name,
       );
-      console.log("Suggested Locations 👇👇", result.suggestedLocations);
-      console.log("Suggested Interests 👇👇", result.interests);
-      console.log("Suggested Behaviors 👇👇", result.behaviors);
-      console.log("Suggested Life Events 👇👇", result.lifeEvents);
+      const workPositionNames = (result.workPositions ?? []).filter(
+        (p: any) => typeof p === "string" && p,
+      );
+      console.log("Suggested Work Positions 👇👇", result.workPositions);
+      const industryNames = (result.industries ?? []).filter(
+        (i: any) => typeof i === "string" && i,
+      );
       const locationNames: string[] = Array.from(
         new Set(
           (result.suggestedLocations || []).map((name: string) =>
@@ -820,6 +919,8 @@ export function AudienceChatStep({
         resolvedLocations,
         resolvedBehaviors,
         resolvedLifeEvents,
+        resolvedWorkPositions,
+        resolvedIndustries,
       ] = await Promise.all([
         resolveInterests(interestNames, async (query) => {
           const r = await fetch(
@@ -846,6 +947,18 @@ export function AudienceChatStep({
         resolveLifeEvents(lifeEventNames, async (query) => {
           const r = await fetch(
             `/api/meta/search-life-events?query=${encodeURIComponent(query)}`,
+          );
+          return r.ok ? r.json() : [];
+        }),
+        resolveWorkPositions(workPositionNames, async (query) => {
+          const r = await fetch(
+            `/api/meta/search-work-position?query=${encodeURIComponent(query)}`,
+          );
+          return r.ok ? r.json() : [];
+        }),
+        resolveIndustries(industryNames, async (query) => {
+          const r = await fetch(
+            `/api/meta/search-industry?query=${encodeURIComponent(query)}`,
           );
           return r.ok ? r.json() : [];
         }),
@@ -879,6 +992,18 @@ export function AudienceChatStep({
       }));
       console.log("[Targeting] Resolved behaviors:", normalizedBehaviors);
       console.log("[Targeting] Resolved life events:", normalizedLifeEvents);
+      const normalizedWorkPositions = resolvedWorkPositions.map(({ id, name, resolved }) => ({
+        id,
+        name,
+        resolved,
+      }));
+      console.log("[Targeting] Resolved work positions:", normalizedWorkPositions);
+      const normalizedIndustries = resolvedIndustries.map(({ id, name, resolved }) => ({
+        id,
+        name,
+        resolved,
+      }));
+      console.log("[Targeting] Resolved industries:", normalizedIndustries);
 
       // Deduplicate validLocations by id just to be absolutely certain we don't duplicate
       const uniqueValidLocations = Array.from(
@@ -929,6 +1054,8 @@ export function AudienceChatStep({
         targetInterests: normalizedInterests,
         targetBehaviors: normalizedBehaviors,
         targetLifeEvents: normalizedLifeEvents,
+        targetWorkPositions: normalizedWorkPositions,
+        targetIndustries: normalizedIndustries,
         ageRange: {
           min: result.demographics?.age_min || 18,
           max: result.demographics?.age_max || 65,
@@ -1125,6 +1252,7 @@ export function AudienceChatStep({
             handleSend={handleSend}
             isTyping={isTyping}
             isRefiningCopy={isRefiningCopy}
+            isReadingUrl={isReadingUrl}
             placeholder={currentPlaceholder}
             scrollRef={scrollRef}
             campaignStore={campaignStore}
@@ -1149,7 +1277,7 @@ export function AudienceChatStep({
           maxSize={45}
           className="hidden lg:block"
         >
-          <div className="bg-card border border-border rounded-lg shadow-sm border border-border h-full p-5 flex flex-col overflow-hidden">
+          <div className="bg-card rounded-lg shadow-sm border border-border h-full p-5 flex flex-col overflow-hidden">
             <h3 className="font-bold text-base text-foreground mb-4 flex items-center gap-2">
               <Check className="h-5 w-5 text-primary" /> Audience Summary
             </h3>

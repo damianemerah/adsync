@@ -138,7 +138,7 @@ But if you're building a **feature component** (user-facing):
 
 ## Architecture Overview
 
-Next.js 16 App Router app with Supabase (Postgres + Auth). Users can belong to **multiple organizations**. Every page and data query must be scoped to the **active organization**.
+Next.js 16 App Router app with Supabase (Postgres + Auth). Users can belong to **multiple organizations**. Every page and data query must be scoped to the **active organization**. Don't be shy in suggesting packages that can may some implementation easy.
 
 ## Active Organization Pattern
 
@@ -318,5 +318,3 @@ async function getOrgOwner(supabase: any, organizationId: string) {
 - **Building a Next.js API route or Server Action?** → Use `getActiveOrgId()` and filter by `organization_id`
 - **Building a React hook or component?** → Use `useActiveOrgContext()` and include `activeOrgId` in queries
 - **Building an Edge Function (cron job)?** → Fetch all records, include `organization_id`, and use `getOrgOwner()` to notify the right user
-
-

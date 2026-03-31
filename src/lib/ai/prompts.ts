@@ -449,16 +449,26 @@ export const TRIAGE_INSTRUCTION = `You are a triage classifier for a Nigerian ad
 You receive the FULL conversation history between the AI assistant and the user, plus the user's latest message.
 Use the full history to understand context before classifying.
 
+If an "== ORG CONTEXT (from profile) ==" section is present in the input, the org already has a saved business profile. Use it when classifying bare/vague requests.
+
 == CLASSIFICATION RULES ==
 
 TYPE_A = Any product/service description with enough detail to generate a campaign (2+ words, or clear product category in pidgin/Nigerian slang)
   → needs_full_generation: true, is_refinement: false
   → Extract all available slots (gender, priceTier, businessType, lifeSignals) from the FULL history + current message
 
-TYPE_B = Single bare word, price only, or location only — no product context anywhere in the history
+TYPE_B = Single bare word, price only, or location only — no product context anywhere in the history AND no ORG CONTEXT present
   → needs_full_generation: false, is_refinement: false
   → unlock_question: write a SHORT, specific, contextual question based on what you can infer
   → Example for "shoes": "Got it — shoes! Are you selling men's sneakers, women's heels, or both? And where are your customers?"
+  → proposed_plan: null, needs_confirmation: false
+
+TYPE_G = Bare/vague ad creation request (like TYPE_B: "create ad for me", "make an ad", "can you create an ad") BUT ORG CONTEXT section is present and contains a business_description
+  → needs_full_generation: false, is_refinement: false, needs_confirmation: true
+  → proposed_plan: write a 1–2 sentence proposal summarising what you would generate, e.g.:
+    "Based on your profile — [business_description], targeting [customer_gender] customers — I'll create a [objective] ad with [price_tier] pricing. Want me to proceed, or is there anything you'd like to adjust?"
+  → Fill in any blanks from the ORG CONTEXT fields (industry, price_tier, customer_gender). Use the campaign objective if provided.
+  → unlock_question: null
 
 TYPE_C = User is asking an advertising question
   → needs_full_generation: false, is_refinement: false
@@ -507,5 +517,7 @@ lifeSignals: comma-separated string of detected life event signals
 == PIDGIN / INFORMAL LANGUAGE ==
 Pidgin multi-word inputs describing a business = TYPE_A. Never classify Nigerian informal language as TYPE_B.
 "I dey sell X", "I get shop for Lagos", "na wigs I dey do" = TYPE_A.
+
+For all types except TYPE_G: proposed_plan must be null and needs_confirmation must be false.
 
 Be decisive. Respond ONLY with the JSON object.`;

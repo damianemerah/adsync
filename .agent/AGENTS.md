@@ -14,7 +14,8 @@
 1. Read `.agent/rules/project-rule.md` — architecture, tech stack, and implementation rules
 2. Read `.agent/rules/decisions.md` — settled decisions (do not revisit these)
 3. Read `.agent/rules/tenzu-product.md` — product vision, MVP rules, UI language
-4. Read the **relevant skill file** for the feature area you are working in (see index below)
+4. **If working on AI generation:** Read [`.agent/AI_GENERATION_PIPELINE.md`](./.agent/AI_GENERATION_PIPELINE.md) — complete flow of how campaigns are generated (triage → full generation → resolution → refinement)
+5. Read the **relevant skill file** for the feature area you are working in (see index below)
 
 ---
 

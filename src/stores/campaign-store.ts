@@ -79,6 +79,8 @@ export interface CampaignState {
   targetLanguages: number[]; // Meta locale IDs e.g. [6] = English
   exclusionAudienceIds: string[]; // Meta custom audience IDs to exclude
   targetLifeEvents: TargetingOption[]; // Meta life_events field e.g. Newly Engaged, New Parents
+  targetWorkPositions: TargetingOption[]; // Meta work_positions field e.g. Manager, Director
+  targetIndustries: TargetingOption[]; // Meta industries field e.g. Management, Healthcare
   destinationValue: string;
 
   // AI & Targeting
@@ -173,6 +175,8 @@ export const useCampaignStore = create<CampaignState>()((set, get) => ({
   targetLanguages: [],
   exclusionAudienceIds: [],
   targetLifeEvents: [],
+  targetWorkPositions: [],
+  targetIndustries: [],
   destinationValue: "",
   leadGenFormId: null,
   appStoreUrl: "",
@@ -308,6 +312,8 @@ export const useCampaignStore = create<CampaignState>()((set, get) => ({
       targetLanguages: [],
       exclusionAudienceIds: [],
       targetLifeEvents: [],
+      targetWorkPositions: [],
+      targetIndustries: [],
       destinationValue: "",
       leadGenFormId: null,
       appStoreUrl: "",

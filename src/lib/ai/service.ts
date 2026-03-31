@@ -4,34 +4,51 @@ import { createClient } from "@/lib/supabase/server";
 import { TIER_CONFIG, TierId } from "@/lib/constants";
 import { resolveTier } from "@/lib/tier";
 import { TRIAGE_INSTRUCTION } from "./prompts";
-import {
-  buildBehaviorCatalogPrompt,
-  buildLifeEventCatalogPrompt,
-} from "@/lib/constants/meta-behaviors";
-import { buildInterestCatalogPrompt } from "@/lib/constants/meta-interests";
+import { buildScopedBehaviorCatalogPrompt } from "@/lib/constants/meta-behaviors";
+import { buildScopedLifeEventCatalogPrompt } from "@/lib/constants/meta-life-events";
 
 // ─── Minimal System Instruction ──────────────────────────────────────────────
 const NG_PERSONA = `You are an expert Nigerian ad copywriter and marketing strategist.`;
 const GLOBAL_PERSONA = `You are an expert global ad copywriter and marketing strategist.`;
 
-function buildBaseInstruction(orgCountryCode?: string): string {
+function buildBaseInstruction(
+  orgCountryCode?: string,
+  businessContext?: { category?: string },
+): string {
   const persona =
     !orgCountryCode || orgCountryCode === "NG" ? NG_PERSONA : GLOBAL_PERSONA;
 
+  const category = businessContext?.category;
+
   return `${persona} Use your available skills to determine the best strategy and generate high-converting ad copy. Structure your response according to the provided JSON schema.
 
-INTERESTS — prefer names from this catalog (5-8, 1-3 words each):
-${buildInterestCatalogPrompt()}
+When a <site> tag is present, use it to ground the copy in the business's real product language, pricing, and brand voice — extract specifics (product names, prices, key benefits) and prefer them over generic phrasing.
 
-If none fit, you may use other short Meta-valid interest names (1-3 words, no brand names, no "lovers"/"enthusiasts").
+INTERESTS — generate 5–8 interest names (1–3 words each, Meta-style).
+Avoid brand names, country names, and suffixes like "lovers" or "enthusiasts".
+Prefer Nigeria-relevant terms when they fit the business. Examples:
+"Fashion", "Hair care", "Clothing", "Online shopping", "Small business",
+"Cooking", "Technology", "Beauty", "Real estate", "Nollywood", "Gospel music",
+"Nigerian music", "Entrepreneurship", "Football", "Health", "Skincare",
+"Wedding", "Interior design", "Shoes", "Investment".
+If none of these fit, use other short valid Meta interest names (1–3 words).
 
 BEHAVIORS — you MUST output ONLY names from this exact list (2–5, never invent new names):
-${buildBehaviorCatalogPrompt()}
+${buildScopedBehaviorCatalogPrompt(category)}
 
 LIFE EVENTS — output ONLY names from this exact list (0–2), or an empty array [] if none clearly apply:
-${buildLifeEventCatalogPrompt()}
+${buildScopedLifeEventCatalogPrompt(category)}
 
-Outputting any behavior or life event name NOT in the above lists is a critical error.`;
+Outputting any behavior or life event name NOT in the above lists is a critical error.
+
+WORK POSITIONS — 0–3 job titles, only if the product clearly targets a professional demographic (B2B, professional services, luxury goods, health products for practitioners, etc.). Output [] if not applicable.
+Use short, widely-held job titles Meta recognizes. Examples: "CEO", "Manager", "Doctor", "Nurse", "Engineer", "Entrepreneur", "Teacher", "Accountant", "Business owner", "Sales representative".
+Avoid vague titles like "Worker" or "Employee". Output as: "workPositions": ["title1", "title2"].
+
+INDUSTRIES — 0–2 broad industry sectors, only if targeting B2B, wholesale, or professional equipment buyers. Use when you need a wider B2B net than exact job titles can provide. Output [] for consumer/B2C products.
+Examples: "Management", "Healthcare and Medical Services", "Retail", "Finance", "Construction", "Education". Output as: "industries": ["sector1", "sector2"].
+
+`;
 }
 
 // ─── Full Strategy JSON Schema ────────────────────────────────────────────────
@@ -42,6 +59,8 @@ const AI_STRATEGY_SCHEMA = {
     interests: { type: "array" as const, items: { type: "string" as const } },
     behaviors: { type: "array" as const, items: { type: "string" as const } },
     lifeEvents: { type: "array" as const, items: { type: "string" as const } },
+    workPositions: { type: "array" as const, items: { type: "string" as const } },
+    industries: { type: "array" as const, items: { type: "string" as const } },
     demographics: {
       type: "object" as const,
       properties: {
@@ -135,7 +154,6 @@ const AI_STRATEGY_SCHEMA = {
             "TYPE_E",
             "TYPE_F",
             "TYPE_G",
-            "TYPE_H",
           ],
         },
         needs_clarification: { type: "boolean" as const },
@@ -193,6 +211,8 @@ const AI_STRATEGY_SCHEMA = {
     "interests",
     "behaviors",
     "lifeEvents",
+    "workPositions",
+    "industries",
     "demographics",
     "suggestedLocations",
     "geo_strategy",
@@ -316,6 +336,10 @@ function buildUserMessage(
   if (input.sellingMethod) lines.push(`<del>${input.sellingMethod}</del>`);
   if (input.objective) lines.push(`<obj>${input.objective}</obj>`);
 
+  if (input.siteContext) {
+    lines.push(`<site>${input.siteContext}</site>`);
+  }
+
   if (input.currentCopy) {
     lines.push(
       `<refine>h:"${input.currentCopy.headline}" b:"${input.currentCopy.primary}"</refine>`,
@@ -333,12 +357,14 @@ const TRIAGE_SCHEMA = {
   properties: {
     input_type: {
       type: "string" as const,
-      enum: ["TYPE_A", "TYPE_B", "TYPE_C", "TYPE_D", "TYPE_E"] as const,
+      enum: ["TYPE_A", "TYPE_B", "TYPE_C", "TYPE_D", "TYPE_E", "TYPE_G"] as const,
     },
     needs_full_generation: { type: "boolean" as const },
     is_refinement: { type: "boolean" as const },
     unlock_question: { type: ["string", "null"] as const },
     direct_answer: { type: ["string", "null"] as const },
+    proposed_plan: { type: ["string", "null"] as const },
+    needs_confirmation: { type: "boolean" as const },
     extracted: {
       type: "object" as const,
       properties: {
@@ -375,6 +401,8 @@ const TRIAGE_SCHEMA = {
     "is_refinement",
     "unlock_question",
     "direct_answer",
+    "proposed_plan",
+    "needs_confirmation",
     "extracted",
   ] as const,
   additionalProperties: false,
@@ -393,6 +421,8 @@ export interface TriageResult {
   is_refinement: boolean;
   unlock_question?: string | null;
   direct_answer?: string | null;
+  proposed_plan?: string | null;
+  needs_confirmation?: boolean;
   extracted: {
     gender: "male" | "female" | "all";
     priceTier: "low" | "mid" | "high" | "unknown";
@@ -413,6 +443,7 @@ async function triageInput(
   description: string,
   objective: string,
   conversationHistory: TriageMessage[] = [],
+  orgContext?: string,
 ): Promise<TriageResult> {
   // Build a compact history string for the triage model.
   // Limit to last 6 messages to keep triage token cost low.
@@ -424,7 +455,11 @@ async function triageInput(
           .join("\n")
       : "No prior history.";
 
-  const triageInput = `== CONVERSATION HISTORY ==\n${historyText}\n\n== LATEST USER MESSAGE ==\n${description}\n\n== CAMPAIGN OBJECTIVE ==\n${objective}`;
+  const orgContextBlock = orgContext
+    ? `\n\n== ORG CONTEXT (from profile) ==\n${orgContext}`
+    : "";
+
+  const triageInput = `== CONVERSATION HISTORY ==\n${historyText}\n\n== LATEST USER MESSAGE ==\n${description}\n\n== CAMPAIGN OBJECTIVE ==\n${objective}${orgContextBlock}`;
 
   const response = await (openai.responses.create as any)({
     model: "gpt-5-mini",
@@ -459,7 +494,9 @@ async function generateWithOpenAI(
 
   const response = await (openai.responses.create as any)({
     model: tierAi.strategyModel,
-    instructions: buildBaseInstruction(input.orgCountryCode),
+    instructions: buildBaseInstruction(input.orgCountryCode, {
+      category: extracted?.businessType,
+    }),
     input: buildUserMessage(input, extracted),
     ...(useSkills
       ? {
@@ -584,6 +621,7 @@ export async function refineAdCopyWithOpenAI(
     interests: [],
     behaviors: [],
     lifeEvents: [],
+    industries: [],
     demographics: { age_min: 18, age_max: 65, gender: "all" },
     suggestedLocations: [],
     geo_strategy: null,
@@ -638,6 +676,7 @@ async function generateMock(input: AIInput): Promise<AIStrategyResult> {
     ctaIntent: "buy_now" as const,
     plain_english_summary: "Mock campaign targeting Lagos shoppers.",
     lifeEvents: [],
+    industries: [],
     whatsappMessage: null,
     suggestedLeadForm: null,
     meta: {
@@ -686,10 +725,28 @@ export async function generateAndSaveStrategy(
   let extractedContext: TriageResult["extracted"] | undefined;
 
   try {
+    // Build org context string for triage if profile data is available
+    const orgContextParts: string[] = [];
+    if (input.orgBusinessDescription) {
+      orgContextParts.push(`business_description: ${input.orgBusinessDescription}`);
+    }
+    if (input.industry) orgContextParts.push(`industry: ${input.industry}`);
+    if (input.priceTier) orgContextParts.push(`price_tier: ${input.priceTier}`);
+    if (input.customerGender) orgContextParts.push(`customer_gender: ${input.customerGender}`);
+    const orgContext = orgContextParts.length > 0 ? orgContextParts.join("\n") : undefined;
+
+    // When the user pasted a URL, augment the triage description with a brief
+    // excerpt of the scraped content so triage can classify it correctly.
+    // Without this, a bare URL → empty description → TYPE_B (clarification) instead of TYPE_A.
+    const triageDescription = input.siteContext
+      ? `${input.businessDescription ? input.businessDescription + "\n" : ""}[Website content excerpt]: ${input.siteContext.substring(0, 300)}`
+      : input.businessDescription;
+
     const triage = await triageInput(
-      input.businessDescription,
+      triageDescription,
       input.objective || "whatsapp",
       conversationHistory,
+      orgContext,
     );
     console.log("🔍 [Triage] Result:", triage);
 
@@ -706,6 +763,7 @@ export async function generateAndSaveStrategy(
           interests: [],
           behaviors: [],
           lifeEvents: [],
+          industries: [],
           demographics: { age_min: 18, age_max: 65, gender: "all" },
           suggestedLocations: [],
           geo_strategy: null,
@@ -731,12 +789,48 @@ export async function generateAndSaveStrategy(
         };
       }
 
+      // TYPE_G — bare request but org profile has enough context to propose a plan
+      if (triage.input_type === "TYPE_G") {
+        return {
+          plain_english_summary: "",
+          interests: [],
+          behaviors: [],
+          lifeEvents: [],
+          industries: [],
+          demographics: { age_min: 18, age_max: 65, gender: "all" },
+          suggestedLocations: [],
+          geo_strategy: null,
+          estimatedReach: 0,
+          copy: [],
+          headline: [],
+          ctaIntent: "buy_now" as const,
+          whatsappMessage: null,
+          suggestedLeadForm: null,
+          meta: {
+            input_type: "TYPE_G" as const,
+            needs_clarification: false,
+            needs_confirmation: true,
+            proposed_plan: triage.proposed_plan ?? null,
+            clarification_question: null,
+            clarification_options: null,
+            is_question: false,
+            question_answer: null,
+            price_signal: "unknown" as const,
+            detected_business_type: "unknown" as const,
+            confidence: 0.7,
+            inferred_assumptions: [],
+            refinement_question: null,
+          },
+        };
+      }
+
       // TYPE_B / TYPE_C / TYPE_E — same early-return shape as before
       return {
         plain_english_summary: "",
         interests: [],
         behaviors: [],
         lifeEvents: [],
+        industries: [],
         demographics: { age_min: 18, age_max: 65, gender: "all" },
         suggestedLocations: [],
         geo_strategy: null,

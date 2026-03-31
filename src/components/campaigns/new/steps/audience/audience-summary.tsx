@@ -4,9 +4,11 @@ import { useCampaignStore } from "@/stores/campaign-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Sparks, MapPin, Xmark, WarningTriangle } from "iconoir-react";
+import { ArrowRight, Sparks, MapPin, Xmark, WarningTriangle, Suitcase } from "iconoir-react";
 import { cn } from "@/lib/utils";
 import { AsyncTagInput } from "./async-tag-input";
+import { CITY_TARGETING_UNSUPPORTED } from "@/lib/constants/geo-targeting";
+import { useState, useEffect } from "react";
 
 
 /** Real Meta IDs are always numeric strings (e.g. "6003107902433"). */
@@ -25,8 +27,47 @@ export function AudienceSummaryPanel() {
     targetLanguages,
     exclusionAudienceIds,
     targetLifeEvents,
+    targetWorkPositions,
+    targetIndustries,
     locations,
   } = useCampaignStore();
+
+  const [suggestions, setSuggestions] = useState<Array<{ id: string; name: string }>>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+
+  // Fetch interest suggestions when 2+ interests are selected
+  useEffect(() => {
+    if (targetInterests.length < 2) {
+      setSuggestions([]);
+      return;
+    }
+    const delay = setTimeout(async () => {
+      setLoadingSuggestions(true);
+      try {
+        const names = targetInterests
+          .filter((i: any) => isResolvedId(i.id))
+          .map((i: any) => i.name)
+          .join(",");
+        if (!names) return;
+        const res = await fetch(
+          `/api/meta/suggest-interests?interests=${encodeURIComponent(names)}`,
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        const results: Array<{ id: string; name: string }> = Array.isArray(data)
+          ? data
+          : data?.data ?? [];
+        // Filter out already-selected interests
+        const selectedIds = new Set(targetInterests.map((i: any) => String(i.id)));
+        setSuggestions(results.filter((s) => !selectedIds.has(String(s.id))).slice(0, 5));
+      } catch {
+        // silent
+      } finally {
+        setLoadingSuggestions(false);
+      }
+    }, 500);
+    return () => clearTimeout(delay);
+  }, [targetInterests.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const removeInterest = (interest: any) => {
     updateDraft({
@@ -232,6 +273,17 @@ export function AudienceSummaryPanel() {
               No locations yet
             </p>
           )}
+          {locations.some(
+            (l: any) =>
+              l.type === "city" &&
+              l.country &&
+              l.country in CITY_TARGETING_UNSUPPORTED,
+          ) && (
+            <p className="w-full text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-0.5">
+              <WarningTriangle className="w-3 h-3 shrink-0" />
+              City targeting isn't available in Nigeria — your ad will reach all of Nigeria.
+            </p>
+          )}
         </div>
       </div>
 
@@ -282,6 +334,110 @@ export function AudienceSummaryPanel() {
           ) : (
             <p className="text-sm text-muted-foreground italic">
               No behaviors yet
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Work Positions */}
+      <div className="space-y-3">
+        <label className="text-xs font-bold text-subtle-foreground uppercase tracking-wider">
+          <span className="flex items-center gap-2">
+            <Suitcase className="h-3.5 w-3.5 text-blue-500" /> Work Positions
+          </span>
+        </label>
+        <div className="flex flex-wrap gap-2">
+          <div className="w-full pt-1">
+            <AsyncTagInput
+              placeholder="Add job title..."
+              searchType="work-position"
+              onAdd={(val) => {
+                if (!targetWorkPositions?.some((p: any) => p.id === val.id)) {
+                  updateDraft({
+                    targetWorkPositions: [...(targetWorkPositions || []), val],
+                  });
+                }
+              }}
+            />
+          </div>
+          {targetWorkPositions?.length > 0 ? (
+            targetWorkPositions.map((pos: any) => (
+              <Badge
+                key={pos.id}
+                variant="secondary"
+                className={cn(
+                  "py-1 px-3 rounded-full cursor-pointer border transition-colors",
+                  isResolvedId(pos.id)
+                    ? "bg-blue-500/10 text-blue-600 border-blue-200 hover:bg-blue-500/20"
+                    : "bg-amber-500/10 text-amber-600 border-amber-200 hover:bg-amber-500/20",
+                )}
+                onClick={() =>
+                  updateDraft({
+                    targetWorkPositions: targetWorkPositions.filter(
+                      (p: any) => p.id !== pos.id,
+                    ),
+                  })
+                }
+              >
+                {!isResolvedId(pos.id) && <WarningTriangle className="h-3 w-3 mr-1 opacity-70" />}
+                {pos.name} <Xmark className="h-3 w-3 ml-1 opacity-50" />
+              </Badge>
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground italic">
+              No work positions yet
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Industries */}
+      <div className="space-y-3">
+        <label className="text-xs font-bold text-subtle-foreground uppercase tracking-wider">
+          <span className="flex items-center gap-2">
+            <Suitcase className="h-3.5 w-3.5 text-violet-500" /> Industries
+          </span>
+        </label>
+        <div className="flex flex-wrap gap-2">
+          <div className="w-full pt-1">
+            <AsyncTagInput
+              placeholder="Add industry sector..."
+              searchType="industry"
+              onAdd={(val) => {
+                if (!targetIndustries?.some((i: any) => i.id === val.id)) {
+                  updateDraft({
+                    targetIndustries: [...(targetIndustries || []), val],
+                  });
+                }
+              }}
+            />
+          </div>
+          {targetIndustries?.length > 0 ? (
+            targetIndustries.map((industry: any) => (
+              <Badge
+                key={industry.id}
+                variant="secondary"
+                className={cn(
+                  "py-1 px-3 rounded-full cursor-pointer border transition-colors",
+                  isResolvedId(industry.id)
+                    ? "bg-violet-500/10 text-violet-600 border-violet-200 hover:bg-violet-500/20"
+                    : "bg-amber-500/10 text-amber-600 border-amber-200 hover:bg-amber-500/20",
+                )}
+                onClick={() =>
+                  updateDraft({
+                    targetIndustries: targetIndustries.filter(
+                      (i: any) => i.id !== industry.id,
+                    ),
+                  })
+                }
+              >
+                {!isResolvedId(industry.id) && <WarningTriangle className="h-3 w-3 mr-1 opacity-70" />}
+                {industry.name} <Xmark className="h-3 w-3 ml-1 opacity-50" />
+              </Badge>
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground italic">
+              No industries yet
             </p>
           )}
         </div>
@@ -339,7 +495,6 @@ export function AudienceSummaryPanel() {
         </div>
       </div>
 
-
       {/* Interests */}
       <div className="space-y-3">
         <label className="text-xs font-bold text-subtle-foreground uppercase tracking-wider">
@@ -377,6 +532,30 @@ export function AudienceSummaryPanel() {
             </p>
           )}
         </div>
+
+        {/* Interest suggestions */}
+        {(suggestions.length > 0 || loadingSuggestions) && (
+          <div className="pt-1 space-y-1.5">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">
+              Related interests
+            </p>
+            {loadingSuggestions ? (
+              <p className="text-xs text-muted-foreground italic">Finding related interests...</p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {suggestions.map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => addInterest(s)}
+                    className="text-xs px-2.5 py-1 rounded-full border border-dashed border-primary/40 text-primary/70 hover:border-primary hover:text-primary hover:bg-primary/5 transition-colors"
+                  >
+                    + {s.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="pt-4 border-t border-border">

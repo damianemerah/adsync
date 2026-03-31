@@ -60,6 +60,72 @@ export const MetaService = {
     return data.data || [];
   },
 
+  validateInterests: async (
+    token: string,
+    interestList: string[],
+  ): Promise<Array<{ id: string; name: string; valid: boolean }>> => {
+    // Validates whether interest names are valid in Meta's catalog and returns their IDs
+    const encoded = encodeURIComponent(JSON.stringify(interestList));
+    const data = await MetaService.request(
+      `/search?type=adinterestvalid&interest_list=${encoded}&limit=25`,
+      "GET",
+      token,
+    );
+    return data.data || [];
+  },
+
+  suggestInterests: async (
+    token: string,
+    interestList: string[],
+  ): Promise<Array<{ id: string; name: string; audience_size?: number }>> => {
+    // Returns related interests based on interests the user has already selected
+    const encoded = encodeURIComponent(JSON.stringify(interestList));
+    const data = await MetaService.request(
+      `/search?type=adinterestsuggestion&interest_list=${encoded}&limit=15`,
+      "GET",
+      token,
+    );
+    return data.data || [];
+  },
+
+  searchWorkPositions: async (
+    token: string,
+    query: string,
+  ): Promise<Array<{ id: string; name: string }>> => {
+    // Searches job titles / work positions for demographic targeting
+    const data = await MetaService.request(
+      `/search?type=adworkposition&q=${encodeURIComponent(query)}&limit=10`,
+      "GET",
+      token,
+    );
+    return data.data || [];
+  },
+
+  searchIndustries: async (
+    token: string,
+    adAccountId: string,
+    query: string,
+  ): Promise<Array<{ id: string; name: string }>> => {
+    // Searches broad industry sectors for B2B demographic targeting
+    const params = new URLSearchParams({
+      type: "adTargetingCategory",
+      class: "industries",
+      q: query,
+      limit: "10",
+    });
+
+    const id = adAccountId.startsWith("act_")
+      ? adAccountId
+      : `act_${adAccountId}`;
+
+    const data = await MetaService.request(
+      `/${id}/targetingsearch?${params.toString()}`,
+      "GET",
+      token,
+    );
+    return data.data || [];
+  },
+
   searchBehaviors: async (
     token: string,
     adAccountId: string,
@@ -113,7 +179,7 @@ export const MetaService = {
   searchLocation: async (
     token: string,
     query: string,
-    type: "city" | "region" | "country" = "city",
+    type: "city" | "region" | "country" = "region",
   ) => {
     // Searches for "Lagos" to get Meta geo key
     const data = await MetaService.request(
@@ -236,6 +302,18 @@ export const MetaService = {
       ...(params.targeting.lifeEvents?.length > 0 && {
         life_events: params.targeting.lifeEvents.map(
           (e: { id: string; name: string }) => ({ id: e.id, name: e.name }),
+        ),
+      }),
+      // Work Positions — job title demographic targeting
+      ...(params.targeting.workPositions?.length > 0 && {
+        work_positions: params.targeting.workPositions.map(
+          (p: { id: string; name: string }) => ({ id: p.id, name: p.name }),
+        ),
+      }),
+      // Industries — broad sector targeting for B2B/wholesale/professional products
+      ...(params.targeting.industries?.length > 0 && {
+        industries: params.targeting.industries.map(
+          (i: { id: string; name: string }) => ({ id: i.id, name: i.name }),
         ),
       }),
       // Exclusions — omit if empty (Meta rejects empty exclusion objects)

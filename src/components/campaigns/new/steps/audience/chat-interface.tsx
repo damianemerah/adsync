@@ -15,6 +15,7 @@ interface ChatInterfaceProps {
   handleSend: (val?: string, isClarification?: boolean) => void;
   isTyping: boolean;
   isRefiningCopy: boolean;
+  isReadingUrl?: boolean;
   copyReady: boolean;
   placeholder: string;
   scrollRef: React.RefObject<HTMLDivElement | null>;
@@ -29,9 +30,10 @@ interface ChatInterfaceProps {
   };
 }
 
-function StrategyProgressIndicator() {
+function StrategyProgressIndicator({ isReadingUrl }: { isReadingUrl?: boolean }) {
   const [stepIdx, setStepIdx] = React.useState(0);
   const steps = [
+    ...(isReadingUrl ? ["Reading your website…"] : []),
     "Reading your business description…",
     "Building your audience targeting…",
     "Writing ad copy variations…",
@@ -65,12 +67,15 @@ export function ChatInterface({
   handleSend,
   isTyping,
   isRefiningCopy,
+  isReadingUrl,
   placeholder,
   scrollRef,
   campaignStore,
   actions,
   copyReady,
 }: ChatInterfaceProps) {
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -86,7 +91,7 @@ export function ChatInterface({
   );
 
   return (
-    <div className="flex flex-col bg-background border border-border rounded-lg shadow-sm border border-border overflow-hidden relative">
+    <div className="flex flex-col bg-background rounded-lg shadow-sm border border-border overflow-hidden relative">
       {/* Header */}
       <div className="p-4 border-b border-border bg-muted/30 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
@@ -125,6 +130,10 @@ export function ChatInterface({
                 onCopyRefine={actions.handleCopyRefinement}
                 isRefiningCopy={isRefiningCopy}
                 onClarificationSelect={(option: string) => {
+                  if (option === "Let me adjust") {
+                    inputRef.current?.focus();
+                    return;
+                  }
                   handleSend(option, true);
                 }}
                 onRecoverySelect={(value: string) => {
@@ -142,7 +151,7 @@ export function ChatInterface({
                 <Sparks className="h-4 w-4 text-primary" />
               </div>
               <div className="bg-muted px-4 py-3 rounded-lg rounded-tl-none">
-                <StrategyProgressIndicator />
+                <StrategyProgressIndicator isReadingUrl={isReadingUrl} />
               </div>
             </div>
           )}
@@ -154,6 +163,7 @@ export function ChatInterface({
       <div className="p-4 bg-background border-t border-border shrink-0 z-10">
         <div className="relative flex items-center">
           <Input
+            ref={inputRef}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -169,6 +179,11 @@ export function ChatInterface({
             <Send className="h-4 w-4" />
           </Button>
         </div>
+        {isReadingUrl && !isTyping && (
+          <p className="mt-1.5 text-xs text-subtle-foreground pl-1">
+            I'll read this page and use it to build your ad
+          </p>
+        )}
       </div>
     </div>
   );

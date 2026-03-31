@@ -8,6 +8,7 @@
 
 import type { AdSyncObjective } from "@/lib/constants";
 import { BUDGET_CONSTRAINTS, ACCOUNT_TIERS, RISKY_TERMS } from "./benchmarks";
+import { CITY_TARGETING_UNSUPPORTED } from "@/lib/constants/geo-targeting";
 import { formatCurrency } from "@/lib/utils";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -20,7 +21,7 @@ interface RuleContext {
   destinationValue: string;
   creatives: string[];
   targetInterests: { id: string; name: string }[];
-  targetLocations: { id: string; name: string }[];
+  targetLocations: { id: string; name: string; type?: string; country?: string }[];
   durationDays?: number;
   // New Context Context
   totalHistoricalSpend?: number;
@@ -191,6 +192,22 @@ const rules: Rule[] = [
       };
     }
     return null;
+  },
+
+  (ctx) => {
+    if (ctx.objective === "awareness" || ctx.objective === "engagement") {
+      return null; // broad geo already — no issue
+    }
+    const unsupported = ctx.targetLocations.filter(
+      (l) => l.type === "city" && l.country && l.country in CITY_TARGETING_UNSUPPORTED,
+    );
+    if (unsupported.length === 0) return null;
+    const countryNames = [...new Set(unsupported.map((l) => l.country))].join(", ");
+    return {
+      id: "city_targeting_unsupported",
+      severity: "warning",
+      message: `City targeting isn't supported in ${countryNames} on Meta. Your campaign will automatically target the whole country instead.`,
+    };
   },
 ];
 

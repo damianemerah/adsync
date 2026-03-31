@@ -23,10 +23,8 @@
  *   4. Lagos default
  */
 
-import {
-  resolveLocalBehavior,
-  resolveLocalLifeEvent,
-} from "@/lib/constants/meta-behaviors";
+import { resolveLocalBehavior } from "@/lib/constants/meta-behaviors";
+import { resolveLocalLifeEvent } from "@/lib/constants/meta-life-events";
 import { resolveLocalInterest } from "@/lib/constants/meta-interests";
 
 export interface ResolvedTarget {
@@ -276,8 +274,109 @@ export async function resolveLifeEvents(
 }
 
 /**
+ * Resolve a work position name to a Meta ID via the API search.
+ * No local catalog — Meta's adworkposition search is reliable for common titles.
+ */
+export async function resolveWorkPosition(
+  name: string,
+  searchFn: (query: string) => Promise<any[]>,
+): Promise<ResolvedTarget> {
+  try {
+    const results = await searchFn(name);
+    const exact = results.find(
+      (r: any) => r.name.toLowerCase() === name.toLowerCase(),
+    );
+    if (exact) {
+      return { id: String(exact.id), name: exact.name, resolved: true };
+    }
+    if (results.length > 0 && hasWordOverlap(results[0].name, name)) {
+      return {
+        id: String(results[0].id),
+        name: results[0].name,
+        resolved: true,
+      };
+    }
+  } catch {
+    // silent
+  }
+
+  console.warn(`[resolveWorkPosition] No API match for: "${name}"`);
+  return { id: name, name, resolved: false };
+}
+
+/**
+ * Resolve all work position names in batches (capped at 3 concurrent).
+ */
+export async function resolveWorkPositions(
+  names: string[],
+  searchFn: (query: string) => Promise<any[]>,
+  concurrency = 3,
+): Promise<ResolvedTarget[]> {
+  const results: ResolvedTarget[] = [];
+  for (let i = 0; i < names.length; i += concurrency) {
+    const batch = names.slice(i, i + concurrency);
+    const resolved = await Promise.all(
+      batch.map((name) => resolveWorkPosition(name, searchFn)),
+    );
+    results.push(...resolved);
+  }
+  return results;
+}
+
+/**
+ * Resolve an industry sector name to a Meta ID via the API search.
+ * No local catalog — Meta's adTargetingCategory/industries search is reliable for standard sectors.
+ */
+export async function resolveIndustry(
+  name: string,
+  searchFn: (query: string) => Promise<any[]>,
+): Promise<ResolvedTarget> {
+  try {
+    const results = await searchFn(name);
+    const exact = results.find(
+      (r: any) => r.name.toLowerCase() === name.toLowerCase(),
+    );
+    if (exact) {
+      return { id: String(exact.id), name: exact.name, resolved: true };
+    }
+    if (results.length > 0 && hasWordOverlap(results[0].name, name)) {
+      return {
+        id: String(results[0].id),
+        name: results[0].name,
+        resolved: true,
+      };
+    }
+  } catch {
+    // silent
+  }
+
+  console.warn(`[resolveIndustry] No API match for: "${name}"`);
+  return { id: name, name, resolved: false };
+}
+
+/**
+ * Resolve all industry names in batches (capped at 3 concurrent).
+ */
+export async function resolveIndustries(
+  names: string[],
+  searchFn: (query: string) => Promise<any[]>,
+  concurrency = 3,
+): Promise<ResolvedTarget[]> {
+  const results: ResolvedTarget[] = [];
+  for (let i = 0; i < names.length; i += concurrency) {
+    const batch = names.slice(i, i + concurrency);
+    const resolved = await Promise.all(
+      batch.map((name) => resolveIndustry(name, searchFn)),
+    );
+    results.push(...resolved);
+  }
+  return results;
+}
+
+/**
  * Area → parent city normalization for Nigeria.
  * These are common neighborhood/area names users and the LLM might provide.
+ * New: Nigerian does not have city targeting, only region, should we redo how this works?
  */
 const NG_AREA_TO_CITY: Record<string, string> = {
   // Lagos areas

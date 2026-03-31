@@ -7,7 +7,7 @@ import OpenAI from "openai";
 import {
   buildLifeEventCatalogPrompt,
   resolveLocalLifeEvent,
-} from "@/lib/constants/meta-behaviors";
+} from "@/lib/constants/meta-life-events";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || "",

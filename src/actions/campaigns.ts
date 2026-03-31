@@ -15,6 +15,10 @@ import {
 } from "@/lib/attribution";
 import { validatePreLaunch, validateDestinationUrl } from "@/lib/intelligence";
 import { pickGeoStrategy } from "@/lib/utils/geo-strategy";
+import {
+  allLocationsUnsupportedForCityTargeting,
+  getFallbackCountryCodes,
+} from "@/lib/constants/geo-targeting";
 import { getActiveOrgId } from "@/lib/active-org";
 import type { CTAData } from "@/types/cta-types";
 import type { Database } from "@/types/supabase";
@@ -59,6 +63,8 @@ interface LaunchConfig {
   targetLanguages?: number[]; // Phase 1 targeting
   exclusionAudienceIds?: string[]; // Phase 1 targeting
   targetLifeEvents?: { id: string; name: string }[]; // Life events e.g. Newly Engaged, New Parents
+  targetWorkPositions?: { id: string; name: string }[]; // Work positions e.g. Manager, Director
+  targetIndustries?: { id: string; name: string }[]; // Industry sectors e.g. Management, Healthcare
   destinationValue: string; // The raw input (Phone or URL)
   aiContext: any; // Using any for now to avoid circular dependency, but should match CampaignContext
   businessDescription?: string; // [NEW] For AI context building
@@ -392,8 +398,9 @@ export async function launchCampaign(config: LaunchConfig) {
         geo_locations.countries = ["NG"];
       }
     } else {
-      // Conversion (whatsapp / traffic): city-level, 10km, residents only
-      // 10km covers typical urban delivery/service area without wasting spend on tourists.
+      // Conversion (whatsapp / traffic): city-level, 17km radius, residents only.
+      // NOTE: Some countries (e.g. Nigeria) don't support city targeting on Meta (error 1487479).
+      // For those, we automatically fall back to country-level geo.
       const cities = config.targetLocations
         .filter((l) => l.type === "city")
         .map((l) => ({
@@ -402,12 +409,17 @@ export async function launchCampaign(config: LaunchConfig) {
           distance_unit: "kilometer",
         }));
 
-      if (cities.length === 0) {
-        // No city IDs stored — use Lagos safe fallback (matches LAGOS_DEFAULT in targeting-resolver.ts)
-        cities.push({ key: "2420605", radius: 17, distance_unit: "kilometer" });
+      if (allLocationsUnsupportedForCityTargeting(config.targetLocations)) {
+        // Country doesn't support city targeting — fall back to country-level.
+        const countryCodes = getFallbackCountryCodes(config.targetLocations);
+        geo_locations.countries = countryCodes.length > 0 ? countryCodes : ["NG"];
+      } else {
+        if (cities.length === 0) {
+          // No city IDs stored — use Lagos safe fallback (matches LAGOS_DEFAULT in targeting-resolver.ts)
+          cities.push({ key: "2420605", radius: 17, distance_unit: "kilometer" });
+        }
+        geo_locations.cities = cities;
       }
-
-      geo_locations.cities = cities;
     }
 
     // "living or recently in" by default and rejects the field.
@@ -454,6 +466,8 @@ export async function launchCampaign(config: LaunchConfig) {
           locales: config.targetLanguages,
           exclusionAudienceIds: config.exclusionAudienceIds,
           lifeEvents: config.targetLifeEvents,
+          workPositions: config.targetWorkPositions?.filter((p) => /^\d+$/.test(p.id)) ?? [],
+          industries: config.targetIndustries?.filter((i) => /^\d+$/.test(i.id)) ?? [],
         },
       },
       config.objective,
@@ -559,6 +573,8 @@ export async function launchCampaign(config: LaunchConfig) {
         languages: config.targetLanguages,
         exclusions: config.exclusionAudienceIds,
         life_events: config.targetLifeEvents,
+        work_positions: config.targetWorkPositions,
+        industries: config.targetIndustries,
       },
       creative_snapshot: {
         creatives: config.creatives,

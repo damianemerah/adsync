@@ -2,11 +2,13 @@
  * validate-meta-behaviors.ts
  *
  * Fetches the real Meta access token + ad account ID from the Supabase
- * `ad_accounts` table, then validates every seed in META_BEHAVIOR_SEEDS and
- * META_LIFE_EVENT_SEEDS against the live Meta API.
+ * `ad_accounts` table, then validates every seed in META_BEHAVIOR_SEEDS
+ * against the live Meta API.
  *
  * Results → .agent/audits/meta-behaviors-audit.json
  * --patch  → also rewrites meta-behaviors.ts with confirmed numeric IDs
+ *
+ * See also: validate-meta-life-events.ts — same workflow for life events
  *
  * Usage (from project root):
  *   node_modules/.bin/tsx src/scripts/validate-meta-behaviors.ts
@@ -16,116 +18,23 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import crypto from "crypto";
-import { createClient } from "@supabase/supabase-js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ─── Load .env.local ─────────────────────────────────────────────────────────
-// tsx doesn't auto-load .env.local — parse it manually
-function loadEnvLocal() {
-  const envPath = path.join(__dirname, "../../.env.local");
-  if (!fs.existsSync(envPath)) return;
-  const raw = fs.readFileSync(envPath, "utf8");
-  for (const line of raw.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eqIdx = trimmed.indexOf("=");
-    if (eqIdx === -1) continue;
-    const key = trimmed.slice(0, eqIdx).trim();
-    let value = trimmed.slice(eqIdx + 1).trim();
-    // Strip surrounding quotes
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    if (!process.env[key]) process.env[key] = value;
-  }
-}
-
-loadEnvLocal();
-
-// Static imports work after env is loaded because they're hoisted by tsx
 import {
-  META_BEHAVIOR_SEEDS,
-  META_LIFE_EVENT_SEEDS,
-} from "../lib/constants/meta-behaviors";
+  loadEnvLocal,
+  getMetaCredentials,
+  metaGet,
+} from "./lib/meta-script-utils";
+
+loadEnvLocal(__dirname);
+
+import { META_BEHAVIOR_SEEDS } from "../lib/constants/meta-behaviors";
 
 const PATCH = process.argv.includes("--patch");
-const API_VERSION = "v25.0";
-const BASE_URL = `https://graph.facebook.com/${API_VERSION}`;
-
-// ─── AES-256 Decrypt (mirrors src/lib/crypto.ts) ─────────────────────────────
-function decrypt(text: string): string {
-  const key = process.env.ENCRYPTION_KEY!;
-  const parts = text.split(":");
-  const iv = Buffer.from(parts.shift()!, "hex");
-  const encryptedText = Buffer.from(parts.join(":"), "hex");
-  const decipher = crypto.createDecipheriv("aes-256-cbc", Buffer.from(key), iv);
-  let decrypted = decipher.update(encryptedText);
-  decrypted = Buffer.concat([decrypted, decipher.final()]);
-  return decrypted.toString();
-}
-
-// ─── Fetch token + account ID from DB ────────────────────────────────────────
-async function getMetaCredentials(): Promise<{
-  token: string;
-  accountId: string;
-}> {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const encKey = process.env.ENCRYPTION_KEY;
-
-  if (!supabaseUrl || !serviceKey || !encKey) {
-    console.error(
-      "❌ Missing required env vars: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ENCRYPTION_KEY",
-    );
-    process.exit(1);
-  }
-
-  const supabase = createClient(supabaseUrl, serviceKey);
-
-  const { data, error } = await supabase
-    .from("ad_accounts")
-    .select("access_token, platform_account_id, health_status, platform")
-    .eq("platform", "meta")
-    .eq("health_status", "healthy")
-    .order("is_default", { ascending: false })
-    .limit(1)
-    .single();
-
-  if (error || !data) {
-    console.error(
-      "❌ No healthy Meta ad account found in DB:",
-      error?.message ?? "no row",
-    );
-    console.error(
-      "   Make sure at least one SME has connected their Meta account.",
-    );
-    process.exit(1);
-  }
-
-  const token = decrypt(data.access_token);
-  const accountId = data.platform_account_id.startsWith("act_")
-    ? data.platform_account_id
-    : `act_${data.platform_account_id}`;
-
-  return { token, accountId };
-}
 
 // ─── Meta API ─────────────────────────────────────────────────────────────────
-async function metaGet(endpoint: string, token: string): Promise<any> {
-  const res = await fetch(`${BASE_URL}${endpoint}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  const json = await res.json();
-  if (json.error) throw new Error(`${json.error.code}: ${json.error.message}`);
-  return json;
-}
-
 async function searchBehaviors(
   token: string,
   accountId: string,
@@ -141,25 +50,9 @@ async function searchBehaviors(
   return (data.data || []) as Array<{ id: string; name: string }>;
 }
 
-async function searchLifeEvents(
-  token: string,
-  accountId: string,
-  query: string,
-) {
-  const params = new URLSearchParams({
-    type: "adTargetingCategory",
-    class: "life_events",
-    q: query,
-    limit: "10",
-  });
-  const data = await metaGet(`/${accountId}/targetingsearch?${params}`, token);
-  return (data.data || []) as Array<{ id: string; name: string }>;
-}
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface AuditEntry {
   seedName: string;
-  category: "behavior" | "life_event";
   status: "exact_match" | "fuzzy_match" | "no_match" | "api_error";
   metaId: string | null;
   metaName: string | null;
@@ -187,7 +80,6 @@ function findBestMatch(
 
 async function validateSeeds(
   seeds: Array<{ name: string }>,
-  category: "behavior" | "life_event",
   searchFn: (query: string) => Promise<Array<{ id: string; name: string }>>,
   delay = 350,
 ): Promise<AuditEntry[]> {
@@ -197,7 +89,6 @@ async function validateSeeds(
     process.stdout.write(`  → "${seed.name}" ... `);
     const entry: AuditEntry = {
       seedName: seed.name,
-      category,
       status: "no_match",
       metaId: null,
       metaName: null,
@@ -245,7 +136,7 @@ async function validateSeeds(
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 async function main() {
-  console.log("\n🔍 Tenzu — Meta Behaviors & Life Events Validator");
+  console.log("\n🔍 Tenzu — Meta Behaviors Validator");
   console.log("=========================================================");
   console.log(
     `Mode: ${PATCH ? "PATCH (will rewrite meta-behaviors.ts)" : "DRY-RUN (read-only)"}`,
@@ -258,29 +149,17 @@ async function main() {
   );
 
   console.log(`📦 Validating ${META_BEHAVIOR_SEEDS.length} behaviors...\n`);
-  const behaviorResults = await validateSeeds(
+  const results = await validateSeeds(
     META_BEHAVIOR_SEEDS,
-    "behavior",
     (q) => searchBehaviors(token, accountId, q),
   );
 
-  console.log(
-    `\n🎉 Validating ${META_LIFE_EVENT_SEEDS.length} life events...\n`,
-  );
-  const lifeEventResults = await validateSeeds(
-    META_LIFE_EVENT_SEEDS,
-    "life_event",
-    (q) => searchLifeEvents(token, accountId, q),
-  );
-
-  const allResults = [...behaviorResults, ...lifeEventResults];
-
   // ── Summary ─────────────────────────────────────────────────────────────────
-  const exact = allResults.filter((r) => r.status === "exact_match").length;
-  const fuzzy = allResults.filter((r) => r.status === "fuzzy_match").length;
-  const noMatch = allResults.filter((r) => r.status === "no_match").length;
-  const errors = allResults.filter((r) => r.status === "api_error").length;
-  const total = allResults.length;
+  const exact = results.filter((r) => r.status === "exact_match").length;
+  const fuzzy = results.filter((r) => r.status === "fuzzy_match").length;
+  const noMatch = results.filter((r) => r.status === "no_match").length;
+  const errors = results.filter((r) => r.status === "api_error").length;
+  const total = results.length;
 
   console.log("\n=========================================================");
   console.log("📊 Summary");
@@ -297,10 +176,10 @@ async function main() {
     console.log(
       "\n⚠️  Unmatched seeds (review + fix these names in meta-behaviors.ts):",
     );
-    allResults
+    results
       .filter((r) => r.status === "no_match")
       .forEach((r) => {
-        console.log(`   - [${r.category}] "${r.seedName}"`);
+        console.log(`   - "${r.seedName}"`);
         if (r.rawResults.length > 0) {
           console.log(
             `     API returned: ${r.rawResults
@@ -313,7 +192,7 @@ async function main() {
           );
         } else {
           console.log(
-            `     → No results at all — this behavior/event may not exist in Meta's catalog`,
+            `     → No results at all — this behavior may not exist in Meta's catalog`,
           );
         }
       });
@@ -323,7 +202,7 @@ async function main() {
     console.log(
       "\n🟡 Fuzzy-matched seeds (Meta uses a slightly different display name):",
     );
-    allResults
+    results
       .filter((r) => r.status === "fuzzy_match")
       .forEach((r) => {
         console.log(
@@ -339,12 +218,12 @@ async function main() {
   const auditDir = path.join(__dirname, "../../.agent/audits");
   fs.mkdirSync(auditDir, { recursive: true });
   const auditPath = path.join(auditDir, "meta-behaviors-audit.json");
-  fs.writeFileSync(auditPath, JSON.stringify(allResults, null, 2));
+  fs.writeFileSync(auditPath, JSON.stringify(results, null, 2));
   console.log(`\n📄 Full audit → ${auditPath}`);
 
   // ── Patch ────────────────────────────────────────────────────────────────────
   if (PATCH) {
-    patchMetaBehaviors(allResults);
+    patchMetaBehaviors(results);
   } else {
     console.log(
       "💡 Run with --patch to bake confirmed IDs into meta-behaviors.ts\n",
@@ -360,7 +239,6 @@ function patchMetaBehaviors(audit: AuditEntry[]) {
   for (const entry of audit) {
     if (!entry.metaId) continue;
 
-    // Insert `metaId: "..."` right after the matching `name: "..."` line
     const nameLine = `name: "${entry.seedName}",`;
     const metaIdLine = `metaId: "${entry.metaId}", // confirmed ${new Date().toISOString().slice(0, 10)}`;
 
@@ -368,7 +246,6 @@ function patchMetaBehaviors(audit: AuditEntry[]) {
       source.includes(nameLine) &&
       !source.includes(`metaId: "${entry.metaId}"`)
     ) {
-      // Find indentation of the name line
       const nameIdx = source.indexOf(nameLine);
       const lineStart = source.lastIndexOf("\n", nameIdx) + 1;
       const indent = source.slice(lineStart, nameIdx).replace(/[^\s]/g, "");

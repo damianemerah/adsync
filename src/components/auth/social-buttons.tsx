@@ -47,7 +47,7 @@ export function SocialButtons({ action }: { action: "Sign in" | "Sign up" }) {
       <Button
         type="button"
         variant="outline"
-        className="h-14 rounded-lg border-border/50 bg-background hover:bg-facebook hover:border-facebook hover:text-white transition-colors group shadow-sm border border-border"
+        className="h-14 rounded-lg bg-background hover:bg-facebook hover:border-facebook hover:text-white transition-colors group shadow-sm border border-border"
         onClick={() => handleSocialLogin("facebook")}
       >
         <svg
@@ -61,7 +61,7 @@ export function SocialButtons({ action }: { action: "Sign in" | "Sign up" }) {
       <Button
         type="button"
         variant="outline"
-        className="h-14 rounded-lg border-border/50 bg-background hover:bg-foreground hover:border-foreground transition-colors group shadow-sm border border-border"
+        className="h-14 rounded-lg bg-background hover:bg-foreground hover:border-foreground transition-colors group shadow-sm border border-border"
         onClick={() => handleSocialLogin("twitter")}
       >
         <svg

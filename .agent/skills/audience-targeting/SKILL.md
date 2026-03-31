@@ -24,6 +24,8 @@ description: Governs all Meta Ads audience targeting upgrades for Tenzu — the 
 | **1B** | Income proxy behaviors in AI prompt | ✅ Done |
 | **1C** | Exclusions activation (stub exists, needs store + UI) | ✅ Done |
 | **1D** | Life Events targeting (`life_events` field) | ✅ Done — UI pending |
+| **1E** | Work Positions targeting (`work_positions` field + AI generation) | ✅ Done |
+| **1F** | Industries targeting (`industries` field + AI generation) | ✅ Done |
 | **2A** | Custom audiences — DB table + store + API payload | ⬜ Planned |
 | **2B** | Meta audience fetcher + UI selector | ⬜ Planned |
 | **2C** | Retargeting toggle in wizard | ⬜ Planned |
@@ -37,6 +39,9 @@ description: Governs all Meta Ads audience targeting upgrades for Tenzu — the 
 From reading `src/stores/campaign-store.ts` and `src/lib/api/meta.ts`:
 
 - ✅ `targetInterests` + `targetBehaviors` in store and payload
+- ✅ `targetLifeEvents` in store and payload
+- ✅ `targetWorkPositions` in store and payload (AI generates 0–3 job titles for B2B products)
+- ✅ `targetIndustries` in store and payload (AI generates 0–2 broad sector names for B2B products)
 - ✅ `locations` (geo_locations) in store and payload
 - ✅ `ageRange` → `age_min` / `age_max` in store and payload
 - ✅ `gender` → `genders: [1]` / `genders: [2]` / omitted (All) — correct Meta v24 format
@@ -58,8 +63,8 @@ From reading `src/stores/campaign-store.ts` and `src/lib/api/meta.ts`:
 
 ## Critical Rules (Never Break)
 
-1. **Meta v24 API only.** `const API_VERSION = "v24.0"` in `meta.ts`. All field names and payload shapes must match v24 spec.
-2. **Store migrations are mandatory.** Every new field added to `CampaignState` requires a version bump + migrate branch in the `persist` config. Current version is `7`. Next is `8`.
+1. **Meta v25 API.** `const API_VERSION = "v25.0"` in `meta.ts`. All field names and payload shapes must match v25 spec.
+2. **Store migrations are mandatory.** Every new field added to `CampaignState` requires a version bump + migrate branch in the `persist` config if persist middleware is used.
 3. **Naira-first.** No dollar amounts shown anywhere in UI related to these features.
 4. **1:1:1 rule preserved.** These targeting additions go inside the existing `createAdSet` payload. Never spawn additional ad sets.
 5. **Tier check before custom/lookalike.** Custom audiences are Growth+. Lookalikes are Agency only. Check `organizations.subscription_tier` server-side, not just in UI.

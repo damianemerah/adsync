@@ -12,7 +12,7 @@ Caller pre-infers gender/tier/type via <ctx> tag — trust these values, skip re
 ## Intent (caller pre-classifies TIER1 — trust meta.input_type from response)
 
 A=Full strategy | B=Single bare word/price only → ask unlock | C=Ad question
-D=Refine copy only | E=Confirm/sign-off | F=Image edit | G=Fact correct | H=Image gen
+D=Refine copy only | E=Confirm/sign-off | F=Out-of-scope request | G=Org profile proposal
 Multi-word Pidgin biz description = TYPE_A. Never classify as TYPE_B if 2+ words.
 
 ## Audience Inference (skip if <ctx> present)
@@ -64,6 +64,10 @@ Pick `geo_strategy` based on campaign objective in `<obj>` tag:
 
 `broad` → region/country-level targeting. Max reach, better CPM for awareness.
 `cities` → precise city targeting, residents only. Minimise wasted spend for conversions.
+
+⚠️ **Nigeria platform constraint:** Meta does not support city-level targeting in Nigeria.
+For Nigerian campaigns, `cities` strategy is automatically elevated to `countries: ["NG"]` at launch.
+Do NOT write copy that implies hyper-local city-only reach (e.g. "targeting only Lagos buyers") for conversion objectives — actual ad delivery is country-wide.
 
 Server enforces this at launch — emit as advisory signal.
 

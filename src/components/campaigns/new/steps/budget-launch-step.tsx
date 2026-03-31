@@ -98,6 +98,8 @@ export function BudgetLaunchStep({
     targetLanguages,
     exclusionAudienceIds,
     targetLifeEvents,
+    targetWorkPositions,
+    targetIndustries,
     destinationValue,
     aiPrompt,
     leadGenFormId,
@@ -318,6 +320,8 @@ export function BudgetLaunchStep({
       targetLanguages,
       exclusionAudienceIds,
       targetLifeEvents: targetLifeEvents || [],
+      targetWorkPositions: targetWorkPositions || [],
+      targetIndustries: targetIndustries || [],
       destinationValue,
       aiContext: {
         businessDescription: aiPrompt || "My Business",

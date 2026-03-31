@@ -4,8 +4,10 @@ import {
   refineAdCopyWithOpenAI,
 } from "@/lib/ai/service";
 import { createClient } from "@/lib/supabase/server";
-import { OBJECTIVE_INTENT_MAP, AdSyncObjective } from "@/lib/constants";
+import { OBJECTIVE_INTENT_MAP, AdSyncObjective, TIER_CONFIG, TierId, CREDIT_COSTS } from "@/lib/constants";
 import { getActiveOrgId } from "@/lib/active-org";
+import { extractUrlFromMessage, scrapeUrl } from "@/lib/ai/url-scraper";
+import { spendCredits } from "@/lib/credits";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -30,10 +32,12 @@ export async function POST(request: Request) {
       id,
       subscription_status,
       subscription_expires_at,
+      subscription_tier,
       industry,
       selling_method,
       price_tier,
-      customer_gender
+      customer_gender,
+      business_description
     `,
     )
     .eq("id", activeOrgId)
@@ -60,16 +64,78 @@ export async function POST(request: Request) {
     }
   }
 
-  // 3. Parse input
+  // 4. Monthly chat limit check — free within quota, 1 credit per message after
+  const tier = (org?.subscription_tier as TierId) || "starter";
+  const maxMonthlyChats = TIER_CONFIG[tier]?.limits?.maxMonthlyChats ?? 50;
+
+  if (maxMonthlyChats < 999999) {
+    // Use subscription billing period start, not calendar month start.
+    // subscription_expires_at is 30 days after the last renewal, so subtract
+    // 30 days to get the start of the current billing cycle.
+    const billingPeriodStart = expiresAt
+      ? new Date(new Date(expiresAt).getTime() - 30 * 24 * 60 * 60 * 1000)
+      : (() => {
+          const d = new Date();
+          d.setDate(1);
+          d.setHours(0, 0, 0, 0);
+          return d;
+        })();
+
+    const { count } = await supabase
+      .from("ai_requests")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .gte("created_at", billingPeriodStart.toISOString());
+
+    if ((count ?? 0) >= maxMonthlyChats) {
+      // Over monthly limit — charge 1 credit as overage
+      const { data: userRecord } = await supabase
+        .from("users")
+        .select("credits_balance")
+        .eq("id", user.id)
+        .single();
+
+      const balance = userRecord?.credits_balance ?? 0;
+      if (balance < CREDIT_COSTS.CHAT_OVERAGE) {
+        return NextResponse.json(
+          {
+            error: `You've used all ${maxMonthlyChats} AI chat sessions this month and have no credits left. Top up or upgrade to continue.`,
+            limitReached: true,
+            noCredits: true,
+            upgradeRequired: true,
+          },
+          { status: 429 },
+        );
+      }
+
+      // Deduct 1 credit upfront before the AI call
+      await spendCredits(supabase, activeOrgId, user.id, CREDIT_COSTS.CHAT_OVERAGE, "chat_overage", null, null);
+    }
+  }
+
+  // 5. Parse input
   const body = await request.json();
   const {
-    description,
+    description: rawDescription,
     location,
     objective,
     currentCopy,
     refinementInstruction,
     conversationHistory,
   } = body;
+
+  // ── URL context extraction ──────────────────────────────────────────────────
+  // If the user pasted a URL, scrape it server-side and inject as site context.
+  // The URL is stripped from the description so the model doesn't try to "visit" it.
+  let siteContext: string | null = null;
+  let description: string = rawDescription;
+
+  const detectedUrl = rawDescription ? extractUrlFromMessage(rawDescription) : null;
+  if (detectedUrl) {
+    siteContext = await scrapeUrl(detectedUrl);
+    // Remove the URL from the description so the AI sees clean product text
+    description = rawDescription.replace(detectedUrl, "").trim() || rawDescription;
+  }
 
   // Resolve objective context
   const objId = objective as AdSyncObjective;
@@ -105,6 +171,7 @@ export async function POST(request: Request) {
           customerGender: org?.customer_gender,
           objective: objective ? String(objective).toUpperCase() : undefined,
           currentCopy,
+          siteContext,
         },
         actualInstruction,
       );
@@ -148,6 +215,8 @@ export async function POST(request: Request) {
         objective: objective ? String(objective).toUpperCase() : undefined,
         objectiveContext: objContext,
         currentCopy: currentCopy ?? undefined,
+        orgBusinessDescription: org?.business_description ?? null,
+        siteContext,
       },
       conversationHistory ?? [],
       activeOrgId,
@@ -202,6 +271,7 @@ export async function POST(request: Request) {
             customerGender: org?.customer_gender,
             objective: objective ? String(objective).toUpperCase() : undefined,
             currentCopy,
+            siteContext,
           },
           description, // The user's raw refinement instruction becomes the refinement prompt
         );
@@ -220,6 +290,7 @@ export async function POST(request: Request) {
         input_json: {
           type: "campaign_strategy",
           description_length: description.length,
+          ...(siteContext ? { site_context_chars: siteContext.length } : {}),
         },
         result_json: { generated: true, usage: strategy.usage },
         tokens_used: strategy.usage?.total_tokens || 0,
