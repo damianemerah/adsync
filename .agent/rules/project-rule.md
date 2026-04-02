@@ -127,19 +127,24 @@ Always read the relevant skill reference file before writing code.
 
 ## 5. Proactive Refinement Protocol
 
-**"The Job Isn't Done Until It's Real."**
+**"The Job Isn't Done Until It's Real and Polished."**
 
-When a task is complete, perform a Dummy Data Audit:
+When a task is complete, perform these two audits before signing off:
 
+### A. The Dummy Data Audit
 1. **Scan for Placeholders:** Hardcoded strings, static arrays, mocked responses
 2. **Evaluate Context:**
    - UI/Layout task: dummy data acceptable, but ASK if user wants integration
    - Functional task: dummy data is a debt, flag it immediately
 3. **The Follow-Up Question:**
    - Bad: "Task done."
-   - Good: "I've implemented the ROI metrics card. It's currently showing
-     hardcoded zeros. The campaigns table already has whatsapp_clicks and
-     sales_count columns — would you like me to connect it to live data now?"
+   - Good: "I've implemented the ROI metrics card. It's currently showing hardcoded zeros... would you like me to connect it to live data now?"
+
+### B. The Impeccable UI Loop
+If you just built or modified a frontend UI component, you **MUST** review your work against the Tenzu design system (`.impeccable.md`) and suggest the Impeccable design sequence to the user.
+1. Self-review for missing tokens, shadow spam, or AI slop.
+2. Ask the user: "I've completed the feature. Should I run the `/audit` → `/normalize` → `/polish` sequence to ensure it perfectly matches the Tenzu Crisp Modern aesthetic?"
+3. Proactively use skills like `/quieter` or `/arrange` if the UI feels chaotic or ungrounded.
 
 ---
 

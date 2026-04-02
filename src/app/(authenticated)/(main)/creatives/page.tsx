@@ -17,7 +17,7 @@ import Image from "next/image";
 import { useAdAnalysis } from "@/hooks/use-ad-analysis";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { HelpCenterSheet } from "@/components/layout/help-center-sheet";
+import { PageHeader } from "@/components/layout/page-header";
 
 export default function CreativeAnalyzePage() {
   // Use the hook to fetch real data
@@ -47,14 +47,7 @@ export default function CreativeAnalyzePage() {
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-muted font-sans text-foreground">
       {/* 1. Sticky Header (Global Pattern) */}
-      <header className="w-full border-b border-border bg-background/80 backdrop-blur-md shrink-0 z-10">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4 lg:px-8">
-          <h1 className="text-xl font-heading font-bold text-foreground tracking-tight">
-            Ad Analyze
-          </h1>
-          <HelpCenterSheet />
-        </div>
-      </header>
+      <PageHeader title="Ad Analyze" className="static shrink-0 z-10" />
 
       {/* 2. Global Filters (Context Bar) */}
       <GlobalContextBar />

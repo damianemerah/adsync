@@ -1,7 +1,6 @@
 import { ContentSection } from "@/components/home/content-section";
 import { CTASection } from "@/components/home/cta-section";
 import { FeatureDeepDive } from "@/components/home/feature-deep-dive";
-import { FeaturesSection } from "@/components/home/features-section";
 import { HeroHeader } from "@/components/home/hero-header";
 import { HeroSection } from "@/components/home/hero-section";
 import { PersonasGrid } from "@/components/home/personas-grid";
@@ -31,7 +30,6 @@ export default function LandingPage() {
         <ContentSection />
         <TrustBar />
         <FeatureDeepDive />
-        <FeaturesSection />
         <PersonasGrid />
         <WallOfLove />
         <CTASection />

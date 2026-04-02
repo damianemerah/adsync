@@ -1,6 +1,5 @@
 "use client";
-import { HelpCenterSheet } from "@/components/layout/help-center-sheet";
-import { CreditsDisplay } from "@/components/layout/credits-display";
+import { PageHeader } from "@/components/layout/page-header";
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -246,24 +245,15 @@ export default function CreativesPage() {
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-muted/30 font-sans">
       {/* HEADER */}
-      <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-md">
-        <div className="flex h-16 items-center justify-between px-2 sm:px-4 lg:px-6 container max-w-7xl mx-auto">
-          <h1 className="text-xl font-heading font-bold text-foreground tracking-tight">
-            Creatives
-          </h1>
-          <div className="flex items-center gap-3">
-            <CreditsDisplay />
-            <HelpCenterSheet />
-            <Button
-              onClick={() => router.push("/creations/studio")}
-              size="sm"
-              className="h-9 px-5 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-sm border border-border gap-2"
-            >
-              <Sparks className="w-4 h-4" /> Generate with AI
-            </Button>
-          </div>
-        </div>
-      </header>
+      <PageHeader title="Creatives" showCredits>
+        <Button
+          onClick={() => router.push("/creations/studio")}
+          size="sm"
+          className="h-9 px-5 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-sm border border-border gap-2"
+        >
+          <Sparks className="w-4 h-4" /> Generate with AI
+        </Button>
+      </PageHeader>
 
       {/* MAIN CONTENT */}
       <main className="flex-1 overflow-y-auto p-2 md:p-4 lg:p-6">

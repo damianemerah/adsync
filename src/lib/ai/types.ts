@@ -111,4 +111,6 @@ export interface AIInput {
   orgBusinessDescription?: string | null;
   /** Scraped text content from a URL the user pasted — injected as <site> context */
   siteContext?: string | null;
+  /** When true, skip triage entirely and go straight to full generation (used for TYPE_G confirmations) */
+  skipTriage?: boolean;
 }

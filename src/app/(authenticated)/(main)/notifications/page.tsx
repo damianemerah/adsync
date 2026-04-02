@@ -18,6 +18,7 @@ import {
   SystemRestart,
 } from "iconoir-react";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/layout/page-header";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 
@@ -40,31 +41,27 @@ export default function NotificationsPage() {
   return (
     <div className="flex flex-1 flex-col min-w-0">
       {/* Header */}
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur-md">
-        <div className="flex h-16 items-center justify-between px-8">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-heading font-bold text-slate-900">
-              Notifications
-            </h1>
-            {unreadCount > 0 && (
-              <Badge className="bg-blue-600 hover:bg-blue-600">
-                {unreadCount} New
-              </Badge>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => markAllRead()}
-              disabled={unreadCount === 0}
-              className="text-slate-600"
-            >
-              <DoubleCheck className="h-4 w-4 mr-2" /> Mark all read
-            </Button>
-          </div>
-        </div>
-      </header>
+      <PageHeader
+        title="Notifications"
+        showHelpCenter={false}
+        leftContent={
+          unreadCount > 0 && (
+            <Badge className="bg-primary hover:bg-primary text-primary-foreground border-0">
+              {unreadCount} New
+            </Badge>
+          )
+        }
+      >
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => markAllRead()}
+          disabled={unreadCount === 0}
+          className="text-foreground"
+        >
+          <DoubleCheck className="h-4 w-4 mr-2" /> Mark all read
+        </Button>
+      </PageHeader>
 
       <main className="flex-1 p-8 max-w-4xl mx-auto w-full">
         {/* Filters */}

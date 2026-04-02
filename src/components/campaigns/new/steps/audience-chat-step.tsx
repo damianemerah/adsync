@@ -3,7 +3,6 @@
 import {
   useCampaignStore,
   Message,
-  CopyVariation,
 } from "@/stores/campaign-store";
 import { classifyLocally } from "@/lib/ai/preprocessor";
 import { messageContainsUrl } from "@/lib/ai/url-scraper";
@@ -21,10 +20,6 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import {
-  mapIntentToCTA,
-  generateWhatsAppMessage,
-} from "@/lib/constants/cta-options";
-import {
   ResizablePanelGroup,
   ResizablePanel,
   ResizableHandle,
@@ -32,15 +27,11 @@ import {
 import { Check, ListSelect } from "iconoir-react";
 import type { AIStrategyResult } from "@/lib/ai/types";
 import {
-  resolveInterests,
-  resolveBehaviors,
-  resolveLifeEvents,
-  resolveWorkPositions,
-  resolveIndustries,
-  resolveLocation,
-  normalizeLocationName,
-  LAGOS_DEFAULT,
-} from "@/lib/utils/targeting-resolver";
+  extractTargetingNames,
+  resolveAllTargeting,
+  buildResolvedStrategy,
+  applyCopyResult,
+} from "./audience/chat-handlers";
 import { estimateBudget } from "@/lib/intelligence/estimator";
 import type { AdSyncObjective } from "@/lib/constants";
 import { TIER_CONFIG } from "@/lib/constants";
@@ -166,6 +157,10 @@ export function AudienceChatStep({
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const lockScrollToCopy = useRef<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const pendingTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  // Stores the user message that triggered TYPE_G so we can use it when they confirm
+  const typegTriggerRef = useRef<string | null>(null);
   const [isRefiningCopy, setIsRefiningCopy] = useState(false);
   const [isReadingUrl, setIsReadingUrl] = useState(false);
 
@@ -173,6 +168,15 @@ export function AudienceChatStep({
   useEffect(() => {
     if (!isTyping) setIsReadingUrl(false);
   }, [isTyping]);
+
+  // Cleanup: abort in-flight fetches and pending timers on unmount
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+      pendingTimers.current.forEach(clearTimeout);
+    };
+  }, []);
+
   const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
   const [copyReady, setCopyReady] = useState(false);
   const [chatPhase, setChatPhase] = useState<"initial" | "refining">("initial");
@@ -217,12 +221,19 @@ export function AudienceChatStep({
     }
     setIsRefiningCopy(true);
     setIsTyping(true);
+
+    // Abort any in-flight request
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
       const res = await fetch("/api/ai/generate", {
         method: "POST",
+        signal: controller.signal,
         body: JSON.stringify({
           description: aiPrompt,
-          location: buildLocationString(locations), // send ALL locations, not just first
+          location: buildLocationString(locations),
           objective: objective || "whatsapp",
           currentCopy: adCopy.headline
             ? { headline: adCopy.headline, primary: adCopy.primary }
@@ -233,49 +244,23 @@ export function AudienceChatStep({
       if (!res.ok) throw new Error("Refinement failed");
       const result = await res.json();
 
-      // Build sliced variations from refinement result
-      const allHeadlines: string[] = (result.headline || []).slice(
-        0,
+      const { variations, primaryCopy, ctaData } = applyCopyResult(result, {
         maxCopyVariations,
-      );
-      const allCopies: string[] = (result.copy || []).slice(
-        0,
-        maxCopyVariations,
-      );
-      const variations: CopyVariation[] = allHeadlines.map(
-        (h: string, i: number) => ({
-          headline: h,
-          primary: allCopies[i] || allCopies[0] || "",
-        }),
-      );
-      const newCopy = variations[0] ?? { headline: "", primary: "" };
-
-      const ctaFromIntent = mapIntentToCTA(
-        result.ctaIntent || "buy_now",
         platform,
         objective,
-      );
-      const whatsappMsg =
-        result.whatsappMessage ||
-        (ctaFromIntent.code === "SEND_MESSAGE"
-          ? generateWhatsAppMessage({ headline: newCopy.headline, locations })
-          : undefined);
+        locations,
+      });
 
       updateDraft({
         adCopy: {
-          ...newCopy,
-          cta: {
-            intent: result.ctaIntent || "buy_now",
-            platformCode: ctaFromIntent.code,
-            displayLabel: ctaFromIntent.label,
-            whatsappMessage: whatsappMsg,
-          },
+          ...primaryCopy,
+          cta: ctaData,
         },
         adCopyVariations: variations,
         selectedCopyIdx: 0,
       });
 
-      setTimeout(() => {
+      scheduleTimer(() => {
         setIsTyping(false);
         setMessages((prev) => [
           ...prev,
@@ -284,13 +269,26 @@ export function AudienceChatStep({
             role: "ai",
             content: "Here's the updated version:",
             type: "copy_suggestion",
-            data: { adCopy: newCopy, adCopyVariations: variations },
+            data: { adCopy: primaryCopy, adCopyVariations: variations },
           },
         ]);
       }, 800);
       incrementRefinementCount();
-    } catch {
+    } catch (err: any) {
+      if (err?.name === "AbortError") return;
       setIsTyping(false);
+      toast.error("Copy refinement failed. Please try again.", {
+        duration: 4000,
+      });
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          role: "ai",
+          content: "I couldn't refine the copy. Try sending your feedback again.",
+          type: "recovery",
+        },
+      ]);
     } finally {
       setIsRefiningCopy(false);
     }
@@ -449,7 +447,9 @@ export function AudienceChatStep({
           onDraftSaved(savedId);
         }
       } catch {
-        // Silent
+        toast.warning("Changes not saved — check your connection.", {
+          duration: 3000,
+        });
       }
     }, 2000);
 
@@ -457,6 +457,19 @@ export function AudienceChatStep({
   }, [messages.length]);
 
   // ─── Main Send Handler ─────────────────────────────────────────────────────
+
+  /** Schedule a timeout that is auto-cleared on next send or unmount. */
+  function scheduleTimer(fn: () => void, ms: number) {
+    const id = setTimeout(fn, ms);
+    pendingTimers.current.push(id);
+    return id;
+  }
+
+  /** Cancel all pending message-sequencing timers. */
+  function clearPendingTimers() {
+    pendingTimers.current.forEach(clearTimeout);
+    pendingTimers.current = [];
+  }
 
   function normalizeAmounts(input: string): string {
     return input
@@ -475,15 +488,18 @@ export function AudienceChatStep({
     }
   };
 
-  const handleSend = async (overrideValue?: string) => {
+  const handleSend = async (overrideValue?: string, isProceedConfirm?: boolean) => {
     const raw = overrideValue || inputValue;
     const text = normalizeAmounts(raw);
     if (!text.trim() || isTyping) return;
 
-    const isInternalSentinel = text.startsWith("__OBJECTIVE_");
+    // Abort any in-flight request and clear pending message timers
+    abortRef.current?.abort();
+    clearPendingTimers();
+    const controller = new AbortController();
+    abortRef.current = controller;
 
-    // Triage will determine if this is a refinement using conversation history.
-    // No client-side merging or heuristic length checks.
+    const isInternalSentinel = text.startsWith("__OBJECTIVE_");
     const finalDescription = text;
 
     const userMsg: Message = {
@@ -517,9 +533,9 @@ export function AudienceChatStep({
 
     // ── Sentinel: Objective rewrite ────────────────────────────────────────
     if (text.startsWith("__OBJECTIVE_REWRITE__")) {
-      setIsTyping(false);
       const businessDesc = aiPrompt;
       if (!businessDesc) {
+        setIsTyping(false);
         setMessages((prev) => [
           ...prev,
           {
@@ -532,16 +548,10 @@ export function AudienceChatStep({
         ]);
         return;
       }
-      setIsTyping(true);
       try {
-        console.log("REWRITE REQUEST🔥🔥🔥", {
-          description: businessDesc,
-          location: buildLocationString(locations),
-          objective: objective || "whatsapp",
-          conversationHistory: buildTriageHistory(messages),
-        });
         const res = await fetch("/api/ai/generate", {
           method: "POST",
+          signal: controller.signal,
           body: JSON.stringify({
             description: businessDesc,
             location: buildLocationString(locations),
@@ -550,148 +560,37 @@ export function AudienceChatStep({
           }),
         });
         if (res.status === 429) {
-          const errBody = await res.json().catch(() => ({}));
-          setIsTyping(false);
-          if (errBody?.noCredits) {
-            toast.error(
-              errBody.error || "No credits left. Top up to keep chatting.",
-              { duration: 7000, action: { label: "Top Up", onClick: () => router.push("/settings/subscription") } },
-            );
-          } else if (errBody?.limitReached) {
-            setUpgradeDialogOpen(true);
-            toast.error(
-              errBody.error || "Monthly AI chat limit reached. Upgrade to continue.",
-              { duration: 6000 },
-            );
-          }
+          handleRateLimit(res);
           return;
         }
         if (!res.ok) throw new Error("Rebuild failed");
         const result: AIStrategyResult = await res.json();
 
-        console.log("REWRITE RESULT🔥🔥🔥", result);
-
-        const rewriteInterestNames = (result.interests || []).map(
-          (interest: any) =>
-            typeof interest === "string" ? interest : interest.name,
-        );
-        const rewriteBehaviorNames = (result.behaviors || []).map((b: any) =>
-          typeof b === "string" ? b : b.name,
-        );
-        const rewriteLifeEventNames = (result.lifeEvents || []).map((e: any) =>
-          typeof e === "string" ? e : e.name,
-        );
-
-        const rewriteWorkPositionNames = (result.workPositions ?? []).filter(
-          (p: any) => typeof p === "string" && p,
-        );
-        const rewriteIndustryNames = (result.industries ?? []).filter(
-          (i: any) => typeof i === "string" && i,
-        );
-
-        const [
-          resolvedInterests,
-          rewriteResolvedBehaviors,
-          rewriteResolvedLifeEvents,
-          rewriteResolvedWorkPositions,
-          rewriteResolvedIndustries,
-        ] = await Promise.all([
-          resolveInterests(rewriteInterestNames, async (query) => {
-            const r = await fetch(
-              `/api/meta/search-interest?query=${encodeURIComponent(query)}`,
-            );
-            return r.ok ? r.json() : [];
-          }),
-          resolveBehaviors(rewriteBehaviorNames, async (query) => {
-            const r = await fetch(
-              `/api/meta/search-behavior?query=${encodeURIComponent(query)}`,
-            );
-            return r.ok ? r.json() : [];
-          }),
-          resolveLifeEvents(rewriteLifeEventNames, async (query) => {
-            const r = await fetch(
-              `/api/meta/search-life-events?query=${encodeURIComponent(query)}`,
-            );
-            return r.ok ? r.json() : [];
-          }),
-          resolveWorkPositions(rewriteWorkPositionNames, async (query) => {
-            const r = await fetch(
-              `/api/meta/search-work-position?query=${encodeURIComponent(query)}`,
-            );
-            return r.ok ? r.json() : [];
-          }),
-          resolveIndustries(rewriteIndustryNames, async (query) => {
-            const r = await fetch(
-              `/api/meta/search-industry?query=${encodeURIComponent(query)}`,
-            );
-            return r.ok ? r.json() : [];
-          }),
-        ]);
-
-        const allHeadlines: string[] = (result.headline || []).slice(
-          0,
+        const names = extractTargetingNames(result);
+        const resolved = await resolveAllTargeting(names);
+        const strategy = buildResolvedStrategy(result, resolved, {
+          existingLocations: locations,
           maxCopyVariations,
-        );
-        const allCopies: string[] = (result.copy || []).slice(
-          0,
-          maxCopyVariations,
-        );
-        const variations: CopyVariation[] = allHeadlines.map(
-          (h: string, i: number) => ({
-            headline: h,
-            primary: allCopies[i] || allCopies[0] || "",
-          }),
-        );
-        const newCopy = variations[0] ?? { headline: "", primary: "" };
-
-        const ctaFromIntent = mapIntentToCTA(
-          result.ctaIntent || "buy_now",
           platform,
           objective,
-        );
-        const whatsappMsg =
-          result.whatsappMessage ||
-          (ctaFromIntent.code === "SEND_MESSAGE"
-            ? generateWhatsAppMessage({ headline: newCopy.headline, locations })
-            : undefined);
+        });
 
         updateDraft({
-          targetInterests: resolvedInterests.filter(Boolean),
-          targetBehaviors: rewriteResolvedBehaviors.map(({ id, name, resolved }) => ({
-            id,
-            name,
-            resolved,
-          })),
-          targetLifeEvents: rewriteResolvedLifeEvents.map(({ id, name, resolved }) => ({
-            id,
-            name,
-            resolved,
-          })),
-          targetWorkPositions: rewriteResolvedWorkPositions.map(({ id, name, resolved }) => ({
-            id,
-            name,
-            resolved,
-          })),
-          targetIndustries: rewriteResolvedIndustries.map(({ id, name, resolved }) => ({
-            id,
-            name,
-            resolved,
-          })),
+          targetInterests: strategy.normalizedInterests,
+          targetBehaviors: strategy.normalizedBehaviors,
+          targetLifeEvents: strategy.normalizedLifeEvents,
+          targetWorkPositions: strategy.normalizedWorkPositions,
+          targetIndustries: strategy.normalizedIndustries,
           ageRange: {
             min: result.demographics?.age_min || 18,
             max: result.demographics?.age_max || 65,
           },
           gender: result.demographics?.gender || "all",
           adCopy: {
-            ...newCopy,
-            cta: {
-              intent: result.ctaIntent || "buy_now",
-              platformCode: ctaFromIntent.code,
-              displayLabel: ctaFromIntent.label,
-              whatsappMessage: whatsappMsg,
-            },
+            ...strategy.primaryCopy,
+            cta: strategy.ctaData,
           },
-          adCopyVariations: variations,
+          adCopyVariations: strategy.variations,
           selectedCopyIdx: 0,
           lastGeneratedObjective: objective || "whatsapp",
         });
@@ -699,7 +598,7 @@ export function AudienceChatStep({
         const outcome = buildOutcomePreview(objective, budget);
         const plainSummary =
           result.plain_english_summary ||
-          `Rebuilt for ${(objective || "whatsapp").toUpperCase()} — targeting ${resolvedInterests.length} audiences.`;
+          `Rebuilt for ${(objective || "whatsapp").toUpperCase()} — targeting ${strategy.normalizedInterests.length} audiences.`;
 
         setIsTyping(false);
         setMessages((prev) => [
@@ -713,12 +612,12 @@ export function AudienceChatStep({
               outcomeLabel: outcome.label,
               outcomeRange: outcome.range,
               budget,
-              interests: resolvedInterests,
+              interests: strategy.normalizedInterests,
               locations,
             },
           },
         ]);
-        setTimeout(() => {
+        scheduleTimer(() => {
           setMessages((prev) => [
             ...prev,
             {
@@ -726,21 +625,147 @@ export function AudienceChatStep({
               role: "ai",
               content: "Here's the updated copy for your new goal:",
               type: "copy_suggestion",
-              data: { adCopy: newCopy, adCopyVariations: variations },
+              data: { adCopy: strategy.primaryCopy, adCopyVariations: strategy.variations },
             },
           ]);
           setCopyReady(true);
           setChatPhase("refining");
         }, 900);
-      } catch {
+      } catch (err: any) {
+        if (err?.name === "AbortError") return;
         setIsTyping(false);
-        // Remove the failed user message so retrying doesn't create duplicates
         setMessages((prev) => [
           ...prev.filter((m) => m.id !== userMsg.id),
           {
             id: Date.now().toString(),
             role: "ai",
             content: "Couldn't rebuild right now. Try again in a moment.",
+            type: "text",
+          },
+        ]);
+      }
+      return;
+    }
+
+    // ── TYPE_G confirmation bypass ─────────────────────────────────────────
+    // "Yes, proceed" after a TYPE_G proposal must skip triage and go straight
+    // to generation — sending "Yes, proceed" as the description would cause
+    // triage to loop back to TYPE_G again.
+    if (isProceedConfirm) {
+      console.log("Proceeding with TYPE_G confirmation💎💎💎");
+      setCopyReady(false);
+      setChatPhase("initial");
+      try {
+        const res = await fetch("/api/ai/generate", {
+          method: "POST",
+          signal: controller.signal,
+          body: JSON.stringify({
+            description: typegTriggerRef.current || "",
+            location: buildLocationString(locations),
+            objective: objective || "whatsapp",
+            conversationHistory: buildTriageHistory(messages),
+            forceGenerate: true,
+          }),
+        });
+
+        if (res.status === 429) { handleRateLimit(res); return; }
+        if (!res.ok) throw new Error("AI Failed");
+        const result: AIStrategyResult = await res.json();
+
+        const earlyReturn = routeTriageResponse(result);
+        if (earlyReturn) return;
+
+        const names = extractTargetingNames(result);
+        const resolved = await resolveAllTargeting(names);
+        const strategy = buildResolvedStrategy(result, resolved, {
+          existingLocations: locations,
+          maxCopyVariations,
+          platform,
+          objective,
+        });
+
+        const triggerPrompt = typegTriggerRef.current || "";
+        updateDraft({
+          aiPrompt: triggerPrompt,
+          resolvedSiteContext: (result as any).siteContextSummary ?? null,
+          targetInterests: strategy.normalizedInterests,
+          targetBehaviors: strategy.normalizedBehaviors,
+          targetLifeEvents: strategy.normalizedLifeEvents,
+          targetWorkPositions: strategy.normalizedWorkPositions,
+          targetIndustries: strategy.normalizedIndustries,
+          ageRange: {
+            min: result.demographics?.age_min || 18,
+            max: result.demographics?.age_max || 65,
+          },
+          gender: result.demographics?.gender || "all",
+          campaignName:
+            !campaignName || campaignName === "Untitled Campaign"
+              ? generateCampaignName(triggerPrompt, strategy.normalizedInterests)
+              : campaignName,
+          adCopy: { ...strategy.primaryCopy, cta: strategy.ctaData },
+          adCopyVariations: strategy.variations,
+          selectedCopyIdx: 0,
+          locations: strategy.finalLocations,
+          lastGeneratedObjective: objective || "whatsapp",
+          suggestedLeadForm: result.suggestedLeadForm ?? null,
+        });
+
+        const plainSummary =
+          result.plain_english_summary ||
+          `Targeting ${result.demographics?.gender === "female" ? "women" : result.demographics?.gender === "male" ? "men" : "people"} ${result.demographics?.age_min}–${result.demographics?.age_max} in ${strategy.finalLocations.map((l) => l.name).join(", ")}.`;
+        updateDraft({ latestAiSummary: plainSummary });
+
+        const outcome = buildOutcomePreview(objective, budget);
+        typegTriggerRef.current = null;
+
+        scheduleTimer(() => {
+          setIsTyping(false);
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: Date.now().toString(),
+              role: "ai",
+              content: plainSummary,
+              type: "outcome_preview",
+              data: {
+                outcomeLabel: outcome.label,
+                outcomeRange: outcome.range,
+                budget,
+                interests: strategy.normalizedInterests,
+                locations: strategy.finalLocations,
+              },
+            },
+          ]);
+
+          if (strategy.primaryCopy.headline && strategy.primaryCopy.primary) {
+            scheduleTimer(() => {
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: Date.now().toString(),
+                  role: "ai",
+                  content: "Here's your ad copy — ready to use:",
+                  type: "copy_suggestion",
+                  data: {
+                    adCopy: strategy.primaryCopy,
+                    adCopyVariations: strategy.variations,
+                  },
+                },
+              ]);
+              setCopyReady(true);
+              setChatPhase("refining");
+            }, 900);
+          }
+        }, 0);
+      } catch (err: any) {
+        if (err?.name === "AbortError") return;
+        setIsTyping(false);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now().toString(),
+            role: "ai",
+            content: "Couldn't generate right now. Try again in a moment.",
             type: "text",
           },
         ]);
@@ -772,6 +797,7 @@ export function AudienceChatStep({
     try {
       const res = await fetch("/api/ai/generate", {
         method: "POST",
+        signal: controller.signal,
         body: JSON.stringify({
           description: finalDescription,
           location: buildLocationString(locations),
@@ -784,101 +810,15 @@ export function AudienceChatStep({
       });
 
       if (res.status === 429) {
-        const errBody = await res.json().catch(() => ({}));
-        setIsTyping(false);
-        if (errBody?.noCredits) {
-          toast.error(
-            errBody.error || "No credits left. Top up to keep chatting.",
-            { duration: 7000, action: { label: "Top Up", onClick: () => router.push("/settings/subscription") } },
-          );
-        } else if (errBody?.limitReached) {
-          setUpgradeDialogOpen(true);
-          toast.error(
-            errBody.error || "Monthly AI chat limit reached. Upgrade to continue.",
-            { duration: 6000 },
-          );
-        } else {
-          toast.error("Too many requests. Please wait a moment and try again.");
-        }
+        handleRateLimit(res);
         return;
       }
       if (!res.ok) throw new Error("AI Failed");
       const result: AIStrategyResult = await res.json();
 
-      // ── TYPE_G — org profile known, showing proposed plan for confirmation ──
-      if (result.meta?.input_type === "TYPE_G") {
-        setIsTyping(false);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString(),
-            role: "ai",
-            content:
-              result.meta.proposed_plan ||
-              "Based on your business profile, I can create an ad now. Want me to proceed, or would you like to adjust anything?",
-            type: "clarification_choice",
-            data: {
-              clarificationOptions: ["Yes, proceed", "Let me adjust"],
-            },
-          },
-        ]);
-        return;
-      }
-
-      // ── TYPE_B from triage (single bare word — triage returned early) ──────
-      if (result.meta?.input_type === "TYPE_B") {
-        setIsTyping(false);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString(),
-            role: "ai",
-            content:
-              result.meta.clarification_question ||
-              "What are you selling? (e.g. 'Ankara bags Lagos', 'Skincare Abuja')",
-            type: "text",
-          },
-        ]);
-        return;
-      }
-
-      // ── TYPE_C / TYPE_E — question or sign-off (triage returned early) ─────
-      if (
-        result.meta?.is_question &&
-        (result.meta.input_type === "TYPE_C" ||
-          result.meta.input_type === "TYPE_E")
-      ) {
-        setIsTyping(false);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString(),
-            role: "ai",
-            content:
-              result.meta.question_answer ||
-              "Good question. What are you selling?",
-            type: "text",
-          },
-        ]);
-        return;
-      }
-
-      // ── TYPE_F — out-of-scope request (politely decline) ────────────────────
-      if (result.meta?.input_type === "TYPE_F") {
-        setIsTyping(false);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString(),
-            role: "ai",
-            content:
-              result.meta.question_answer ||
-              "I can only help with ad campaigns. Tell me what you're selling and I'll build your ad.",
-            type: "text",
-          },
-        ]);
-        return;
-      }
+      // ── Triage early returns (zero-cost AI responses) ──────────────────────
+      const earlyReturn = routeTriageResponse(result, text);
+      if (earlyReturn) return;
 
       // ── TYPE_D — copy refinement ───────────────────────────────────────────
       if (result.meta?.input_type === "TYPE_D" && adCopy.headline) {
@@ -888,174 +828,24 @@ export function AudienceChatStep({
       }
 
       // ── Full strategy — resolve targeting ──────────────────────────────────
-      const interestNames = (result.interests || []).map((i: any) =>
-        typeof i === "string" ? i : i.name,
-      );
-      const behaviorNames = (result.behaviors || []).map((b: any) =>
-        typeof b === "string" ? b : b.name,
-      );
-      const lifeEventNames = (result.lifeEvents || []).map((e: any) =>
-        typeof e === "string" ? e : e.name,
-      );
-      const workPositionNames = (result.workPositions ?? []).filter(
-        (p: any) => typeof p === "string" && p,
-      );
-      console.log("Suggested Work Positions 👇👇", result.workPositions);
-      const industryNames = (result.industries ?? []).filter(
-        (i: any) => typeof i === "string" && i,
-      );
-      const locationNames: string[] = Array.from(
-        new Set(
-          (result.suggestedLocations || []).map((name: string) =>
-            normalizeLocationName(name),
-          ),
-        ),
-      );
-
-      console.log("Location Names 👇👇", locationNames);
-
-      const [
-        resolvedInterests,
-        resolvedLocations,
-        resolvedBehaviors,
-        resolvedLifeEvents,
-        resolvedWorkPositions,
-        resolvedIndustries,
-      ] = await Promise.all([
-        resolveInterests(interestNames, async (query) => {
-          const r = await fetch(
-            `/api/meta/search-interest?query=${encodeURIComponent(query)}`,
-          );
-          return r.ok ? r.json() : [];
-        }),
-        Promise.all(
-          locationNames.map((name: string) =>
-            resolveLocation(name, async (query, type) => {
-              const r = await fetch(
-                `/api/meta/search-location?query=${encodeURIComponent(query)}&type=${type}`,
-              );
-              return r.ok ? r.json() : [];
-            }),
-          ),
-        ),
-        resolveBehaviors(behaviorNames, async (query) => {
-          const r = await fetch(
-            `/api/meta/search-behavior?query=${encodeURIComponent(query)}`,
-          );
-          return r.ok ? r.json() : [];
-        }),
-        resolveLifeEvents(lifeEventNames, async (query) => {
-          const r = await fetch(
-            `/api/meta/search-life-events?query=${encodeURIComponent(query)}`,
-          );
-          return r.ok ? r.json() : [];
-        }),
-        resolveWorkPositions(workPositionNames, async (query) => {
-          const r = await fetch(
-            `/api/meta/search-work-position?query=${encodeURIComponent(query)}`,
-          );
-          return r.ok ? r.json() : [];
-        }),
-        resolveIndustries(industryNames, async (query) => {
-          const r = await fetch(
-            `/api/meta/search-industry?query=${encodeURIComponent(query)}`,
-          );
-          return r.ok ? r.json() : [];
-        }),
-      ]);
-
-      console.log("Resolved Locations 👇👇", resolvedLocations);
-      console.log("Resolved Interests 👇👇", resolvedInterests);
-      console.log("Resolved Behaviors 👇👇", resolvedBehaviors);
-      console.log("Resolved Life Events 👇👇", resolvedLifeEvents);
-
-      const validLocations = resolvedLocations.filter(Boolean) as NonNullable<
-        (typeof resolvedLocations)[number]
-      >[];
-
-      console.log("Valid Locations 👇👇", validLocations);
-
-      const normalizedInterests = resolvedInterests.map(({ id, name, resolved }) => ({
-        id,
-        name,
-        resolved,
-      }));
-      const normalizedBehaviors = resolvedBehaviors.map(({ id, name, resolved }) => ({
-        id,
-        name,
-        resolved,
-      }));
-      const normalizedLifeEvents = resolvedLifeEvents.map(({ id, name, resolved }) => ({
-        id,
-        name,
-        resolved,
-      }));
-      console.log("[Targeting] Resolved behaviors:", normalizedBehaviors);
-      console.log("[Targeting] Resolved life events:", normalizedLifeEvents);
-      const normalizedWorkPositions = resolvedWorkPositions.map(({ id, name, resolved }) => ({
-        id,
-        name,
-        resolved,
-      }));
-      console.log("[Targeting] Resolved work positions:", normalizedWorkPositions);
-      const normalizedIndustries = resolvedIndustries.map(({ id, name, resolved }) => ({
-        id,
-        name,
-        resolved,
-      }));
-      console.log("[Targeting] Resolved industries:", normalizedIndustries);
-
-      // Deduplicate validLocations by id just to be absolutely certain we don't duplicate
-      const uniqueValidLocations = Array.from(
-        new Map(validLocations.map((l) => [l.id, l])).values(),
-      );
-
-      const finalLocations =
-        locations.length > 0
-          ? locations
-          : uniqueValidLocations.length > 0
-            ? uniqueValidLocations
-            : [LAGOS_DEFAULT];
-
-      // ── Build tier-sliced copy variations ─────────────────────────────────
-      const allHeadlines: string[] = (result.headline || []).slice(
-        0,
+      const names = extractTargetingNames(result);
+      const resolved = await resolveAllTargeting(names);
+      const strategy = buildResolvedStrategy(result, resolved, {
+        existingLocations: locations,
         maxCopyVariations,
-      );
-      const allCopies: string[] = (result.copy || []).slice(
-        0,
-        maxCopyVariations,
-      );
-      const variations: CopyVariation[] = allHeadlines.map(
-        (h: string, i: number) => ({
-          headline: h,
-          primary: allCopies[i] || allCopies[0] || "",
-        }),
-      );
-      const primaryCopy = variations[0] ?? { headline: "", primary: "" };
-
-      // ── Update Store ──────────────────────────────────────────────────────
-      const ctaFromIntent = mapIntentToCTA(
-        result.ctaIntent || "buy_now",
         platform,
         objective,
-      );
-      const whatsappMsg =
-        result.whatsappMessage ||
-        (ctaFromIntent.code === "SEND_MESSAGE"
-          ? generateWhatsAppMessage({
-              headline: primaryCopy.headline,
-              locations,
-            })
-          : undefined);
+      });
 
+      // ── Update Store ──────────────────────────────────────────────────────
       updateDraft({
         aiPrompt: text,
-        targetInterests: normalizedInterests,
-        targetBehaviors: normalizedBehaviors,
-        targetLifeEvents: normalizedLifeEvents,
-        targetWorkPositions: normalizedWorkPositions,
-        targetIndustries: normalizedIndustries,
+        resolvedSiteContext: (result as any).siteContextSummary ?? null,
+        targetInterests: strategy.normalizedInterests,
+        targetBehaviors: strategy.normalizedBehaviors,
+        targetLifeEvents: strategy.normalizedLifeEvents,
+        targetWorkPositions: strategy.normalizedWorkPositions,
+        targetIndustries: strategy.normalizedIndustries,
         ageRange: {
           min: result.demographics?.age_min || 18,
           max: result.demographics?.age_max || 65,
@@ -1063,20 +853,15 @@ export function AudienceChatStep({
         gender: result.demographics?.gender || "all",
         campaignName:
           !campaignName || campaignName === "Untitled Campaign"
-            ? generateCampaignName(text, normalizedInterests)
+            ? generateCampaignName(text, strategy.normalizedInterests)
             : campaignName,
         adCopy: {
-          ...primaryCopy,
-          cta: {
-            intent: result.ctaIntent || "buy_now",
-            platformCode: ctaFromIntent.code,
-            displayLabel: ctaFromIntent.label,
-            whatsappMessage: whatsappMsg,
-          },
+          ...strategy.primaryCopy,
+          cta: strategy.ctaData,
         },
-        adCopyVariations: variations,
+        adCopyVariations: strategy.variations,
         selectedCopyIdx: 0,
-        locations: finalLocations,
+        locations: strategy.finalLocations,
         lastGeneratedObjective: objective || "whatsapp",
         suggestedLeadForm: result.suggestedLeadForm ?? null,
       });
@@ -1084,15 +869,15 @@ export function AudienceChatStep({
       const outcome = buildOutcomePreview(objective, budget);
       const plainSummary =
         result.plain_english_summary ||
-        `Targeting ${result.demographics?.gender === "female" ? "women" : result.demographics?.gender === "male" ? "men" : "people"} ${result.demographics?.age_min}–${result.demographics?.age_max} in ${finalLocations.map((l) => l.name).join(", ")}.`;
+        `Targeting ${result.demographics?.gender === "female" ? "women" : result.demographics?.gender === "male" ? "men" : "people"} ${result.demographics?.age_min}–${result.demographics?.age_max} in ${strategy.finalLocations.map((l) => l.name).join(", ")}.`;
 
       updateDraft({ latestAiSummary: plainSummary });
 
       const assumptions = result.meta?.inferred_assumptions;
       const refinementQ = result.meta?.refinement_question;
 
-      // ── Render Messages ────────────────────────────────────────────────────
-      setTimeout(() => {
+      // ── Render Messages (tracked timers for safe cleanup) ──────────────────
+      scheduleTimer(() => {
         setIsTyping(false);
 
         // 1. Outcome preview
@@ -1107,8 +892,8 @@ export function AudienceChatStep({
               outcomeLabel: outcome.label,
               outcomeRange: outcome.range,
               budget,
-              interests: normalizedInterests,
-              locations: finalLocations,
+              interests: strategy.normalizedInterests,
+              locations: strategy.finalLocations,
               ...(assumptions?.length
                 ? { inferredAssumptions: assumptions }
                 : {}),
@@ -1118,8 +903,8 @@ export function AudienceChatStep({
         ]);
 
         // 2. Copy suggestion — 900ms later
-        if (primaryCopy.headline && primaryCopy.primary) {
-          setTimeout(() => {
+        if (strategy.primaryCopy.headline && strategy.primaryCopy.primary) {
+          scheduleTimer(() => {
             const copyId = Date.now().toString();
             setMessages((prev) => [
               ...prev,
@@ -1129,20 +914,20 @@ export function AudienceChatStep({
                 content: "Here's your ad copy — ready to use:",
                 type: "copy_suggestion",
                 data: {
-                  adCopy: primaryCopy,
-                  adCopyVariations: variations,
+                  adCopy: strategy.primaryCopy,
+                  adCopyVariations: strategy.variations,
                 },
               },
             ]);
             setCopyReady(true);
             setChatPhase("refining");
 
-            // 3. Clarification nudge — 900ms after copy (post-generation, not a gate)
+            // 3. Clarification nudge — 900ms after copy
             if (
               result.meta?.needs_clarification &&
               result.meta?.clarification_question
             ) {
-              setTimeout(() => {
+              scheduleTimer(() => {
                 lockScrollToCopy.current = copyId;
                 setMessages((prev) => [
                   ...prev,
@@ -1165,6 +950,7 @@ export function AudienceChatStep({
         }
       }, 1000);
     } catch (err: any) {
+      if (err?.name === "AbortError") return;
       setIsTyping(false);
 
       const isNetworkError =
@@ -1175,7 +961,6 @@ export function AudienceChatStep({
         err?.cause?.code === "UND_ERR_CONNECT_TIMEOUT";
 
       if (isNetworkError) {
-        // Remove the user message — it will be re-added when they tap "Try Again"
         setMessages((prev) => [
           ...prev.filter((m) => m.id !== userMsg.id),
           {
@@ -1188,10 +973,8 @@ export function AudienceChatStep({
           },
         ]);
       } else {
-        // Remove the failed user message so a retry starts fresh
-        setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
         setMessages((prev) => [
-          ...prev,
+          ...prev.filter((m) => m.id !== userMsg.id),
           {
             id: Date.now().toString(),
             role: "ai",
@@ -1203,6 +986,104 @@ export function AudienceChatStep({
       }
     }
   };
+
+  // ── Extracted triage routing (reduces handleSend nesting) ────────────────
+
+  /** Handle 429 rate-limit responses. Returns void (always early-exits handleSend). */
+  async function handleRateLimit(res: Response) {
+    const errBody = await res.json().catch(() => ({}));
+    setIsTyping(false);
+    if (errBody?.noCredits) {
+      toast.error(
+        errBody.error || "No credits left. Top up to keep chatting.",
+        { duration: 7000, action: { label: "Top Up", onClick: () => router.push("/settings/subscription") } },
+      );
+    } else if (errBody?.limitReached) {
+      setUpgradeDialogOpen(true);
+      toast.error(
+        errBody.error || "Monthly AI chat limit reached. Upgrade to continue.",
+        { duration: 6000 },
+      );
+    } else {
+      toast.error("Too many requests. Please wait a moment and try again.");
+    }
+  }
+
+  /** Route triage-only responses (TYPE_G/B/C/E/F). Returns true if handled. */
+  function routeTriageResponse(result: AIStrategyResult, triggerText?: string): boolean {
+    const meta = result.meta;
+    if (!meta) return false;
+
+    if (meta.input_type === "TYPE_G") {
+      // Remember what the user said so we can use it (or org profile fallback) when they confirm
+      if (triggerText) typegTriggerRef.current = triggerText;
+      setIsTyping(false);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          role: "ai",
+          content:
+            meta.proposed_plan ||
+            "Based on your business profile, I can create an ad now. Want me to proceed, or would you like to adjust anything?",
+          type: "clarification_choice",
+          data: { clarificationOptions: ["Yes, proceed", "Let me adjust"] },
+        },
+      ]);
+      return true;
+    }
+
+    if (meta.input_type === "TYPE_B") {
+      setIsTyping(false);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          role: "ai",
+          content:
+            meta.clarification_question ||
+            "What are you selling? (e.g. 'Ankara bags Lagos', 'Skincare Abuja')",
+          type: "text",
+        },
+      ]);
+      return true;
+    }
+
+    if (
+      meta.is_question &&
+      (meta.input_type === "TYPE_C" || meta.input_type === "TYPE_E")
+    ) {
+      setIsTyping(false);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          role: "ai",
+          content: meta.question_answer || "Good question. What are you selling?",
+          type: "text",
+        },
+      ]);
+      return true;
+    }
+
+    if (meta.input_type === "TYPE_F") {
+      setIsTyping(false);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          role: "ai",
+          content:
+            meta.question_answer ||
+            "I can only help with ad campaigns. Tell me what you're selling and I'll build your ad.",
+          type: "text",
+        },
+      ]);
+      return true;
+    }
+
+    return false;
+  }
 
   // ─── Render ────────────────────────────────────────────────────────────────
 

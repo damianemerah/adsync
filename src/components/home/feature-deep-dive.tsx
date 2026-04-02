@@ -46,7 +46,7 @@ export function FeatureDeepDive() {
             
             {/* Miniature UI Mockup */}
             <div className="mt-8 bg-muted rounded-lg border border-border/50 p-4 shadow-sm w-full relative h-[250px] overflow-hidden">
-               <div className="absolute inset-0 bg-linear-to-tr from-ai/5 to-transparent flex items-center justify-center p-6">
+               <div className="absolute inset-0 bg-ai/5 flex items-center justify-center p-6">
                  {/* Fake dashboard cards */}
                  <div className="w-full max-w-sm space-y-3">
                     <div className="w-full h-12 bg-background rounded-md border border-border flex items-center px-4 shadow-sm">
@@ -66,8 +66,8 @@ export function FeatureDeepDive() {
           {/* Card 2: WhatsApp (Spans 1 column) */}
           <div className="col-span-1 relative overflow-hidden rounded-xl border border-border bg-background p-8 flex flex-col justify-between group">
             <div className="relative z-10">
-              <div className="size-12 rounded-lg bg-[#25D366]/10 flex items-center justify-center mb-6">
-                <MessageText className="text-[#25D366] size-6" />
+              <div className="size-12 rounded-lg bg-whatsapp/10 flex items-center justify-center mb-6">
+                <MessageText className="text-whatsapp size-6" />
               </div>
               <h3 className="text-2xl font-bold font-heading mb-2">WhatsApp Sync</h3>
               <p className="text-subtle-foreground">
@@ -78,8 +78,8 @@ export function FeatureDeepDive() {
             <div className="mt-8 bg-muted rounded-lg border border-border/50 shadow-sm w-full h-[200px] flex items-center justify-center overflow-hidden relative">
                <div className="w-48 h-32 bg-background rounded-lg border border-border shadow-sm flex flex-col p-4 relative z-10">
                  <div className="flex justify-between items-center mb-4">
-                   <div className="w-8 h-8 rounded-full bg-[#25D366]/20" />
-                   <span className="text-[#25D366] text-xs font-bold">+1 Sale</span>
+                   <div className="w-8 h-8 rounded-full bg-whatsapp/20" />
+                   <span className="text-whatsapp text-xs font-bold">+1 Sale</span>
                  </div>
                  <div className="w-3/4 h-3 rounded-full bg-muted mb-2" />
                  <div className="w-1/2 h-3 rounded-full bg-muted" />
@@ -117,7 +117,7 @@ export function FeatureDeepDive() {
                  {[1, 2].map((i) => (
                    <div key={i} className="flex justify-between items-center bg-background p-3 rounded-md border border-border shadow-sm">
                      <div className="flex items-center gap-3">
-                       <span className="w-2 h-2 rounded-full bg-[#12e193]" />
+                       <span className="w-2 h-2 rounded-full bg-primary" />
                        <span className="text-sm font-medium">Meta Ad Spend</span>
                      </div>
                      <span className="text-sm tabular-nums">- ₦15,400</span>

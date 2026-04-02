@@ -145,7 +145,6 @@ export async function generateAdCreative({
   parentCreativeId?: string; // [NEW]
   campaignContext?: CampaignContext; // [NEW]
 }) {
-  const startTime = Date.now();
   console.log(
     "🎨 Starting Generation\n",
     "Mode:",
@@ -255,9 +254,6 @@ export async function generateAdCreative({
         aspectRatio,
       );
 
-      console.log("🧠 Context-Enhanced Prompt:", contextEnrichedPrompt);
-      console.log("📊 Original Prompt:", finalPrompt);
-
       // Use context-enriched prompt as the base for further AI processing
       finalPrompt = contextEnrichedPrompt;
     } catch (contextError) {
@@ -282,13 +278,13 @@ export async function generateAdCreative({
 
       console.log("\n====================================");
       console.log(
-        "🤖 [OpenAI Images] Calling responses.create (gpt-4.1-mini) for image edit instruction...",
+        "🤖 [OpenAI Images] Calling responses.create (gpt-5-mini) for image edit instruction...",
       );
       console.log("📝 [OpenAI Images] systemPrompt:", systemPrompt);
       console.log("📝 [OpenAI Images] finalPrompt:", finalPrompt);
 
       const completion = await (openai.responses.create as any)({
-        model: "gpt-4.1-mini",
+        model: "gpt-5-mini",
         instructions: systemPrompt,
         input: finalPrompt,
       });
@@ -305,6 +301,7 @@ export async function generateAdCreative({
         finalPrompt = completion.output_text.trim();
       }
     } else {
+      console.log("Finalprompt before AI: ", finalPrompt);
       // --- GENERATION FLOW ---
       // Growth/Agency: image-creative-ng skill → direct FLUX prompt string (better quality)
       // Starter: JSON schema → compileFluxPrompt() → FLUX string (fallback)
@@ -343,79 +340,84 @@ export async function generateAdCreative({
       console.log(`🤖 [OpenAI Images] Generation — skill: ${useImageSkill}`);
       console.log("📝 [OpenAI Images] userMessage:\n", userMessage);
 
-      if (useImageSkill) {
-        // ── Skill path (Growth/Agency): direct FLUX prompt string ──────────
-        const completion = await (openai.responses.create as any)({
-          model: "gpt-4.1",
-          instructions: FLUX_DIRECT_SYSTEM,
-          input: userMessage,
-          tools: [
-            {
-              type: "shell",
-              environment: {
-                type: "container_auto",
-                skills: [
-                  { type: "skill_reference", skill_id: SKILL_IDS.imageCreative },
-                ],
-              },
-            },
-          ],
-        });
+      // if (useImageSkill) {
+      //   console.log("Using skill path");
+      //   // ── Skill path (Growth/Agency): direct FLUX prompt string ──────────
+      //   const completion = await (openai.responses.create as any)({
+      //     model: "gpt-5.2",
+      //     instructions: FLUX_DIRECT_SYSTEM,
+      //     input: userMessage,
+      //     tools: [
+      //       {
+      //         type: "shell",
+      //         environment: {
+      //           type: "container_auto",
+      //           skills: [
+      //             { type: "skill_reference", skill_id: SKILL_IDS.imageCreative },
+      //           ],
+      //         },
+      //       },
+      //     ],
+      //   });
+      //   console.log("✔️✔️Completion: ", completion);
 
-        console.log("====================================\n");
-        promptGenerationUsage = completion.usage || null;
+      //   console.log("====================================\n");
+      //   promptGenerationUsage = completion.usage || null;
 
-        if (completion.output_text) {
-          const raw = completion.output_text.trim();
-          if (raw.startsWith("SAFE_FLAG:")) {
-            throw new Error("Your prompt contains unsafe content. Please revise.");
-          }
-          finalPrompt = raw;
-          console.log("🧠 Skill-Generated Prompt:", finalPrompt);
-        }
-      } else {
-        // ── Starter path: JSON schema → compile ────────────────────────────
-        const completion = await (openai.responses.create as any)({
-          model: "gpt-4.1",
-          instructions: FLUX_AD_GENERATOR_SYSTEM,
-          input: userMessage,
-        });
+      //   if (completion.output_text) {
+      //     const raw = completion.output_text.trim();
+      //     if (raw.startsWith("SAFE_FLAG:")) {
+      //       throw new Error("Your prompt contains unsafe content. Please revise.");
+      //     }
+      //     finalPrompt = raw;
+      //     console.log("🧠 Skill-Generated Prompt:", finalPrompt);
+      //   }
+      //   console.log("Finalprompt after AI: ", finalPrompt);
+      // } else {
+      //   // ── Starter path: JSON schema → compile ────────────────────────────
+      //   const completion = await (openai.responses.create as any)({
+      //     model: "gpt-5.2",
+      //     instructions: FLUX_AD_GENERATOR_SYSTEM,
+      //     input: userMessage,
+      //   });
 
-        console.log("====================================\n");
-        promptGenerationUsage = completion.usage || null;
+      //   console.log("✔️✔️Completion:22 ", completion.output_text);
 
-        if (completion.output_text) {
-          const rawJson = completion.output_text
-            .replace(/```json\n?/g, "")
-            .replace(/```\n?/g, "")
-            .trim();
+      //   console.log("====================================\n");
+      //   promptGenerationUsage = completion.usage || null;
 
-          // SECURITY FIX: Use Zod to validate AI JSON response before using it
-          // Prevents runtime errors from malformed AI responses
-          let jsonResponse;
-          try {
-            const parsed = JSON.parse(rawJson);
-            jsonResponse = AdSceneSchema.parse(parsed);
-          } catch (validationError: any) {
-            console.error("AI response validation failed:", validationError.message);
-            // Fallback: use raw prompt if schema validation fails
-            console.warn("Falling back to raw prompt due to schema validation failure");
-            finalPrompt = userMessage;
-            // Don't throw - degrade gracefully
-            return; // Skip the compilation step
-          }
+      //   if (completion.output_text) {
+      //     const rawJson = completion.output_text
+      //       .replace(/```json\n?/g, "")
+      //       .replace(/```\n?/g, "")
+      //       .trim();
 
-          if (jsonResponse.safety_flagged) {
-            throw new Error("Your prompt contains unsafe content. Please revise.");
-          }
+      //     // SECURITY FIX: Use Zod to validate AI JSON response before using it
+      //     // Prevents runtime errors from malformed AI responses
+      //     let jsonResponse;
+      //     try {
+      //       const parsed = JSON.parse(rawJson);
+      //       jsonResponse = AdSceneSchema.parse(parsed);
+      //     } catch (validationError: any) {
+      //       console.error("AI response validation failed:", validationError.message);
+      //       // Fallback: use raw prompt if schema validation fails
+      //       console.warn("Falling back to raw prompt due to schema validation failure");
+      //       finalPrompt = userMessage;
+      //       // Don't throw - degrade gracefully
+      //       return; // Skip the compilation step
+      //     }
 
-          const { compileFluxPrompt } = await import("@/lib/ai/compiler");
-          // Cast to the expected type - the AI should return all required fields
-          // but Zod schema makes them optional for safety
-          finalPrompt = compileFluxPrompt(jsonResponse as any, aspectRatio || "1:1");
-          console.log("🧠 Compiled Prompt:", finalPrompt);
-        }
-      }
+      //     if (jsonResponse.safety_flagged) {
+      //       throw new Error("Your prompt contains unsafe content. Please revise.");
+      //     }
+
+      //     const { compileFluxPrompt } = await import("@/lib/ai/compiler");
+      //     // Cast to the expected type - the AI should return all required fields
+      //     // but Zod schema makes them optional for safety
+      //     finalPrompt = compileFluxPrompt(jsonResponse as any, aspectRatio || "1:1");
+      //     console.log("🧠 Compiled Prompt:", finalPrompt);
+      //   }
+      // }
     }
   } catch (error) {
     console.error("Prompt Engineering Failed:", error);
@@ -503,17 +505,15 @@ export async function generateAdCreative({
         image_urls: referenceImages,
         image_size: finalImageSize,
         safety_tolerance: "5",
-        prompt_upsampling: false,
         output_format: "jpeg",
         sync_mode: true,
       };
     } else {
-      // Standard Generation — prompt_upsampling triggers FLUX's internal enhancement
+      console.log("Standard Generation with upsampling");
       inputArgs = {
         ...inputArgs,
         image_size: targetImageSize,
         safety_tolerance: "2",
-        prompt_upsampling: true,
       };
     }
 
@@ -521,7 +521,7 @@ export async function generateAdCreative({
       image_size: targetImageSize,
       imageIntent,
     });
-    console.log("Input Args:🚀", inputArgs);
+    console.log("Input Args:🚀", inputArgs.prompt);
 
     const result: any = await fal.subscribe(modelId, {
       input: inputArgs,

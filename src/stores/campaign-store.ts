@@ -85,6 +85,8 @@ export interface CampaignState {
 
   // AI & Targeting
   aiPrompt: string;
+  /** Scraped/extracted website content when user provided a URL as business context. Used for image generation businessDescription. */
+  resolvedSiteContext: string | null;
   latestAiSummary: string | null; // NEW: Persist the "I found X interests" text
   lastGeneratedObjective: AdSyncObjective | null; // NEW: Track consistency
   locations: LocationOption[];
@@ -183,6 +185,7 @@ export const useCampaignStore = create<CampaignState>()((set, get) => ({
   metaApplicationId: "",
 
   aiPrompt: "",
+  resolvedSiteContext: null,
   latestAiSummary: null, // NEW
   lastGeneratedObjective: null, // NEW
   locations: [], // Start empty, force user/AI to add valid objects
@@ -319,6 +322,7 @@ export const useCampaignStore = create<CampaignState>()((set, get) => ({
       appStoreUrl: "",
       metaApplicationId: "",
       aiPrompt: "",
+      resolvedSiteContext: null,
       latestAiSummary: null,
       lastGeneratedObjective: null,
       locations: [],

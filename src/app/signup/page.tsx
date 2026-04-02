@@ -7,15 +7,13 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen grid lg:grid-cols-2 bg-background">
       <div className="hidden lg:flex flex-col justify-center bg-foreground text-background p-12 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-primary rounded-full blur-[120px] opacity-20 -mr-20 -mt-20"></div>
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-ai rounded-full blur-[120px] opacity-20 -ml-20 -mb-20"></div>
         <div className="relative z-10 max-w-lg mx-auto">
           <h2 className="text-[3.5rem] font-heading font-extrabold leading-[1.1] mb-6 tracking-tight">
             Gets social.
             <br />
             Knows your brand.
             <br />
-            <span className="text-primary drop-shadow-sm">Ready to scale.</span>
+            <span className="text-primary">Ready to scale.</span>
           </h2>
         </div>
       </div>
@@ -26,13 +24,13 @@ export default function SignupPage() {
             <h1 className="text-3xl font-heading font-bold text-foreground tracking-tight">
               Create your account
             </h1>
-            <p className="text-base text-subtle-foreground/90">
+            <p className="text-base text-subtle-foreground">
               Start managing your ads in minutes.
             </p>
           </div>
 
           <div className="space-y-4">
-            <p className="text-xs font-semibold text-subtle-foreground/80 uppercase tracking-wider">
+            <p className="text-xs font-semibold text-subtle-foreground uppercase tracking-wider">
               Sign up with
             </p>
             <SocialButtons action="Sign up" />
@@ -40,10 +38,10 @@ export default function SignupPage() {
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-border/50"></span>
+              <span className="w-full border-t border-border"></span>
             </div>
             <div className="relative flex justify-center text-xs uppercase tracking-wider">
-              <span className="bg-background px-3 text-subtle-foreground/70 font-semibold">
+              <span className="bg-background px-3 text-subtle-foreground font-semibold">
                 Or using email
               </span>
             </div>

@@ -23,8 +23,7 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { CreditsDisplay } from "@/components/layout/credits-display";
-import { HelpCenterSheet } from "@/components/layout/help-center-sheet";
+import { PageHeader } from "@/components/layout/page-header";
 import { useSubscription } from "@/hooks/use-subscription";
 import { PaymentDialog } from "@/components/billing/payment-dialog";
 
@@ -87,7 +86,7 @@ export default function NewCampaignPage() {
       toast.promise(
         getDraft(draftId).then((data) => {
           if (data) hydrate(data);
-          else toast.error("Draft not found");
+          else toast.error("Ad draft not found");
         }),
         {
           loading: "Loading draft...",
@@ -111,8 +110,8 @@ export default function NewCampaignPage() {
       if (savedId && savedId !== persistedDraftId) {
         setPersistedDraftId(savedId);
       }
-      toast.success("Draft Saved", {
-        description: "You can resume this campaign from the dashboard.",
+      toast.success("Draft saved", {
+        description: "You can resume this ad from the dashboard.",
       });
       router.push("/campaigns");
     } catch (error) {
@@ -134,8 +133,8 @@ export default function NewCampaignPage() {
         setPersistedDraftId(savedId);
         router.replace(`/campaigns/new?draftId=${savedId}`, { scroll: false });
       }
-      toast.success("Draft Saved", {
-        description: "Your progress has been saved.",
+      toast.success("Draft saved", {
+        description: "Your progress is saved.",
       });
     } catch (error) {
       toast.error("Failed to save draft");
@@ -147,23 +146,18 @@ export default function NewCampaignPage() {
 
   const handleDeleteDraft = async () => {
     if (!persistedDraftId) {
-      if (confirm("Discard all changes and start over?")) {
+      if (confirm("Discard this ad and start over?")) {
         resetDraft();
       }
       return;
     }
 
-    if (
-      !confirm(
-        "Are you sure you want to delete this draft? This action cannot be undone.",
-      )
-    )
-      return;
+    if (!confirm("Delete this draft? This can't be undone.")) return;
 
     setIsDeleting(true);
     try {
       await deleteDraft(persistedDraftId);
-      toast.success("Draft Deleted");
+      toast.success("Draft deleted");
       resetDraft();
       router.push("/campaigns");
     } catch (error) {
@@ -225,14 +219,14 @@ export default function NewCampaignPage() {
     return (
       <div className="min-h-screen bg-muted flex flex-col items-center justify-center p-4">
         <div className="text-center space-y-4 max-w-sm">
-          <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Sparks className="h-8 w-8 text-primary" />
+          <div className="h-16 w-16 bg-ai/10 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Sparks className="h-8 w-8 text-ai" />
           </div>
           <h2 className="text-2xl font-bold font-heading">
             Subscription Required
           </h2>
-          <p className="text-muted-foreground text-sm">
-            You need an active subscription or trial to create campaigns and
+          <p className="text-subtle-foreground text-sm">
+            You need an active subscription or trial to create ads and
             generate AI creatives.
           </p>
           <Button
@@ -264,9 +258,11 @@ export default function NewCampaignPage() {
   return (
     <div className="min-h-screen bg-muted font-sans">
       {/* HEADER */}
-      <header className="sticky top-0 z-40 w-full border-b border-border bg-background/80 backdrop-blur-md">
-        <div className="mx-auto max-w-7xl flex h-16 items-center justify-between px-6">
-          <div className="flex items-center gap-4">
+      <PageHeader
+        showCredits
+        className="z-40"
+        leftContent={
+          <div className="flex items-center gap-4 flex-1">
             <Button
               variant="outline"
               size="sm"
@@ -284,9 +280,10 @@ export default function NewCampaignPage() {
 
             <Button
               variant="ghost"
+              size="sm"
               onClick={handleSaveAndExit}
               disabled={isSaving}
-              className="flex items-center gap-2 text-subtle-foreground hover:text-foreground hover:bg-transparent transition-colors p-0 disabled:opacity-50"
+              className="flex items-center gap-2 text-subtle-foreground hover:text-foreground hover:bg-muted transition-colors rounded-md px-3 h-9 disabled:opacity-50"
             >
               {savingState === "exit" ? (
                 <SystemRestart className="h-4 w-4 animate-spin" />
@@ -294,64 +291,62 @@ export default function NewCampaignPage() {
                 <FloppyDisk className="h-4 w-4" />
               )}
               <span className="text-sm font-medium">
-                {savingState === "exit" ? "Saving..." : "Save & Exit"}
+                {savingState === "exit" ? "Saving..." : "Save & exit"}
               </span>
             </Button>
-            <CreditsDisplay />
-            <HelpCenterSheet />
           </div>
+        }
+      >
+        <div className="flex items-center gap-4">
+          {/* Completion Badge */}
+          <Badge
+            variant="outline"
+            className="hidden sm:flex border-border text-foreground"
+          >
+            {completionPercentage}% Complete
+          </Badge>
 
-          <div className="flex items-center gap-4">
-            {/* Completion Badge */}
-            <Badge
-              variant="outline"
-              className="hidden sm:flex border-border text-foreground"
-            >
-              {completionPercentage}% Complete
-            </Badge>
-
-            {/* Global Reset */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-subtle-foreground hover:text-foreground rounded-full"
-                >
-                  <MoreVert className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="end"
-                className="rounded-md shadow-sm border border-border border-border bg-popover"
+          {/* Global Reset */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-subtle-foreground hover:text-foreground rounded-full"
               >
-                {persistedDraftId && (
-                  <DropdownMenuItem
-                    onClick={handleDeleteDraft}
-                    disabled={isDeleting}
-                    className="text-red-600 rounded-lg focus:bg-red-50 cursor-pointer mb-1"
-                  >
-                    <Trash className="h-4 w-4 mr-2" />
-                    {isDeleting ? "Deleting..." : "Delete Draft"}
-                  </DropdownMenuItem>
-                )}
+                <MoreVert className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="rounded-md shadow-sm border border-border bg-popover"
+            >
+              {persistedDraftId && (
                 <DropdownMenuItem
-                  onClick={() => {
-                    if (confirm("Discard all changes and start over?"))
-                      resetDraft();
-                  }}
-                  className={cn(
-                    "rounded-lg cursor-pointer",
-                    !persistedDraftId && "text-red-600 focus:bg-red-50",
-                  )}
+                  onClick={handleDeleteDraft}
+                  disabled={isDeleting}
+                  className="text-red-600 rounded-lg focus:bg-red-50 cursor-pointer mb-1 focus:text-red-700"
                 >
-                  <Undo className="h-4 w-4 mr-2" /> Start Over
+                  <Trash className="h-4 w-4 mr-2" />
+                  {isDeleting ? "Deleting..." : "Delete draft"}
                 </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+              )}
+              <DropdownMenuItem
+                onClick={() => {
+                  if (confirm("Discard this ad and start over?"))
+                    resetDraft();
+                }}
+                className={cn(
+                  "rounded-lg cursor-pointer",
+                  !persistedDraftId && "text-red-600 focus:bg-red-50 focus:text-red-700",
+                )}
+              >
+                <Undo className="h-4 w-4 mr-2" /> Start over
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-      </header>
+      </PageHeader>
 
       {/* MAIN CONTENT */}
       <main className="mx-auto max-w-7xl px-4 md:px-6 py-8">
@@ -362,7 +357,10 @@ export default function NewCampaignPage() {
         >
           {/* Tab Navigation */}
           <TabsList
-            className={`grid w-full mb-8 h-auto gap-2 bg-transparent p-0 ${hasExtraStep ? "grid-cols-5" : "grid-cols-4"}`}
+            className={cn(
+              "grid w-full mb-8 h-auto gap-2 bg-transparent p-0",
+              hasExtraStep ? "grid-cols-5" : "grid-cols-4"
+            )}
           >
             <TabsTrigger
               value="1"

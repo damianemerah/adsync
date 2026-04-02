@@ -63,6 +63,7 @@ export function CreativeStep({
     pendingGeneratedImage,
     carouselCards,
     destinationValue,
+    resolvedSiteContext,
   } = useCampaignStore();
 
   const { creatives, isLoading: isLoadingCreatives } = useCreatives();
@@ -134,7 +135,12 @@ export function CreativeStep({
 
     try {
       const campaignContext = {
-        businessDescription: aiPrompt || adCopy.headline || "Product",
+        businessDescription:
+          resolvedSiteContext ||
+          aiPrompt.replace(/https?:\/\/\S+/g, "").trim() ||
+          adCopy.primary.split("\n")[0] ||
+          adCopy.headline ||
+          "Product",
         targeting: {
           interests: (targetInterests || []).map((i: any) => i.name),
           behaviors: (targetBehaviors || []).map((b: any) => b.name),
@@ -175,6 +181,11 @@ export function CreativeStep({
       const composedPrompt = promptToUse
         ? `${adCopy.headline || "product shot"}. Additional instructions: ${promptToUse}`
         : adCopy.headline || aiPrompt || "product shot";
+
+      console.log("composedPrompt", composedPrompt);
+      console.log("campaignContext", campaignContext);
+      console.log("aspectRatio", aspectRatio);
+      
 
       const result = await generateAdCreative({
         prompt: composedPrompt,

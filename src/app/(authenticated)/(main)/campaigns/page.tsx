@@ -11,7 +11,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import { HelpCenterSheet } from "@/components/layout/help-center-sheet";
+import { PageHeader } from "@/components/layout/page-header";
 import { CampaignsView } from "@/components/campaigns/campaigns-view";
 import { CampaignDetailView } from "@/components/campaigns/campaign-detail-view";
 import { SystemRestart, Plus, Refresh } from "iconoir-react";
@@ -156,17 +156,8 @@ function CampaignsPageContent() {
       "there";
 
     return (
-      <div className="flex flex-col bg-slate-50 min-h-screen">
-        <header className="sticky top-0 z-30 w-full border-b border-border bg-white/80 backdrop-blur-md">
-          <div className="flex h-16 items-center justify-between px-6 lg:px-8">
-            <h1 className="text-xl font-heading font-bold text-slate-900 tracking-tight">
-              Campaigns
-            </h1>
-            <div className="flex items-center gap-3">
-              <HelpCenterSheet />
-            </div>
-          </div>
-        </header>
+      <div className="flex flex-col bg-muted/30 min-h-screen">
+      <PageHeader title="Campaigns" />
 
         <main className="flex-1 p-8 overflow-y-auto">
           <DashboardEmptyState
@@ -179,36 +170,27 @@ function CampaignsPageContent() {
   }
 
   return (
-    <div className="flex flex-col bg-slate-50 h-full">
-      <header className="sticky top-0 z-30 w-full border-b border-border bg-white/80 backdrop-blur-md">
-        <div className="flex h-16 items-center justify-between px-6 lg:px-8">
-          <h1 className="text-xl font-heading font-bold text-slate-900 tracking-tight">
-            Campaigns
-          </h1>
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              disabled={isSyncing}
-              onClick={handleSync}
-              className="gap-2 font-semibold shadow-sm"
-            >
-              <Refresh
-                className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`}
-              />
-              {isSyncing ? "Syncing..." : "Sync with Meta"}
-            </Button>
+    <div className="flex flex-col bg-muted/30 h-full">
+      <PageHeader title="Campaigns">
+        <Button
+          variant="outline"
+          disabled={isSyncing}
+          onClick={handleSync}
+          className="gap-2 font-semibold shadow-sm"
+        >
+          <Refresh
+            className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`}
+          />
+          {isSyncing ? "Syncing..." : "Sync with Meta"}
+        </Button>
 
-            <HelpCenterSheet />
-
-            <Link href="/campaigns/new">
-              <Button className="gap-2 bg-primary font-bold shadow-sm border border-border shadow-primary/20">
-                <Plus className="h-4 w-4" />
-                Create Campaign
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
+        <Link href="/campaigns/new">
+          <Button className="gap-2 bg-primary font-bold shadow-sm border border-border shadow-primary/20">
+            <Plus className="h-4 w-4" />
+            Create Campaign
+          </Button>
+        </Link>
+      </PageHeader>
 
       {/* 4. Filter Toolbar */}
       <div className="border-b border-border bg-white px-6 py-4 lg:px-8">

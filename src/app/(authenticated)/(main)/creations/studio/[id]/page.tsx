@@ -9,7 +9,7 @@ import {
 import { CreativeFormat } from "@/lib/ai/prompts";
 import { GenerationView } from "@/components/creatives/studio/generation-view";
 import { Sparks } from "iconoir-react";
-import { CreditsDisplay } from "@/components/layout/credits-display";
+import { PageHeader } from "@/components/layout/page-header";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -285,23 +285,20 @@ export default function EditCreativePage({ params }: EditCreativePageProps) {
 
   // Shared header
   const sharedHeader = (
-    <header className="flex h-16 shrink-0 items-center justify-between border-b border-border px-2 sm:px-4 lg:px-6 bg-background/80 backdrop-blur-md sticky top-0 z-30">
-      <div className="container max-w-7xl mx-auto flex items-center justify-between w-full">
-        <div className="flex items-center gap-2">
-          <h1 className="text-lg font-bold text-foreground">Edit Creative</h1>
-          {campaignName && (
-            <Badge className="ml-2 bg-primary/10 text-primary border-primary/20 gap-1.5">
-              <Sparks className="h-3 w-3" />
-              {campaignName.slice(0, 25)}
-              {campaignName.length > 25 ? "..." : ""}
-            </Badge>
-          )}
-        </div>
-        <div className="flex items-center gap-3">
-          <CreditsDisplay />
-        </div>
-      </div>
-    </header>
+    <PageHeader
+      title="Edit Creative"
+      showCredits
+      className="z-30"
+      leftContent={
+        campaignName ? (
+          <Badge className="bg-primary/10 text-primary border-primary/20 gap-1.5 font-sans">
+            <Sparks className="h-3 w-3" />
+            {campaignName.slice(0, 25)}
+            {campaignName.length > 25 ? "..." : ""}
+          </Badge>
+        ) : null
+      }
+    />
   );
 
   return (

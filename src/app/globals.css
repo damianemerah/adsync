@@ -36,6 +36,7 @@
   --facebook: #1877f2;
   --google: #4285f4; /* Also commonly used: #DB4437, #F4B400, #0F9D58 */
   --spotify: #1db954;
+  --whatsapp: #25D366;
 
   /* AI Branding */
   --ai: #8b5cf6; /* Violet 500 */
@@ -92,6 +93,7 @@
   --color-facebook: var(--facebook);
   --color-google: var(--google);
   --color-spotify: var(--spotify);
+  --color-whatsapp: var(--whatsapp);
 
   /* AI Utilities */
   --color-ai: var(--ai);

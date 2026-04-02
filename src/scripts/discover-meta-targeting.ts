@@ -288,12 +288,6 @@ const SME_ALLOW_PATHS: string[] = [
 
 // Path segments that are ALWAYS dropped (takes priority over allow list)
 const SME_DENY_PATHS: string[] = [
-  // US-specific income/demographics — irrelevant outside US
-  "household income",
-  "zip codes (us)",
-  "net worth",
-  "financial",
-
   // Education level — not useful for audience targeting for SMEs
   "education level",
   "education field of study",

@@ -1,7 +1,6 @@
 "use client";
 
-import { HelpCenterSheet } from "@/components/layout/help-center-sheet";
-import { CreditsDisplay } from "@/components/layout/credits-display";
+import { PageHeader } from "@/components/layout/page-header";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Sparks, Play, MessageText, UserScan } from "iconoir-react";
@@ -49,17 +48,7 @@ export default function CreationsHubPage() {
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-muted/30 font-sans">
       {/* HEADER */}
-      <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-md">
-        <div className="flex h-16 items-center justify-between px-2 sm:px-4 lg:px-6 container max-w-7xl mx-auto">
-          <h1 className="text-xl font-heading font-bold text-foreground tracking-tight">
-            AI Ad Creator
-          </h1>
-          <div className="flex items-center gap-3">
-            <CreditsDisplay />
-            <HelpCenterSheet />
-          </div>
-        </div>
-      </header>
+      <PageHeader title="AI Ad Creator" showCredits className="z-30" />
 
       {/* MAIN CONTENT */}
       <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">

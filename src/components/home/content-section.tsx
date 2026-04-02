@@ -31,7 +31,7 @@ export function ContentSection() {
   return (
     <section
       id="how-it-works"
-      className="py-20 md:py-32 bg-muted/30 overflow-hidden"
+      className="py-20 md:py-32 bg-background border-b border-border overflow-hidden"
     >
       <div className="container px-6">
         <div className="text-center max-w-2xl mx-auto mb-16 md:mb-24">
@@ -51,7 +51,7 @@ export function ContentSection() {
           {steps.map((step) => (
             <div
               key={step.number}
-              className="relative flex flex-col gap-6 rounded-lg border border-border/60 bg-background p-8 shadow-sm border border-border hover:shadow-sm border border-border hover:border-primary/20 transition-all duration-300"
+              className="relative flex flex-col gap-6 rounded-lg border border-border bg-background p-8 hover:border-border/80 transition-all duration-300"
             >
               {/* Step number */}
               <span className="absolute top-6 right-8 text-5xl font-bold font-heading text-muted/40 select-none leading-none">

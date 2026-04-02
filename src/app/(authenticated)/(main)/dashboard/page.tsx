@@ -6,6 +6,7 @@ import { UnifiedDashboard } from "@/components/dashboard/unified-dashboard";
 import { DashboardEmptyState } from "@/components/dashboard/empty-state";
 import { Sidebar } from "@/components/layout/sidebar";
 import { HelpCenterSheet } from "@/components/layout/help-center-sheet";
+import { PageHeader } from "@/components/layout/page-header";
 
 import { getActiveOrgId } from "@/lib/active-org";
 
@@ -75,14 +76,7 @@ export default async function DashboardPage() {
       <div className="flex min-h-screen bg-muted/30 font-sans">
         <Sidebar />
         <div className="flex flex-1 flex-col min-w-0">
-          <header className="w-full border-b border-border bg-background/80 backdrop-blur-md">
-            <div className="container max-w-7xl mx-auto flex h-16 items-center justify-between px-2 sm:px-4 lg:px-6">
-              <h1 className="text-xl font-heading font-bold text-foreground tracking-tight">
-                Overview
-              </h1>
-              <HelpCenterSheet />
-            </div>
-          </header>
+          <PageHeader title="Overview" className="static" />
           <main className="flex-1 p-8 overflow-y-auto">
             <DashboardEmptyState
               userName={userName}
@@ -119,14 +113,7 @@ export default async function DashboardPage() {
   return (
     <div className="flex min-h-screen bg-muted/30 font-sans">
       <div className="flex flex-1 flex-col min-w-0 w-full">
-        <header className="w-full border-b border-border bg-background/80 backdrop-blur-md">
-          <div className="container max-w-7xl mx-auto flex h-16 items-center justify-between px-2 sm:px-4 lg:px-6">
-            <h1 className="text-xl font-heading font-bold text-foreground tracking-tight">
-              Performance
-            </h1>
-            <HelpCenterSheet />
-          </div>
-        </header>
+        <PageHeader title="Performance" className="static" />
         <UnifiedDashboard
           initialData={safeData}
           campaigns={campaigns}

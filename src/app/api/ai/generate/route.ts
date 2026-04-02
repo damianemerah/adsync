@@ -122,6 +122,7 @@ export async function POST(request: Request) {
     currentCopy,
     refinementInstruction,
     conversationHistory,
+    forceGenerate,
   } = body;
 
   // ── URL context extraction ──────────────────────────────────────────────────
@@ -144,11 +145,46 @@ export async function POST(request: Request) {
       ? OBJECTIVE_INTENT_MAP[objId]
       : undefined;
 
-  if (!description)
-    return NextResponse.json(
-      { error: "Description required" },
-      { status: 400 },
-    );
+  // For TYPE_G confirmations: ensure we don't lose the user's last message context
+  // (like "use my website") by replacing it entirely.
+  if (forceGenerate && org?.business_description) {
+    const isGenericConfirmation = /^(yes|proceed|go ahead|ok|okay|yep|sure|do it)$/i.test(description.trim());
+    if (isGenericConfirmation) {
+      description = org.business_description;
+    } else {
+      // Append the org profile as context so the generator has both
+      description = `${description}\n\n[Business Profile]: ${org.business_description}`;
+    }
+  }
+
+  if (!description) {
+    // No user description and no org profile — ask for clarification instead of hard 400
+    return NextResponse.json({
+      plain_english_summary: "",
+      interests: [],
+      behaviors: [],
+      lifeEvents: [],
+      industries: [],
+      demographics: { age_min: 18, age_max: 65, gender: "all" },
+      suggestedLocations: [],
+      geo_strategy: null,
+      estimatedReach: 0,
+      copy: [],
+      headline: [],
+      ctaIntent: "buy_now",
+      whatsappMessage: null,
+      meta: {
+        input_type: "TYPE_B",
+        needs_clarification: true,
+        needs_confirmation: false,
+        proposed_plan: null,
+        clarification_question: "What are you selling? Give me one sentence and I'll build your ad.",
+        clarification_options: null,
+        is_question: false,
+        question_answer: null,
+      },
+    });
+  }
 
   try {
     // ── Copy refinement via OpenAI gpt-5-mini (faster + cheaper) ──────────
@@ -201,7 +237,10 @@ export async function POST(request: Request) {
 
       // Remove usage from client response
       const { usage, ...clientStrategy } = strategy;
-      return NextResponse.json(clientStrategy);
+      return NextResponse.json({
+        ...clientStrategy,
+        siteContextSummary: siteContext ? siteContext.slice(0, 500) : null,
+      });
     }
 
     const strategy = await generateAndSaveStrategy(
@@ -217,13 +256,15 @@ export async function POST(request: Request) {
         currentCopy: currentCopy ?? undefined,
         orgBusinessDescription: org?.business_description ?? null,
         siteContext,
+        skipTriage: !!forceGenerate,
       },
       conversationHistory ?? [],
       activeOrgId,
     );
     console.log(
       "\n[API Route: /api/ai/generate] ✅ Strategy generated successfully, returning to client.\n",
-    );
+    strategy);
+
 
     if (strategy.meta?.input_type === "TYPE_D") {
       // Guard: TYPE_D without currentCopy means the user typed a refinement phrase
@@ -276,7 +317,10 @@ export async function POST(request: Request) {
           description, // The user's raw refinement instruction becomes the refinement prompt
         );
         const { usage, ...clientStrategy } = refinedStrategy;
-        return NextResponse.json(clientStrategy);
+        return NextResponse.json({
+          ...clientStrategy,
+          siteContextSummary: siteContext ? siteContext.slice(0, 500) : null,
+        });
       }
     }
 
@@ -301,7 +345,10 @@ export async function POST(request: Request) {
 
     // Remove usage from client response
     const { usage, ...clientStrategy } = strategy;
-    return NextResponse.json(clientStrategy);
+    return NextResponse.json({
+      ...clientStrategy,
+      siteContextSummary: siteContext ? siteContext.slice(0, 500) : null,
+    });
   } catch (error: any) {
     console.error("AI Strategy Error:", error);
     return NextResponse.json(

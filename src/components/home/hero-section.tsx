@@ -20,15 +20,15 @@ const transitionVariants = {
 export function HeroSection() {
   return (
     <section className="dark relative overflow-hidden bg-background text-foreground pt-32 pb-20 md:pt-40 md:pb-32 border-b border-border">
-      {/* Background Gradients - subtle glowing orbs */}
-      <div className="absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl opacity-20 pointer-events-none">
-        <div className="relative left-[calc(50%-11rem)] aspect-1155/678 w-144.5 -translate-x-1/2 rotate-30 bg-linear-to-tr from-ai to-primary opacity-30" />
+      {/* Crisp background replacing the glowing orbs */}
+      <div className="absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden pointer-events-none opacity-50">
+        <div className="absolute inset-0 bg-[url('/bg-hero.svg')] bg-center bg-repeat [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
       </div>
 
       <div className="container relative z-10 px-6">
         <div className="text-center mx-auto max-w-4xl">
           {/* Announcement Pill */}
-          <AnimatedGroup variants={transitionVariants}>
+          {/* <AnimatedGroup variants={transitionVariants}>
             <Link
               href="#ai"
               className="group inline-flex items-center gap-2 rounded-full border border-ai/30 bg-ai/10 px-4 py-1.5 text-sm font-medium text-ai transition-colors hover:bg-ai/20 backdrop-blur-sm mb-8"
@@ -37,7 +37,7 @@ export function HeroSection() {
               <span>Tenzu AI 2.0 is live. Auto-generate your ad creatives.</span>
               <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
             </Link>
-          </AnimatedGroup>
+          </AnimatedGroup> */}
 
           {/* Main Headline */}
           <TextEffect
@@ -91,7 +91,7 @@ export function HeroSection() {
           variants={transitionVariants}
           className="mt-16 md:mt-24 relative max-w-5xl mx-auto"
         >
-          <div className="relative rounded-lg border border-border/40 bg-background/50 p-2 shadow-sm backdrop-blur-xl">
+          <div className="relative rounded-lg border border-border bg-muted p-2 shadow-sm">
             <div className="relative overflow-hidden rounded-md bg-background border border-border aspect-16/10 md:aspect-21/9">
               <Image
                 src="/images/tenzu-hero-graphic.png"
@@ -100,7 +100,6 @@ export function HeroSection() {
                 className="object-cover object-center"
                 priority
               />
-              <div className="absolute inset-0 bg-linear-to-t from-background via-transparent to-transparent opacity-30 pointer-events-none" />
             </div>
           </div>
         </AnimatedGroup>
