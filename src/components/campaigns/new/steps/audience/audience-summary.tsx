@@ -16,6 +16,21 @@ function isResolvedId(id: string): boolean {
   return !isNaN(Number(id));
 }
 
+/** Skeleton placeholders shown while Phase 2 targeting resolution is in progress. */
+function TargetingSkeleton() {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {[40, 64, 52].map((w, i) => (
+        <div
+          key={i}
+          className="h-7 rounded-full bg-muted animate-pulse"
+          style={{ width: `${w}px` }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function AudienceSummaryPanel() {
   const {
     setStep,
@@ -30,6 +45,8 @@ export function AudienceSummaryPanel() {
     targetWorkPositions,
     targetIndustries,
     locations,
+    isResolvingTargeting,
+    targetingResolutionError,
   } = useCampaignStore();
 
   const [suggestions, setSuggestions] = useState<Array<{ id: string; name: string }>>([]);
@@ -331,6 +348,10 @@ export function AudienceSummaryPanel() {
                   {beh.name} <Xmark className="h-3 w-3 ml-1 opacity-50" />
                 </Badge>
               ))
+          ) : isResolvingTargeting ? (
+            <TargetingSkeleton />
+          ) : targetingResolutionError ? (
+            <p className="text-xs text-amber-600 italic">Couldn't load — add manually</p>
           ) : (
             <p className="text-sm text-muted-foreground italic">
               No behaviors yet
@@ -383,6 +404,10 @@ export function AudienceSummaryPanel() {
                 {pos.name} <Xmark className="h-3 w-3 ml-1 opacity-50" />
               </Badge>
             ))
+          ) : isResolvingTargeting ? (
+            <TargetingSkeleton />
+          ) : targetingResolutionError ? (
+            <p className="text-xs text-amber-600 italic">Couldn't load — add manually</p>
           ) : (
             <p className="text-sm text-muted-foreground italic">
               No work positions yet
@@ -435,6 +460,10 @@ export function AudienceSummaryPanel() {
                 {industry.name} <Xmark className="h-3 w-3 ml-1 opacity-50" />
               </Badge>
             ))
+          ) : isResolvingTargeting ? (
+            <TargetingSkeleton />
+          ) : targetingResolutionError ? (
+            <p className="text-xs text-amber-600 italic">Couldn't load — add manually</p>
           ) : (
             <p className="text-sm text-muted-foreground italic">
               No industries yet
@@ -487,6 +516,10 @@ export function AudienceSummaryPanel() {
                   {event.name} <Xmark className="h-3 w-3 ml-1 opacity-50" />
                 </Badge>
               ))
+          ) : isResolvingTargeting ? (
+            <TargetingSkeleton />
+          ) : targetingResolutionError ? (
+            <p className="text-xs text-amber-600 italic">Couldn't load — add manually</p>
           ) : (
             <p className="text-sm text-muted-foreground italic">
               No life events yet
@@ -526,6 +559,10 @@ export function AudienceSummaryPanel() {
                   <Xmark className="h-3 w-3 ml-1 opacity-50" />
                 </Badge>
               ))
+          ) : isResolvingTargeting ? (
+            <TargetingSkeleton />
+          ) : targetingResolutionError ? (
+            <p className="text-xs text-amber-600 italic">Couldn't load — add interests manually above</p>
           ) : (
             <p className="text-sm text-muted-foreground italic">
               No interests yet
@@ -561,10 +598,11 @@ export function AudienceSummaryPanel() {
       <div className="pt-4 border-t border-border">
         <Button
           onClick={() => setStep(3)}
-          disabled={targetInterests.length === 0}
+          disabled={targetInterests.length === 0 || isResolvingTargeting}
           className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-lg shadow-sm border border-border"
         >
-          Confirm Audience <ArrowRight className="ml-2 h-5 w-5" />
+          {isResolvingTargeting ? "Finding best audience..." : "Confirm Audience"}
+          {!isResolvingTargeting && <ArrowRight className="ml-2 h-5 w-5" />}
         </Button>
       </div>
     </div>

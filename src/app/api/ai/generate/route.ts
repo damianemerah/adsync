@@ -1,3 +1,5 @@
+// src/app/api/ai/generate/route.ts
+
 import { NextResponse } from "next/server";
 import {
   generateAndSaveStrategy,
@@ -136,6 +138,7 @@ export async function POST(request: Request) {
     siteContext = await scrapeUrl(detectedUrl);
     // Remove the URL from the description so the AI sees clean product text
     description = rawDescription.replace(detectedUrl, "").trim() || rawDescription;
+    console.log("description🔥", description);
   }
 
   // Resolve objective context

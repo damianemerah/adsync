@@ -10,7 +10,7 @@
 import type { AIStrategyResult } from "@/lib/ai/types";
 import type { CopyVariation } from "@/stores/campaign-store";
 import type { AdSyncObjective } from "@/lib/constants";
-import type { CTAIntent, PlatformCTACode, CTAData } from "@/types/cta-types";
+import type { CTAIntent, CTAData } from "@/types/cta-types";
 import {
   resolveInterests,
   resolveBehaviors,
@@ -19,10 +19,11 @@ import {
   resolveIndustries,
   resolveLocation,
   normalizeLocationName,
-  LAGOS_DEFAULT,
+  NIGERIA_DEFAULT,
   type ResolvedTarget,
   type ResolvedLocation,
 } from "@/lib/utils/targeting-resolver";
+
 import {
   mapIntentToCTA,
   generateWhatsAppMessage,
@@ -184,7 +185,7 @@ export function buildResolvedStrategy(
       ? options.existingLocations
       : uniqueValidLocations.length > 0
         ? uniqueValidLocations
-        : [LAGOS_DEFAULT];
+        : [NIGERIA_DEFAULT];
 
   // Slice copy variations by tier limit
   const allHeadlines: string[] = (result.headline || []).slice(
@@ -291,4 +292,94 @@ export function applyCopyResult(
       whatsappMessage: whatsappMsg,
     },
   };
+}
+
+// ─── Phase 1: Location-only Resolution ──────────────────────────────────────
+
+/**
+ * Resolves only the location names from an AI result — used in Phase 1 so
+ * locations appear before targeting (which resolves in Phase 2).
+ */
+export async function resolveLocationsOnly(
+  locationNames: string[],
+  existingLocations: Array<{ id: string; name: string; type: string; country: string }>,
+): Promise<Array<{ id: string; name: string; type: string; country: string }>> {
+  if (existingLocations.length > 0) return existingLocations;
+
+  const resolved = await Promise.all(
+    locationNames.map((name) => resolveLocation(name, metaLocationSearchFn())),
+  );
+
+  const valid = resolved.filter(Boolean) as NonNullable<(typeof resolved)[number]>[];
+  const unique = Array.from(new Map(valid.map((l) => [l.id, l])).values());
+  return unique.length > 0 ? unique : [NIGERIA_DEFAULT];
+}
+
+// ─── Phase 2: Background Targeting Resolution ────────────────────────────────
+
+export interface Phase2ResolvedItem {
+  id: string;
+  name: string;
+  resolved: boolean;
+}
+
+export interface Phase2Result {
+  interests: Phase2ResolvedItem[];
+  behaviors: Phase2ResolvedItem[];
+  lifeEvents: Phase2ResolvedItem[];
+  workPositions: Phase2ResolvedItem[];
+  industries: Phase2ResolvedItem[];
+}
+
+export interface Phase2Params {
+  interestNames: string[];
+  behaviorNames: string[];
+  lifeEventNames: string[];
+  workPositionNames: string[];
+  industryNames: string[];
+  adCopy: string;
+  ctaIntent: string;
+  businessType: string;
+}
+
+/**
+ * Fire-and-forget Phase 2 targeting resolution.
+ *
+ * Sends AI-generated search keywords + ad copy context to the server-side
+ * resolve-targeting endpoint, which searches Meta API for real candidates and
+ * uses gpt-5.4-nano to pick the best match for each keyword.
+ *
+ * Does NOT return a Promise — callers should not await this. Results are
+ * delivered via the onComplete/onError callbacks.
+ */
+export function runPhase2Targeting(
+  params: Phase2Params,
+  onComplete: (result: Phase2Result) => void,
+  onError: () => void,
+): void {
+  fetch("/api/meta/resolve-targeting", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      adCopy: params.adCopy,
+      ctaIntent: params.ctaIntent,
+      businessType: params.businessType,
+      interests: params.interestNames,
+      behaviors: params.behaviorNames,
+      lifeEvents: params.lifeEventNames,
+      workPositions: params.workPositionNames,
+      industries: params.industryNames,
+    }),
+  })
+    .then((res) => {
+      if (!res.ok) throw new Error(`resolve-targeting failed: ${res.status}`);
+      return res.json();
+    })
+    .then((data: Phase2Result) => {
+      onComplete(data);
+    })
+    .catch((err) => {
+      console.error("[Phase2] Targeting resolution failed:", err?.message);
+      onError();
+    });
 }

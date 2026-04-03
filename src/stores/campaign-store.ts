@@ -129,6 +129,11 @@ export interface CampaignState {
   /** Number of copy refinements done this session. Used to enforce Starter tier limit (max 3). */
   refinementCount: number;
 
+  /** True while Phase 2 targeting resolution (background Meta API search + mini selection) is in progress. */
+  isResolvingTargeting: boolean;
+  /** True if Phase 2 targeting resolution failed (timeout or API error). */
+  targetingResolutionError: boolean;
+
   /** AI-suggested lead form fields for leads objective. Populated by AI strategy result or local defaults. */
   suggestedLeadForm: {
     fields: Array<{
@@ -207,6 +212,8 @@ export const useCampaignStore = create<CampaignState>()((set, get) => ({
   pendingGeneratedImage: null,
   suggestedLeadForm: null,
   refinementCount: 0,
+  isResolvingTargeting: false,
+  targetingResolutionError: false,
   adCopyVariations: [],
   selectedCopyIdx: 0,
   messages: [],
@@ -345,6 +352,8 @@ export const useCampaignStore = create<CampaignState>()((set, get) => ({
       suggestedLeadForm: null,
       adCopyVariations: [],
       selectedCopyIdx: 0,
+      isResolvingTargeting: false,
+      targetingResolutionError: false,
       messages: [],
       // refinementCount: 0, // Now persisted
     }),

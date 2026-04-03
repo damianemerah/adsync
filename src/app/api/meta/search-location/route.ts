@@ -8,6 +8,8 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get("query");
   const type = searchParams.get("type") || "city";
+  console.log("Location Query👇👇", query);
+  console.log("Location Type👇👇", type);
 
   if (!query) {
     return NextResponse.json({ error: "Missing query" }, { status: 400 });
@@ -57,10 +59,15 @@ export async function GET(request: Request) {
       type as "city" | "region" | "country",
     );
 
-    console.log("Location Result👇👇", results);
+    console.log(`[Meta API Geo] Search: query="${query}" type="${type}"`);
+    console.log(`[Meta API Geo] Results for "${query}" (${results.length}):`);
+    results.slice(0, 3).forEach((r: any, i: number) => {
+      console.log(`  ${i + 1}. [${r.type}] ${r.name} (key: ${r.key}, region: ${r.region || 'none'}, region_id: ${r.region_id || 'none'})`);
+    });
+    
     return NextResponse.json(results);
   } catch (error: any) {
-    console.log("Location Error", error);
+    console.log(`[Meta API Geo] Error for query="${query}":`, error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

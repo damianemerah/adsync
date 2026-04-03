@@ -5,44 +5,57 @@ import { TIER_CONFIG, TierId } from "@/lib/constants";
 import { resolveTier } from "@/lib/tier";
 import { TRIAGE_INSTRUCTION } from "./prompts";
 import { OBJECTIVE_INTENT_MAP } from "@/lib/constants";
-import { buildScopedBehaviorCatalogPrompt } from "@/lib/constants/meta-behaviors";
-import { buildScopedLifeEventCatalogPrompt } from "@/lib/constants/meta-life-events";
-
 // ─── Minimal System Instruction ──────────────────────────────────────────────
 const NG_PERSONA = `You are an expert Nigerian ad copywriter and marketing strategist.`;
 const GLOBAL_PERSONA = `You are an expert global ad copywriter and marketing strategist.`;
 
 function buildBaseInstruction(
   orgCountryCode?: string,
-  businessContext?: { category?: string },
+  // businessContext retained for call-site compatibility (category no longer needed)
+  _businessContext?: { category?: string },
 ): string {
   const persona =
     !orgCountryCode || orgCountryCode === "NG" ? NG_PERSONA : GLOBAL_PERSONA;
 
-  const category = businessContext?.category;
+  // Nigeria-specific geo constraint — Meta does not support city-level targeting in NG.
+  // Injected into the prompt so the AI never suggests cities or geo_strategy: "cities".
+  const ngGeoConstraint =
+    !orgCountryCode || orgCountryCode === "NG"
+      ? `
+GEO STRATEGY — Nigeria: Meta does NOT support city-level targeting in Nigeria.
+- Always set geo_strategy to { "type": "broad" }. NEVER use { "type": "cities" }.
+- For suggestedLocations, output Nigerian states using the format "{state} Nigeria".
+  This is the exact format Meta's location search resolves as a region record.
+  Correct examples: "Lagos Nigeria", "Federal Capital Territory Nigeria" (for Abuja/FCT), "Kano State Nigeria",
+  "Rivers State Nigeria" (Rivers MUST include "State" — bare "Rivers Nigeria" matches Cross River),
+  "Cross River Nigeria", "Oyo State Nigeria", "Delta State Nigeria", "Anambra Nigeria", "Ogun State Nigeria".
+  NEVER output bare city or area names like "Lagos", "Abuja", "Port Harcourt" —
+  these resolve to unsupported city records in Meta and will be rejected at launch.
+`
+      : "";
 
-  return `${persona} Use your available skills to determine the best strategy and generate high-converting ad copy. Structure your response according to the provided JSON schema.
-
+  return `${persona} Use your available skills to determine the best strategy and generate high-converting ad copy. Structure your response according to the provided JSON schema.${ngGeoConstraint}
 When a <site> tag is present, use it to ground the copy in the business's real product language, pricing, and brand voice — extract specifics (product names, prices, key benefits) and prefer them over generic phrasing.
 
 When a <gaps> tag is present, it lists context slots the user hasn't specified yet (e.g. "location,price_tier"). Use the FIRST listed slot as your meta.refinement_question — ask it naturally after your plain_english_summary.
 
-INTERESTS — generate 5–8 interest names (1–3 words each, Meta-style).
+INTERESTS — generate 5–8 SINGLE-WORD nouns (exactly 1 word each) describing what this audience is interested in.
+Meta's search autocomplete works on root nouns — a single word like "Privacy" surfaces "Internet privacy", "Online privacy" etc.
+Using two words (e.g. "digital privacy") returns zero results. NEVER output multi-word interests.
 Avoid brand names, country names, and suffixes like "lovers" or "enthusiasts".
 Prefer Nigeria-relevant terms when they fit the business. Examples:
-"Fashion", "Hair care", "Clothing", "Online shopping", "Small business",
-"Cooking", "Technology", "Beauty", "Real estate", "Nollywood", "Gospel music",
-"Nigerian music", "Entrepreneurship", "Football", "Health", "Skincare",
-"Wedding", "Interior design", "Shoes", "Investment".
-If none of these fit, use other short valid Meta interest names (1–3 words).
+"Fashion", "Clothing", "Shopping", "Business", "Cooking", "Technology",
+"Beauty", "Property", "Nollywood", "Gospel", "Entrepreneurship", "Football",
+"Health", "Skincare", "Wedding", "Decor", "Shoes", "Investment", "Privacy",
+"Security", "Fitness", "Travel", "Photography", "Gaming", "Parenting".
 
-BEHAVIORS — you MUST output ONLY names from this exact list (2–5, never invent new names):
-${buildScopedBehaviorCatalogPrompt(category)}
+BEHAVIORS — generate 2–5 short search keywords (1–2 words max) describing user purchase behaviors.
+Meta behavior targeting uses short, established phrases — keep them concise.
+Examples: "Shopping", "Payments", "Travelers", "Entrepreneurs", "Shoppers".
+Be specific to the business type and customer profile.
 
-LIFE EVENTS — output ONLY names from this exact list (0–2), or an empty array [] if none clearly apply:
-${buildScopedLifeEventCatalogPrompt(category)}
-
-Outputting any behavior or life event name NOT in the above lists is a critical error.
+LIFE EVENTS — generate 0–2 life stage keywords if the product clearly targets a life milestone.
+Examples: "newly engaged", "new baby", "recently moved", "new job", "recently married". Use [] if not applicable.
 
 WORK POSITIONS — 0–3 job titles, only if the product clearly targets a professional demographic (B2B, professional services, luxury goods, health products for practitioners, etc.). Output [] if not applicable.
 Use short, widely-held job titles Meta recognizes. Examples: "CEO", "Manager", "Doctor", "Nurse", "Engineer", "Entrepreneur", "Teacher", "Accountant", "Business owner", "Sales representative".
@@ -344,8 +357,37 @@ function applyObjectiveCopyCoherence(
   };
 }
 
+// ─── Geo Constraints Gate ─────────────────────────────────────────────────────
+// Post-generation safety net: enforces country-level constraints the AI prompt
+// should already respect. Zero API tokens — pure JS object transform.
+//
+// Nigeria (NG): Meta does not support city-level targeting. If the AI returns
+// geo_strategy: "cities" despite the prompt rule, we force it to "broad".
+// suggestedLocations are kept as-is — the AI is now instructed to output
+// state-format names (e.g. "Lagos State") that resolve to Meta regions.
+function applyGeoConstraints(
+  result: AIStrategyResult,
+  orgCountryCode?: string,
+): AIStrategyResult {
+  const isNigeria = !orgCountryCode || orgCountryCode === "NG";
+  if (!isNigeria) return result;
+
+  if (result.geo_strategy?.type !== "cities") return result;
+
+  console.log(
+    "⚠️ [Geo Gate] AI returned geo_strategy: \"cities\" for NG org — correcting to \"broad\"",
+  );
+  return {
+    ...result,
+    geo_strategy: { type: "broad" },
+  };
+}
+
 // ─── Interest Normalization ───────────────────────────────────────────────────
 // Strips non-Meta patterns the AI sometimes produces despite prompt guardrails.
+// Enforces single-word rule — Meta autocomplete works on root nouns:
+//   "Privacy" → surfaces "Internet privacy", "Online privacy" etc.
+//   "digital privacy" (2 words) → zero results.
 // Runs post-generation, zero API tokens.
 const INTEREST_BAD_SUFFIX =
   /\s+(lovers?|enthusiasts?|buyers?|users?|fans?|people|community|groups?)$/i;
@@ -362,11 +404,25 @@ function normalizeInterests(interests: string[]): string[] {
       s = s.replace(INTEREST_BAD_SUFFIX, "");
       s = s.replace(INTEREST_COUNTRY_PREFIX, "");
       s = s.replace(INTEREST_DESCRIPTOR_PREFIX, "");
-      s = s.charAt(0).toUpperCase() + s.slice(1).trim();
+      s = s.trim();
+
+      // ── Single-word enforcement ────────────────────────────────────────────
+      // If the AI produced a multi-word term despite instructions (e.g. "Hair care"),
+      // keep only the most meaningful token. We pick the longest word as it is
+      // usually the root noun ("care" from "Hair care" → "Care" is acceptable;
+      // for "Online shopping" → "Shopping" is correct).
+      // This is a safety net — the prompt should handle it first.
+      const words = s.split(/\s+/).filter(Boolean);
+      if (words.length > 1) {
+        // Pick the longest word (the root noun tends to be longer)
+        s = words.reduce((a, b) => (b.length >= a.length ? b : a), words[0]);
+      }
+
+      s = s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
       return s;
     })
     .filter((s) => {
-      if (s.length < 3 || s.length > 50) return false;
+      if (s.length < 3 || s.length > 30) return false;
       const key = s.toLowerCase();
       if (seen.has(key)) return false;
       seen.add(key);
@@ -561,7 +617,7 @@ async function triageInput(
   const triageInput = `== CONVERSATION HISTORY ==\n${historyText}\n\n== LATEST USER MESSAGE ==\n${description}\n\n== CAMPAIGN OBJECTIVE ==\n${objective}${orgContextBlock}`;
 
   const response = await (openai.responses.create as any)({
-    model: "gpt-5-mini",
+    model: "gpt-5.4-nano",
     instructions: TRIAGE_INSTRUCTION,
     input: triageInput,
     text: {
@@ -801,6 +857,8 @@ export async function generateAndSaveStrategy(
   conversationHistory: TriageMessage[] = [],
   activeOrgId?: string,
 ): Promise<AIStrategyResult & { usage?: any }> {
+
+  console.log("input🔥", input);
   const supabase = await createClient();
   const provider = process.env.AI_PROVIDER!;
 
@@ -982,9 +1040,12 @@ export async function generateAndSaveStrategy(
   );
 
   // Apply post-generation intelligence gates (zero API cost)
-  const aiResult = applyObjectiveCopyCoherence(
-    { ...rawResult, interests: normalizeInterests(rawResult.interests) },
-    input.objective,
+  const aiResult = applyGeoConstraints(
+    applyObjectiveCopyCoherence(
+      { ...rawResult, interests: normalizeInterests(rawResult.interests) },
+      input.objective,
+    ),
+    input.orgCountryCode,
   );
   console.log("OpenAI Skills Result: 📋", aiResult);
 

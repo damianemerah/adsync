@@ -1,3 +1,5 @@
+// src/components/campaigns/new/steps/audience-chat-step.tsx
+
 "use client";
 
 import {
@@ -31,6 +33,9 @@ import {
   resolveAllTargeting,
   buildResolvedStrategy,
   applyCopyResult,
+  resolveLocationsOnly,
+  runPhase2Targeting,
+  type Phase2Result,
 } from "./audience/chat-handlers";
 import { estimateBudget } from "@/lib/intelligence/estimator";
 import type { AdSyncObjective } from "@/lib/constants";
@@ -827,25 +832,27 @@ export function AudienceChatStep({
         return;
       }
 
-      // ── Full strategy — resolve targeting ──────────────────────────────────
+      // ── Phase 1: resolve locations + copy immediately ─────────────────────
       const names = extractTargetingNames(result);
-      const resolved = await resolveAllTargeting(names);
-      const strategy = buildResolvedStrategy(result, resolved, {
-        existingLocations: locations,
+      const finalLocations = await resolveLocationsOnly(
+        names.locationNames,
+        locations,
+      );
+      const copyResult = applyCopyResult(result, {
         maxCopyVariations,
         platform,
         objective,
+        locations: finalLocations,
       });
 
-      // ── Update Store ──────────────────────────────────────────────────────
+      const plainSummary =
+        result.plain_english_summary ||
+        `Targeting ${result.demographics?.gender === "female" ? "women" : result.demographics?.gender === "male" ? "men" : "people"} ${result.demographics?.age_min}–${result.demographics?.age_max} in ${finalLocations.map((l) => l.name).join(", ")}.`;
+
+      // ── Update store with Phase 1 data (copy + demographics + locations) ──
       updateDraft({
         aiPrompt: text,
         resolvedSiteContext: (result as any).siteContextSummary ?? null,
-        targetInterests: strategy.normalizedInterests,
-        targetBehaviors: strategy.normalizedBehaviors,
-        targetLifeEvents: strategy.normalizedLifeEvents,
-        targetWorkPositions: strategy.normalizedWorkPositions,
-        targetIndustries: strategy.normalizedIndustries,
         ageRange: {
           min: result.demographics?.age_min || 18,
           max: result.demographics?.age_max || 65,
@@ -853,26 +860,57 @@ export function AudienceChatStep({
         gender: result.demographics?.gender || "all",
         campaignName:
           !campaignName || campaignName === "Untitled Campaign"
-            ? generateCampaignName(text, strategy.normalizedInterests)
+            ? generateCampaignName(text, result.interests || [])
             : campaignName,
         adCopy: {
-          ...strategy.primaryCopy,
-          cta: strategy.ctaData,
+          ...copyResult.primaryCopy,
+          cta: copyResult.ctaData,
         },
-        adCopyVariations: strategy.variations,
+        adCopyVariations: copyResult.variations,
         selectedCopyIdx: 0,
-        locations: strategy.finalLocations,
+        locations: finalLocations,
         lastGeneratedObjective: objective || "whatsapp",
         suggestedLeadForm: result.suggestedLeadForm ?? null,
+        latestAiSummary: plainSummary,
+        // Clear any previous targeting from a prior generation
+        targetInterests: [],
+        targetBehaviors: [],
+        targetLifeEvents: [],
+        targetWorkPositions: [],
+        targetIndustries: [],
+        isResolvingTargeting: true,
+        targetingResolutionError: false,
       });
 
+      // ── Fire Phase 2 in the background (no await) ─────────────────────────
+      runPhase2Targeting(
+        {
+          interestNames: names.interestNames,
+          behaviorNames: names.behaviorNames,
+          lifeEventNames: names.lifeEventNames,
+          workPositionNames: names.workPositionNames,
+          industryNames: names.industryNames,
+          adCopy: copyResult.primaryCopy.primary || copyResult.primaryCopy.headline,
+          ctaIntent: result.ctaIntent || "buy_now",
+          businessType: result.meta?.detected_business_type || "general",
+        },
+        (phase2: Phase2Result) => {
+          updateDraft({
+            targetInterests: phase2.interests,
+            targetBehaviors: phase2.behaviors,
+            targetLifeEvents: phase2.lifeEvents,
+            targetWorkPositions: phase2.workPositions,
+            targetIndustries: phase2.industries,
+            isResolvingTargeting: false,
+          });
+        },
+        () => {
+          updateDraft({ isResolvingTargeting: false, targetingResolutionError: true });
+          toast.warning("Audience targeting took longer than expected — add interests manually.");
+        },
+      );
+
       const outcome = buildOutcomePreview(objective, budget);
-      const plainSummary =
-        result.plain_english_summary ||
-        `Targeting ${result.demographics?.gender === "female" ? "women" : result.demographics?.gender === "male" ? "men" : "people"} ${result.demographics?.age_min}–${result.demographics?.age_max} in ${strategy.finalLocations.map((l) => l.name).join(", ")}.`;
-
-      updateDraft({ latestAiSummary: plainSummary });
-
       const assumptions = result.meta?.inferred_assumptions;
       const refinementQ = result.meta?.refinement_question;
 
@@ -892,8 +930,8 @@ export function AudienceChatStep({
               outcomeLabel: outcome.label,
               outcomeRange: outcome.range,
               budget,
-              interests: strategy.normalizedInterests,
-              locations: strategy.finalLocations,
+              interests: [],
+              locations: finalLocations,
               ...(assumptions?.length
                 ? { inferredAssumptions: assumptions }
                 : {}),
@@ -903,7 +941,7 @@ export function AudienceChatStep({
         ]);
 
         // 2. Copy suggestion — 900ms later
-        if (strategy.primaryCopy.headline && strategy.primaryCopy.primary) {
+        if (copyResult.primaryCopy.headline && copyResult.primaryCopy.primary) {
           scheduleTimer(() => {
             const copyId = Date.now().toString();
             setMessages((prev) => [
@@ -914,8 +952,8 @@ export function AudienceChatStep({
                 content: "Here's your ad copy — ready to use:",
                 type: "copy_suggestion",
                 data: {
-                  adCopy: strategy.primaryCopy,
-                  adCopyVariations: strategy.variations,
+                  adCopy: copyResult.primaryCopy,
+                  adCopyVariations: copyResult.variations,
                 },
               },
             ]);

@@ -543,7 +543,7 @@ async function enrichEmptyEntries(targetClass: TargetClass): Promise<number> {
 
     try {
       const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gpt-5.4-nano",
         temperature: 0.3,
         messages: [
           {
