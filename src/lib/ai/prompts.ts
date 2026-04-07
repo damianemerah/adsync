@@ -172,6 +172,22 @@ TYPE_G = Bare/vague ad creation request (like TYPE_B: "create ad for me", "make 
   If business_description fails the quality gate, use TYPE_B instead:
   → unlock_question: acknowledge the profile exists but ask for specifics, e.g.: "I've seen your profile, but I need to know exactly what you're selling right now, which city you're in, and who we're targeting (men, women, or both) to build the best ad."
 
+TYPE_A_CONFIRM = User is confirming a TYPE_G proposed plan shown in the immediately preceding AI message.
+  Detection: The immediately preceding AI message contained a proposed_plan asking "Want me to proceed?"
+  AND the current user message is a short affirmation: "yes", "proceed", "go ahead", "do it", "sure",
+  "yep", "create it", "yes proceed", "make it", or similar (including pidgin: "oya do am", "do am", "sharp go ahead").
+  → Classify as TYPE_A with needs_full_generation: true, is_refinement: false
+  → For slot extraction: use the FULL conversation history — the original product description that triggered
+    TYPE_G is already in history. Extract from there. Also use ORG CONTEXT fields.
+  → Do NOT ask for clarification. Do NOT return TYPE_B or TYPE_E.
+  → This rule takes priority over TYPE_E (do not classify as sign-off).
+
+TYPE_A_REBUILD = The immediately preceding AI message asked the user whether to rebuild the strategy
+  for a new campaign objective (e.g. "You switched from WHATSAPP to TRAFFIC. Should I rebuild?")
+  AND the current user message confirms (yes/proceed/rebuild/go ahead/similar affirmation).
+  → Classify as TYPE_A with needs_full_generation: true, is_refinement: false
+  → Extract objective from conversation history (the new objective the user switched to)
+
 TYPE_C = User is asking an advertising question
   → needs_full_generation: false, is_refinement: false
   → direct_answer: concise, helpful answer
@@ -231,13 +247,29 @@ An unlock_question MUST target a slot that is genuinely unknown after scanning a
 == COMPLETENESS SCORE ==
 After classification, compute a completeness score (0–5) based on filled slots:
   product_identified: 1 if businessType != "unknown" (clear product or service exists)
-  location_known: 1 if any location (city, state, region, or country) is mentioned anywhere in history or message
+  location_known: ALWAYS score 1. Location is auto-resolved by the app — never put "location" in missing_slots.
   audience_defined: 1 if gender is explicitly stated (male/female — NOT defaulted to "all" due to lack of signal)
   price_tier_known: 1 if priceTier != "unknown" (explicit price signal found)
-  selling_method_known: 1 if delivery method, selling channel, or how the business operates is mentioned
+  selling_method_known: 1 if ANY of these signals appear anywhere in history or current message:
+    "nationwide", "deliver", "delivery", "ship", "dispatch", "logistics", "online", "ecommerce",
+    "e-commerce", "DM to order", "WhatsApp to order", "boutique", "store", "shop", "website",
+    "Instagram", "pickup", "home delivery", "express delivery", "courier", "nationwide delivery",
+    "i deliver", "we deliver", "we ship", "physical store", "dropship", "dropshipping".
+    Do NOT score 0 just because selling method wasn't stated as its own explicit sentence.
+    Presence of ANY delivery/channel keyword = selling_method_known: 1.
 
 completeness_score = sum of the above (0–5). Always output this field.
 missing_slots = array of slot names that scored 0, e.g. ["location", "price_tier"]. Always output this field (use [] if all slots are filled).
 For TYPE_B, the unlock_question MUST ask for all missing information in missing_slots in a single, helpful, and natural sentence. Don't ask one by one—tell them exactly what's needed (product, location, audience, etc.) to get started.
+
+== CLARIFICATION OPTIONS MODE ==
+When generating clarification_options, each option must be an object with:
+- label: the display text
+- mode: "send" OR "prefill"
+  - "send"    → binary or intent choices the user confirms as-is.
+                Examples: "Yes, proceed", "No, keep it", "Nationwide", "Women only"
+  - "prefill" → options containing data the user should verify before sending.
+                Examples: price ranges ("From ₦2,500–₦5,000"), sizing info ("Pre-orders/custom sizing too"),
+                anything with numbers, currency, or business-specific facts the AI inferred.
 
 Be decisive. Respond ONLY with the JSON object.`;

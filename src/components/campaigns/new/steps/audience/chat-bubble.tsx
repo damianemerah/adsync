@@ -18,9 +18,10 @@ interface ChatBubbleProps {
   onAddLocation: (loc: any) => void;
   onCopyRefine: (val: string) => void;
   isRefiningCopy: boolean;
-  onClarificationSelect: (val: string) => void;
+  onClarificationSelect: (val: string, mode: "send" | "prefill") => void;
   onRecoverySelect: (val: string) => void;
   onConfirmAudience: () => void;
+  onFollowUpSelect: (instruction: string) => void;
   copyReady: boolean;
   /** True when this is the last copy_suggestion message in the conversation */
   isLastCopySuggestion?: boolean;
@@ -36,6 +37,7 @@ export function ChatBubble({
   onRemoveLocation, // params kept for future use if needed
   onAddLocation, // params kept for future use if needed
   onCopyRefine,
+  onFollowUpSelect,
   isRefiningCopy,
   onClarificationSelect,
   onRecoverySelect,
@@ -44,22 +46,6 @@ export function ChatBubble({
   isLastCopySuggestion = false,
 }: ChatBubbleProps) {
   const isAI = message.role === "ai";
-
-  // Helper for mismatch chips
-  const handleChipClick = (value: string) => {
-    if (value.startsWith("Yes, rebuild")) {
-      // Extract goal name after "for "
-      const goal = value.split("for ")[1];
-      // Use a sentinel prefix that handleSend can detect BEFORE classifyUserInput
-      // so it routes to a full strategy rebuild, not copy refinement
-      onRecoverySelect(`__OBJECTIVE_REWRITE__${goal}`);
-    } else if (value.startsWith("No, keep")) {
-      // Dismiss silently — just acknowledge with no AI call
-      onRecoverySelect(`__OBJECTIVE_KEEP__`);
-    } else {
-      onRecoverySelect(value);
-    }
-  };
 
   return (
     <div
@@ -106,6 +92,7 @@ export function ChatBubble({
             locations={message.data.locations || []}
             inferredAssumptions={message.data.inferredAssumptions}
             refinementQuestion={message.data.refinementQuestion}
+            followUps={message.data.followUps}
             onRemoveInterest={onRemoveInterest}
             onAddInterest={onAddInterest}
             currentInterests={currentInterests}
@@ -114,6 +101,7 @@ export function ChatBubble({
             onRefinementAnswer={(answer) => {
               onRecoverySelect(answer);
             }}
+            onFollowUpSelect={onFollowUpSelect}
           />
         )}
 
@@ -131,35 +119,30 @@ export function ChatBubble({
           </div>
         )}
 
-        {/* Recovery chips for mismatch — uses clarificationOptions from data for dynamic chips */}
-        {message.type === "recovery" &&
-          message.data?.clarificationOptions?.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2 animate-in fade-in slide-in-from-top-2">
-              {message.data.clarificationOptions.map((opt: string) => (
-                <button
-                  key={opt}
-                  onClick={() => handleChipClick(opt)}
-                  className="px-4 py-2 rounded-full border border-primary/40 bg-primary/5 text-primary text-sm font-medium hover:bg-primary/15 transition-colors"
-                >
-                  {opt}
-                </button>
-              ))}
-            </div>
-          )}
 
         {/* Clarification choice chips */}
         {message.type === "clarification_choice" &&
           message.data?.clarificationOptions?.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2 animate-in fade-in slide-in-from-top-2">
-              {message.data.clarificationOptions.map((option: string) => (
-                <button
-                  key={option}
-                  onClick={() => onClarificationSelect(option)}
-                  className="px-4 py-2 rounded-full border border-primary/40 bg-primary/5 text-primary text-sm font-medium hover:bg-primary/15 transition-colors"
-                >
-                  {option}
-                </button>
-              ))}
+              {message.data.clarificationOptions.map((option: { label: string; mode: "send" | "prefill" } | string) => {
+                const label = typeof option === "string" ? option : option.label;
+                const mode = typeof option === "string" ? "send" : option.mode;
+                return (
+                  <button
+                    key={label}
+                    onClick={() => onClarificationSelect(label, mode)}
+                    className={cn(
+                      "px-4 py-2 rounded-full border text-sm font-medium transition-colors",
+                      mode === "prefill"
+                        ? "border-border bg-muted/40 text-foreground hover:bg-muted"
+                        : "border-primary/40 bg-primary/5 text-primary hover:bg-primary/15"
+                    )}
+                  >
+                    {label}
+                    {mode === "prefill" && <span className="ml-1.5 text-[10px] opacity-40">edit ✎</span>}
+                  </button>
+                );
+              })}
             </div>
           )}
 

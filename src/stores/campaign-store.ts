@@ -39,7 +39,7 @@ export interface Message {
     locations?: any[];
     adCopy?: { headline: string; primary: string };
     adCopyVariations?: CopyVariation[];
-    clarificationOptions?: string[];
+    clarificationOptions?: Array<{ label: string; mode: "send" | "prefill" }>;
     inferredAssumptions?: string[];
     refinementQuestion?: string;
     // Outcome preview data
@@ -49,6 +49,7 @@ export interface Message {
     // Error recovery
     originalInput?: string;
     isMismatchPrompt?: boolean;
+    isObjectiveMismatchPrompt?: boolean;
   };
 }
 
@@ -81,6 +82,7 @@ export interface CampaignState {
   targetLifeEvents: TargetingOption[]; // Meta life_events field e.g. Newly Engaged, New Parents
   targetWorkPositions: TargetingOption[]; // Meta work_positions field e.g. Manager, Director
   targetIndustries: TargetingOption[]; // Meta industries field e.g. Management, Healthcare
+  targetingMode: "b2b" | "b2c" | "broad" | null; // AI-classified campaign intent — drives signal density caps at launch
   destinationValue: string;
 
   // AI & Targeting
@@ -184,6 +186,7 @@ export const useCampaignStore = create<CampaignState>()((set, get) => ({
   targetLifeEvents: [],
   targetWorkPositions: [],
   targetIndustries: [],
+  targetingMode: null,
   destinationValue: "",
   leadGenFormId: null,
   appStoreUrl: "",
@@ -324,6 +327,7 @@ export const useCampaignStore = create<CampaignState>()((set, get) => ({
       targetLifeEvents: [],
       targetWorkPositions: [],
       targetIndustries: [],
+      targetingMode: null,
       destinationValue: "",
       leadGenFormId: null,
       appStoreUrl: "",

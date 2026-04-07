@@ -6,7 +6,6 @@ import {
   useCampaignStore,
   Message,
 } from "@/stores/campaign-store";
-import { classifyLocally } from "@/lib/ai/preprocessor";
 import { messageContainsUrl } from "@/lib/ai/url-scraper";
 import type { TriageMessage } from "@/lib/ai/service";
 import { useState, useRef, useEffect } from "react";
@@ -30,8 +29,6 @@ import { Check, ListSelect } from "iconoir-react";
 import type { AIStrategyResult } from "@/lib/ai/types";
 import {
   extractTargetingNames,
-  resolveAllTargeting,
-  buildResolvedStrategy,
   applyCopyResult,
   resolveLocationsOnly,
   runPhase2Targeting,
@@ -41,6 +38,8 @@ import { estimateBudget } from "@/lib/intelligence/estimator";
 import type { AdSyncObjective } from "@/lib/constants";
 import { TIER_CONFIG } from "@/lib/constants";
 import { useSubscription } from "@/hooks/use-subscription";
+import { useOrganization } from "@/hooks/use-organization";
+import { useActiveOrgContext } from "@/components/providers/active-org-provider";
 import { PaymentDialog } from "@/components/billing/payment-dialog";
 
 // Extracted Components
@@ -164,9 +163,10 @@ export function AudienceChatStep({
   const lockScrollToCopy = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const pendingTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
-  // Stores the user message that triggered TYPE_G so we can use it when they confirm
-  const typegTriggerRef = useRef<string | null>(null);
-  const [isRefiningCopy, setIsRefiningCopy] = useState(false);
+  // Always reflects the latest persistedDraftId so Phase 2 callbacks aren't stale
+  const persistedDraftIdRef = useRef<string | null>(persistedDraftId);
+  useEffect(() => { persistedDraftIdRef.current = persistedDraftId; }, [persistedDraftId]);
+const [isRefiningCopy, setIsRefiningCopy] = useState(false);
   const [isReadingUrl, setIsReadingUrl] = useState(false);
 
   // Clear URL reading indicator once the AI finishes responding
@@ -187,6 +187,8 @@ export function AudienceChatStep({
   const [chatPhase, setChatPhase] = useState<"initial" | "refining">("initial");
 
   // Credit & tier guards
+  const { activeOrgId } = useActiveOrgContext();
+  const { organization: currentOrg } = useOrganization(activeOrgId);
   const { data: subscription } = useSubscription();
   const tier = (subscription?.org?.tier ??
     "starter") as keyof typeof TIER_CONFIG;
@@ -344,10 +346,10 @@ export function AudienceChatStep({
 
     const greeting =
       objective === "whatsapp"
-        ? "Oya, tell me what you sell — I'll build your WhatsApp ad in seconds."
+        ? "Tell me about what you sell and I'll build your ad.\n\nFor best results, you can include:\n• What you sell (e.g. \"women's ankara gowns\", \"shawarma delivery\")\n• Your price range (e.g. \"from ₦5,000\" or \"₦10k–₦25k\")\n• Who you're targeting (e.g. \"women\", \"men\", \"both\")\n\nYou can also paste your website URL and I'll read it automatically."
         : objective === "traffic"
-          ? "What product or service are you driving traffic to? One sentence is enough."
-          : "Tell me what you're selling. One sentence — I'll do the rest.";
+          ? "Tell me about what you sell and I'll build your traffic ad.\n\nYou can include: what you sell, your price range, and who you're targeting. You can also paste your website URL."
+          : "Tell me about what you sell and I'll build your ad.\n\nInclude: what you sell, your price range, and who you're targeting. You can also paste your website URL.";
 
     const initialMessage: Message = {
       id: "init-1",
@@ -406,8 +408,7 @@ export function AudienceChatStep({
       return;
 
     const lastAiMsg = [...messages].reverse().find((m) => m.role === "ai");
-    if (lastAiMsg?.type === "recovery" && lastAiMsg?.data?.isMismatchPrompt)
-      return;
+    if (lastAiMsg?.data?.isObjectiveMismatchPrompt) return;
 
     const fromGoal = lastGeneratedObjective.toUpperCase();
     const toGoal = objective.toUpperCase();
@@ -418,10 +419,13 @@ export function AudienceChatStep({
         id: Date.now().toString(),
         role: "ai",
         content: `You switched from ${fromGoal} to ${toGoal}. Should I rebuild the strategy and copy for the new goal?`,
-        type: "recovery",
+        type: "clarification_choice",
         data: {
-          isMismatchPrompt: true,
-          clarificationOptions: [`Yes, rebuild for ${toGoal}`, "No, keep it"],
+          isObjectiveMismatchPrompt: true,
+          clarificationOptions: [
+            { label: `Yes, rebuild for ${toGoal}`, mode: "send" },
+            { label: "No, keep it", mode: "send" },
+          ],
         },
       },
     ]);
@@ -493,7 +497,7 @@ export function AudienceChatStep({
     }
   };
 
-  const handleSend = async (overrideValue?: string, isProceedConfirm?: boolean) => {
+  const handleSend = async (overrideValue?: string) => {
     const raw = overrideValue || inputValue;
     const text = normalizeAmounts(raw);
     if (!text.trim() || isTyping) return;
@@ -504,297 +508,15 @@ export function AudienceChatStep({
     const controller = new AbortController();
     abortRef.current = controller;
 
-    const isInternalSentinel = text.startsWith("__OBJECTIVE_");
-    const finalDescription = text;
-
     const userMsg: Message = {
       id: Date.now().toString(),
       role: "user",
-      content: isInternalSentinel
-        ? text.startsWith("__OBJECTIVE_KEEP__")
-          ? "No, keep it"
-          : "Yes, rebuild for new goal"
-        : text,
+      content: text,
     };
     setMessages((prev) => [...prev, userMsg]);
     if (!overrideValue) setInputValue("");
     setIsTyping(true);
     if (messageContainsUrl(text)) setIsReadingUrl(true);
-
-    // ── Sentinel: Objective keep ────────────────────────────────────────────
-    if (text.startsWith("__OBJECTIVE_KEEP__")) {
-      setIsTyping(false);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          role: "ai",
-          content: "Got it — keeping your current strategy. Carry on!",
-          type: "text",
-        },
-      ]);
-      return;
-    }
-
-    // ── Sentinel: Objective rewrite ────────────────────────────────────────
-    if (text.startsWith("__OBJECTIVE_REWRITE__")) {
-      const businessDesc = aiPrompt;
-      if (!businessDesc) {
-        setIsTyping(false);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString(),
-            role: "ai",
-            content:
-              "Tell me what you sell first and I'll rebuild the strategy.",
-            type: "text",
-          },
-        ]);
-        return;
-      }
-      try {
-        const res = await fetch("/api/ai/generate", {
-          method: "POST",
-          signal: controller.signal,
-          body: JSON.stringify({
-            description: businessDesc,
-            location: buildLocationString(locations),
-            objective: objective || "whatsapp",
-            conversationHistory: buildTriageHistory(messages),
-          }),
-        });
-        if (res.status === 429) {
-          handleRateLimit(res);
-          return;
-        }
-        if (!res.ok) throw new Error("Rebuild failed");
-        const result: AIStrategyResult = await res.json();
-
-        const names = extractTargetingNames(result);
-        const resolved = await resolveAllTargeting(names);
-        const strategy = buildResolvedStrategy(result, resolved, {
-          existingLocations: locations,
-          maxCopyVariations,
-          platform,
-          objective,
-        });
-
-        updateDraft({
-          targetInterests: strategy.normalizedInterests,
-          targetBehaviors: strategy.normalizedBehaviors,
-          targetLifeEvents: strategy.normalizedLifeEvents,
-          targetWorkPositions: strategy.normalizedWorkPositions,
-          targetIndustries: strategy.normalizedIndustries,
-          ageRange: {
-            min: result.demographics?.age_min || 18,
-            max: result.demographics?.age_max || 65,
-          },
-          gender: result.demographics?.gender || "all",
-          adCopy: {
-            ...strategy.primaryCopy,
-            cta: strategy.ctaData,
-          },
-          adCopyVariations: strategy.variations,
-          selectedCopyIdx: 0,
-          lastGeneratedObjective: objective || "whatsapp",
-        });
-
-        const outcome = buildOutcomePreview(objective, budget);
-        const plainSummary =
-          result.plain_english_summary ||
-          `Rebuilt for ${(objective || "whatsapp").toUpperCase()} — targeting ${strategy.normalizedInterests.length} audiences.`;
-
-        setIsTyping(false);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString(),
-            role: "ai",
-            content: plainSummary,
-            type: "outcome_preview",
-            data: {
-              outcomeLabel: outcome.label,
-              outcomeRange: outcome.range,
-              budget,
-              interests: strategy.normalizedInterests,
-              locations,
-            },
-          },
-        ]);
-        scheduleTimer(() => {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: Date.now().toString(),
-              role: "ai",
-              content: "Here's the updated copy for your new goal:",
-              type: "copy_suggestion",
-              data: { adCopy: strategy.primaryCopy, adCopyVariations: strategy.variations },
-            },
-          ]);
-          setCopyReady(true);
-          setChatPhase("refining");
-        }, 900);
-      } catch (err: any) {
-        if (err?.name === "AbortError") return;
-        setIsTyping(false);
-        setMessages((prev) => [
-          ...prev.filter((m) => m.id !== userMsg.id),
-          {
-            id: Date.now().toString(),
-            role: "ai",
-            content: "Couldn't rebuild right now. Try again in a moment.",
-            type: "text",
-          },
-        ]);
-      }
-      return;
-    }
-
-    // ── TYPE_G confirmation bypass ─────────────────────────────────────────
-    // "Yes, proceed" after a TYPE_G proposal must skip triage and go straight
-    // to generation — sending "Yes, proceed" as the description would cause
-    // triage to loop back to TYPE_G again.
-    if (isProceedConfirm) {
-      console.log("Proceeding with TYPE_G confirmation💎💎💎");
-      setCopyReady(false);
-      setChatPhase("initial");
-      try {
-        const res = await fetch("/api/ai/generate", {
-          method: "POST",
-          signal: controller.signal,
-          body: JSON.stringify({
-            description: typegTriggerRef.current || "",
-            location: buildLocationString(locations),
-            objective: objective || "whatsapp",
-            conversationHistory: buildTriageHistory(messages),
-            forceGenerate: true,
-          }),
-        });
-
-        if (res.status === 429) { handleRateLimit(res); return; }
-        if (!res.ok) throw new Error("AI Failed");
-        const result: AIStrategyResult = await res.json();
-
-        const earlyReturn = routeTriageResponse(result);
-        if (earlyReturn) return;
-
-        const names = extractTargetingNames(result);
-        const resolved = await resolveAllTargeting(names);
-        const strategy = buildResolvedStrategy(result, resolved, {
-          existingLocations: locations,
-          maxCopyVariations,
-          platform,
-          objective,
-        });
-
-        const triggerPrompt = typegTriggerRef.current || "";
-        updateDraft({
-          aiPrompt: triggerPrompt,
-          resolvedSiteContext: (result as any).siteContextSummary ?? null,
-          targetInterests: strategy.normalizedInterests,
-          targetBehaviors: strategy.normalizedBehaviors,
-          targetLifeEvents: strategy.normalizedLifeEvents,
-          targetWorkPositions: strategy.normalizedWorkPositions,
-          targetIndustries: strategy.normalizedIndustries,
-          ageRange: {
-            min: result.demographics?.age_min || 18,
-            max: result.demographics?.age_max || 65,
-          },
-          gender: result.demographics?.gender || "all",
-          campaignName:
-            !campaignName || campaignName === "Untitled Campaign"
-              ? generateCampaignName(triggerPrompt, strategy.normalizedInterests)
-              : campaignName,
-          adCopy: { ...strategy.primaryCopy, cta: strategy.ctaData },
-          adCopyVariations: strategy.variations,
-          selectedCopyIdx: 0,
-          locations: strategy.finalLocations,
-          lastGeneratedObjective: objective || "whatsapp",
-          suggestedLeadForm: result.suggestedLeadForm ?? null,
-        });
-
-        const plainSummary =
-          result.plain_english_summary ||
-          `Targeting ${result.demographics?.gender === "female" ? "women" : result.demographics?.gender === "male" ? "men" : "people"} ${result.demographics?.age_min}–${result.demographics?.age_max} in ${strategy.finalLocations.map((l) => l.name).join(", ")}.`;
-        updateDraft({ latestAiSummary: plainSummary });
-
-        const outcome = buildOutcomePreview(objective, budget);
-        typegTriggerRef.current = null;
-
-        scheduleTimer(() => {
-          setIsTyping(false);
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: Date.now().toString(),
-              role: "ai",
-              content: plainSummary,
-              type: "outcome_preview",
-              data: {
-                outcomeLabel: outcome.label,
-                outcomeRange: outcome.range,
-                budget,
-                interests: strategy.normalizedInterests,
-                locations: strategy.finalLocations,
-              },
-            },
-          ]);
-
-          if (strategy.primaryCopy.headline && strategy.primaryCopy.primary) {
-            scheduleTimer(() => {
-              setMessages((prev) => [
-                ...prev,
-                {
-                  id: Date.now().toString(),
-                  role: "ai",
-                  content: "Here's your ad copy — ready to use:",
-                  type: "copy_suggestion",
-                  data: {
-                    adCopy: strategy.primaryCopy,
-                    adCopyVariations: strategy.variations,
-                  },
-                },
-              ]);
-              setCopyReady(true);
-              setChatPhase("refining");
-            }, 900);
-          }
-        }, 0);
-      } catch (err: any) {
-        if (err?.name === "AbortError") return;
-        setIsTyping(false);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString(),
-            role: "ai",
-            content: "Couldn't generate right now. Try again in a moment.",
-            type: "text",
-          },
-        ]);
-      }
-      return;
-    }
-
-    // ── TIER 1 gate (zero API cost) ────────────────────────────────────────
-    const classification = classifyLocally(text);
-
-    if (classification.localType === "TIER1_TYPE_E") {
-      setIsTyping(false);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          role: "ai",
-          content:
-            "You're all set! Click Next when you're ready to set your ad visuals.",
-          type: "text",
-        },
-      ]);
-      return;
-    }
 
     // ── Main AI generation ─────────────────────────────────────────────────
     setCopyReady(false);
@@ -804,7 +526,7 @@ export function AudienceChatStep({
         method: "POST",
         signal: controller.signal,
         body: JSON.stringify({
-          description: finalDescription,
+          description: text,
           location: buildLocationString(locations),
           objective: objective || "whatsapp",
           currentCopy: adCopy.headline
@@ -821,16 +543,9 @@ export function AudienceChatStep({
       if (!res.ok) throw new Error("AI Failed");
       const result: AIStrategyResult = await res.json();
 
-      // ── Triage early returns (zero-cost AI responses) ──────────────────────
-      const earlyReturn = routeTriageResponse(result, text);
+      // ── Triage early returns ───────────────────────────────────────────────
+      const earlyReturn = handleEarlyResponse(result);
       if (earlyReturn) return;
-
-      // ── TYPE_D — copy refinement ───────────────────────────────────────────
-      if (result.meta?.input_type === "TYPE_D" && adCopy.headline) {
-        setIsTyping(false);
-        await handleCopyRefinement(text);
-        return;
-      }
 
       // ── Phase 1: resolve locations + copy immediately ─────────────────────
       const names = extractTargetingNames(result);
@@ -850,8 +565,14 @@ export function AudienceChatStep({
         `Targeting ${result.demographics?.gender === "female" ? "women" : result.demographics?.gender === "male" ? "men" : "people"} ${result.demographics?.age_min}–${result.demographics?.age_max} in ${finalLocations.map((l) => l.name).join(", ")}.`;
 
       // ── Update store with Phase 1 data (copy + demographics + locations) ──
+      // When user confirmed a TYPE_G proposal ("Yes, proceed"), the actual
+      // business description is the org profile — not the confirmation phrase.
+      const isConfirmPhrase = /^(yes|proceed|go ahead|ok|okay|yep|sure|do it|yes proceed|make it|create it|do am|oya do am)$/i.test(text.trim());
+      const effectiveAiPrompt = (isConfirmPhrase && (currentOrg?.business_description || result.plain_english_summary))
+        ? (currentOrg?.business_description || result.plain_english_summary!)
+        : text;
       updateDraft({
-        aiPrompt: text,
+        aiPrompt: effectiveAiPrompt,
         resolvedSiteContext: (result as any).siteContextSummary ?? null,
         ageRange: {
           min: result.demographics?.age_min || 18,
@@ -860,7 +581,7 @@ export function AudienceChatStep({
         gender: result.demographics?.gender || "all",
         campaignName:
           !campaignName || campaignName === "Untitled Campaign"
-            ? generateCampaignName(text, result.interests || [])
+            ? generateCampaignName(effectiveAiPrompt, result.interests || [])
             : campaignName,
         adCopy: {
           ...copyResult.primaryCopy,
@@ -878,6 +599,7 @@ export function AudienceChatStep({
         targetLifeEvents: [],
         targetWorkPositions: [],
         targetIndustries: [],
+        targetingMode: result.targeting_mode ?? null,
         isResolvingTargeting: true,
         targetingResolutionError: false,
       });
@@ -893,6 +615,7 @@ export function AudienceChatStep({
           adCopy: copyResult.primaryCopy.primary || copyResult.primaryCopy.headline,
           ctaIntent: result.ctaIntent || "buy_now",
           businessType: result.meta?.detected_business_type || "general",
+          targetingMode: result.targeting_mode,
         },
         (phase2: Phase2Result) => {
           updateDraft({
@@ -903,6 +626,14 @@ export function AudienceChatStep({
             targetIndustries: phase2.industries,
             isResolvingTargeting: false,
           });
+          // Save draft now that targeting data is resolved — the auto-save on
+          // messages.length fires too early (before Phase 2 completes).
+          const latestDraftId = persistedDraftIdRef.current;
+          saveDraft(useCampaignStore.getState(), latestDraftId ?? undefined)
+            .then((savedId) => {
+              if (savedId && savedId !== latestDraftId) onDraftSaved(savedId);
+            })
+            .catch(() => {});
         },
         () => {
           updateDraft({ isResolvingTargeting: false, targetingResolutionError: true });
@@ -913,6 +644,7 @@ export function AudienceChatStep({
       const outcome = buildOutcomePreview(objective, budget);
       const assumptions = result.meta?.inferred_assumptions;
       const refinementQ = result.meta?.refinement_question;
+      const followUps = result.meta?.follow_ups?.length ? result.meta.follow_ups : null;
 
       // ── Render Messages (tracked timers for safe cleanup) ──────────────────
       scheduleTimer(() => {
@@ -936,6 +668,7 @@ export function AudienceChatStep({
                 ? { inferredAssumptions: assumptions }
                 : {}),
               ...(refinementQ ? { refinementQuestion: refinementQ } : {}),
+              ...(followUps ? { followUps } : {}),
             },
           },
         ]);
@@ -944,6 +677,7 @@ export function AudienceChatStep({
         if (copyResult.primaryCopy.headline && copyResult.primaryCopy.primary) {
           scheduleTimer(() => {
             const copyId = Date.now().toString();
+            lockScrollToCopy.current = copyId;
             setMessages((prev) => [
               ...prev,
               {
@@ -959,35 +693,11 @@ export function AudienceChatStep({
             ]);
             setCopyReady(true);
             setChatPhase("refining");
-
-            // 3. Clarification nudge — 900ms after copy
-            if (
-              result.meta?.needs_clarification &&
-              result.meta?.clarification_question
-            ) {
-              scheduleTimer(() => {
-                lockScrollToCopy.current = copyId;
-                setMessages((prev) => [
-                  ...prev,
-                  {
-                    id: (Date.now() + 2).toString(),
-                    role: "ai",
-                    content: `Your ads are ready! Want sharper targeting? ${result.meta.clarification_question}`,
-                    type: result.meta.clarification_options?.length
-                      ? "clarification_choice"
-                      : "text",
-                    data: {
-                      clarificationOptions:
-                        result.meta.clarification_options || [],
-                    },
-                  },
-                ]);
-              }, 900);
-            }
           }, 900);
         }
       }, 1000);
     } catch (err: any) {
+      console.log("Error in handleSend:", err);
       if (err?.name === "AbortError") return;
       setIsTyping(false);
 
@@ -1047,39 +757,80 @@ export function AudienceChatStep({
     }
   }
 
-  /** Route triage-only responses (TYPE_G/B/C/E/F). Returns true if handled. */
-  function routeTriageResponse(result: AIStrategyResult, triggerText?: string): boolean {
-    const meta = result.meta;
-    if (!meta) return false;
+  /** Handle non-strategy responses via responseKind. Returns true if handled (no full generation needed). */
+  function handleEarlyResponse(result: AIStrategyResult): boolean {
+    const kind = result.responseKind;
+    if (!kind || kind === "strategy") return false;
 
-    if (meta.input_type === "TYPE_G") {
-      // Remember what the user said so we can use it (or org profile fallback) when they confirm
-      if (triggerText) typegTriggerRef.current = triggerText;
-      setIsTyping(false);
+    // Refinement: server already ran refineAdCopyWithOpenAI — consume copy here, no second call
+    if (kind === "refine") {
+      if (result.copy?.length && result.headline?.length) {
+        if (tier === "starter" && refinementCount >= maxRefinements) {
+          setIsTyping(false);
+          setUpgradeDialogOpen(true);
+          return true;
+        }
+        setIsRefiningCopy(true);
+        const { variations, primaryCopy, ctaData } = applyCopyResult(result, {
+          maxCopyVariations,
+          platform,
+          objective,
+          locations,
+          
+        });
+        updateDraft({
+          adCopy: { ...primaryCopy, cta: ctaData },
+          adCopyVariations: variations,
+          selectedCopyIdx: 0,
+        });
+        scheduleTimer(() => {
+          setIsTyping(false);
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: Date.now().toString(),
+              role: "ai",
+              content: "Here's the updated version:",
+              type: "copy_suggestion",
+              data: { adCopy: primaryCopy, adCopyVariations: variations },
+            },
+          ]);
+          scheduleTimer(() => {
+            setIsRefiningCopy(false);
+            incrementRefinementCount();
+          }, 600);
+        }, 800);
+        return true;
+      }
+      return false; // No copy in result — fall through to generation path
+    }
+
+    setIsTyping(false);
+
+    if (kind === "confirm") {
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now().toString(),
           role: "ai",
           content:
-            meta.proposed_plan ||
+            result.meta?.proposed_plan ||
             "Based on your business profile, I can create an ad now. Want me to proceed, or would you like to adjust anything?",
           type: "clarification_choice",
-          data: { clarificationOptions: ["Yes, proceed", "Let me adjust"] },
+          data: { clarificationOptions: [{ label: "Yes, proceed", mode: "send" }, { label: "Let me adjust", mode: "send" }] },
         },
       ]);
       return true;
     }
 
-    if (meta.input_type === "TYPE_B") {
-      setIsTyping(false);
+    if (kind === "clarify") {
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now().toString(),
           role: "ai",
           content:
-            meta.clarification_question ||
+            result.meta?.clarification_question ||
             "What are you selling? (e.g. 'Ankara bags Lagos', 'Skincare Abuja')",
           type: "text",
         },
@@ -1087,33 +838,29 @@ export function AudienceChatStep({
       return true;
     }
 
-    if (
-      meta.is_question &&
-      (meta.input_type === "TYPE_C" || meta.input_type === "TYPE_E")
-    ) {
-      setIsTyping(false);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          role: "ai",
-          content: meta.question_answer || "Good question. What are you selling?",
-          type: "text",
-        },
-      ]);
-      return true;
-    }
-
-    if (meta.input_type === "TYPE_F") {
-      setIsTyping(false);
+    if (kind === "answer" || kind === "redirect") {
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now().toString(),
           role: "ai",
           content:
-            meta.question_answer ||
-            "I can only help with ad campaigns. Tell me what you're selling and I'll build your ad.",
+            result.meta?.question_answer ||
+            result.meta?.clarification_question ||
+            "How can I help?",
+          type: "text",
+        },
+      ]);
+      return true;
+    }
+
+    if (kind === "noop") {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          role: "ai",
+          content: "You're all set! Click Next when you're ready to set your ad visuals.",
           type: "text",
         },
       ]);

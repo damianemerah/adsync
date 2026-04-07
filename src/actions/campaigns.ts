@@ -65,6 +65,7 @@ interface LaunchConfig {
   targetLifeEvents?: { id: string; name: string }[]; // Life events e.g. Newly Engaged, New Parents
   targetWorkPositions?: { id: string; name: string }[]; // Work positions e.g. Manager, Director
   targetIndustries?: { id: string; name: string }[]; // Industry sectors e.g. Management, Healthcare
+  targetingMode?: "b2b" | "b2c" | "broad"; // AI-classified campaign intent — drives signal density caps
   destinationValue: string; // The raw input (Phone or URL)
   aiContext: any; // Using any for now to avoid circular dependency, but should match CampaignContext
   businessDescription?: string; // [NEW] For AI context building
@@ -379,6 +380,14 @@ export async function launchCampaign(config: LaunchConfig) {
         name: b.name,
       }));
 
+    // Signal caps are applied during Phase 2 resolution (audience-chat-step.tsx)
+    // so users see exactly what Meta will receive in the summary panel.
+    const validatedWorkPositions = (config.targetWorkPositions ?? [])
+      .filter((p) => /^\d+$/.test(p.id));
+
+    const validatedIndustries = (config.targetIndustries ?? [])
+      .filter((i) => /^\d+$/.test(i.id));
+
     // Step C: Objective-aware Geo Strategy
     // pickGeoStrategy() is the server-side source of truth — overrides anything the AI suggested.
     const geoStrategy = pickGeoStrategy(config.objective);
@@ -466,8 +475,8 @@ export async function launchCampaign(config: LaunchConfig) {
           locales: config.targetLanguages,
           exclusionAudienceIds: config.exclusionAudienceIds,
           lifeEvents: config.targetLifeEvents,
-          workPositions: config.targetWorkPositions?.filter((p) => /^\d+$/.test(p.id)) ?? [],
-          industries: config.targetIndustries?.filter((i) => /^\d+$/.test(i.id)) ?? [],
+          workPositions: validatedWorkPositions,
+          industries: validatedIndustries,
         },
       },
       config.objective,

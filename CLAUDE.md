@@ -1,5 +1,9 @@
 # Tenzu – Project Rules for Claude
 
+## Code Implementation Workflow
+
+**When implementing code, ALWAYS use a todo list to track your progress and steps if one is not already set.** This ensures structured execution and helps prevent missing any critical tasks.
+
 ## Available Tools (MCP)
 
 **You have full access to several MCP servers to aid your workflow:**

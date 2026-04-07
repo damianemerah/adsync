@@ -64,12 +64,36 @@ async function fetchCandidates(
 }
 
 /**
+ * Interest-specific variant that searches each keyword AND a compound form
+ * ("${kw} products"), pools the results, deduplicates by id, and returns up
+ * to 10 candidates per keyword. Wider candidate pool → better mini-AI picks.
+ */
+async function fetchInterestCandidatesWithVariants(
+  keywords: string[],
+  searchFn: (query: string) => Promise<Candidate[]>,
+): Promise<Map<string, Candidate[]>> {
+  const results = await Promise.all(
+    keywords.map(async (kw) => {
+      const variants = [kw, `${kw} products`];
+      const allResults = await Promise.all(
+        variants.map((v) => searchFn(v).catch(() => [] as Candidate[])),
+      );
+      const pooled = Array.from(
+        new Map(allResults.flat().map((c) => [c.id, c])).values(),
+      ).slice(0, 10);
+      return [kw, pooled] as [string, Candidate[]];
+    }),
+  );
+  return new Map(results);
+}
+
+/**
  * Uses gpt-5.4-nano to select the best candidate from each keyword's list,
  * given the ad copy and campaign context. Returns a map of keyword → selected Candidate.
  */
 async function selectBestCandidates(
   categoryMap: Record<string, Map<string, Candidate[]>>,
-  context: { adCopy: string; ctaIntent: string; businessType: string },
+  context: { adCopy: string; ctaIntent: string; businessType: string; targetingMode?: string },
 ): Promise<Record<string, Map<string, Candidate | null>>> {
   // Build a flat list of all (category, keyword, candidates) triples that need selection
   type Slot = {
@@ -105,11 +129,20 @@ async function selectBestCandidates(
     })
     .join("\n\n");
 
+  const modeGuidance = context.targetingMode === "b2b"
+    ? "This is a B2B campaign targeting businesses or professionals. Prefer options that signal professional intent, job roles, or industry affiliation. Be strict — output 0 for consumer-lifestyle options that don't fit a professional buyer."
+    : context.targetingMode === "broad"
+    ? "This is a broad awareness campaign. Only select options with very strong, direct relevance. Output 0 for anything niche or speculative."
+    : "This is a B2C campaign targeting individual consumers. Prefer options that match consumer interests, lifestyle, and purchase intent.";
+
   const prompt = `You are selecting Meta Ads targeting options for an ad campaign.
 
 Ad copy: "${context.adCopy.slice(0, 300)}"
 CTA intent: ${context.ctaIntent}
 Business type: ${context.businessType}
+Targeting mode: ${context.targetingMode ?? "b2c"}
+
+Selection guidance: ${modeGuidance}
 
 For each numbered slot below, pick the ONE best-matching option (1-based index) or 0 if none are relevant to this business.
 
@@ -169,6 +202,7 @@ function buildResolved(
   candidateMap: Map<string, Candidate[]>,
   selectionMap: Map<string, Candidate | null>,
   localResolver?: (kw: string) => { metaId?: string; name: string } | null,
+  maxResults = Infinity,
 ): ResolvedItem[] {
   const results: ResolvedItem[] = [];
   const seenIds = new Set<string>();
@@ -205,7 +239,7 @@ function buildResolved(
     }
   }
 
-  return results;
+  return maxResults === Infinity ? results : results.slice(0, maxResults);
 }
 
 export async function POST(request: Request) {
@@ -232,6 +266,7 @@ export async function POST(request: Request) {
     adCopy = "",
     ctaIntent = "buy_now",
     businessType = "general",
+    targetingMode,
     interests: rawInterests = [],
     behaviors: rawBehaviors = [],
     lifeEvents: rawLifeEvents = [],
@@ -241,6 +276,7 @@ export async function POST(request: Request) {
     adCopy: string;
     ctaIntent: string;
     businessType: string;
+    targetingMode?: string;
   } & CategoryKeywords = body;
 
   // Deduplicate input keywords (case-insensitive) before fanning out to Meta
@@ -284,20 +320,20 @@ export async function POST(request: Request) {
       workPositionCandidates,
       industryCandidates,
     ] = await Promise.all([
-      fetchCandidates(interests, (q) =>
+      fetchInterestCandidatesWithVariants(interests, (q) =>
         MetaService.searchInterests(accessToken, q),
       ),
       fetchCandidates(behaviors, (q) =>
-        MetaService.searchBehaviors(accessToken, accountId, q),
+        MetaService.searchBehaviors(accessToken, accountId, q), 10,
       ),
       fetchCandidates(lifeEvents, (q) =>
-        MetaService.searchLifeEvents(accessToken, accountId, q),
+        MetaService.searchLifeEvents(accessToken, accountId, q), 8,
       ),
       fetchCandidates(workPositions, (q) =>
-        MetaService.searchWorkPositions(accessToken, q),
+        MetaService.searchWorkPositions(accessToken, q), 8,
       ),
       fetchCandidates(industries, (q) =>
-        MetaService.searchIndustries(accessToken, accountId, q),
+        MetaService.searchIndustries(accessToken, accountId, q), 8,
       ),
     ]);
 
@@ -310,7 +346,7 @@ export async function POST(request: Request) {
         workPositions: workPositionCandidates,
         industries: industryCandidates,
       },
-      { adCopy, ctaIntent, businessType },
+      { adCopy, ctaIntent, businessType, targetingMode },
     );
 
     // ── Assemble final resolved items ─────────────────────────────────────────

@@ -35,9 +35,11 @@ import { CREDIT_COSTS } from "@/lib/constants";
 import { useCreditBalance } from "@/hooks/use-subscription";
 import { PaymentDialog } from "@/components/billing/payment-dialog";
 import { toast } from "sonner";
-import { Refresh, EditPencil } from "iconoir-react";
+import { Refresh, EditPencil, WarningTriangle } from "iconoir-react";
 import { CarouselEditor } from "./creative/carousel-editor";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useOrganization } from "@/hooks/use-organization";
+import Link from "next/link";
 
 export function CreativeStep({
   persistedDraftId,
@@ -74,6 +76,16 @@ export function CreativeStep({
   const [adFormat, setAdFormat] = useState<"single" | "carousel">("single");
   const { balance } = useCreditBalance();
   const router = useRouter();
+  const { organization } = useOrganization();
+
+  // Auto-fill WhatsApp number from org profile when objective is whatsapp and field is empty
+  useEffect(() => {
+    if (objective === "whatsapp" && !destinationValue && organization?.whatsapp_number) {
+      updateDraft({ destinationValue: organization.whatsapp_number });
+    }
+  }, [objective, organization?.whatsapp_number, destinationValue, updateDraft]);
+
+  const missingWhatsapp = objective === "whatsapp" && !destinationValue;
 
   // Auto-populate carousel cards when user selects 2+ images
   useEffect(() => {
@@ -581,11 +593,23 @@ export function CreativeStep({
                     }
                     className="h-12 font-bold border-border bg-muted/30 focus-visible:ring-primary/20 rounded-md"
                   />
-                  {objective === "whatsapp" && (
+                  {objective === "whatsapp" && !missingWhatsapp && (
                     <p className="text-[10px] text-subtle-foreground flex items-center gap-1">
                       <Sparks className="h-3 w-3 text-primary" />
                       We will auto-format this to a "Click to Chat" link.
                     </p>
+                  )}
+                  {missingWhatsapp && (
+                    <div className="flex items-start gap-2 p-2.5 rounded-md bg-destructive/5 border border-destructive/20 text-xs text-destructive">
+                      <WarningTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                      <span>
+                        Enter your WhatsApp number above, or{" "}
+                        <Link href="/settings/business" className="underline font-semibold hover:text-destructive/80">
+                          save it in Business Settings
+                        </Link>{" "}
+                        to auto-fill it here.
+                      </span>
+                    </div>
                   )}
                 </div>
 

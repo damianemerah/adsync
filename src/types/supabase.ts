@@ -1443,6 +1443,8 @@ export type Database = {
           billing_cycle_day: number | null
           billing_provider: string
           business_description: string | null
+          business_phone: string | null
+          business_website: string | null
           city: string | null
           country_code: string
           created_at: string | null
@@ -1468,11 +1470,14 @@ export type Database = {
           subscription_tier: string | null
           timezone: string
           updated_at: string | null
+          whatsapp_number: string | null
         }
         Insert: {
           billing_cycle_day?: number | null
           billing_provider?: string
           business_description?: string | null
+          business_phone?: string | null
+          business_website?: string | null
           city?: string | null
           country_code?: string
           created_at?: string | null
@@ -1498,11 +1503,14 @@ export type Database = {
           subscription_tier?: string | null
           timezone?: string
           updated_at?: string | null
+          whatsapp_number?: string | null
         }
         Update: {
           billing_cycle_day?: number | null
           billing_provider?: string
           business_description?: string | null
+          business_phone?: string | null
+          business_website?: string | null
           city?: string | null
           country_code?: string
           created_at?: string | null
@@ -1528,6 +1536,7 @@ export type Database = {
           subscription_tier?: string | null
           timezone?: string
           updated_at?: string | null
+          whatsapp_number?: string | null
         }
         Relationships: []
       }

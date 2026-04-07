@@ -10,7 +10,11 @@ export interface AIStrategyMeta {
     | "TYPE_G";
   needs_clarification: boolean;
   clarification_question: string | null;
-  clarification_options: string[] | null;
+  clarification_options: Array<{
+    label: string;
+    /** "send" → binary/intent, fires immediately. "prefill" → data-carrying, populates input for user to verify. */
+    mode: "send" | "prefill";
+  }> | null;
   is_question: boolean;
   question_answer: string | null;
   price_signal: "low" | "mid" | "high" | "unknown";
@@ -32,6 +36,8 @@ export interface AIStrategyMeta {
   proposed_plan?: string | null;
   /** For TYPE_G: user must confirm before full generation runs */
   needs_confirmation?: boolean;
+  /** Perplexity-style improvement suggestions shown after copy — non-blocking ↳ text links */
+  follow_ups?: Array<{ label: string; instruction: string }> | null;
 }
 
 export interface AIStrategyResult {
@@ -41,6 +47,7 @@ export interface AIStrategyResult {
   lifeEvents?: string[];
   workPositions?: string[];
   industries?: string[];
+  targeting_mode?: "b2b" | "b2c" | "broad";
   demographics: {
     age_min: number;
     age_max: number;
@@ -81,6 +88,9 @@ export interface AIStrategyResult {
   // Classification metadata — always present in new responses
   meta: AIStrategyMeta;
 
+  /** Routing hint added by the API route — tells the frontend how to render the response */
+  responseKind?: string;
+
   // Optional usage statistics
   usage?: any;
 }
@@ -109,8 +119,10 @@ export interface AIInput {
   orgCountryCode?: string;
   /** Org-level business description from onboarding profile — used by triage for TYPE_G proposals */
   orgBusinessDescription?: string | null;
+  /** Org-level WhatsApp number — pre-fills WhatsApp CTA context */
+  orgWhatsappNumber?: string | null;
+  /** Org-level website URL — used as fallback site context for TYPE_G */
+  orgWebsite?: string | null;
   /** Scraped text content from a URL the user pasted — injected as <site> context */
   siteContext?: string | null;
-  /** When true, skip triage entirely and go straight to full generation (used for TYPE_G confirmations) */
-  skipTriage?: boolean;
 }

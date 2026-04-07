@@ -34,12 +34,31 @@ GEO STRATEGY — Nigeria: Meta does NOT support city-level targeting in Nigeria.
 `
       : "";
 
-  return `${persona} Use your available skills to determine the best strategy and generate high-converting ad copy. Structure your response according to the provided JSON schema.${ngGeoConstraint}
+  const globalGeoHint =
+    orgCountryCode && orgCountryCode !== "NG"
+      ? `\nGEO STRATEGY: Output suggestedLocations as "{City or Region}, {Country}" format (e.g. "London, United Kingdom", "California, United States", "Lagos Island, Nigeria"). This exact format improves Meta geo search accuracy and avoids ambiguous city matches across countries.\n`
+      : "";
+
+  return `${persona} Use your available skills to determine the best strategy and generate high-converting ad copy. Structure your response according to the provided JSON schema.${ngGeoConstraint}${globalGeoHint}
 When a <site> tag is present, use it to ground the copy in the business's real product language, pricing, and brand voice — extract specifics (product names, prices, key benefits) and prefer them over generic phrasing.
 
-When a <gaps> tag is present, it lists context slots the user hasn't specified yet (e.g. "location,price_tier"). Use the FIRST listed slot as your meta.refinement_question — ask it naturally after your plain_english_summary.
+When a <gaps> tag is present, it lists the ONE context slot most worth asking about.
+Use it as your meta.refinement_question — ask it naturally after your plain_english_summary.
+Rules:
+- NEVER ask about location — it is resolved automatically.
+- NEVER ask about selling_method if any delivery or fulfillment keyword was already mentioned by the user.
+- If <gaps> is empty, set meta.refinement_question: null.
+- If meta.refinement_question is non-null, set meta.clarification_question: null and meta.clarification_options: null — do not double-ask the same question after copy.
 
-INTERESTS — generate 5–8 SINGLE-WORD nouns (exactly 1 word each) describing what this audience is interested in.
+After generating copy, suggest 2–3 optional improvement ideas in meta.follow_ups (shown as Perplexity-style ↳ text links after copy — non-blocking).
+Each follow_up has:
+- label: short clickable text the user sees (e.g. "Add a price range", "Make it more urgent", "Target a younger audience")
+- instruction: the refinement instruction sent to AI if clicked (e.g. "Add a specific price range to the copy, keeping the existing tone and structure")
+Suggest only meaningful copy improvements not already covered by refinement_question. Do NOT suggest location or delivery method as follow_ups.
+
+INTERESTS — generate 10–12 SINGLE-WORD nouns (exactly 1 word each) covering different facets of this audience.
+These are search keywords, not the final list — a second AI will select the best 5–7 from what Meta returns.
+More variety = better final targeting. Include both core interests and adjacent ones.
 Meta's search autocomplete works on root nouns — a single word like "Privacy" surfaces "Internet privacy", "Online privacy" etc.
 Using two words (e.g. "digital privacy") returns zero results. NEVER output multi-word interests.
 Avoid brand names, country names, and suffixes like "lovers" or "enthusiasts".
@@ -49,22 +68,32 @@ Prefer Nigeria-relevant terms when they fit the business. Examples:
 "Health", "Skincare", "Wedding", "Decor", "Shoes", "Investment", "Privacy",
 "Security", "Fitness", "Travel", "Photography", "Gaming", "Parenting".
 
-BEHAVIORS — generate 2–5 short search keywords (1–2 words max) describing user purchase behaviors.
+BEHAVIORS — generate 5–8 short search keywords (1–2 words max) describing user purchase behaviors.
+These are search keywords, not the final list — a second AI will select the best 3–5 from what Meta returns. More variety = better final targeting.
 Meta behavior targeting uses short, established phrases — keep them concise.
 Examples: "Shopping", "Payments", "Travelers", "Entrepreneurs", "Shoppers".
 Be specific to the business type and customer profile.
 
-LIFE EVENTS — generate 0–2 life stage keywords if the product clearly targets a life milestone.
+LIFE EVENTS — generate 0–4 life stage keywords if the product clearly targets a life milestone.
+These are search keywords — include adjacent milestones, not just the most obvious one.
 Examples: "newly engaged", "new baby", "recently moved", "new job", "recently married". Use [] if not applicable.
 
-WORK POSITIONS — 0–3 job titles, only if the product clearly targets a professional demographic (B2B, professional services, luxury goods, health products for practitioners, etc.). Output [] if not applicable.
+WORK POSITIONS — 0–5 job titles, only if the product clearly targets a professional demographic (B2B, professional services, luxury goods, health products for practitioners, etc.). Output [] if not applicable.
+Include both exact titles and adjacent ones a second AI will narrow down.
 Use short, widely-held job titles Meta recognizes. Examples: "CEO", "Manager", "Doctor", "Nurse", "Engineer", "Entrepreneur", "Teacher", "Accountant", "Business owner", "Sales representative".
 Avoid vague titles like "Worker" or "Employee". Output as: "workPositions": ["title1", "title2"].
 
-INDUSTRIES — 0–2 broad industry sectors, only if targeting B2B, wholesale, or professional equipment buyers. Use when you need a wider B2B net than exact job titles can provide. Output [] for consumer/B2C products.
+INDUSTRIES — 0–3 broad industry sectors, only if targeting B2B, wholesale, or professional equipment buyers. Use when you need a wider B2B net than exact job titles can provide. Output [] for consumer/B2C products.
 Examples: "Management", "Healthcare and Medical Services", "Retail", "Finance", "Construction", "Education". Output as: "industries": ["sector1", "sector2"].
 
+TARGETING MODE — classify the campaign intent and output one of: "b2b", "b2c", "broad".
+- "b2b": product targets businesses, professionals, or procurement buyers (e.g. B2B SaaS, wholesale, professional services).
+- "b2c": product targets individual consumers (e.g. fashion, food, skincare, personal gadgets).
+- "broad": pure awareness play or product that spans all demographics with no clear niche.
+This field is used downstream to guide targeting selection — do not let it affect which signals you include here.
+
 `;
+
 }
 
 // ─── Full Strategy JSON Schema ────────────────────────────────────────────────
@@ -77,6 +106,10 @@ const AI_STRATEGY_SCHEMA = {
     lifeEvents: { type: "array" as const, items: { type: "string" as const } },
     workPositions: { type: "array" as const, items: { type: "string" as const } },
     industries: { type: "array" as const, items: { type: "string" as const } },
+    targeting_mode: {
+      type: "string" as const,
+      enum: ["b2b", "b2c", "broad"] as const,
+    },
     demographics: {
       type: "object" as const,
       properties: {
@@ -176,7 +209,18 @@ const AI_STRATEGY_SCHEMA = {
         clarification_question: { type: ["string", "null"] as const },
         clarification_options: {
           anyOf: [
-            { type: "array" as const, items: { type: "string" as const } },
+            {
+              type: "array" as const,
+              items: {
+                type: "object" as const,
+                properties: {
+                  label: { type: "string" as const },
+                  mode: { type: "string" as const, enum: ["send", "prefill"] },
+                },
+                required: ["label", "mode"] as const,
+                additionalProperties: false,
+              },
+            },
             { type: "null" as const },
           ],
         },
@@ -205,6 +249,23 @@ const AI_STRATEGY_SCHEMA = {
           items: { type: "string" as const },
         },
         refinement_question: { type: ["string", "null"] as const },
+        follow_ups: {
+          anyOf: [
+            {
+              type: "array" as const,
+              items: {
+                type: "object" as const,
+                properties: {
+                  label: { type: "string" as const },
+                  instruction: { type: "string" as const },
+                },
+                required: ["label", "instruction"] as const,
+                additionalProperties: false,
+              },
+            },
+            { type: "null" as const },
+          ],
+        },
       },
       required: [
         "input_type",
@@ -218,6 +279,7 @@ const AI_STRATEGY_SCHEMA = {
         "confidence",
         "inferred_assumptions",
         "refinement_question",
+        "follow_ups",
       ] as const,
       additionalProperties: false,
     },
@@ -229,6 +291,7 @@ const AI_STRATEGY_SCHEMA = {
     "lifeEvents",
     "workPositions",
     "industries",
+    "targeting_mode",
     "demographics",
     "suggestedLocations",
     "geo_strategy",
@@ -477,6 +540,8 @@ function buildUserMessage(
   if (input.location) lines.push(`<loc>${input.location}</loc>`);
   if (input.sellingMethod) lines.push(`<del>${input.sellingMethod}</del>`);
   if (input.objective) lines.push(`<obj>${input.objective}</obj>`);
+  if (input.orgWhatsappNumber) lines.push(`<wa>${input.orgWhatsappNumber}</wa>`);
+  if (input.orgWebsite) lines.push(`<web>${input.orgWebsite}</web>`);
 
   if (input.siteContext) {
     lines.push(`<site>${input.siteContext}</site>`);
@@ -732,8 +797,14 @@ const REFINEMENT_SCHEMA = {
   additionalProperties: false,
 };
 
-const REFINEMENT_INSTRUCTION = `You are a Nigerian ad copy editor. Rewrite only the copy variations and headlines based on the refinement instruction.
+function buildRefinementInstruction(orgCountryCode?: string): string {
+  const isNigeria = !orgCountryCode || orgCountryCode === "NG";
+  const persona = isNigeria
+    ? "a Nigerian ad copy editor"
+    : "a global ad copy editor";
+  return `You are ${persona}. Rewrite only the copy variations and headlines based on the refinement instruction.
 Keep the same brand voice, CTA intent, and WhatsApp message format. Return ONLY the updated copy, headline, and whatsappMessage fields.`;
+}
 
 // ─── Copy Refinement (gpt-5-mini, slim schema — no full strategy re-gen) ─────
 export async function refineAdCopyWithOpenAI(
@@ -742,7 +813,7 @@ export async function refineAdCopyWithOpenAI(
 ): Promise<AIStrategyResult & { usage?: any }> {
   const response = await (openai.responses.create as any)({
     model: "gpt-5-mini",
-    instructions: REFINEMENT_INSTRUCTION,
+    instructions: buildRefinementInstruction(input.orgCountryCode),
     input: `${buildUserMessage(input)}\n\nRefinement instruction: ${refinementInstruction}`,
     text: {
       format: {
@@ -799,6 +870,7 @@ export async function refineAdCopyWithOpenAI(
       confidence: 1,
       inferred_assumptions: [],
       refinement_question: null,
+            follow_ups: null,
     },
     usage,
   };
@@ -847,6 +919,7 @@ async function generateMock(input: AIInput): Promise<AIStrategyResult> {
       confidence: 0.85,
       inferred_assumptions: [],
       refinement_question: null,
+            follow_ups: null,
     },
   };
 }
@@ -859,6 +932,7 @@ export async function generateAndSaveStrategy(
 ): Promise<AIStrategyResult & { usage?: any }> {
 
   console.log("input🔥", input);
+  console.log("🌍 [AI Service] orgCountryCode:", input.orgCountryCode ?? "NG (fallback)");
   const supabase = await createClient();
   const provider = process.env.AI_PROVIDER!;
 
@@ -879,15 +953,10 @@ export async function generateAndSaveStrategy(
     `🎯 [OpenAI Service] Tier resolved — Skills: ${tierConfig.ai.useSkills}`,
   );
 
-  // ── Skip triage for TYPE_G confirmations (user already approved the plan) ──
-  if (input.skipTriage) {
-    console.log("⚡ [Service] skipTriage=true — bypassing triage, generating directly", input);
-    return generateWithOpenAI(input, tierConfig.ai);
-  }
-
   // ── Two-model triage: route cheap cases through gpt-5-mini before Skills ──
   let extractedContext: TriageResult["extracted"] | undefined;
   let triageMissingSlots: string[] | undefined;
+  let effectiveDescription: string = input.businessDescription;
 
   try {
     // Build org context string for triage if profile data is available
@@ -907,18 +976,42 @@ export async function generateAndSaveStrategy(
       ? `${input.businessDescription ? input.businessDescription + "\n" : ""}[Website content excerpt]: ${input.siteContext.substring(0, 300)}`
       : input.businessDescription;
 
-    console.log("🔍 [Triage] Description:", triageDescription);
-
-    const triage = await triageInput(
-      triageDescription,
-      input.objective || "whatsapp",
-      conversationHistory,
-      orgContext,
+    // Normalize generic confirmation phrases: if the user sent "yes", "proceed", etc.
+    // and the org has a business_description, use it as the effective description so
+    // the generator has actual product context (replaces the old forceGenerate route logic).
+    const isGenericConfirmation = /^(yes|proceed|go ahead|ok|okay|yep|sure|do it|yes proceed|make it|create it|do am|oya do am)$/i.test(
+      (input.businessDescription || "").trim(),
     );
-    console.log("🔍 [Triage] Result:", triage);
+    effectiveDescription = (isGenericConfirmation && input.orgBusinessDescription)
+      ? input.orgBusinessDescription
+      : triageDescription;
+
+    // // When the user confirmed a TYPE_G proposal ("Yes, proceed"), bypass triage entirely
+    // // and force full generation. Triage would see the confirmation phrase (or org description)
+    // // in context of a prior TYPE_G exchange and misclassify it as TYPE_E (noop).
+    // const previousConfirmRequest = conversationHistory.some(
+    //   (m) => m.role === "ai" && /want me to proceed|shall i proceed|should i proceed|want me to go ahead/i.test(m.content),
+    // );
+    // if (isGenericConfirmation && previousConfirmRequest) {
+    //   console.log("🔍 [Triage] Confirmation of TYPE_G — skipping triage, forcing full generation.");
+    // } else {
+      console.log("🔍 [Triage] Description:", effectiveDescription);
+
+      const triage = await triageInput(
+        effectiveDescription,
+        input.objective || "whatsapp",
+        conversationHistory,
+        orgContext,
+      );
+      console.log("🔍 [Triage] Result:", triage);
 
     extractedContext = triage.extracted;
-    triageMissingSlots = triage.missing_slots;
+    // Location is auto-resolved by the targeting engine — never ask the user about it.
+    // Cap at 1 slot to prevent question cascades across multiple generations.
+    const SKIP_SLOTS = new Set(["location"]);
+    triageMissingSlots = (triage.missing_slots || [])
+      .filter((s: string) => !SKIP_SLOTS.has(s))
+      .slice(0, 1);
 
     // Non-TYPE_A: respond directly without loading Skills — saves ~3,500 tokens
     if (!triage.needs_full_generation) {
@@ -953,6 +1046,7 @@ export async function generateAndSaveStrategy(
             confidence: 0.9,
             inferred_assumptions: [],
             refinement_question: null,
+            follow_ups: null,
           },
         };
       }
@@ -988,6 +1082,7 @@ export async function generateAndSaveStrategy(
             confidence: 0.7,
             inferred_assumptions: [],
             refinement_question: null,
+            follow_ups: null,
           },
         };
       }
@@ -1023,9 +1118,11 @@ export async function generateAndSaveStrategy(
           confidence: earlyConfidence,
           inferred_assumptions: [],
           refinement_question: null,
+            follow_ups: null,
         },
       };
     }
+    // } // end else (non-confirmation triage path)
   } catch (triageErr) {
     // Safe degradation: triage failure falls through to full generation
     console.warn("[Triage] Failed, proceeding with full gen:", triageErr);
@@ -1033,7 +1130,9 @@ export async function generateAndSaveStrategy(
 
   // ── Full generation: gpt-5.2 + Skills ────────────────────────────────────
   const rawResult = await generateWithOpenAI(
-    input,
+    effectiveDescription !== undefined && effectiveDescription !== input.businessDescription
+      ? { ...input, businessDescription: effectiveDescription }
+      : input,
     tierConfig.ai,
     extractedContext,
     triageMissingSlots,

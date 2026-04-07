@@ -15,6 +15,10 @@ export interface Organization {
   customer_gender: string | null;
   subscription_tier: string | null;
   business_description?: string | null;
+  whatsapp_number?: string | null;
+  business_website?: string | null;
+  city?: string | null;
+  state?: string | null;
 }
 
 interface UseOrganizationResult {
@@ -64,7 +68,7 @@ export function useOrganization(
       const { data: orgs } = await supabase
         .from("organizations")
         .select(
-          "id, name, industry, selling_method, price_tier, customer_gender, subscription_tier, business_description",
+          "id, name, industry, selling_method, price_tier, customer_gender, subscription_tier, business_description, whatsapp_number, business_website, city, state",
         )
         .in("id", orgIds);
 

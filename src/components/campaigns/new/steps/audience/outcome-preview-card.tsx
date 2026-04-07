@@ -47,12 +47,14 @@ interface OutcomePreviewCardProps {
   locations: any[];
   inferredAssumptions?: string[];
   refinementQuestion?: string | null;
+  followUps?: Array<{ label: string; instruction: string }> | null;
   onRemoveInterest: (i: any) => void;
   onAddInterest: (i: any) => void;
   currentInterests: any[];
   onConfirmAudience: () => void;
   copyReady: boolean;
   onRefinementAnswer?: (answer: string) => void;
+  onFollowUpSelect?: (instruction: string) => void;
 }
 
 export function OutcomePreviewCard({
@@ -64,12 +66,14 @@ export function OutcomePreviewCard({
   locations,
   inferredAssumptions,
   refinementQuestion,
+  followUps,
   onRemoveInterest,
   onAddInterest,
   currentInterests,
   onConfirmAudience,
   copyReady,
   onRefinementAnswer,
+  onFollowUpSelect,
 }: OutcomePreviewCardProps) {
   const [showAssumptions, setShowAssumptions] = useState(true);
 
@@ -202,6 +206,25 @@ export function OutcomePreviewCard({
               </div>
             ) : null;
           })()}
+        </div>
+      )}
+
+      {/* Follow-up suggestions — Perplexity-style ↳ text links */}
+      {followUps && followUps.length > 0 && (
+        <div className="space-y-1 pt-1">
+          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+            Improve this ad
+          </p>
+          {followUps.map((fu) => (
+            <button
+              key={fu.label}
+              onClick={() => onFollowUpSelect?.(fu.instruction)}
+              className="flex items-center gap-1.5 text-sm text-primary hover:underline w-full text-left py-0.5"
+            >
+              <span className="text-muted-foreground text-xs">↳</span>
+              {fu.label}
+            </button>
+          ))}
         </div>
       )}
 

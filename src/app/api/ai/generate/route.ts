@@ -11,6 +11,19 @@ import { getActiveOrgId } from "@/lib/active-org";
 import { extractUrlFromMessage, scrapeUrl } from "@/lib/ai/url-scraper";
 import { spendCredits } from "@/lib/credits";
 
+function toResponseKind(inputType: string): string {
+  const map: Record<string, string> = {
+    TYPE_A: "strategy",
+    TYPE_B: "clarify",
+    TYPE_C: "answer",
+    TYPE_D: "refine",
+    TYPE_E: "noop",
+    TYPE_F: "redirect",
+    TYPE_G: "confirm",
+  };
+  return map[inputType] ?? "clarify";
+}
+
 export async function POST(request: Request) {
   const supabase = await createClient();
 
@@ -39,7 +52,13 @@ export async function POST(request: Request) {
       selling_method,
       price_tier,
       customer_gender,
-      business_description
+      business_description,
+      city,
+      state,
+      business_phone,
+      business_website,
+      whatsapp_number,
+      country_code
     `,
     )
     .eq("id", activeOrgId)
@@ -124,7 +143,6 @@ export async function POST(request: Request) {
     currentCopy,
     refinementInstruction,
     conversationHistory,
-    forceGenerate,
   } = body;
 
   // ── URL context extraction ──────────────────────────────────────────────────
@@ -148,20 +166,9 @@ export async function POST(request: Request) {
       ? OBJECTIVE_INTENT_MAP[objId]
       : undefined;
 
-  // For TYPE_G confirmations: ensure we don't lose the user's last message context
-  // (like "use my website") by replacing it entirely.
-  if (forceGenerate && org?.business_description) {
-    const isGenericConfirmation = /^(yes|proceed|go ahead|ok|okay|yep|sure|do it)$/i.test(description.trim());
-    if (isGenericConfirmation) {
-      description = org.business_description;
-    } else {
-      // Append the org profile as context so the generator has both
-      description = `${description}\n\n[Business Profile]: ${org.business_description}`;
-    }
-  }
-
   if (!description) {
     // No user description and no org profile — ask for clarification instead of hard 400
+    console.log("No description provided")
     return NextResponse.json({
       plain_english_summary: "",
       interests: [],
@@ -176,6 +183,7 @@ export async function POST(request: Request) {
       headline: [],
       ctaIntent: "buy_now",
       whatsappMessage: null,
+      responseKind: "clarify",
       meta: {
         input_type: "TYPE_B",
         needs_clarification: true,
@@ -203,13 +211,14 @@ export async function POST(request: Request) {
       const strategy = await refineAdCopyWithOpenAI(
         {
           businessDescription: description,
-          location,
+          location: location || (org?.city ? [org.city, org.state].filter(Boolean).join(", ") : undefined),
           industry: org?.industry,
           sellingMethod: org?.selling_method,
           priceTier: org?.price_tier,
           customerGender: org?.customer_gender,
           objective: objective ? String(objective).toUpperCase() : undefined,
           currentCopy,
+          orgCountryCode: org?.country_code ?? "NG",
           siteContext,
         },
         actualInstruction,
@@ -242,6 +251,7 @@ export async function POST(request: Request) {
       const { usage, ...clientStrategy } = strategy;
       return NextResponse.json({
         ...clientStrategy,
+        responseKind: "refine",
         siteContextSummary: siteContext ? siteContext.slice(0, 500) : null,
       });
     }
@@ -249,7 +259,7 @@ export async function POST(request: Request) {
     const strategy = await generateAndSaveStrategy(
       {
         businessDescription: description,
-        location: location,
+        location: location || (org?.city ? [org.city, org.state].filter(Boolean).join(", ") : undefined),
         industry: org?.industry,
         sellingMethod: org?.selling_method,
         priceTier: org?.price_tier,
@@ -258,8 +268,10 @@ export async function POST(request: Request) {
         objectiveContext: objContext,
         currentCopy: currentCopy ?? undefined,
         orgBusinessDescription: org?.business_description ?? null,
+        orgWhatsappNumber: org?.whatsapp_number ?? null,
+        orgWebsite: org?.business_website ?? null,
+        orgCountryCode: org?.country_code ?? "NG",
         siteContext,
-        skipTriage: !!forceGenerate,
       },
       conversationHistory ?? [],
       activeOrgId,
@@ -268,6 +280,7 @@ export async function POST(request: Request) {
       "\n[API Route: /api/ai/generate] ✅ Strategy generated successfully, returning to client.\n",
     strategy);
 
+    // this may have to go as triage will already solved it.
 
     if (strategy.meta?.input_type === "TYPE_D") {
       // Guard: TYPE_D without currentCopy means the user typed a refinement phrase
@@ -287,6 +300,7 @@ export async function POST(request: Request) {
           headline: [],
           ctaIntent: "buy_now",
           whatsappMessage: null,
+          responseKind: "clarify",
           meta: {
             input_type: "TYPE_B",
             needs_clarification: true,
@@ -300,6 +314,7 @@ export async function POST(request: Request) {
             confidence: 0.1,
             inferred_assumptions: [],
             refinement_question: null,
+            follow_ups: null,
           },
         });
       }
@@ -315,6 +330,7 @@ export async function POST(request: Request) {
             customerGender: org?.customer_gender,
             objective: objective ? String(objective).toUpperCase() : undefined,
             currentCopy,
+            orgCountryCode: org?.country_code ?? "NG",
             siteContext,
           },
           description, // The user's raw refinement instruction becomes the refinement prompt
@@ -322,6 +338,7 @@ export async function POST(request: Request) {
         const { usage, ...clientStrategy } = refinedStrategy;
         return NextResponse.json({
           ...clientStrategy,
+          responseKind: "refine",
           siteContextSummary: siteContext ? siteContext.slice(0, 500) : null,
         });
       }
@@ -350,12 +367,13 @@ export async function POST(request: Request) {
     const { usage, ...clientStrategy } = strategy;
     return NextResponse.json({
       ...clientStrategy,
+      responseKind: toResponseKind(clientStrategy.meta?.input_type ?? ""),
       siteContextSummary: siteContext ? siteContext.slice(0, 500) : null,
     });
   } catch (error: any) {
     console.error("AI Strategy Error:", error);
     return NextResponse.json(
-      { error: "Failed to generate strategy" },
+      { error: "Failed to generate strategy", responseKind: "clarify" },
       { status: 500 },
     );
   }

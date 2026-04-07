@@ -19,6 +19,11 @@ export async function updateOrganization(orgId: string, formData: FormData) {
   const price_tier = formData.get("priceTier") as string;
   const customer_gender = formData.get("customerGender") as string;
   const business_description = formData.get("businessDescription") as string;
+  const city = (formData.get("city") as string) || null;
+  const state = (formData.get("state") as string) || null;
+  const business_phone = (formData.get("businessPhone") as string) || null;
+  const business_website = (formData.get("businessWebsite") as string) || null;
+  const whatsapp_number = (formData.get("whatsappNumber") as string) || null;
 
   const { error } = await supabase
     .from("organizations")
@@ -29,6 +34,11 @@ export async function updateOrganization(orgId: string, formData: FormData) {
       price_tier,
       customer_gender,
       business_description,
+      city,
+      state,
+      business_phone,
+      business_website,
+      whatsapp_number,
     })
     .eq("id", orgId);
 

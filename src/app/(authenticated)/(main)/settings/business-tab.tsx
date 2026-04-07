@@ -470,6 +470,65 @@ export function BusinessTab({
                     campaign strategy.
                   </p>
                 </div>
+
+                {/* Location */}
+                <div className="space-y-2">
+                  <Label htmlFor="city">City</Label>
+                  <Input
+                    id="city"
+                    name="city"
+                    defaultValue={organization.city || ""}
+                    placeholder="e.g. Lagos"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="state">State / Region</Label>
+                  <Input
+                    id="state"
+                    name="state"
+                    defaultValue={organization.state || ""}
+                    placeholder="e.g. Lagos State"
+                  />
+                </div>
+
+                {/* Contact */}
+                <div className="space-y-2">
+                  <Label htmlFor="businessPhone">Business Phone</Label>
+                  <Input
+                    id="businessPhone"
+                    name="businessPhone"
+                    type="tel"
+                    defaultValue={organization.business_phone || ""}
+                    placeholder="e.g. +234 801 234 5678"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="whatsappNumber">WhatsApp Number</Label>
+                  <Input
+                    id="whatsappNumber"
+                    name="whatsappNumber"
+                    type="tel"
+                    defaultValue={organization.whatsapp_number || ""}
+                    placeholder="e.g. +234 801 234 5678"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Used as the default CTA destination for WhatsApp campaigns.
+                  </p>
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="businessWebsite">Business Website</Label>
+                  <Input
+                    id="businessWebsite"
+                    name="businessWebsite"
+                    type="url"
+                    defaultValue={organization.business_website || ""}
+                    placeholder="e.g. https://yourstore.com"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    The AI uses this to understand your business when generating campaigns.
+                  </p>
+                </div>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-muted/30 p-6 rounded-md border border-border">
@@ -524,6 +583,46 @@ export function BusinessTab({
                         No description provided yet. Editing this helps the AI
                         generate more relevant ads.
                       </span>
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-subtle-foreground uppercase tracking-wider mb-1">
+                    Location
+                  </p>
+                  <p className="font-medium text-foreground">
+                    {organization.city || organization.state
+                      ? [organization.city, organization.state].filter(Boolean).join(", ")
+                      : <span className="text-muted-foreground italic">Not set</span>}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-subtle-foreground uppercase tracking-wider mb-1">
+                    Business Website
+                  </p>
+                  <p className="font-medium text-foreground break-all">
+                    {organization.business_website || (
+                      <span className="text-muted-foreground italic">Not set</span>
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-subtle-foreground uppercase tracking-wider mb-1">
+                    Business Phone
+                  </p>
+                  <p className="font-medium text-foreground">
+                    {organization.business_phone || (
+                      <span className="text-muted-foreground italic">Not set</span>
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-subtle-foreground uppercase tracking-wider mb-1">
+                    WhatsApp Number
+                  </p>
+                  <p className="font-medium text-foreground">
+                    {organization.whatsapp_number || (
+                      <span className="text-muted-foreground italic">Not set</span>
                     )}
                   </p>
                 </div>

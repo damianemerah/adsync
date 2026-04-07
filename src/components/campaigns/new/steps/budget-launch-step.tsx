@@ -100,6 +100,7 @@ export function BudgetLaunchStep({
     targetLifeEvents,
     targetWorkPositions,
     targetIndustries,
+    targetingMode,
     destinationValue,
     aiPrompt,
     leadGenFormId,
@@ -137,7 +138,8 @@ export function BudgetLaunchStep({
   const isWebsiteObjective = objective === "traffic";
   const needsPixel = isWebsiteObjective && !hasPixel && !skipPixel;
 
-  const canLaunch = !isLaunching && hasHealthyAccount && !needsPixel;
+  const missingWhatsappNumber = objective === "whatsapp" && !destinationValue?.trim();
+  const canLaunch = !isLaunching && hasHealthyAccount && !needsPixel && !missingWhatsappNumber;
 
   useEffect(() => {
     if (!budget || !campaignName) return;
@@ -322,6 +324,7 @@ export function BudgetLaunchStep({
       targetLifeEvents: targetLifeEvents || [],
       targetWorkPositions: targetWorkPositions || [],
       targetIndustries: targetIndustries || [],
+      targetingMode: targetingMode ?? undefined,
       destinationValue,
       aiContext: {
         businessDescription: aiPrompt || "My Business",
@@ -664,6 +667,25 @@ export function BudgetLaunchStep({
               >
                 Skip tracking for now
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Missing WhatsApp number block */}
+      {missingWhatsappNumber && (
+        <div className="pt-4 border-t border-border animate-in fade-in slide-in-from-bottom-2">
+          <div className="flex items-start gap-3 p-4 rounded-lg bg-destructive/5 border border-destructive/20 text-sm text-destructive">
+            <WarningTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold">WhatsApp number required</p>
+              <p className="text-destructive/80 mt-0.5">
+                Go back to the Creative step and enter your WhatsApp number, or{" "}
+                <Link href="/settings/business" className="underline font-semibold hover:text-destructive">
+                  save it in Business Settings
+                </Link>{" "}
+                to auto-fill it on every campaign.
+              </p>
             </div>
           </div>
         </div>

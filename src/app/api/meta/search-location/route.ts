@@ -8,6 +8,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get("query");
   const type = searchParams.get("type") || "city";
+  const countryCode = searchParams.get("country_code") || undefined;
   console.log("Location Query👇👇", query);
   console.log("Location Type👇👇", type);
 
@@ -57,6 +58,7 @@ export async function GET(request: Request) {
       accessToken,
       query as string,
       type as "city" | "region" | "country",
+      countryCode,
     );
 
     console.log(`[Meta API Geo] Search: query="${query}" type="${type}"`);

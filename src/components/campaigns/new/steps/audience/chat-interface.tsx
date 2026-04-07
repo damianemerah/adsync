@@ -12,7 +12,7 @@ interface ChatInterfaceProps {
   messages: any[];
   inputValue: string;
   setInputValue: (val: string) => void;
-  handleSend: (val?: string, isClarification?: boolean) => void;
+  handleSend: (val?: string) => void;
   isTyping: boolean;
   isRefiningCopy: boolean;
   isReadingUrl?: boolean;
@@ -129,12 +129,20 @@ export function ChatInterface({
                 onAddLocation={actions.addLocation}
                 onCopyRefine={actions.handleCopyRefinement}
                 isRefiningCopy={isRefiningCopy}
-                onClarificationSelect={(option: string) => {
+                onFollowUpSelect={(instruction: string) => {
+                  handleSend(instruction);
+                }}
+                onClarificationSelect={(option: string, mode: "send" | "prefill") => {
                   if (option === "Let me adjust") {
                     inputRef.current?.focus();
                     return;
                   }
-                  handleSend(option, true);
+                  if (mode === "prefill") {
+                    setInputValue(option);
+                    setTimeout(() => inputRef.current?.focus(), 50);
+                    return;
+                  }
+                  handleSend(option);
                 }}
                 onRecoverySelect={(value: string) => {
                   handleSend(value);

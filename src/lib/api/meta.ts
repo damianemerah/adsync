@@ -18,6 +18,66 @@ const getPlacementSpec = (placementId: MetaPlacement) => {
   return { publisher_platforms: config.publisherPlatforms };
 };
 
+/**
+ * Build the Meta API targeting object.
+ *
+ * Separates hard controls (always enforced) from soft suggestions (Advantage+ treats
+ * these as starting-point hints and can expand beyond them).
+ *
+ * Hard controls: geo_locations, age_min, age_max, locales, genders, exclusions, targeting_automation
+ * Soft suggestions: interests, behaviors, life_events, work_positions, industries
+ *
+ * By the time this is called, signals have already been capped in campaigns.ts according
+ * to the campaign's targeting_mode (b2b / b2c / broad). This function just assembles the payload.
+ */
+function buildTargetingPayload(
+  targeting: any,
+  placement: MetaPlacement,
+): Record<string, unknown> {
+  // --- Hard controls ---
+  const hardControls: Record<string, unknown> = {
+    geo_locations: targeting.geo_locations,
+    age_min: targeting.age_min,
+    // age_max must be 65 when advantage_audience: 1 — user's max becomes a soft suggestion only
+    age_max: 65,
+    targeting_automation: { advantage_audience: 1 },
+  };
+
+  if (targeting.locales?.length > 0)   hardControls.locales = targeting.locales;
+  if (targeting.gender === "male")      hardControls.genders = [1];
+  if (targeting.gender === "female")    hardControls.genders = [2];
+  if (targeting.exclusionAudienceIds?.length > 0) {
+    hardControls.exclusions = {
+      custom_audiences: targeting.exclusionAudienceIds.map((id: string) => ({ id })),
+    };
+  }
+
+  // --- Soft suggestions (Advantage+ treats as starting-point hints, not hard gates) ---
+  const softSuggestions: Record<string, unknown> = {};
+
+  if (targeting.interests?.length > 0)
+    softSuggestions.interests = targeting.interests;
+  if (targeting.behaviors?.length > 0)
+    softSuggestions.behaviors = targeting.behaviors;
+  if (targeting.lifeEvents?.length > 0) {
+    softSuggestions.life_events = targeting.lifeEvents.map(
+      (e: { id: string; name: string }) => ({ id: e.id, name: e.name }),
+    );
+  }
+  if (targeting.workPositions?.length > 0) {
+    softSuggestions.work_positions = targeting.workPositions.map(
+      (p: { id: string; name: string }) => ({ id: p.id, name: p.name }),
+    );
+  }
+  if (targeting.industries?.length > 0) {
+    softSuggestions.industries = targeting.industries.map(
+      (i: { id: string; name: string }) => ({ id: i.id, name: i.name }),
+    );
+  }
+
+  return { ...hardControls, ...softSuggestions, ...getPlacementSpec(placement) };
+}
+
 // Maps AdSync objectives to the correct Meta optimization_goal for the Ad Set.
 // Now driven by CAMPAIGN_OBJECTIVES constant.
 
@@ -180,13 +240,12 @@ export const MetaService = {
     token: string,
     query: string,
     type: "city" | "region" | "country" = "region",
+    countryCode?: string,
   ) => {
-    // Searches for "Lagos" to get Meta geo key
-    const data = await MetaService.request(
-      `/search?type=adgeolocation&q=${encodeURIComponent(query)}&limit=10`,
-      "GET",
-      token,
-    );
+    const locationTypes = encodeURIComponent(JSON.stringify([type]));
+    let url = `/search?type=adgeolocation&q=${encodeURIComponent(query)}&location_types=${locationTypes}&limit=10`;
+    if (countryCode) url += `&country_code=${countryCode}`;
+    const data = await MetaService.request(url, "GET", token);
     return data.data || [];
   },
 
@@ -271,61 +330,9 @@ export const MetaService = {
     // CONVERSATIONS + IMPRESSIONS = valid
     const billingEvent = "IMPRESSIONS";
 
-    // Construct the targeting object
-    // NOTE: With advantage_audience: 1 (Advantage+ audience), Meta requires age_max === 65.
-    // The user's selected age range becomes a suggestion via audience_controls, not a hard filter.
-    const targetingPayload = {
-      geo_locations: params.targeting.geo_locations,
-      interests: params.targeting.interests,
-      behaviors: params.targeting.behaviors,
-      age_min: params.targeting.age_min,
-      // age_max: params.targeting.age_max,
-      age_max: 65, // Required by Meta when advantage_audience: 1 — user's max is passed as a suggestion below
-      targeting_automation: {
-        advantage_audience: 1, // Required by Meta Marketing API v25.0+
-      },
-      // Suggest the user's intended age cap to Meta's AI without hard-restricting it
-      // ...(params.targeting.age_max &&
-      //   params.targeting.age_max < 65 && {
-      //     audience_controls: {
-      //       age_max: params.targeting.age_max,
-      //     },
-      //   }),
-      // Language targeting — only include if languages are selected
-      ...(params.targeting.locales?.length > 0 && {
-        locales: params.targeting.locales, // e.g. [6, 114] = English + Yoruba
-      }),
-      // Meta API for Gender: 1=Male, 2=Female. Omit for All.
-      ...(params.targeting.gender === "male" && { genders: [1] }),
-      ...(params.targeting.gender === "female" && { genders: [2] }),
-      // Life Events — time-sensitive targeting (separate field from behaviors in Meta v25)
-      ...(params.targeting.lifeEvents?.length > 0 && {
-        life_events: params.targeting.lifeEvents.map(
-          (e: { id: string; name: string }) => ({ id: e.id, name: e.name }),
-        ),
-      }),
-      // Work Positions — job title demographic targeting
-      ...(params.targeting.workPositions?.length > 0 && {
-        work_positions: params.targeting.workPositions.map(
-          (p: { id: string; name: string }) => ({ id: p.id, name: p.name }),
-        ),
-      }),
-      // Industries — broad sector targeting for B2B/wholesale/professional products
-      ...(params.targeting.industries?.length > 0 && {
-        industries: params.targeting.industries.map(
-          (i: { id: string; name: string }) => ({ id: i.id, name: i.name }),
-        ),
-      }),
-      // Exclusions — omit if empty (Meta rejects empty exclusion objects)
-      ...(params.targeting.exclusionAudienceIds?.length > 0 && {
-        exclusions: {
-          custom_audiences: params.targeting.exclusionAudienceIds.map(
-            (id: string) => ({ id }),
-          ),
-        },
-      }),
-      ...getPlacementSpec(placement),
-    };
+    // Signals are pre-capped in campaigns.ts by targeting_mode (b2b/b2c/broad).
+    // This call just assembles the payload with hard controls separated from soft suggestions.
+    const targetingPayload = buildTargetingPayload(params.targeting, placement);
 
     // promoted_object: page_id for engagement/whatsapp; application_id for app installs
     const needsPagePromotedObject =
