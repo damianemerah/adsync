@@ -649,12 +649,20 @@ export const MetaService = {
           page_id: copy.pageId,
           ...(videoId ? { video_data: linkData } : { link_data: linkData }),
         },
+        // Advantage+ Creative — v25.0 individual feature flags.
+        // The old standard_enhancements batch wrapper is deprecated (error_subcode 3858504).
+        // Each feature must now be set directly inside creative_features_spec.
+        // Reference: https://developers.facebook.com/docs/marketing-api/reference/ad-creative-features-spec/
         degrees_of_freedom_spec: {
           creative_features_spec: {
-            standard_enhancements: {
-              enroll_status: "OPT_IN"
-            }
-          }
+            adapt_to_placement: { enroll_status: "OPT_IN" },
+            image_touchups: { enroll_status: "OPT_IN" },
+            image_background_gen: { enroll_status: "OPT_IN" },
+            image_animation: { enroll_status: "OPT_IN" },
+            text_optimizations: { enroll_status: "OPT_IN" },
+            description_automation: { enroll_status: "OPT_IN" },
+            inline_comment: { enroll_status: "OPT_IN" },
+          },
         }
       },
     );
