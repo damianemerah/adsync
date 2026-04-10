@@ -653,15 +653,20 @@ export const MetaService = {
         // The old standard_enhancements batch wrapper is deprecated (error_subcode 3858504).
         // Each feature must now be set directly inside creative_features_spec.
         // Reference: https://developers.facebook.com/docs/marketing-api/reference/ad-creative-features-spec/
+        //
+        // CATALOG-GATED features — DO NOT include for standard non-catalog ads:
+        //   - image_background_gen: requires product catalog (error_subcode 3858293)
+        //   - image_animation:      same catalog-gated family, will cause same error
+        //   - standard_enhancements_catalog: catalog-only wrapper
+        //
+        // SAFE features — work universally for image/video/WhatsApp/website objectives:
         degrees_of_freedom_spec: {
           creative_features_spec: {
-            adapt_to_placement: { enroll_status: "OPT_IN" },
-            image_touchups: { enroll_status: "OPT_IN" },
-            image_background_gen: { enroll_status: "OPT_IN" },
-            image_animation: { enroll_status: "OPT_IN" },
-            text_optimizations: { enroll_status: "OPT_IN" },
-            description_automation: { enroll_status: "OPT_IN" },
-            inline_comment: { enroll_status: "OPT_IN" },
+            adapt_to_placement:    { enroll_status: "OPT_IN" }, // Crop/resize for each placement
+            image_touchups:        { enroll_status: "OPT_IN" }, // Brightness & contrast touch-ups
+            text_optimizations:    { enroll_status: "OPT_IN" }, // AI headline/body rewriting
+            description_automation:{ enroll_status: "OPT_IN" }, // Auto-generates ad descriptions
+            inline_comment:        { enroll_status: "OPT_IN" }, // Highlights relevant comments
           },
         }
       },
