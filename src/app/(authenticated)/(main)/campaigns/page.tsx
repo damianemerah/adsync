@@ -19,7 +19,7 @@ import { DashboardEmptyState } from "@/components/dashboard/empty-state";
 
 function CampaignsPageContent() {
   const router = useRouter();
-  const { data: campaigns, isLoading } = useCampaigns();
+  const { data: campaigns, isLoading, duplicateCampaign } = useCampaigns();
   const { data: accounts, isLoading: isLoadingAccounts } = useAdAccounts();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -176,6 +176,7 @@ function CampaignsPageContent() {
             key={`${selectedPlatform}-${selectedAccountId}-${status}-${searchQuery}-${JSON.stringify(dateRange)}`}
             campaigns={filteredCampaigns || []}
             onRowClick={(id) => handleOpen(id)}
+            onDuplicate={(id) => duplicateCampaign({ id })}
             isLoading={isLoading}
             pageSize={10}
           />

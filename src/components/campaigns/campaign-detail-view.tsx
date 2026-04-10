@@ -39,6 +39,7 @@ import {
   GraphUp,
   Refresh,
   Mail,
+  Copy,
 } from "iconoir-react";
 import { DataTable, Column } from "@/components/ui/data-table";
 import { Campaign } from "@/lib/api/campaigns";
@@ -62,7 +63,7 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
-  const { updateStatus, isUpdating } = useCampaigns();
+  const { updateStatus, isUpdating, duplicateCampaign, isDuplicating } = useCampaigns();
   const [activeMetrics, setActiveMetrics] = useState<MetricKey[]>([
     "revenue",
     "spend",
@@ -314,6 +315,13 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
               <DropdownMenuItem onClick={() => handleStatusChange("PAUSED")}>
                 <Pause className="h-4 w-4 mr-2 text-slate-500" />
                 Pause Campaign
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => duplicateCampaign({ id: campaign.id })}
+                disabled={isDuplicating}
+              >
+                <Copy className="h-4 w-4 mr-2 text-slate-500" />
+                Duplicate Campaign
               </DropdownMenuItem>
               <Separator className="my-1" />
               <DropdownMenuItem

@@ -449,6 +449,45 @@ export const MetaService = {
     }
   },
 
+  createAdVideo: async (
+    token: string,
+    adAccountId: string,
+    videoUrl: string,
+  ): Promise<{ id: string }> => {
+    try {
+      const videoResponse = await fetch(videoUrl);
+      if (!videoResponse.ok)
+        throw new Error("Failed to download video from storage");
+
+      const videoBlob = await videoResponse.blob();
+      const formData = new FormData();
+      formData.append("access_token", token);
+      formData.append("source", videoBlob, "creative.mp4");
+
+      const id = adAccountId.startsWith("act_")
+        ? adAccountId
+        : `act_${adAccountId}`;
+
+      const res = await fetch(`${BASE_URL}/${id}/advideos`, {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      console.log("🎬 [Meta API] Ad Video Upload Response:", data);
+
+      if (data.error) {
+        console.error("Meta Video Upload Error:", data.error);
+        throw parseMetaError(data.error);
+      }
+
+      return { id: data.id };
+    } catch (e) {
+      console.error("Video Processing Error:", e);
+      throw e;
+    }
+  },
+
   // 4. Create Ad (The Creative)
   // Supports both single image ads and carousel ads (2-10 images)
   createAd: async (
@@ -465,6 +504,7 @@ export const MetaService = {
       description?: string;
       link?: string;
     }>,
+    videoId?: string,
   ) => {
     const id = adAccountId.startsWith("act_")
       ? adAccountId
@@ -494,7 +534,7 @@ export const MetaService = {
     console.log("📣 [Meta API] createAd - CallToAction:", callToAction);
     console.log(
       "📣 [Meta API] createAd - Format:",
-      isCarousel ? "CAROUSEL" : "SINGLE_IMAGE",
+      isCarousel ? "CAROUSEL" : videoId ? "VIDEO" : "SINGLE_IMAGE",
     );
 
     let linkData: Record<string, any>;
@@ -519,8 +559,24 @@ export const MetaService = {
       console.log(
         `🎠 [Meta API] Creating carousel with ${childAttachments.length} cards`,
       );
+    } else if (videoId) {
+      // Video Ad Format
+      linkData = isLead
+        ? {
+            video_id: videoId,
+            message: copy.primaryText,
+            title: copy.headline,
+            call_to_action: callToAction,
+          }
+        : {
+            video_id: videoId,
+            link: copy.destinationUrl,
+            message: copy.primaryText,
+            title: copy.headline,
+            call_to_action: callToAction,
+          };
     } else {
-      // Single Image Ad Format (legacy path)
+      // Single Image Ad Format
       const singleHash = Array.isArray(creativeHash)
         ? creativeHash[0]
         : creativeHash;
@@ -541,21 +597,27 @@ export const MetaService = {
           };
     }
 
+    const adName = isCarousel
+      ? "AdSync Carousel Creative"
+      : videoId
+        ? "AdSync Video Creative"
+        : "AdSync Creative";
+
     const creativeRes = await MetaService.request(
       `/${id}/adcreatives`,
       "POST",
       token,
       {
-        name: isCarousel ? "AdSync Carousel Creative" : "AdSync Creative",
+        name: adName,
         object_story_spec: {
           page_id: copy.pageId,
-          link_data: linkData,
+          ...(videoId ? { video_data: linkData } : { link_data: linkData }),
         },
       },
     );
 
     return MetaService.request(`/${id}/ads`, "POST", token, {
-      name: isCarousel ? "AdSync Carousel Ad" : "AdSync Ad 1",
+      name: isCarousel ? "AdSync Carousel Ad" : videoId ? "AdSync Video Ad 1" : "AdSync Ad 1",
       adset_id: adSetId,
       creative: { creative_id: creativeRes.id },
       status: "PAUSED",

@@ -84,6 +84,12 @@ interface LaunchConfig {
   }>;
 }
 
+function isVideoCreative(url: string): boolean {
+  const videoExtensions = [".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v"];
+  const lower = url.toLowerCase().split("?")[0]; // strip query params
+  return videoExtensions.some((ext) => lower.endsWith(ext));
+}
+
 export async function launchCampaign(config: LaunchConfig) {
   console.log("🚀 [Server Action] Launching campaign:", config.name);
   console.log("📦 [Launch Payload Received]:", JSON.stringify(config, null, 2));
@@ -496,6 +502,7 @@ export async function launchCampaign(config: LaunchConfig) {
     const isCarousel = config.carouselCards && config.carouselCards.length >= 2;
 
     let imageHash: string | undefined;
+    let videoId: string | undefined;
     let carouselImageData: Array<{
       imageHash: string;
       headline: string;
@@ -531,17 +538,28 @@ export async function launchCampaign(config: LaunchConfig) {
         carouselImageData.length,
       );
     } else {
-      // Single Image: Upload only the first creative
-      const imageRes = await MetaService.createAdImage(
-        accessToken,
-        adAccountId,
-        config.creatives[0],
-      );
+      const creativeUrl = config.creatives[0];
 
-      console.log("🖼️ [Meta API - Image Uploaded]:", imageRes);
-
-      const imageKey = Object.keys(imageRes.images)[0];
-      imageHash = imageRes.images[imageKey].hash;
+      if (isVideoCreative(creativeUrl)) {
+        // Video creative path
+        const videoRes = await MetaService.createAdVideo(
+          accessToken,
+          adAccountId,
+          creativeUrl,
+        );
+        videoId = videoRes.id;
+        console.log("🎬 [Meta API - Video Uploaded]:", videoRes);
+      } else {
+        // Image creative path
+        const imageRes = await MetaService.createAdImage(
+          accessToken,
+          adAccountId,
+          creativeUrl,
+        );
+        console.log("🖼️ [Meta API - Image Uploaded]:", imageRes);
+        const imageKey = Object.keys(imageRes.images)[0];
+        imageHash = imageRes.images[imageKey].hash;
+      }
     }
 
     // Step G: Create Ad Creative & Ad
@@ -549,7 +567,7 @@ export async function launchCampaign(config: LaunchConfig) {
       accessToken,
       adAccountId,
       adSetRes.id,
-      isCarousel ? carouselImageData.map((c) => c.imageHash) : imageHash!,
+      isCarousel ? carouselImageData.map((c) => c.imageHash) : (imageHash ?? ""),
       {
         pageId,
         primaryText: config.adCopy.primary,
@@ -564,6 +582,7 @@ export async function launchCampaign(config: LaunchConfig) {
           : undefined,
       config.objective,
       isCarousel ? carouselImageData : undefined,
+      videoId,
     );
 
     console.log("📣 [Meta API - Ad Creative/Ad Created]:", adRes);

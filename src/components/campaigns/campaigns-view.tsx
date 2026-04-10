@@ -11,6 +11,7 @@ import {
   Eye,
   Search,
   Rocket,
+  Copy,
 } from "iconoir-react";
 import { DataTable, Column } from "@/components/ui/data-table";
 import {
@@ -45,6 +46,7 @@ import { AdvantagePlusBadge } from "@/components/campaigns/advantage-plus-badge"
 interface CampaignsViewProps {
   campaigns: any[];
   onRowClick?: (id: string) => void;
+  onDuplicate?: (id: string) => void;
   isLoading?: boolean;
   /** Rows per page. Defaults to 10. Pass 0 to disable pagination. */
   pageSize?: number;
@@ -55,6 +57,7 @@ interface CampaignsViewProps {
 export function CampaignsView({
   campaigns,
   onRowClick,
+  onDuplicate,
   isLoading,
   pageSize = 10,
   showFilters = true,
@@ -308,6 +311,14 @@ export function CampaignsView({
                   <Link href={`/campaigns/${campaign.id}`}>
                     <Eye className="h-4 w-4 mr-2" /> View Details
                   </Link>
+                </DropdownMenuItem>
+              )}
+              {onDuplicate && (
+                <DropdownMenuItem
+                  onClick={() => onDuplicate(campaign.id)}
+                  className="cursor-pointer"
+                >
+                  <Copy className="h-4 w-4 mr-2" /> Duplicate
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
