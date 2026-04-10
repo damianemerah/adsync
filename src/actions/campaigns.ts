@@ -503,6 +503,7 @@ export async function launchCampaign(config: LaunchConfig) {
 
     let imageHash: string | undefined;
     let videoId: string | undefined;
+    let thumbnailUrl: string | null = null;
     let carouselImageData: Array<{
       imageHash: string;
       headline: string;
@@ -549,6 +550,15 @@ export async function launchCampaign(config: LaunchConfig) {
         );
         videoId = videoRes.id;
         console.log("🎬 [Meta API - Video Uploaded]:", videoRes);
+
+        // Fetch Meta's auto-generated thumbnail — required by video_data (error_subcode 1443226)
+        // Thumbnails may not be ready instantly; retry once with a short delay.
+        thumbnailUrl = await MetaService.getVideoThumbnail(accessToken, videoId);
+        if (!thumbnailUrl) {
+          await new Promise((r) => setTimeout(r, 3000));
+          thumbnailUrl = await MetaService.getVideoThumbnail(accessToken, videoId);
+        }
+        console.log("🖼️ [Meta API - Video Thumbnail]:", thumbnailUrl ?? "none");
       } else {
         // Image creative path
         const imageRes = await MetaService.createAdImage(
@@ -583,6 +593,7 @@ export async function launchCampaign(config: LaunchConfig) {
       config.objective,
       isCarousel ? carouselImageData : undefined,
       videoId,
+      thumbnailUrl,
     );
 
     console.log("📣 [Meta API - Ad Creative/Ad Created]:", adRes);
@@ -617,6 +628,7 @@ export async function launchCampaign(config: LaunchConfig) {
         ...(isCarousel && { carousel_cards: config.carouselCards }),
       } as any,
       ai_context: config.aiContext,
+      advantage_plus_config: { creative: true },
     };
 
     let dbCampaignId = config.campaignId;
@@ -875,9 +887,32 @@ export async function updateCampaignStatus(
         .eq("id", campaignId)
         .eq("organization_id", orgId);
     } else {
-      await MetaService.request(`/${metaId}`, "POST", token, {
-        status: action,
-      });
+      // Meta requires Campaign + Ad Set + Ad to ALL be ACTIVE for delivery.
+      // New campaigns are created with ACTIVE children (Campaign is the PAUSED kill-switch),
+      // but campaigns launched under the old bug had PAUSED children — cascade fixes both.
+      const metaStatus = action === "ACTIVE" ? "ACTIVE" : "PAUSED";
+
+      // 2a. Update Campaign
+      await MetaService.request(`/${metaId}`, "POST", token, { status: metaStatus });
+
+      // 2b. Cascade to child Ad Sets and their Ads (fire sequentially — 1:1:1 rule)
+      if (metaId) {
+        try {
+          const adSets = await MetaService.getCampaignAdSets(token, metaId);
+          for (const adSet of adSets) {
+            await MetaService.updateObjectStatus(token, adSet.id, metaStatus);
+            // Cascade to Ads inside this Ad Set
+            const ads = await MetaService.getAdSetAds(token, adSet.id);
+            for (const ad of ads) {
+              await MetaService.updateObjectStatus(token, ad.id, metaStatus);
+            }
+          }
+          console.log(`✅ [Status] Cascaded ${metaStatus} to ${adSets.length} ad set(s) and their ads`);
+        } catch (cascadeErr) {
+          // Log but don't fail — the Campaign status itself succeeded
+          console.warn("⚠️ [Status] Ad Set/Ad cascade failed (non-critical):", cascadeErr);
+        }
+      }
 
       // DB: Update Status
       await supabase
@@ -1345,5 +1380,156 @@ export async function upgradeToPixelOptimization(campaignId: string) {
     }
 
     return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Hard-delete a campaign: Meta DELETE (if launched) + DB hard delete.
+ * Irreversible — the campaign is permanently removed from Meta and Tenzu.
+ * Draft campaigns (no platform_campaign_id) skip the Meta call.
+ */
+export async function deleteCampaign(campaignId: string) {
+  const supabase = await createClient();
+  const orgId = await getActiveOrgId();
+  if (!orgId) return { success: false as const, error: "No organization found" };
+
+  const { data: campaign, error: fetchErr } = await supabase
+    .from("campaigns")
+    .select(
+      `
+      id,
+      name,
+      platform_campaign_id,
+      ad_accounts (
+        access_token
+      )
+    `,
+    )
+    .eq("id", campaignId)
+    .eq("organization_id", orgId)
+    .single();
+
+  if (fetchErr || !campaign) {
+    return { success: false as const, error: "Campaign not found" };
+  }
+
+  try {
+    // Step 1: Delete from Meta only if it was ever launched
+    if (campaign.platform_campaign_id && campaign.ad_accounts?.access_token) {
+      const token = decrypt(campaign.ad_accounts.access_token);
+      try {
+        await MetaService.deleteCampaign(token, campaign.platform_campaign_id);
+        console.log(`🗑️ [Delete] Meta campaign ${campaign.platform_campaign_id} deleted`);
+      } catch (metaErr: any) {
+        // If Meta returns "does not exist" (code 100), it's already gone — safe to continue
+        if (metaErr?.code !== 100) {
+          console.warn("⚠️ [Delete] Meta deletion failed (non-fatal):", metaErr?.message);
+        }
+      }
+    }
+
+    // Step 2: Hard delete from DB
+    const { error: deleteErr } = await supabase
+      .from("campaigns")
+      .delete()
+      .eq("id", campaignId)
+      .eq("organization_id", orgId);
+
+    if (deleteErr) throw new Error(deleteErr.message);
+
+    revalidatePath("/campaigns");
+    return { success: true as const };
+  } catch (error: any) {
+    console.error("[deleteCampaign] Error:", error);
+    return { success: false as const, error: error.message };
+  }
+}
+
+/**
+ * App-only soft archive: sets status='completed' in DB only.
+ * The campaign remains on Meta untouched (still paused/active as it was).
+ * Archived campaigns appear with "completed" status, hidden from active views.
+ */
+export async function archiveCampaign(campaignId: string) {
+  const supabase = await createClient();
+  const orgId = await getActiveOrgId();
+  if (!orgId) return { success: false as const, error: "No organization found" };
+
+  const { error } = await supabase
+    .from("campaigns")
+    .update({ status: "completed", updated_at: new Date().toISOString() })
+    .eq("id", campaignId)
+    .eq("organization_id", orgId);
+
+  if (error) {
+    console.error("[archiveCampaign] DB Error:", error);
+    return { success: false as const, error: error.message };
+  }
+
+  revalidatePath("/campaigns");
+  return { success: true as const };
+}
+
+/**
+ * Rename a campaign: updates name on Meta (if launched) + DB.
+ * Name must be non-empty and ≤150 characters (Meta's limit).
+ */
+export async function renameCampaign(campaignId: string, newName: string) {
+  const supabase = await createClient();
+  const orgId = await getActiveOrgId();
+  if (!orgId) return { success: false as const, error: "No organization found" };
+
+  const trimmedName = newName.trim();
+  if (!trimmedName) return { success: false as const, error: "Name cannot be empty" };
+  if (trimmedName.length > 150) return { success: false as const, error: "Name is too long (max 150 characters)" };
+
+  const { data: campaign, error: fetchErr } = await supabase
+    .from("campaigns")
+    .select(
+      `
+      id,
+      platform_campaign_id,
+      status,
+      ad_accounts (
+        access_token
+      )
+    `,
+    )
+    .eq("id", campaignId)
+    .eq("organization_id", orgId)
+    .single();
+
+  if (fetchErr || !campaign) {
+    return { success: false as const, error: "Campaign not found" };
+  }
+
+  try {
+    // Step 1: Update on Meta if the campaign has been launched
+    const isLaunched = !!campaign.platform_campaign_id && campaign.status !== "draft";
+    if (isLaunched && campaign.ad_accounts?.access_token) {
+      const token = decrypt(campaign.ad_accounts.access_token);
+      try {
+        await MetaService.renameCampaign(token, campaign.platform_campaign_id!, trimmedName);
+        console.log(`✏️ [Rename] Meta campaign ${campaign.platform_campaign_id} renamed to "${trimmedName}"`);
+      } catch (metaErr: any) {
+        // Non-fatal: Meta may reject rename for deleted campaigns — continue with DB update
+        console.warn("⚠️ [Rename] Meta rename failed (non-fatal):", metaErr?.message);
+      }
+    }
+
+    // Step 2: Update in DB
+    const { error: updateErr } = await supabase
+      .from("campaigns")
+      .update({ name: trimmedName, updated_at: new Date().toISOString() })
+      .eq("id", campaignId)
+      .eq("organization_id", orgId);
+
+    if (updateErr) throw new Error(updateErr.message);
+
+    revalidatePath("/campaigns");
+    return { success: true as const };
+  } catch (error: any) {
+    console.error("[renameCampaign] Error:", error);
+    return { success: false as const, error: error.message };
   }
 }

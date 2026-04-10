@@ -12,6 +12,9 @@ import {
   Search,
   Rocket,
   Copy,
+  Trash,
+  Archive,
+  EditPencil,
 } from "iconoir-react";
 import { DataTable, Column } from "@/components/ui/data-table";
 import {
@@ -26,8 +29,27 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -47,23 +69,57 @@ interface CampaignsViewProps {
   campaigns: any[];
   onRowClick?: (id: string) => void;
   onDuplicate?: (id: string) => void;
+  onDelete?: (id: string) => void;
+  onArchive?: (id: string) => void;
+  onRename?: (id: string, name: string) => void;
   isLoading?: boolean;
   /** Rows per page. Defaults to 10. Pass 0 to disable pagination. */
   pageSize?: number;
   /** If true, renders the search + status filter bar above the table */
   showFilters?: boolean;
+  /**
+   * Default sort order for the table.
+   * - "revenue"      → sort by revenue descending (default)
+   * - "recent"       → sort by created_at descending (most recent first)
+   * - "active-first" → active campaigns first, then by created_at descending
+   */
+  defaultSort?: "revenue" | "recent" | "active-first";
+  /** When provided, bypasses internal status state and filters by this value */
+  controlledStatus?: string;
+  /** When provided, bypasses internal search state and filters by this value */
+  controlledSearch?: string;
 }
 
 export function CampaignsView({
   campaigns,
   onRowClick,
   onDuplicate,
+  onDelete,
+  onArchive,
+  onRename,
   isLoading,
   pageSize = 10,
   showFilters = true,
+  defaultSort = "revenue",
+  controlledStatus,
+  controlledSearch,
 }: CampaignsViewProps) {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [internalSearchTerm, setInternalSearchTerm] = useState("");
+  const [internalStatusFilter, setInternalStatusFilter] = useState<string>("all");
+
+  // Dialog state
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<{ id: string; name: string } | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+  const [archiveTarget, setArchiveTarget] = useState<{ id: string; name: string } | null>(null);
+
+  // When controlled props are provided, use them; otherwise use internal state
+  const isControlled = controlledStatus !== undefined || controlledSearch !== undefined;
+  const searchTerm = controlledSearch ?? internalSearchTerm;
+  const statusFilter = controlledStatus ?? internalStatusFilter;
 
   /** Relative time helper */
   function getRelativeTime(date: Date | string): string {
@@ -79,70 +135,99 @@ export function CampaignsView({
     return d.toLocaleDateString();
   }
 
+  /** Status rank for active-first sorting */
+  const STATUS_RANK: Record<string, number> = {
+    active: 0,
+    paused: 1,
+    draft: 2,
+    completed: 3,
+    failed: 4,
+  };
+
   /** Normalise campaign fields */
   const displayCampaigns = useMemo(() => {
-    return campaigns
-      .map((campaign) => {
-        const currency =
-          campaign.currency || campaign.adAccount?.currency || "NGN";
-        const currencySymbol = currency === "NGN" ? "₦" : "$";
+    const normalised = campaigns.map((campaign) => {
+      const currency =
+        campaign.currency || campaign.adAccount?.currency || "NGN";
+      const currencySymbol = currency === "NGN" ? "₦" : "$";
 
-        const budgetVal =
-          campaign.budget ||
-          (campaign.dailyBudgetCents ? campaign.dailyBudgetCents / 100 : 0);
-        const spendVal =
-          campaign.spend ||
-          (campaign.spend_cents ? campaign.spend_cents / 100 : 0);
+      const budgetVal =
+        campaign.budget ||
+        (campaign.dailyBudgetCents ? campaign.dailyBudgetCents / 100 : 0);
+      const spendVal =
+        campaign.spend ||
+        (campaign.spend_cents ? campaign.spend_cents / 100 : 0);
 
-        const impressionsVal = campaign.impressions || 0;
-        const clicksVal = campaign.clicks || 0;
-        const ctrVal = campaign.ctr || 0;
+      const impressionsVal = campaign.impressions || 0;
+      const clicksVal = campaign.clicks || 0;
+      const ctrVal = campaign.ctr || 0;
 
-        // Build a mini sparkline from campaign-level metrics if available,
-        // otherwise leave empty (chart handles empty gracefully)
-        const trendData: number[] = campaign.metricsHistory
-          ? campaign.metricsHistory.map((m: any) => m.clicks || 0)
-          : [];
+      // Build a mini sparkline from campaign-level metrics if available,
+      // otherwise leave empty (chart handles empty gracefully)
+      const trendData: number[] = campaign.metricsHistory
+        ? campaign.metricsHistory.map((m: any) => m.clicks || 0)
+        : [];
 
-        const trendColor =
-          campaign.status === "active"
-            ? "#10b981" // emerald-500
-            : "#94a3b8"; // slate-400
+      const trendColor =
+        campaign.status === "active"
+          ? "#10b981" // emerald-500
+          : "#94a3b8"; // slate-400
 
-        return {
-          ...campaign,
-          createdAtStr: getRelativeTime(campaign.createdAt),
-          spendFormatted: `${currencySymbol}${spendVal.toLocaleString(
-            undefined,
-            {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            },
-          )}`,
-          budgetFormatted: `${currencySymbol}${budgetVal.toLocaleString()}`,
-          impressionsDisplay: Number(impressionsVal).toLocaleString(),
-          clicksDisplay: Number(clicksVal).toLocaleString(),
-          ctrDisplay: `${Number(ctrVal).toFixed(2)}%`,
-          trendData,
-          trendColor,
-          // Revenue formatting
-          revenueVal: campaign.revenueNgn || 0,
-          revenueFormatted: `₦${(campaign.revenueNgn || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-          roasVal: CampaignMetrics.calculateROAS(
-            campaign.revenueNgn || 0,
-            spendVal,
-          ),
-          roasFormatted: `${CampaignMetrics.calculateROAS(campaign.revenueNgn || 0, spendVal).toFixed(2)}x`,
-          salesVal: campaign.salesCount || 0,
-          conversionRateVal: CampaignMetrics.calculateConversionRate(
-            campaign.salesCount || 0,
-            clicksVal,
-          ),
-          conversionRateFormatted: `${CampaignMetrics.calculateConversionRate(campaign.salesCount || 0, clicksVal).toFixed(2)}%`,
-        };
-      })
-      .sort((a, b) => b.revenueVal - a.revenueVal); // Default sort by Revenue Desc
-  }, [campaigns]);
+      // Resolve created_at timestamp for sorting
+      const createdAtMs = campaign.createdAt
+        ? new Date(campaign.createdAt).getTime()
+        : campaign.created_at
+          ? new Date(campaign.created_at).getTime()
+          : 0;
+
+      return {
+        ...campaign,
+        createdAtMs,
+        createdAtStr: getRelativeTime(campaign.createdAt || campaign.created_at),
+        spendFormatted: `${currencySymbol}${spendVal.toLocaleString(
+          undefined,
+          {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          },
+        )}`,
+        budgetFormatted: `${currencySymbol}${budgetVal.toLocaleString()}`,
+        impressionsDisplay: Number(impressionsVal).toLocaleString(),
+        clicksDisplay: Number(clicksVal).toLocaleString(),
+        ctrDisplay: `${Number(ctrVal).toFixed(2)}%`,
+        trendData,
+        trendColor,
+        // Revenue formatting
+        revenueVal: campaign.revenueNgn || 0,
+        revenueFormatted: `₦${(campaign.revenueNgn || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        roasVal: CampaignMetrics.calculateROAS(
+          campaign.revenueNgn || 0,
+          spendVal,
+        ),
+        roasFormatted: `${CampaignMetrics.calculateROAS(campaign.revenueNgn || 0, spendVal).toFixed(2)}x`,
+        salesVal: campaign.salesCount || 0,
+        conversionRateVal: CampaignMetrics.calculateConversionRate(
+          campaign.salesCount || 0,
+          clicksVal,
+        ),
+        conversionRateFormatted: `${CampaignMetrics.calculateConversionRate(campaign.salesCount || 0, clicksVal).toFixed(2)}%`,
+      };
+    });
+
+    // Sort according to defaultSort prop
+    if (defaultSort === "active-first") {
+      return normalised.sort((a, b) => {
+        const rankDiff =
+          (STATUS_RANK[a.status] ?? 99) - (STATUS_RANK[b.status] ?? 99);
+        if (rankDiff !== 0) return rankDiff;
+        return b.createdAtMs - a.createdAtMs; // Newest within same status
+      });
+    } else if (defaultSort === "recent") {
+      return normalised.sort((a, b) => b.createdAtMs - a.createdAtMs);
+    }
+    // Default: revenue desc
+    return normalised.sort((a, b) => b.revenueVal - a.revenueVal);
+  }, [campaigns, defaultSort]);
 
   /** Client-side filtering */
   const filteredCampaigns = useMemo(() => {
@@ -296,7 +381,7 @@ export function CampaignsView({
                 <MoreVert className="h-5 w-5" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuContent align="end" className="w-52">
               {campaign.status === "draft" ? (
                 <DropdownMenuItem
                   onClick={() =>
@@ -321,6 +406,45 @@ export function CampaignsView({
                   <Copy className="h-4 w-4 mr-2" /> Duplicate
                 </DropdownMenuItem>
               )}
+              {/* ── Rename ── */}
+              {onRename && (
+                <DropdownMenuItem
+                  onClick={() => {
+                    setRenameTarget({ id: campaign.id, name: campaign.name });
+                    setRenameValue(campaign.name);
+                    setRenameDialogOpen(true);
+                  }}
+                  className="cursor-pointer"
+                >
+                  <EditPencil className="h-4 w-4 mr-2" /> Rename
+                </DropdownMenuItem>
+              )}
+              {/* ── Separator before destructive actions ── */}
+              {(onArchive || onDelete) && <DropdownMenuSeparator />}
+              {/* ── Archive ── */}
+              {onArchive && (
+                <DropdownMenuItem
+                  onClick={() => {
+                    setArchiveTarget({ id: campaign.id, name: campaign.name });
+                    setArchiveDialogOpen(true);
+                  }}
+                  className="cursor-pointer text-amber-600 focus:text-amber-700"
+                >
+                  <Archive className="h-4 w-4 mr-2" /> Archive
+                </DropdownMenuItem>
+              )}
+              {/* ── Delete ── */}
+              {onDelete && (
+                <DropdownMenuItem
+                  onClick={() => {
+                    setDeleteTarget({ id: campaign.id, name: campaign.name });
+                    setDeleteDialogOpen(true);
+                  }}
+                  className="cursor-pointer text-destructive focus:text-destructive"
+                >
+                  <Trash className="h-4 w-4 mr-2" /> Delete
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -338,23 +462,23 @@ export function CampaignsView({
 
   return (
     <div className="space-y-4">
-      {/* Search + Status Filter Bar */}
-      {showFilters && (
+      {/* Search + Status Filter Bar — hidden when parent controls filters or showFilters=false */}
+      {showFilters && !isControlled && (
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
           {/* Search */}
           <div className="relative flex-1 max-w-sm">
             <input
               type="text"
               placeholder="Search campaigns..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={internalSearchTerm}
+              onChange={(e) => setInternalSearchTerm(e.target.value)}
               className="w-full h-10 pl-10 pr-4 rounded-md border border-border bg-background text-sm font-medium outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring transition-all placeholder:text-muted-foreground"
             />
             <GraphUp className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           </div>
 
           {/* Status Dropdown */}
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select value={internalStatusFilter} onValueChange={setInternalStatusFilter}>
             <SelectTrigger className="w-[160px] h-10 border-border bg-card rounded-md font-medium text-foreground shadow-sm hover:border-primary/50 transition-colors">
               <SelectValue placeholder="All Statuses" />
             </SelectTrigger>
@@ -374,6 +498,14 @@ export function CampaignsView({
             {displayCampaigns.length !== 1 ? "s" : ""}
           </span>
         </div>
+      )}
+
+      {/* Row count when controlled (no inner filter bar) */}
+      {isControlled && filteredCampaigns.length !== displayCampaigns.length && (
+        <p className="text-xs text-muted-foreground">
+          Showing {filteredCampaigns.length} of {displayCampaigns.length} campaign
+          {displayCampaigns.length !== 1 ? "s" : ""}
+        </p>
       )}
 
       <DataTable
@@ -420,6 +552,107 @@ export function CampaignsView({
           )
         }
       />
+
+      {/* ── Rename Dialog ── */}
+      <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Rename Ad</DialogTitle>
+          </DialogHeader>
+          <div className="py-2">
+            <Input
+              id="rename-input"
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && renameTarget && renameValue.trim()) {
+                  onRename?.(renameTarget.id, renameValue);
+                  setRenameDialogOpen(false);
+                }
+              }}
+              placeholder="Ad name"
+              className="w-full"
+              autoFocus
+              maxLength={150}
+            />
+            <p className="text-xs text-muted-foreground mt-1.5">
+              {renameValue.length}/150 characters
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!renameValue.trim() || renameValue.trim() === renameTarget?.name}
+              onClick={() => {
+                if (renameTarget && renameValue.trim()) {
+                  onRename?.(renameTarget.id, renameValue);
+                  setRenameDialogOpen(false);
+                }
+              }}
+            >
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Archive Confirmation ── */}
+      <AlertDialog open={archiveDialogOpen} onOpenChange={setArchiveDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive this ad?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong className="text-foreground">{archiveTarget?.name}</strong> will be hidden from active views.
+              It will remain on Meta untouched — you can still view it in completed campaigns.
+              This only affects your Tenzu dashboard.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-amber-500 hover:bg-amber-600 text-white"
+              onClick={() => {
+                if (archiveTarget) {
+                  onArchive?.(archiveTarget.id);
+                  setArchiveDialogOpen(false);
+                }
+              }}
+            >
+              Archive
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ── Delete Confirmation ── */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Permanently delete this ad?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong className="text-foreground">{deleteTarget?.name}</strong> will be deleted from Meta and
+              permanently removed from Tenzu. This action cannot be undone.
+              Draft ads (not yet launched) will only be removed from Tenzu.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              onClick={() => {
+                if (deleteTarget) {
+                  onDelete?.(deleteTarget.id);
+                  setDeleteDialogOpen(false);
+                }
+              }}
+            >
+              Delete permanently
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

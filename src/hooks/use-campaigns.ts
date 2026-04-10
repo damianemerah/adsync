@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { launchCampaign, updateCampaignStatus, duplicateCampaign } from "@/actions/campaigns";
+import { launchCampaign, updateCampaignStatus, duplicateCampaign, deleteCampaign, archiveCampaign, renameCampaign } from "@/actions/campaigns";
 import { useActiveOrgContext } from "@/components/providers/active-org-provider";
 
 export function useCampaigns() {
@@ -183,6 +183,57 @@ export function useCampaigns() {
     },
   });
 
+  // 6. Delete Campaign Mutation (Meta DELETE + DB hard delete)
+  const deleteCampaignMutation = useMutation({
+    mutationFn: async ({ id }: { id: string }) => {
+      const result = await deleteCampaign(id);
+      if (!result.success) throw new Error(result.error);
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["campaigns", activeOrgId] });
+      toast.success("Ad deleted", { description: "The ad has been permanently removed." });
+      router.refresh();
+    },
+    onError: (error: any) => {
+      toast.error("Failed to delete ad", { description: error.message });
+    },
+  });
+
+  // 7. Archive Campaign Mutation (app-only — DB status='completed')
+  const archiveCampaignMutation = useMutation({
+    mutationFn: async ({ id }: { id: string }) => {
+      const result = await archiveCampaign(id);
+      if (!result.success) throw new Error(result.error);
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["campaigns", activeOrgId] });
+      toast.success("Ad archived", { description: "The ad has been archived and hidden from active views." });
+      router.refresh();
+    },
+    onError: (error: any) => {
+      toast.error("Failed to archive ad", { description: error.message });
+    },
+  });
+
+  // 8. Rename Campaign Mutation
+  const renameCampaignMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      const result = await renameCampaign(id, name);
+      if (!result.success) throw new Error(result.error);
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["campaigns", activeOrgId] });
+      toast.success("Ad renamed successfully");
+      router.refresh();
+    },
+    onError: (error: any) => {
+      toast.error("Failed to rename ad", { description: error.message });
+    },
+  });
+
   return {
     ...query,
     // Sync
@@ -197,5 +248,14 @@ export function useCampaigns() {
     // Duplicate
     duplicateCampaign: duplicateCampaignMutation.mutate,
     isDuplicating: duplicateCampaignMutation.isPending,
+    // Delete
+    deleteCampaign: deleteCampaignMutation.mutate,
+    isDeleting: deleteCampaignMutation.isPending,
+    // Archive
+    archiveCampaign: archiveCampaignMutation.mutate,
+    isArchiving: archiveCampaignMutation.isPending,
+    // Rename
+    renameCampaign: renameCampaignMutation.mutate,
+    isRenaming: renameCampaignMutation.isPending,
   };
 }

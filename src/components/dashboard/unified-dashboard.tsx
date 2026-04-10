@@ -62,10 +62,27 @@ export function UnifiedDashboard({
   // Live-fetch campaigns from DB
   const { data: liveCampaigns } = useCampaigns();
   const allCampaigns = liveCampaigns ?? campaigns;
-  const displayCampaigns =
-    status === "all"
-      ? allCampaigns
-      : allCampaigns.filter((c: any) => c.status === status);
+
+  // Apply ALL GlobalContextBar filters to the campaign list
+  const displayCampaigns = allCampaigns.filter((c: any) => {
+    // Platform filter
+    if (selectedPlatform && selectedPlatform !== "all" && c.platform !== selectedPlatform) {
+      return false;
+    }
+    // Account filter
+    if (selectedAccountId && c.ad_account_id !== selectedAccountId) {
+      return false;
+    }
+    // Selected campaign IDs filter ("all" means no filter)
+    if (!selectedCampaignIds.includes("all") && !selectedCampaignIds.includes(c.id)) {
+      return false;
+    }
+    // Status filter
+    if (status !== "all" && c.status !== status) {
+      return false;
+    }
+    return true;
+  });
 
   // Track which metric cards the user has toggled ON
   const [healthDialogOpen, setHealthDialogOpen] = useState(false);
@@ -235,6 +252,31 @@ export function UnifiedDashboard({
             </CardContent>
           </Card>
 
+          {/* Campaigns Table */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-bold text-lg text-foreground">
+                Recent Campaigns
+              </h2>
+              <Link href="/campaigns">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-sm text-muted-foreground hover:text-primary"
+                >
+                  View All
+                </Button>
+              </Link>
+            </div>
+            <CampaignsView
+              campaigns={displayCampaigns}
+              pageSize={5}
+              showFilters={false}
+              defaultSort="active-first"
+              onRowClick={(id) => router.push(`/dashboard?campaign=${id}`)}
+            />
+          </div>
+
           {/* Revenue Breakdown & Demographics Grid */}
           <div className="grid gap-8 lg:grid-cols-3">
             <div className="lg:col-span-1 h-full">
@@ -259,7 +301,7 @@ export function UnifiedDashboard({
           </div>
 
           {/* Campaigns Table */}
-          <div className="space-y-4">
+          {/* <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="font-bold text-lg text-foreground">
                 Recent Campaigns
@@ -279,7 +321,7 @@ export function UnifiedDashboard({
               pageSize={5}
               onRowClick={(id) => router.push(`/dashboard?campaign=${id}`)}
             />
-          </div>
+          </div> */}
         </div>
       </main>
       <CampaignDetailSheet />

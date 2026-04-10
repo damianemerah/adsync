@@ -397,7 +397,9 @@ export const MetaService = {
       billing_event: billingEvent,
       optimization_goal: optimizationGoal,
       bid_strategy: "LOWEST_COST_WITHOUT_CAP",
-      status: "PAUSED",
+      // ACTIVE — the parent Campaign is PAUSED (the kill-switch).
+      // Ad Set must be ACTIVE so activating the Campaign is all that's needed.
+      status: "ACTIVE",
       targeting: targetingPayload,
       start_time: new Date(Date.now() + 10 * 60000).toISOString(),
       ...(promotedObject && { promoted_object: promotedObject }),
@@ -488,6 +490,32 @@ export const MetaService = {
     }
   },
 
+  /**
+   * Fetch Meta's auto-generated thumbnails for an uploaded video.
+   * Meta requires image_hash or image_url in video_data (error_subcode 1443226).
+   * Returns the preferred thumbnail URI, or the first one if none is marked preferred.
+   */
+  getVideoThumbnail: async (
+    token: string,
+    videoId: string,
+  ): Promise<string | null> => {
+    try {
+      const data = await MetaService.request(
+        `/${videoId}/thumbnails?fields=uri,is_preferred`,
+        "GET",
+        token,
+      );
+      const thumbnails: Array<{ uri: string; is_preferred: boolean }> =
+        data.data || [];
+      if (thumbnails.length === 0) return null;
+      const preferred = thumbnails.find((t) => t.is_preferred);
+      return (preferred ?? thumbnails[0]).uri;
+    } catch (e) {
+      console.warn("⚠️ [Meta API] Failed to fetch video thumbnail:", e);
+      return null;
+    }
+  },
+
   // 4. Create Ad (The Creative)
   // Supports both single image ads and carousel ads (2-10 images)
   createAd: async (
@@ -505,6 +533,7 @@ export const MetaService = {
       link?: string;
     }>,
     videoId?: string,
+    thumbnailUrl?: string | null,
   ) => {
     const id = adAccountId.startsWith("act_")
       ? adAccountId
@@ -561,20 +590,27 @@ export const MetaService = {
       );
     } else if (videoId) {
       // Video Ad Format
-      linkData = isLead
-        ? {
-            video_id: videoId,
-            message: copy.primaryText,
-            title: copy.headline,
-            call_to_action: callToAction,
-          }
+      // NOTE: `video_data` in object_story_spec does NOT support a top-level `link` field.
+      // (Meta error_subcode 1443050). For traffic/sales objectives the destination URL
+      // must be nested inside call_to_action.value.link — never at the video_data root.
+      const videoCallToAction = isLead
+        ? callToAction
         : {
-            video_id: videoId,
-            link: copy.destinationUrl,
-            message: copy.primaryText,
-            title: copy.headline,
-            call_to_action: callToAction,
+            ...callToAction,
+            value: {
+              ...(callToAction.value ?? {}),
+              link: copy.destinationUrl,
+            },
           };
+
+      linkData = {
+        video_id: videoId,
+        message: copy.primaryText,
+        title: copy.headline,
+        call_to_action: videoCallToAction,
+        // Meta requires a thumbnail in video_data (error_subcode 1443226)
+        ...(thumbnailUrl && { image_url: thumbnailUrl }),
+      };
     } else {
       // Single Image Ad Format
       const singleHash = Array.isArray(creativeHash)
@@ -613,6 +649,13 @@ export const MetaService = {
           page_id: copy.pageId,
           ...(videoId ? { video_data: linkData } : { link_data: linkData }),
         },
+        degrees_of_freedom_spec: {
+          creative_features_spec: {
+            standard_enhancements: {
+              enroll_status: "OPT_IN"
+            }
+          }
+        }
       },
     );
 
@@ -620,7 +663,9 @@ export const MetaService = {
       name: isCarousel ? "AdSync Carousel Ad" : videoId ? "AdSync Video Ad 1" : "AdSync Ad 1",
       adset_id: adSetId,
       creative: { creative_id: creativeRes.id },
-      status: "PAUSED",
+      // ACTIVE — the parent Campaign (PAUSED) is the kill-switch.
+      // Ad must be ACTIVE so activating the Campaign starts delivery immediately.
+      status: "ACTIVE",
     });
   },
 
@@ -783,6 +828,31 @@ export const MetaService = {
     );
   },
 
+  // Fetch Ad Sets for a Campaign (used for cascade status updates)
+  getCampaignAdSets: async (token: string, campaignId: string): Promise<Array<{ id: string }>> => {
+    const data = await MetaService.request(
+      `/${campaignId}/adsets?fields=id&limit=50`,
+      "GET",
+      token,
+    );
+    return data.data || [];
+  },
+
+  // Fetch Ads for an Ad Set (used for cascade status updates)
+  getAdSetAds: async (token: string, adSetId: string): Promise<Array<{ id: string }>> => {
+    const data = await MetaService.request(
+      `/${adSetId}/ads?fields=id&limit=50`,
+      "GET",
+      token,
+    );
+    return data.data || [];
+  },
+
+  // Update status of a single ad set or ad
+  updateObjectStatus: async (token: string, objectId: string, status: "ACTIVE" | "PAUSED") => {
+    return MetaService.request(`/${objectId}`, "POST", token, { status });
+  },
+
   /**
    * Send a server-side conversion event to Meta via the Conversions API (CAPI).
    *
@@ -914,5 +984,26 @@ export const MetaService = {
       "GET",
       token,
     );
+  },
+
+  /**
+   * Hard-delete a campaign on Meta (DELETED status — irreversible).
+   * Meta's Graph API uses a DELETE HTTP verb for this.
+   * Only call this when the user explicitly wants to permanently remove the campaign from Meta.
+   */
+  deleteCampaign: async (token: string, campaignId: string): Promise<{ success: boolean }> => {
+    return MetaService.request(`/${campaignId}`, "DELETE", token);
+  },
+
+  /**
+   * Rename a campaign on Meta by sending a POST with `name`.
+   * Meta allows renaming a PAUSED or ACTIVE campaign — DELETED campaigns cannot be renamed.
+   */
+  renameCampaign: async (
+    token: string,
+    campaignId: string,
+    newName: string,
+  ): Promise<{ success: boolean }> => {
+    return MetaService.request(`/${campaignId}`, "POST", token, { name: newName });
   },
 };

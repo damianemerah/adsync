@@ -19,7 +19,7 @@ import { DashboardEmptyState } from "@/components/dashboard/empty-state";
 
 function CampaignsPageContent() {
   const router = useRouter();
-  const { data: campaigns, isLoading, duplicateCampaign } = useCampaigns();
+  const { data: campaigns, isLoading, duplicateCampaign, deleteCampaign, archiveCampaign, renameCampaign } = useCampaigns();
   const { data: accounts, isLoading: isLoadingAccounts } = useAdAccounts();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -173,12 +173,17 @@ function CampaignsPageContent() {
       <main className="flex-1 overflow-y-auto p-6 lg:p-8">
         <div className="mx-auto max-w-[1600px]">
           <CampaignsView
-            key={`${selectedPlatform}-${selectedAccountId}-${status}-${searchQuery}-${JSON.stringify(dateRange)}`}
             campaigns={filteredCampaigns || []}
             onRowClick={(id) => handleOpen(id)}
             onDuplicate={(id) => duplicateCampaign({ id })}
+            onDelete={(id) => deleteCampaign({ id })}
+            onArchive={(id) => archiveCampaign({ id })}
+            onRename={(id, name) => renameCampaign({ id, name })}
             isLoading={isLoading}
             pageSize={10}
+            defaultSort="recent"
+            controlledStatus={status}
+            controlledSearch={searchQuery}
           />
         </div>
       </main>
