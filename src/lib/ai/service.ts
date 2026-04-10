@@ -40,6 +40,8 @@ GEO STRATEGY — Nigeria: Meta does NOT support city-level targeting in Nigeria.
       : "";
 
   return `${persona} Use your available skills to determine the best strategy and generate high-converting ad copy. Structure your response according to the provided JSON schema.${ngGeoConstraint}${globalGeoHint}
+
+
 When a <site> tag is present, use it to ground the copy in the business's real product language, pricing, and brand voice — extract specifics (product names, prices, key benefits) and prefer them over generic phrasing.
 
 When a <gaps> tag is present, it lists the ONE context slot most worth asking about.
@@ -56,20 +58,22 @@ Each follow_up has:
 - instruction: the refinement instruction sent to AI if clicked (e.g. "Add a specific price range to the copy, keeping the existing tone and structure")
 Suggest only meaningful copy improvements not already covered by refinement_question. Do NOT suggest location or delivery method as follow_ups.
 
-INTERESTS — generate 10–12 SINGLE-WORD nouns (exactly 1 word each) covering different facets of this audience.
+INTERESTS — generate 10–15 short search keywords (1-2 words max) covering different facets of this audience.
 These are search keywords, not the final list — a second AI will select the best 5–7 from what Meta returns.
 More variety = better final targeting. Include both core interests and adjacent ones.
-Meta's search autocomplete works on root nouns — a single word like "Privacy" surfaces "Internet privacy", "Online privacy" etc.
-Using two words (e.g. "digital privacy") returns zero results. NEVER output multi-word interests.
-Avoid brand names, country names, and suffixes like "lovers" or "enthusiasts".
-Prefer Nigeria-relevant terms when they fit the business. Examples:
-"Fashion", "Clothing", "Shopping", "Business", "Cooking", "Technology",
-"Beauty", "Property", "Nollywood", "Gospel", "Entrepreneurship", "Football",
-"Health", "Skincare", "Wedding", "Decor", "Shoes", "Investment", "Privacy",
-"Security", "Fitness", "Travel", "Photography", "Gaming", "Parenting".
 
-BEHAVIORS — generate 5–8 short search keywords (1–2 words max) describing user purchase behaviors.
-These are search keywords, not the final list — a second AI will select the best 3–5 from what Meta returns. More variety = better final targeting.
+Capture LATENT INTENT: Think about related purchases, use-cases, and end-goals of the customer.
+Examples of latent intent mapping (this logic applies to ANY business niche):
+- Virtual number → "Gift Card", "Amazon", "Freelancing", "Telegram", "WhatsApp Business"
+- Real estate → "Real Estate", "Mortgage", "Property Investment", "Luxury"
+- Freelance tool → "Upwork", "Fiverr", "Client Management", "Freelancer"
+- Course creators → "Online Courses", "Skillshare", "E-learning"
+
+IMPORTANT: Meta works best with 1-2 words. Keep compound nouns intact (e.g., "Gift Card", "Real Estate"), but avoid verbose phrases. Quality > Quantity. NEVER output interests with more than 2 words.
+Meta's search autocomplete works on root nouns — a single word like "Privacy" surfaces "Internet privacy", "Online privacy" etc.
+Avoid brand names (unless highly relevant like Amazon/Upwork examples), country names, and suffixes like "lovers" or "enthusiasts".
+
+BEHAVIORS — generate 5–8 short search keywords (1–2 words max) describing user purchase behaviors(NOT final list).
 Meta behavior targeting uses short, established phrases — keep them concise.
 Examples: "Shopping", "Payments", "Travelers", "Entrepreneurs", "Shoppers".
 Be specific to the business type and customer profile.
@@ -317,7 +321,13 @@ const openai = new OpenAI({
 // Exported so ai-images.ts can reference imageCreative without duplication.
 export const SKILL_IDS = {
   coreStrategy: process.env.SKILL_ID_CORE_STRATEGY_NG!,
-  copyVerticals: process.env.SKILL_ID_COPY_VERTICALS_NG!, // merged: fashion/beauty/food/services/b2b/general
+  // Split vertical skills (replaces the merged copy-verticals-ng)
+  copyFashion: process.env.SKILL_ID_COPY_FASHION_NG!,
+  copyBeauty: process.env.SKILL_ID_COPY_BEAUTY_NG!,
+  copyFood: process.env.SKILL_ID_COPY_FOOD_NG!,
+  copyServices: process.env.SKILL_ID_COPY_SERVICES_NG!,
+  copySoftware: process.env.SKILL_ID_COPY_SOFTWARE_NG!,
+  // Dedicated skills (unchanged)
   copyElectronics: process.env.SKILL_ID_COPY_ELECTRONICS_NG!,
   copyEvents: process.env.SKILL_ID_COPY_EVENTS_NG!,
   policyGuard: process.env.SKILL_ID_POLICY_GUARD_NG!,
@@ -343,13 +353,20 @@ function buildSkillList(
 ): any[] {
   const type = businessType ?? "general";
 
-  // electronics and events have dedicated skills; everything else uses copy-verticals-ng
-  const verticalSkillId =
-    type === "electronics"
-      ? SKILL_IDS.copyElectronics
-      : type === "events"
-        ? SKILL_IDS.copyEvents
-        : SKILL_IDS.copyVerticals;
+  // Each vertical loads its own focused skill (~500 tokens) instead of
+  // the merged copy-verticals-ng (~2,200 tokens). Saves ~1,600 tokens/call.
+  const VERTICAL_SKILL_MAP: Record<string, string> = {
+    fashion: SKILL_IDS.copyFashion,
+    beauty: SKILL_IDS.copyBeauty,
+    food: SKILL_IDS.copyFood,
+    electronics: SKILL_IDS.copyElectronics,
+    events: SKILL_IDS.copyEvents,
+    b2b: SKILL_IDS.copyServices,
+    software: SKILL_IDS.copySoftware,
+    general: SKILL_IDS.copyServices,
+  };
+
+  const verticalSkillId = VERTICAL_SKILL_MAP[type] ?? SKILL_IDS.copyServices;
 
   const skills = [
     { type: "skill_reference", skill_id: SKILL_IDS.coreStrategy },
@@ -469,23 +486,20 @@ function normalizeInterests(interests: string[]): string[] {
       s = s.replace(INTEREST_DESCRIPTOR_PREFIX, "");
       s = s.trim();
 
-      // ── Single-word enforcement ────────────────────────────────────────────
-      // If the AI produced a multi-word term despite instructions (e.g. "Hair care"),
-      // keep only the most meaningful token. We pick the longest word as it is
-      // usually the root noun ("care" from "Hair care" → "Care" is acceptable;
-      // for "Online shopping" → "Shopping" is correct).
-      // This is a safety net — the prompt should handle it first.
+      // ── Word limit enforcement ────────────────────────────────────────────
+      // Meta compound interests max reliably at 1-2 words.
+      // If > 2 words (e.g., "Online Gift Card Buyers"), kill the phrase.
+      // If 1-2 words (e.g., "Gift Card", "Real Estate"), keep it intact.
       const words = s.split(/\s+/).filter(Boolean);
-      if (words.length > 1) {
-        // Pick the longest word (the root noun tends to be longer)
-        s = words.reduce((a, b) => (b.length >= a.length ? b : a), words[0]);
+      if (words.length > 2) {
+        return ""; // Kill verbose phrases
       }
 
       s = s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
       return s;
     })
     .filter((s) => {
-      if (s.length < 3 || s.length > 30) return false;
+      if (!s || s.length < 3 || s.length > 30) return false;
       const key = s.toLowerCase();
       if (seen.has(key)) return false;
       seen.add(key);
@@ -503,6 +517,7 @@ function buildUserMessage(
 ): string {
   const lines: string[] = [`<biz>${input.businessDescription}</biz>`];
   const ctxParts: string[] = [];
+
 
   if (extracted) {
     // Local preprocessor already ran — use its output directly
@@ -597,6 +612,7 @@ const TRIAGE_SCHEMA = {
             "electronics",
             "events",
             "b2b",
+            "software",
             "general",
             "unknown",
           ] as const,
@@ -649,6 +665,7 @@ export interface TriageResult {
       | "electronics"
       | "events"
       | "b2b"
+      | "software"
       | "general"
       | "unknown";
     lifeSignals: string;
@@ -972,29 +989,32 @@ export async function generateAndSaveStrategy(
     // When the user pasted a URL, augment the triage description with a brief
     // excerpt of the scraped content so triage can classify it correctly.
     // Without this, a bare URL → empty description → TYPE_B (clarification) instead of TYPE_A.
+    // When a URL was detected but scraping failed, signal triage so it can ask
+    // the user to describe their product instead of generating generic copy.
     const triageDescription = input.siteContext
       ? `${input.businessDescription ? input.businessDescription + "\n" : ""}[Website content excerpt]: ${input.siteContext.substring(0, 300)}`
-      : input.businessDescription;
+      : input.detectedUrl
+        ? `${input.businessDescription}\n[URL detected: ${input.detectedUrl} — page could not be fetched]`
+        : input.businessDescription;
 
     // Normalize generic confirmation phrases: if the user sent "yes", "proceed", etc.
     // and the org has a business_description, use it as the effective description so
     // the generator has actual product context (replaces the old forceGenerate route logic).
-    const isGenericConfirmation = /^(yes|proceed|go ahead|ok|okay|yep|sure|do it|yes proceed|make it|create it|do am|oya do am)$/i.test(
+    const isGenericConfirmation = /^(yes|proceed|go ahead|ok|okay|yep|sure|do it|yes proceed|yes, proceed|make it|create it|do am|oya do am)$/i.test(
       (input.businessDescription || "").trim(),
     );
     effectiveDescription = (isGenericConfirmation && input.orgBusinessDescription)
       ? input.orgBusinessDescription
       : triageDescription;
 
-    // // When the user confirmed a TYPE_G proposal ("Yes, proceed"), bypass triage entirely
-    // // and force full generation. Triage would see the confirmation phrase (or org description)
-    // // in context of a prior TYPE_G exchange and misclassify it as TYPE_E (noop).
-    // const previousConfirmRequest = conversationHistory.some(
-    //   (m) => m.role === "ai" && /want me to proceed|shall i proceed|should i proceed|want me to go ahead/i.test(m.content),
-    // );
-    // if (isGenericConfirmation && previousConfirmRequest) {
-    //   console.log("🔍 [Triage] Confirmation of TYPE_G — skipping triage, forcing full generation.");
-    // } else {
+    // When the user confirmed a TYPE_G proposal, bypass triage entirely and force full
+    // generation. Triage would see the confirmation phrase in context of the prior TYPE_G
+    // exchange and misclassify it as TYPE_E (sign-off) → noop.
+    const hasPriorAiMessage = conversationHistory.some((m) => m.role === "ai");
+    if (isGenericConfirmation && hasPriorAiMessage && input.orgBusinessDescription) {
+      console.log("🔍 [Triage] TYPE_G confirmation — bypassing triage, forcing full generation.");
+      // effectiveDescription is already set to orgBusinessDescription above; fall through to full gen.
+    } else {
       console.log("🔍 [Triage] Description:", effectiveDescription);
 
       const triage = await triageInput(
@@ -1122,7 +1142,7 @@ export async function generateAndSaveStrategy(
         },
       };
     }
-    // } // end else (non-confirmation triage path)
+    } // end else (non-confirmation triage path)
   } catch (triageErr) {
     // Safe degradation: triage failure falls through to full generation
     console.warn("[Triage] Failed, proceeding with full gen:", triageErr);

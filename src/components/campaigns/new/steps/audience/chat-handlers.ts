@@ -184,6 +184,7 @@ export interface Phase2Params {
   ctaIntent: string;
   businessType: string;
   targetingMode?: string;
+  locations?: string[];
 }
 
 /**
@@ -209,6 +210,7 @@ export function runPhase2Targeting(
       ctaIntent: params.ctaIntent,
       businessType: params.businessType,
       targetingMode: params.targetingMode,
+      locations: params.locations,
       interests: params.interestNames,
       behaviors: params.behaviorNames,
       lifeEvents: params.lifeEventNames,

@@ -2,11 +2,9 @@ import {
   Facebook,
   MoreVert,
   Star,
-  CreditCard,
   WarningCircle,
 } from "iconoir-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -24,22 +22,22 @@ export function StatusBadge({
 }: {
   status: Database["public"]["Tables"]["ad_accounts"]["Row"]["health_status"];
 }) {
-  const styles = {
-    active: "bg-green-50 text-green-700 border-green-200",
+  const styles: Record<string, string> = {
+    healthy: "bg-green-50 text-green-700 border-green-200",
     payment_failed: "bg-red-50 text-red-700 border-red-200",
     disabled: "bg-slate-100 text-slate-600 border-slate-200",
     not_connected: "bg-slate-100 text-slate-400",
   };
 
-  const currentStyle = styles[status as keyof typeof styles] || styles.disabled;
-  const label = status?.replace("_", " ") || "unknown";
+  const currentStyle = styles[status as string] ?? styles.disabled;
+  const label = status?.replace(/_/g, " ") ?? "unknown";
 
   return (
     <Badge
       variant="outline"
-      className={cn(`border ${currentStyle} font-medium capitalize h-6 px-2`)}
+      className={cn(`border ${currentStyle} font-medium capitalize`)}
     >
-      {status === "active" && (
+      {status === "healthy" && (
         <span className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1.5 animate-pulse" />
       )}
       {status === "payment_failed" && (
@@ -64,103 +62,66 @@ export function CompactAccountCard({
   const isMeta = account.platform === "meta";
 
   return (
-    <Card
+    <div
       className={cn(
-        `group hover:shadow-sm border border-border transition-all duration-300`,
-        account.isDefault ? "ring-1 ring-blue-600 border-blue-600/50" : "",
+        "grid grid-cols-[1fr_auto_auto] items-center gap-4 px-5 py-4 hover:bg-muted/30 transition-colors",
+        account.isDefault && "bg-blue-50/40",
       )}
     >
-      <CardContent className="p-5">
-        {/* Header: Icon + Name + Menu */}
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div
-              className={cn(
-                `h-10 w-10 rounded-lg flex items-center justify-center text-white shadow-sm`,
-                isMeta ? "bg-blue-600" : "bg-black",
-              )}
-            >
-              {isMeta ? (
-                <Facebook className="h-5 w-5" />
-              ) : (
-                <span className="font-bold">Tk</span>
-              )}
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h3
-                  className="font-bold text-slate-900 truncate max-w-[120px]"
-                  title={account.nickname || account.name}
-                >
-                  {account.nickname || account.name}
-                </h3>
-                {account.isDefault && (
-                  <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />
-                )}
-              </div>
-              <p className="text-[10px] font-mono text-slate-400">
-                ID: {account.accountId}
-              </p>
-            </div>
-          </div>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 -mr-2 text-slate-400 hover:text-slate-700"
-              >
-                <MoreVert className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={onSetDefault}
-                disabled={account.isDefault}
-              >
-                Make Default
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onRename}>Rename</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-red-600 focus:text-red-600 focus:bg-red-50"
-                onClick={onDisconnect} // Hook it up here
-              >
-                Disconnect
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+      {/* Name + ID */}
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="h-9 w-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
+          {isMeta ? (
+            <Facebook className="h-4 w-4 text-primary" />
+          ) : (
+            <span className="font-bold text-xs text-primary">Tk</span>
+          )}
         </div>
-
-        {/* Body: Balance */}
-        <div className="mb-4">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
-            Available Credit
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5">
+            <p className="font-medium text-sm text-foreground truncate">
+              {account.nickname || account.name}
+            </p>
+            {account.isDefault && (
+              <Star className="h-3 w-3 text-yellow-500 fill-yellow-500 shrink-0" />
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground truncate">
+            {account.accountId} •{" "}
+            {isMeta ? "Meta" : "TikTok"}
           </p>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-slate-900">
-              {account.balance}
-            </span>
-            <span className="text-xs text-slate-400">
-              / {account.spendCap} limit
-            </span>
-          </div>
         </div>
+      </div>
 
-        {/* Footer: Status & Pay Method */}
-        <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-          <StatusBadge status={account.status} />
+      {/* Status */}
+      <StatusBadge status={account.status} />
 
-          <div
-            className="flex items-center gap-1.5 text-xs text-slate-500"
-            title="Payment Method"
+      {/* Action menu */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
           >
-            <CreditCard className="h-3 w-3" />
-            <span>•••• {account.paymentMethod.last4}</span>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+            <MoreVert className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={onSetDefault} disabled={account.isDefault}>
+            <Star className="h-3.5 w-3.5 mr-2" />
+            Make Default
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onRename}>Rename</DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            className="text-red-600 focus:text-red-600 focus:bg-red-50"
+            onClick={onDisconnect}
+          >
+            Disconnect
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }

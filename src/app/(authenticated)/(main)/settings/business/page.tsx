@@ -2,7 +2,11 @@ import { createClient } from "@/lib/supabase/server";
 import { getActiveOrgId } from "@/lib/active-org";
 import { BusinessTab } from "../business-tab";
 
-export default async function BusinessSettingsPage() {
+export default async function BusinessSettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ meta_session?: string }>;
+}) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -26,5 +30,13 @@ export default async function BusinessSettingsPage() {
         .single()
     : { data: null };
 
-  return <BusinessTab organization={organization} activeOrgId={activeOrgId} />;
+  const { meta_session } = await searchParams;
+
+  return (
+    <BusinessTab
+      organization={organization}
+      activeOrgId={activeOrgId}
+      metaSessionId={meta_session}
+    />
+  );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { syncCampaignInsights, syncCampaignAds } from "@/actions/campaigns";
 import { toast } from "sonner";
 import { ROIMetricsCard } from "@/components/campaigns/roi-metrics-card";
@@ -61,6 +61,7 @@ interface CampaignDetailViewProps {
 export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const { updateStatus, isUpdating } = useCampaigns();
   const [activeMetrics, setActiveMetrics] = useState<MetricKey[]>([
     "revenue",
@@ -79,7 +80,7 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
     } else {
       current.set("tab", value);
     }
-    router.push(`/campaigns?${current.toString()}`);
+    router.push(`${pathname}?${current.toString()}`);
   };
 
   // Determine if this is a lead gen campaign

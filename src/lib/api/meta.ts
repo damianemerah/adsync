@@ -89,14 +89,28 @@ export const MetaService = {
     accessToken: string,
     body?: any,
   ) {
-    const res = await fetch(`${BASE_URL}${endpoint}`, {
-      method,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: body ? JSON.stringify(body) : undefined,
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30_000);
+
+    let res: Response;
+    try {
+      res = await fetch(`${BASE_URL}${endpoint}`, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: body ? JSON.stringify(body) : undefined,
+        signal: controller.signal,
+      });
+    } catch (err: any) {
+      if (err.name === "AbortError") {
+        throw new Error("Meta API request timed out after 30 seconds");
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeout);
+    }
 
     const data = await res.json();
 
@@ -183,7 +197,10 @@ export const MetaService = {
       "GET",
       token,
     );
-    return data.data || [];
+    // Filter to only items that are actually industries — guards against cross-category results.
+    return (data.data || []).filter(
+      (item: any) => !item.type || item.type === "industries",
+    );
   },
 
   searchBehaviors: async (
@@ -208,7 +225,11 @@ export const MetaService = {
       "GET",
       token,
     );
-    return data.data || [];
+    // Filter to only items that are actually behaviors — Meta's search can return
+    // cross-category results (e.g. interests) even when class=behaviors is specified.
+    return (data.data || []).filter(
+      (item: any) => !item.type || item.type === "behaviors",
+    );
   },
 
   searchLifeEvents: async (
@@ -233,7 +254,10 @@ export const MetaService = {
       "GET",
       token,
     );
-    return data.data || [];
+    // Filter to only items that are actually life events — guards against cross-category results.
+    return (data.data || []).filter(
+      (item: any) => !item.type || item.type === "life_event",
+    );
   },
 
   searchLocation: async (
@@ -637,9 +661,8 @@ export const MetaService = {
     const id = adAccountId.startsWith("act_")
       ? adAccountId
       : `act_${adAccountId}`;
-    // v25.0: Added media_views, media_viewers (new metrics)
     return MetaService.request(
-      `/${id}/insights?date_preset=last_30d&level=account&fields=spend,impressions,clicks,cpc,ctr,cpm,reach,media_views,media_viewers`,
+      `/${id}/insights?date_preset=last_30d&level=account&fields=spend,impressions,clicks,cpc,ctr,cpm,reach,media_views`,
       "GET",
       token,
     );
@@ -652,9 +675,8 @@ export const MetaService = {
   getCampaignInsights: async (token: string, campaignId: string) => {
     // time_increment=1 gives us daily breakdown
     // date_preset=last_30d covers the standard view
-    // v25.0: Added media_views, media_viewers (new metrics for video/reel content)
     return MetaService.request(
-      `/${campaignId}/insights?fields=spend,impressions,clicks,cpc,ctr,reach,media_views,media_viewers&time_increment=1&date_preset=last_30d`,
+      `/${campaignId}/insights?fields=spend,impressions,clicks,cpc,ctr,reach,media_views&time_increment=1&date_preset=last_30d`,
       "GET",
       token,
     );
@@ -671,9 +693,8 @@ export const MetaService = {
 
   // [NEW] Fetch Breakdown specifically for Sub-Placements (Reels vs Feed etc)
   getPlacementInsights: async (token: string, campaignId: string) => {
-    // v25.0: Added media_views, media_viewers for video/reel placement insights
     return MetaService.request(
-      `/${campaignId}/insights?fields=reach,impressions,spend,clicks,cpc,ctr,actions,action_values,media_views,media_viewers&breakdowns=publisher_platform,platform_position&date_preset=maximum`,
+      `/${campaignId}/insights?fields=reach,impressions,spend,clicks,cpc,ctr,actions,action_values,media_views&breakdowns=publisher_platform,platform_position&date_preset=maximum`,
       "GET",
       token,
     );

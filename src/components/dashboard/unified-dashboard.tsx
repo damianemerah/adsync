@@ -14,6 +14,7 @@ import {
 } from "@/components/dashboard/performance-chart";
 import { DemographicsCharts } from "@/components/dashboard/demographics-charts";
 import { CampaignsView } from "@/components/campaigns/campaigns-view";
+import { CampaignDetailSheet } from "@/components/campaigns/campaign-detail-sheet";
 import { RevenueChannelBreakdown } from "@/components/dashboard/revenue-channel-breakdown";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CampaignMetrics } from "@/lib/utils/campaign-metrics";
@@ -276,11 +277,12 @@ export function UnifiedDashboard({
             <CampaignsView
               campaigns={displayCampaigns}
               pageSize={5}
-              onRowClick={(id) => router.push(`/campaigns?id=${id}`)}
+              onRowClick={(id) => router.push(`/dashboard?campaign=${id}`)}
             />
           </div>
         </div>
       </main>
+      <CampaignDetailSheet />
     </div>
   );
 }

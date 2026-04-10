@@ -151,12 +151,45 @@ export async function POST(request: Request) {
   let siteContext: string | null = null;
   let description: string = rawDescription;
 
-  const detectedUrl = rawDescription ? extractUrlFromMessage(rawDescription) : null;
+  let detectedUrl: string | null = rawDescription ? extractUrlFromMessage(rawDescription) : null;
+  console.log("detectedUrl🔥", detectedUrl);
   if (detectedUrl) {
     siteContext = await scrapeUrl(detectedUrl);
-    // Remove the URL from the description so the AI sees clean product text
-    description = rawDescription.replace(detectedUrl, "").trim() || rawDescription;
+    console.log("siteContext🔥", siteContext);
+    if (siteContext) {
+      // Strip URL from description. extractUrlFromMessage normalises bare domains
+      // to https://, so try both the normalised form and whatever the regex matched
+      // in the raw text (e.g. "www.actibuzz.com" vs "https://www.actibuzz.com").
+      const rawMatch = rawDescription.match(
+        /(?:https?:\/\/)?(?:www\.)?[\w-]+\.(?:com|net|org|io|ai|app|co|store|shop|dev|tech|online|site|web|info|biz|ng|za|gh|ke|eg|tz|ug|rw|sn|ci|cm|et|ma|tn|dz|zw|zm|bw|mz|ao)(?:\/[^\s"'<>()[\]{}]*)?\b/i,
+      )?.[0];
+      description = rawDescription
+        .replace(detectedUrl, "")
+        .replace(rawMatch ?? "", "")
+        .trim() || rawDescription;
+    }
+    // If scrape failed, leave description as-is and pass detectedUrl to service
+    // so triage can ask the user to describe their product instead.
     console.log("description🔥", description);
+  } else {
+    // On confirmation turns ("Yes, proceed"), recover siteContext from the URL
+    // the user sent in an earlier message — it won't be in rawDescription anymore.
+    const isConfirmPhrase = /^(yes|proceed|go ahead|ok|okay|yep|sure|do it|yes proceed|yes, proceed|make it|create it|do am|oya do am)$/i.test(
+      rawDescription?.trim() ?? ""
+    );
+    if (isConfirmPhrase && conversationHistory?.length > 0) {
+      for (const msg of conversationHistory) {
+        if (msg.role === "user" && msg.content) {
+          const histUrl = extractUrlFromMessage(msg.content);
+          if (histUrl) {
+            siteContext = await scrapeUrl(histUrl);
+            console.log("siteContext (recovered from history)🔥", siteContext);
+            if (!siteContext) detectedUrl = histUrl; // signal failed scrape
+            break;
+          }
+        }
+      }
+    }
   }
 
   // Resolve objective context
@@ -272,6 +305,7 @@ export async function POST(request: Request) {
         orgWebsite: org?.business_website ?? null,
         orgCountryCode: org?.country_code ?? "NG",
         siteContext,
+        detectedUrl: siteContext ? null : (detectedUrl ?? null),
       },
       conversationHistory ?? [],
       activeOrgId,
@@ -365,9 +399,23 @@ export async function POST(request: Request) {
 
     // Remove usage from client response
     const { usage, ...clientStrategy } = strategy;
+
+    // Guard: if the result contains real copy + headline, always treat it as a full
+    // strategy response — even if meta.input_type is "TYPE_E" or "TYPE_C".
+    // The AI model sometimes tags a completed generation as TYPE_E (sign-off) when
+    // the user confirmed via "Yes, proceed", causing toResponseKind() to return "noop"
+    // and the client to discard the generated copy entirely.
+    const hasGeneratedCopy =
+      Array.isArray(clientStrategy.copy) && clientStrategy.copy.length > 0 &&
+      Array.isArray(clientStrategy.headline) && clientStrategy.headline.length > 0;
+
+    const derivedKind = hasGeneratedCopy
+      ? "strategy"
+      : toResponseKind(clientStrategy.meta?.input_type ?? "");
+
     return NextResponse.json({
       ...clientStrategy,
-      responseKind: toResponseKind(clientStrategy.meta?.input_type ?? ""),
+      responseKind: derivedKind,
       siteContextSummary: siteContext ? siteContext.slice(0, 500) : null,
     });
   } catch (error: any) {

@@ -200,22 +200,34 @@ async function handleWithIssuesAdObjects(
       (issue.error_message as string) ||
       (issue.error_summary as string) ||
       "Unknown issue";
+    const errorCode = issue.error_code as number | undefined;
     const objectId = issue.id as string | undefined;
 
     console.log(
-      `🚨 [with_issues] Level=${level} ID=${objectId} Error="${errorMsg}"`,
+      `🚨 [with_issues] Level=${level} ID=${objectId} Code=${errorCode} Error="${errorMsg}"`,
     );
 
+    // Hard rejections: policy violations, disapprovals (codes 1815xxx range)
+    // Delivery limits: page issues (1487390, 1487391), audience (1487370),
+    // frequency caps, bid too low, etc. — ad is approved but constrained.
+    const isHardRejection =
+      (errorCode !== undefined && errorCode >= 1815000 && errorCode <= 1815999) ||
+      errorMsg.toLowerCase().includes("disapprov") ||
+      errorMsg.toLowerCase().includes("violat") ||
+      errorMsg.toLowerCase().includes("prohibited");
+
     if (level === "AD" && objectId) {
+      const adStatus = isHardRejection ? "rejected" : "limited";
+
       const { error } = await supabase
         .from("ads")
-        .update({ rejection_reason: errorMsg, status: "rejected" })
+        .update({ rejection_reason: errorMsg, status: adStatus })
         .eq("platform_ad_id", objectId);
 
       if (error) {
-        console.error(`Failed to mark ad ${objectId} as rejected:`, error);
+        console.error(`Failed to mark ad ${objectId} as ${adStatus}:`, error);
       } else {
-        console.log(`✅ Ad ${objectId} marked rejected`);
+        console.log(`✅ Ad ${objectId} marked ${adStatus}`);
       }
     } else if (level === "ADSET" && objectId) {
       const { error } = await supabase
@@ -247,13 +259,22 @@ async function handleWithIssuesAdObjects(
       }
     }
 
-    // Determine notification severity by level
-    const title =
-      level === "AD"
+    // Determine notification title and severity by level + rejection type
+    let title: string;
+    let notifType: "critical" | "warning";
+
+    if (level === "AD") {
+      title = isHardRejection
         ? "❌ Ad Rejected by Meta"
-        : level === "ADSET"
-          ? "⚠️ Ad Set Has Issues"
-          : "⚠️ Campaign Has Issues";
+        : "⚠️ Ad Approved But Not Running";
+      notifType = isHardRejection ? "critical" : "warning";
+    } else if (level === "ADSET") {
+      title = "⚠️ Ad Set Has Issues";
+      notifType = "warning";
+    } else {
+      title = "⚠️ Campaign Has Issues";
+      notifType = "warning";
+    }
 
     await sendNotification(
       {
@@ -261,7 +282,7 @@ async function handleWithIssuesAdObjects(
         organizationId: account.organization_id,
         title,
         message: `${errorMsg}. Please review your campaign.`,
-        type: level === "AD" ? "critical" : "warning",
+        type: notifType,
         category: "campaign",
         actionUrl: "/campaigns",
         actionLabel: "View Campaigns",

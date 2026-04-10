@@ -88,52 +88,52 @@ async function fetchInterestCandidatesWithVariants(
 }
 
 /**
- * Uses gpt-5.4-nano to select the best candidate from each keyword's list,
- * given the ad copy and campaign context. Returns a map of keyword → selected Candidate.
+ * Uses gpt-5.4-nano to select the best candidates from the pooled list,
+ * enforcing optimal B2C/B2B limits, given the ad copy and campaign context.
+ * Returns a map of category → selected Candidate[].
  */
 async function selectBestCandidates(
-  categoryMap: Record<string, Map<string, Candidate[]>>,
-  context: { adCopy: string; ctaIntent: string; businessType: string; targetingMode?: string },
-): Promise<Record<string, Map<string, Candidate | null>>> {
-  // Build a flat list of all (category, keyword, candidates) triples that need selection
-  type Slot = {
-    category: string;
-    keyword: string;
-    candidates: Candidate[];
+  categoryMap: Record<string, Candidate[]>,
+  context: { adCopy: string; ctaIntent: string; businessType: string; targetingMode?: string; locations?: string[] },
+): Promise<Record<string, Candidate[]>> {
+  const isB2B = context.targetingMode === "b2b";
+
+  const limits = {
+    interests: isB2B ? "2 to 4" : "4 to 8",
+    behaviors: isB2B ? "1 to 3" : "2 to 4",
+    lifeEvents: "0 to 4",
+    workPositions: isB2B ? "2 to 5" : "0",
+    industries: isB2B ? "1 to 3" : "0",
   };
-  const slots: Slot[] = [];
 
-  for (const [category, kwMap] of Object.entries(categoryMap)) {
-    for (const [keyword, candidates] of kwMap.entries()) {
-      if (candidates.length > 0) {
-        slots.push({ category, keyword, candidates });
-      }
-    }
-  }
-
-  if (slots.length === 0) {
-    const empty: Record<string, Map<string, Candidate | null>> = {};
-    for (const cat of Object.keys(categoryMap)) {
-      empty[cat] = new Map();
-    }
-    return empty;
-  }
-
-  // Build the batched prompt
-  const slotsText = slots
-    .map((slot, i) => {
-      const candidateLines = slot.candidates
-        .map((c, ci) => `  ${ci + 1}. ${c.name} (id: ${c.id})`)
-        .join("\n");
-      return `[${i}] Category: ${slot.category} | Keyword: "${slot.keyword}"\n${candidateLines}`;
+  const slotsText = Object.entries(categoryMap)
+    .filter(([_, candidates]) => candidates.length > 0)
+    .map(([cat, candidates]) => {
+      const limitText = limits[cat as keyof typeof limits];
+      const list = candidates.map((c, i) => `  ${i}. ${c.name} (id: ${c.id})`).join("\n");
+      return `[${cat}] - Select ${limitText} items:\n${list}`;
     })
     .join("\n\n");
 
+  if (!slotsText) {
+    const empty: Record<string, Candidate[]> = {};
+    for (const cat of Object.keys(categoryMap)) empty[cat] = [];
+    return empty;
+  }
+
   const modeGuidance = context.targetingMode === "b2b"
-    ? "This is a B2B campaign targeting businesses or professionals. Prefer options that signal professional intent, job roles, or industry affiliation. Be strict — output 0 for consumer-lifestyle options that don't fit a professional buyer."
+    ? "This is a B2B campaign targeting businesses or professionals. Prefer options that signal professional intent, job roles, or industry affiliation."
     : context.targetingMode === "broad"
-    ? "This is a broad awareness campaign. Only select options with very strong, direct relevance. Output 0 for anything niche or speculative."
+    ? "This is a broad awareness campaign. Only select options with very strong, direct relevance."
     : "This is a B2C campaign targeting individual consumers. Prefer options that match consumer interests, lifestyle, and purchase intent.";
+
+  const locationContext = context.locations && context.locations.length > 0
+    ? `Target locations: ${context.locations.join(", ")}`
+    : "";
+
+  const locationRule = locationContext
+    ? `\nLocation rule: Only select options relevant to users in the target locations above. Avoid brand pages or company-specific interests unless they are well-established in the region.`
+    : "";
 
   const prompt = `You are selecting Meta Ads targeting options for an ad campaign.
 
@@ -141,14 +141,26 @@ Ad copy: "${context.adCopy.slice(0, 300)}"
 CTA intent: ${context.ctaIntent}
 Business type: ${context.businessType}
 Targeting mode: ${context.targetingMode ?? "b2c"}
+${locationContext}
 
-Selection guidance: ${modeGuidance}
+Selection guidance: ${modeGuidance}${locationRule}
 
-For each numbered slot below, pick the ONE best-matching option (1-based index) or 0 if none are relevant to this business.
+IMPORTANT ON LATENT INTENT: Options might include related end-goals or proxy interests (e.g. "Gift Card", "Amazon" for a virtual number ad, or "Mortgage" for a real estate ad). You must highly prioritize these latent intent matches over generic terms. If an option feels like the actual end-goal the user wants to achieve with the product, select it.
+
+For each category below, select the BEST matching options up to the specified limit.
+If a category says "Select 0", output an empty array for it.
 
 ${slotsText}
 
-Reply ONLY with a JSON array of integers (one per slot, in order). Example: [1, 2, 0, 1, 3]`;
+Reply ONLY with a JSON object mapping the category name to an array of selected indices (0-based).
+Example:
+{
+  "interests": [0, 4, 12],
+  "behaviors": [1, 3],
+  "lifeEvents": [],
+  "workPositions": [2, 5],
+  "industries": [0]
+}`;
 
   try {
     const res = await openai.responses.create({
@@ -157,89 +169,71 @@ Reply ONLY with a JSON array of integers (one per slot, in order). Example: [1, 
     } as any);
 
     const raw = ((res as any)?.output_text || "").trim();
-    // Extract JSON array from response (may have surrounding text)
-    const match = raw.match(/\[[\d,\s]+\]/);
-    const picks: number[] = match ? JSON.parse(match[0]) : [];
+    // Extract JSON object from response
+    const match = raw.match(/\{[\s\S]*\}/);
+    const picks: Record<string, number[]> = match ? JSON.parse(match[0]) : {};
 
-    // Map picks back to selected candidates
-    const result: Record<string, Map<string, Candidate | null>> = {};
-    for (const cat of Object.keys(categoryMap)) {
-      result[cat] = new Map();
+    const result: Record<string, Candidate[]> = {};
+    for (const [cat, candidates] of Object.entries(categoryMap)) {
+      const selectedIndices = picks[cat] || [];
+      result[cat] = selectedIndices
+        .filter((i: number) => i >= 0 && i < candidates.length)
+        .map((i: number) => candidates[i]);
     }
-
-    slots.forEach((slot, i) => {
-      const pick = picks[i] ?? 0;
-      const selected =
-        pick > 0 && pick <= slot.candidates.length
-          ? slot.candidates[pick - 1]
-          : null;
-      if (!result[slot.category]) result[slot.category] = new Map();
-      result[slot.category].set(slot.keyword, selected);
-    });
 
     return result;
-  } catch {
-    // On failure, return null for all (graceful degradation)
-    const fallback: Record<string, Map<string, Candidate | null>> = {};
-    for (const cat of Object.keys(categoryMap)) {
-      fallback[cat] = new Map(
-        Array.from(categoryMap[cat].keys()).map((kw) => [kw, null]),
-      );
-    }
+  } catch (error) {
+    console.error("[selectBestCandidates] Selection failed:", error);
+    const fallback: Record<string, Candidate[]> = {};
+    for (const cat of Object.keys(categoryMap)) fallback[cat] = [];
     return fallback;
   }
 }
 
 /**
- * Build ResolvedItem[] for a category, using local catalog fast-path where
- * possible and mini-selected candidates otherwise.
- *
- * Deduplication is enforced on both `id` (Meta ID) and normalised `name`
- * so that semantically-identical entries with different IDs don't both appear.
+ * Pools, deduplicates, and incorporates local fast-paths for search candidates,
+ * preparing a clean flat list of candidates for the AI selector.
  */
-function buildResolved(
+function poolCandidates(
   keywords: string[],
-  candidateMap: Map<string, Candidate[]>,
-  selectionMap: Map<string, Candidate | null>,
+  kwMap: Map<string, Candidate[]>,
   localResolver?: (kw: string) => { metaId?: string; name: string } | null,
-  maxResults = Infinity,
-): ResolvedItem[] {
-  const results: ResolvedItem[] = [];
+): Candidate[] {
   const seenIds = new Set<string>();
-  const seenNames = new Set<string>(); // normalised lower-case name guard
+  const seenNames = new Set<string>();
+  const pooled: Candidate[] = [];
 
-  const normName = (n: string) => n.toLowerCase().trim();
-
-  const tryPush = (id: string, name: string): boolean => {
-    const nn = normName(name);
-    if (seenIds.has(id) || seenNames.has(nn)) return false;
+  const tryPush = (id: string, name: string) => {
+    const nn = name.toLowerCase().trim();
+    if (seenIds.has(id) || seenNames.has(nn)) return;
     seenIds.add(id);
     seenNames.add(nn);
-    results.push({ id, name, resolved: true });
-    return true;
+    pooled.push({ id, name });
   };
 
-  for (const kw of keywords) {
-    // Fast path: local catalog hit with confirmed Meta ID
-    if (localResolver) {
+  // 1. Resolve exact local matches first to guarantee their inclusion
+  if (localResolver) {
+    for (const kw of keywords) {
       const local = localResolver(kw);
       if (local?.metaId) {
-        if (tryPush(local.metaId, local.name)) continue;
+        tryPush(local.metaId, local.name);
       }
-    }
-
-    // Mini-selected candidate
-    const selected = selectionMap.get(kw);
-    if (selected && tryPush(selected.id, selected.name)) continue;
-
-    // Fallback: use top candidate from search if mini returned nothing
-    const candidates = candidateMap.get(kw) || [];
-    if (candidates.length > 0) {
-      tryPush(candidates[0].id, candidates[0].name);
     }
   }
 
-  return maxResults === Infinity ? results : results.slice(0, maxResults);
+  // 2. Add all remaining candidates
+  for (const candidates of kwMap.values()) {
+    for (const c of candidates) {
+      tryPush(c.id, c.name);
+    }
+  }
+
+  return pooled;
+}
+
+/** Converts the final AI selections into the standard Output list format. */
+function buildResolved(candidates: Candidate[]): ResolvedItem[] {
+  return candidates.map((c) => ({ id: c.id, name: c.name, resolved: true }));
 }
 
 export async function POST(request: Request) {
@@ -267,6 +261,7 @@ export async function POST(request: Request) {
     ctaIntent = "buy_now",
     businessType = "general",
     targetingMode,
+    locations,
     interests: rawInterests = [],
     behaviors: rawBehaviors = [],
     lifeEvents: rawLifeEvents = [],
@@ -277,6 +272,7 @@ export async function POST(request: Request) {
     ctaIntent: string;
     businessType: string;
     targetingMode?: string;
+    locations?: string[];
   } & CategoryKeywords = body;
 
   // Deduplicate input keywords (case-insensitive) before fanning out to Meta
@@ -338,45 +334,29 @@ export async function POST(request: Request) {
     ]);
 
     // ── Single batched mini call for contextual selection ─────────────────────
+    const pooledInterests = poolCandidates(interests, interestCandidates);
+    const pooledBehaviors = poolCandidates(behaviors, behaviorCandidates, resolveLocalBehavior);
+    const pooledLifeEvents = poolCandidates(lifeEvents, lifeEventCandidates, resolveLocalLifeEvent);
+    const pooledWorkPositions = poolCandidates(workPositions, workPositionCandidates);
+    const pooledIndustries = poolCandidates(industries, industryCandidates);
+
     const selections = await selectBestCandidates(
       {
-        interests: interestCandidates,
-        behaviors: behaviorCandidates,
-        lifeEvents: lifeEventCandidates,
-        workPositions: workPositionCandidates,
-        industries: industryCandidates,
+        interests: pooledInterests,
+        behaviors: pooledBehaviors,
+        lifeEvents: pooledLifeEvents,
+        workPositions: pooledWorkPositions,
+        industries: pooledIndustries,
       },
-      { adCopy, ctaIntent, businessType, targetingMode },
+      { adCopy, ctaIntent, businessType, targetingMode, locations },
     );
 
     // ── Assemble final resolved items ─────────────────────────────────────────
-    const resolvedInterests = buildResolved(
-      interests,
-      interestCandidates,
-      selections.interests || new Map(),
-    );
-    const resolvedBehaviors = buildResolved(
-      behaviors,
-      behaviorCandidates,
-      selections.behaviors || new Map(),
-      resolveLocalBehavior,
-    );
-    const resolvedLifeEvents = buildResolved(
-      lifeEvents,
-      lifeEventCandidates,
-      selections.lifeEvents || new Map(),
-      resolveLocalLifeEvent,
-    );
-    const resolvedWorkPositions = buildResolved(
-      workPositions,
-      workPositionCandidates,
-      selections.workPositions || new Map(),
-    );
-    const resolvedIndustries = buildResolved(
-      industries,
-      industryCandidates,
-      selections.industries || new Map(),
-    );
+    const resolvedInterests = buildResolved(selections.interests || []);
+    const resolvedBehaviors = buildResolved(selections.behaviors || []);
+    const resolvedLifeEvents = buildResolved(selections.lifeEvents || []);
+    const resolvedWorkPositions = buildResolved(selections.workPositions || []);
+    const resolvedIndustries = buildResolved(selections.industries || []);
 
     return NextResponse.json({
       interests: resolvedInterests,

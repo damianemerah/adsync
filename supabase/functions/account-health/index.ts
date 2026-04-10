@@ -132,6 +132,116 @@ async function sendInAppNotification(supabase: any, params: any) {
   return { deduped: false };
 }
 
+// ─── Proactive Delivery Issue Polling ────────────────────────────────────────
+// Fetches ads with delivery problems directly from Meta API.
+// Catches "approved but not running" and other issues that webhooks may have missed.
+
+async function checkDeliveryIssues(
+  supabase: any,
+  actId: string,
+  accessToken: string,
+  account: any,
+  ownerId: string,
+  today: string,
+) {
+  // 1. Check for ads with delivery problems (DISAPPROVED or WITH_ISSUES)
+  try {
+    const adIssuesUrl =
+      `https://graph.facebook.com/${META_API_VERSION}/${actId}/ads?` +
+      `fields=id,name,effective_status,issues_info&` +
+      `filtering=[{"field":"effective_status","operator":"IN","value":["DISAPPROVED","WITH_ISSUES"]}]&` +
+      `limit=25&access_token=${accessToken}`;
+
+    const adRes = await fetch(adIssuesUrl);
+    const adData = await adRes.json();
+
+    if (!adData.error && adData.data) {
+      for (const ad of adData.data) {
+        const issueMsg =
+          ad.issues_info?.[0]?.error_summary ||
+          ad.issues_info?.[0]?.error_message ||
+          "Ad has a delivery issue.";
+
+        const isDisapproved = ad.effective_status === "DISAPPROVED";
+        const title = isDisapproved
+          ? "❌ Ad Rejected by Meta"
+          : "⚠️ Ad Approved But Not Running";
+
+        // Update our DB status to match Meta's reality
+        await supabase
+          .from("ads")
+          .update({
+            status: isDisapproved ? "rejected" : "limited",
+            rejection_reason: issueMsg,
+          })
+          .eq("platform_ad_id", ad.id)
+          .not("status", "in", '("rejected","limited")'); // Don't overwrite if already set
+
+        await sendInAppNotification(supabase, {
+          userId: ownerId,
+          type: isDisapproved ? "critical" : "warning",
+          category: "campaign",
+          title,
+          message: `${issueMsg} Please review your campaigns.`,
+          actionLabel: "View Campaigns",
+          actionUrl: "/campaigns",
+          dedupKey: `ad_issue:${ad.id}:${today}`,
+        });
+      }
+    }
+  } catch (err: any) {
+    console.error("[Delivery Check] Failed to poll ad issues:", err.message);
+  }
+
+  // 2. Detect campaigns that became ACTIVE but our DB still shows a prior status
+  try {
+    const activeUrl =
+      `https://graph.facebook.com/${META_API_VERSION}/${actId}/campaigns?` +
+      `fields=id,effective_status&` +
+      `filtering=[{"field":"effective_status","operator":"IN","value":["ACTIVE"]}]&` +
+      `limit=50&access_token=${accessToken}`;
+
+    const activeRes = await fetch(activeUrl);
+    const activeData = await activeRes.json();
+
+    if (!activeData.error && activeData.data) {
+      const activePlatformIds = (activeData.data as Array<{ id: string }>).map(
+        (c) => c.id,
+      );
+
+      if (activePlatformIds.length === 0) return;
+
+      // Find campaigns in our DB that Meta says are active but we don't have as active
+      const { data: staleInactive } = await supabase
+        .from("campaigns")
+        .select("id, name, platform_campaign_id")
+        .in("platform_campaign_id", activePlatformIds)
+        .eq("organization_id", account.organization_id)
+        .not("status", "eq", "active");
+
+      for (const campaign of staleInactive ?? []) {
+        await supabase
+          .from("campaigns")
+          .update({ status: "active" })
+          .eq("id", campaign.id);
+
+        await sendInAppNotification(supabase, {
+          userId: ownerId,
+          type: "success",
+          category: "campaign",
+          title: "🚀 Campaign Is Now Active",
+          message: `Your campaign "${campaign.name}" is active and running on Meta.`,
+          actionLabel: "View Campaign",
+          actionUrl: `/campaigns/${campaign.id}`,
+          dedupKey: `campaign_active:${campaign.id}:${today}`,
+        });
+      }
+    }
+  } catch (err: any) {
+    console.error("[Delivery Check] Failed to poll active campaigns:", err.message);
+  }
+}
+
 serve(async (req) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
@@ -363,6 +473,11 @@ serve(async (req) => {
             });
             return { id: account.id, status: "warned", balance };
           }
+
+          // ── Proactive Delivery Issue Detection ────────────────────────────
+          // Polls Meta for ads/campaigns with delivery problems.
+          // Catches issues that webhooks may have missed (delayed, unsubscribed, etc.)
+          await checkDeliveryIssues(supabase, actId, accessToken, account, ownerId, today);
 
           return { id: account.id, status: "ok", balance };
         } catch (err: any) {

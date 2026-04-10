@@ -1,19 +1,11 @@
 "use client";
 
 import { useCampaigns } from "@/hooks/use-campaigns";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchCampaignById } from "@/actions/campaigns";
-import { useRouter, useSearchParams } from "next/navigation";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
+import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { CampaignsView } from "@/components/campaigns/campaigns-view";
-import { CampaignDetailView } from "@/components/campaigns/campaign-detail-view";
+import { CampaignDetailSheet } from "@/components/campaigns/campaign-detail-sheet";
 import { SystemRestart, Plus, Refresh } from "iconoir-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -27,7 +19,6 @@ import { DashboardEmptyState } from "@/components/dashboard/empty-state";
 
 function CampaignsPageContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { data: campaigns, isLoading } = useCampaigns();
   const { data: accounts, isLoading: isLoadingAccounts } = useAdAccounts();
   const queryClient = useQueryClient();
@@ -42,18 +33,6 @@ function CampaignsPageContent() {
     dateRange,
   } = useDashboardStore();
 
-  // 1. Get Selected ID from URL
-  const selectedId = searchParams.get("id");
-
-  // 2. Fetch Single Campaign Data (Only if ID exists)
-  const { data: selectedCampaign, isLoading: isLoadingDetail } = useQuery({
-    queryKey: ["campaign", selectedId],
-    queryFn: async () => {
-      if (!selectedId) return null;
-      return await fetchCampaignById(selectedId);
-    },
-    enabled: !!selectedId, // Only fetch if ID is present
-  });
 
   // 3. Filter Campaigns
   const filteredCampaigns = campaigns?.filter((campaign) => {
@@ -99,14 +78,7 @@ function CampaignsPageContent() {
 
   // 4. Handlers
   const handleOpen = (id: string) => {
-    // Push ID to URL without refreshing page
-    router.push(`/campaigns?id=${id}`);
-  };
-
-  const handleClose = (open: boolean) => {
-    if (!open) {
-      router.push("/campaigns"); // Remove ID from URL
-    }
+    router.push(`/campaigns?campaign=${id}`);
   };
 
   const [isSyncing, setIsSyncing] = useState(false);
@@ -210,42 +182,7 @@ function CampaignsPageContent() {
         </div>
       </main>
 
-      <Sheet open={!!selectedId} onOpenChange={handleClose}>
-        <SheetContent
-          side="bottom"
-          className="h-[85vh] w-full rounded-t-[20px] p-0 gap-0 shadow-2xl overflow-hidden"
-        >
-          <SheetHeader className="sr-only">
-            <SheetTitle>Campaign Details</SheetTitle>
-            <SheetDescription>
-              View metrics and ads for this campaign
-            </SheetDescription>
-          </SheetHeader>
-
-          {/* Loading State */}
-          {isLoadingDetail && (
-            <div className="h-full flex items-center justify-center bg-white">
-              <SystemRestart className="w-8 h-8 animate-spin text-blue-600" />
-            </div>
-          )}
-
-          {/* Error / Not Found */}
-          {!isLoadingDetail && selectedId && !selectedCampaign && (
-            <div className="p-8 text-center h-full flex items-center justify-center flex-col gap-2">
-              <p className="font-semibold text-slate-900">Campaign not found</p>
-              <p className="text-slate-500 text-sm">
-                It may have been deleted or you don't have permission to view
-                it.
-              </p>
-            </div>
-          )}
-
-          {/* Success State */}
-          {!isLoadingDetail && selectedCampaign && (
-            <CampaignDetailView campaign={selectedCampaign} />
-          )}
-        </SheetContent>
-      </Sheet>
+      <CampaignDetailSheet />
     </div>
   );
 }

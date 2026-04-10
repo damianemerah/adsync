@@ -35,41 +35,35 @@ Default: Lagos (when no `<loc>` tag present)
 
 ## Delivery Method (`<del>` tag)
 
-The `<del>` tag carries the seller's onboarding delivery scope. Use it to override geo-targeting:
+Use `<del>` to set `suggestedLocations` count and copy angle. Geo targeting is always country-level for Nigeria (handled by server).
 
-| `<del>` | `<loc>` present? | `suggestedLocations`                | `geo_strategy`   |
-| ------- | ---------------- | ----------------------------------- | ---------------- |
-| online  | yes (e.g. Lagos) | [Lagos, Abuja, Port Harcourt]       | broad, ["home"]  |
-| online  | no               | [Lagos, Abuja, Port Harcourt, Kano] | broad, ["home"]  |
-| both    | yes              | [<loc city>, Abuja, Port Harcourt]  | broad, ["home"]  |
-| both    | no               | [Lagos, Abuja, Port Harcourt]       | broad, ["home"]  |
-| local   | yes              | [<loc city> only]                   | cities, ["home"] |
-| local   | no               | [Lagos]                             | cities, ["home"] |
+| `<del>` | `<loc>` present? | `suggestedLocations` (state format)                                                         | Copy angle              |
+| ------- | ---------------- | ------------------------------------------------------------------------------------------- | ----------------------- |
+| online  | yes              | [Lagos Nigeria, Federal Capital Territory Nigeria, Rivers State Nigeria]                     | "we deliver everywhere" |
+| online  | no               | [Lagos Nigeria, Federal Capital Territory Nigeria, Rivers State Nigeria, Kano State Nigeria] | "ships across Nigeria"  |
+| both    | yes              | [<loc state> Nigeria, Federal Capital Territory Nigeria, Rivers State Nigeria]               | "pickup + delivery"     |
+| both    | no               | [Lagos Nigeria, Federal Capital Territory Nigeria, Rivers State Nigeria]                     | "pickup or delivery"    |
+| local   | yes              | [<loc state> Nigeria]                                                                        | "come in-store"         |
+| local   | no               | [Lagos Nigeria]                                                                              | "Lagos-based, walk-in"  |
 
 ⚠️ CRITICAL rules:
 
-- `<del>online</del>` or `<del>both</del>` → ALWAYS output ≥3 Nigerian metros in `suggestedLocations`. Never collapse to a single city.
-- `<del>local</del>` → target the stated `<loc>` city only. Do NOT expand.
+- `online` or `both` → ALWAYS ≥3 Nigerian states in `suggestedLocations`. Never collapse to one.
 - If user text mentions "nationwide", "deliver everywhere", "ships across Nigeria" → treat as `<del>online</del>` even if `<del>` tag is absent.
-- Ad copy should reflect the actual delivery scope: nationwide sellers → mention "we deliver everywhere" or "Lagos-based, Nigeria-wide delivery". Local sellers → "come in-store" or "Lagos only".
+- Ad copy reflects delivery scope: online sellers → "we deliver everywhere". Local sellers → "come in-store" or "Lagos only".
 
-## Geo Strategy (emit `geo_strategy` alongside `suggestedLocations`)
+## Geo Strategy
 
-Pick `geo_strategy` based on campaign objective in `<obj>` tag:
+Nigeria: Meta does not support city-level targeting. Always emit:
 
-| Objective                                  | type   | radius_km |
-| ------------------------------------------ | ------ | --------- |
-| awareness/engagement                       | broad  | (omit)    |
-| whatsapp/traffic/sales/leads/app_promotion | cities | 17        |
+```
+geo_strategy: { "type": "broad" }
+```
 
-`broad` → region/country-level targeting. Max reach, better CPM for awareness.
-`cities` → precise city targeting, residents only. Minimise wasted spend for conversions.
-
-⚠️ **Nigeria platform constraint:** Meta does not support city-level targeting in Nigeria.
-For Nigerian campaigns, `cities` strategy is automatically elevated to `countries: ["NG"]` at launch.
-Do NOT write copy that implies hyper-local city-only reach (e.g. "targeting only Lagos buyers") for conversion objectives — actual ad delivery is country-wide.
-
-Server enforces this at launch — emit as advisory signal.
+| Objective                                          | geo_strategy        |
+| -------------------------------------------------- | ------------------- |
+| awareness / engagement                             | { "type": "broad" } |
+| whatsapp / traffic / sales / leads / app_promotion | { "type": "broad" } |
 
 ## Pidgin Signals → Copy Angle
 
@@ -87,13 +81,13 @@ Server enforces this at launch — emit as advisory signal.
 
 | Type        | Interests                                               |
 | ----------- | ------------------------------------------------------- |
-| fashion     | Fashion,Clothing,Shopping,Aso-ebi,Style,Bags            |
-| beauty      | Hair care,Natural hair,Skincare,Beauty,Cosmetics,Makeup |
-| food        | Food,Restaurants,Catering,Cooking,Eating out            |
-| electronics | Technology,Gadgets,Electronics,Mobile phones            |
-| events      | Event planning,Weddings,Parties,Aso-oke,Lace            |
-| b2b         | Entrepreneurship,Digital marketing,Business             |
-| general     | Shopping,Online shopping,Daily essentials               |
+| fashion     | Fashion,Clothing,Shopping,Aso-ebi,Style,Bags,Afrobeats,Nollywood |
+| beauty      | Hair care,Natural hair,Skincare,Beauty,Cosmetics,Makeup,Nollywood |
+| food        | Food,Restaurants,Catering,Cooking,Eating out                      |
+| electronics | Technology,Gadgets,Electronics,Mobile phones                      |
+| events      | Event planning,Weddings,Parties,Aso-oke,Lace,Afrobeats            |
+| b2b         | Entrepreneurship,Digital marketing,Business                       |
+| general     | Shopping,Online shopping,Daily essentials                         |
 
 ❌ Never: "Nigerian fashion brands","brands","lovers","enthusiasts"
 
@@ -104,7 +98,7 @@ Reason from first principles — ask what purchase pattern or device signal fits
 Rules:
 
 - Always include ≥1 purchase-intent signal (e.g. `Engaged Shoppers`, `Online buyers`)
-- Always include a mobile device signal — Nigeria is mobile-first
+- Nigeria is mobile-first — skip generic `Mobile Device User` (98% match rate, zero discriminating signal). Use purchase-linked signals instead: `Mobile Shoppers`, `New Smartphone Users` (aspiration signal for mid/high tier)
 - Add niche signals that specifically fit the product category and customer profile
 - Output exact Meta Ads Manager behavior names only
 - Never <2 behaviors, never >5

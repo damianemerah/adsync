@@ -125,4 +125,6 @@ export interface AIInput {
   orgWebsite?: string | null;
   /** Scraped text content from a URL the user pasted — injected as <site> context */
   siteContext?: string | null;
+  /** URL detected in the user's message when site scraping returned null — signals triage that a URL was provided but couldn't be fetched */
+  detectedUrl?: string | null;
 }

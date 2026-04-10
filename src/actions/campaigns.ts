@@ -70,6 +70,7 @@ interface LaunchConfig {
   aiContext: any; // Using any for now to avoid circular dependency, but should match CampaignContext
   businessDescription?: string; // [NEW] For AI context building
   campaignId?: string; // [NEW] Draft ID to update instead of creating a new row
+  adAccountId?: string; // [NEW] DB UUID of the ad account to use — defaults to org's default account
   // Objective-specific fields
   leadGenFormId?: string; // leads: Meta Lead Gen Form ID
   appStoreUrl?: string; // app_promotion: Play Store or App Store URL
@@ -193,16 +194,21 @@ export async function launchCampaign(config: LaunchConfig) {
     };
   }
 
-  // 3. Get Ad Account
-  const { data: adAccount } = await supabase
+  // 3. Get Ad Account — use explicit selection if provided, else pick the default
+  const adAccountQuery = supabase
     .from("ad_accounts")
     .select("*")
     .eq("organization_id", orgId as string)
     .eq("platform", config.platform)
-    .eq("health_status", "healthy")
-    .order("is_default", { ascending: false })
-    .limit(1)
-    .single();
+    .eq("health_status", "healthy");
+
+  if (config.adAccountId) {
+    adAccountQuery.eq("id", config.adAccountId);
+  } else {
+    adAccountQuery.order("is_default", { ascending: false });
+  }
+
+  const { data: adAccount } = await adAccountQuery.limit(1).single();
 
   console.log(orgId, "orgId");
   console.log(adAccount, "adAccount");
@@ -867,8 +873,61 @@ export async function updateCampaignStatus(
     return { success: true };
   } catch (error: any) {
     console.error("Campaign Update Error:", error);
-    return { success: false, error: error.message };
+    return {
+      success: false as const,
+      error: error.message,
+      metaSubcode: error.subcode as number | undefined,
+      metaUserTitle: error.userTitle as string | undefined,
+      metaUserMessage: error.userMessage as string | undefined,
+    };
   }
+}
+
+/**
+ * Duplicate a campaign as a new draft (without launching on Meta).
+ * Copies all settings; clears metrics and platform_campaign_id.
+ */
+export async function duplicateCampaign(campaignId: string) {
+  const supabase = await createClient();
+  const orgId = await getActiveOrgId();
+  if (!orgId) return { success: false as const, error: "No organization found" };
+
+  const { data: original, error: fetchError } = await supabase
+    .from("campaigns")
+    .select("*")
+    .eq("id", campaignId)
+    .eq("organization_id", orgId)
+    .single();
+
+  if (fetchError || !original) return { success: false as const, error: "Campaign not found" };
+
+  const { data: newCampaign, error: insertError } = await supabase
+    .from("campaigns")
+    .insert({
+      organization_id: original.organization_id,
+      ad_account_id: original.ad_account_id,
+      name: `${original.name} (Copy)`,
+      objective: original.objective,
+      platform: original.platform,
+      daily_budget_cents: original.daily_budget_cents,
+      placement_type: original.placement_type,
+      targeting_profile_id: original.targeting_profile_id,
+      targeting_snapshot: original.targeting_snapshot,
+      creative_snapshot: original.creative_snapshot,
+      ai_context: original.ai_context,
+      ai_chat_snapshot: original.ai_chat_snapshot,
+      advantage_plus_config: original.advantage_plus_config,
+      uses_pixel_optimization: original.uses_pixel_optimization,
+      status: "draft",
+      platform_campaign_id: null,
+    })
+    .select("id")
+    .single();
+
+  if (insertError || !newCampaign) return { success: false as const, error: "Failed to duplicate campaign" };
+
+  revalidatePath("/campaigns");
+  return { success: true as const, campaignId: newCampaign.id };
 }
 
 /**

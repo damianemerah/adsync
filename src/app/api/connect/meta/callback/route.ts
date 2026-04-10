@@ -198,77 +198,100 @@ export async function GET(request: NextRequest) {
 
   // 5. Save to Database (Encrypted)
   if (accountsData.data && accountsData.data.length > 0) {
-    // For MVP, we add the first account found. In V2, we loop or ask user to select.
-    const acc = accountsData.data[0];
+    if (accountsData.data.length === 1) {
+      // Single account — save immediately, no picker needed
+      const acc = accountsData.data[0];
 
-    console.debug("[Meta Callback] Upserting ad account", {
-      organization_id: targetOrgId,
-      platform: "meta",
-      platform_account_id: acc.account_id,
-      account_name: acc.name,
-      currency: acc.currency,
-    });
-
-    const { error: upsertError } = await supabase.from("ad_accounts").upsert(
-      {
+      console.debug("[Meta Callback] Single account — upserting directly", {
         organization_id: targetOrgId,
-        platform: "meta",
         platform_account_id: acc.account_id,
-        account_name: acc.name,
-        currency: acc.currency,
-        access_token: encrypt(finalToken), // 🔒 Secure storage
-        health_status: "healthy",
-        last_health_check: new Date().toISOString(),
-        // ✅ Don't set token_refreshed_at on initial OAuth — only set it when refreshing
-        // The refresh cron uses connected_at as fallback when token_refreshed_at is null
-        disconnected_at: null, // ✅ Clear soft delete flag on reconnection (preserves history)
-        // Note: You might want to fetch/store funding source details here too if available
-      },
-      { onConflict: "organization_id, platform, platform_account_id" },
-    );
+      });
 
-    if (upsertError) {
-      console.error("[Meta Callback] DB Error:", upsertError);
-      return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_APP_URL}/onboarding?error=db_save_failed`,
+      const { error: upsertError } = await supabase.from("ad_accounts").upsert(
+        {
+          organization_id: targetOrgId,
+          platform: "meta",
+          platform_account_id: acc.account_id,
+          account_name: acc.name,
+          currency: acc.currency,
+          access_token: encrypt(finalToken),
+          health_status: "healthy",
+          last_health_check: new Date().toISOString(),
+          disconnected_at: null,
+          // First account ever for this org becomes default automatically
+          ...(existingCount === 0 ? { is_default: true } : {}),
+        },
+        { onConflict: "organization_id, platform, platform_account_id" },
       );
-    }
-    console.debug("[Meta Callback] Ad account upserted successfully");
 
-    // ✅ AUTO-SYNC: Trigger campaign sync immediately after account is connected
-    // This ensures campaigns are populated without the user having to press "Sync".
-    // We look up the newly upserted account's DB uuid first.
-    try {
-      const { data: newAccount } = await supabase
-        .from("ad_accounts")
+      if (upsertError) {
+        console.error("[Meta Callback] DB Error:", upsertError);
+        return NextResponse.redirect(
+          `${process.env.NEXT_PUBLIC_APP_URL}/onboarding?error=db_save_failed`,
+        );
+      }
+
+      // Subscribe this ad account to Meta webhooks (fire-and-forget)
+      subscribeToMetaWebhooks(acc.account_id, finalToken).catch((err) => {
+        console.warn("[Meta Callback] Webhook subscription failed silently:", err);
+      });
+
+      try {
+        const { data: newAccount } = await supabase
+          .from("ad_accounts")
+          .select("id")
+          .eq("organization_id", targetOrgId)
+          .eq("platform_account_id", acc.account_id)
+          .single();
+
+        if (newAccount?.id) {
+          fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/campaigns/sync`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ accountId: newAccount.id }),
+          }).catch((syncErr) => {
+            console.warn("[Meta Callback] Initial sync failed silently:", syncErr);
+          });
+        }
+      } catch (syncSetupErr) {
+        console.warn("[Meta Callback] Could not initiate auto-sync:", syncSetupErr);
+      }
+
+      return NextResponse.redirect(
+        `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?success=meta_connected`,
+      );
+    } else {
+      // Multiple accounts — store in pending session and let user choose
+      console.debug("[Meta Callback] Multiple accounts found, creating pending session", {
+        count: accountsData.data.length,
+      });
+
+      const accounts = accountsData.data.map((a: any) => ({
+        account_id: a.account_id,
+        name: a.name,
+        currency: a.currency,
+      }));
+
+      const { data: pendingSession, error: pendingError } = await supabase
+        .from("meta_oauth_pending")
+        .insert({
+          user_id: userId,
+          org_id: targetOrgId,
+          accounts,
+          access_token: encrypt(finalToken),
+        })
         .select("id")
-        .eq("organization_id", targetOrgId)
-        .eq("platform_account_id", acc.account_id)
         .single();
 
-      if (newAccount?.id) {
-        console.debug(
-          "[Meta Callback] Triggering initial campaign sync for account",
-          newAccount.id,
+      if (pendingError || !pendingSession) {
+        console.error("[Meta Callback] Failed to create pending session:", pendingError);
+        return NextResponse.redirect(
+          `${process.env.NEXT_PUBLIC_APP_URL}/settings/business?error=db_save_failed`,
         );
-        // Fire-and-forget: don't await so the redirect is instant
-        fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/campaigns/sync`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ accountId: newAccount.id }),
-        }).catch((syncErr) => {
-          // Non-critical: user can manually sync later if this fails
-          console.warn(
-            "[Meta Callback] Initial sync failed silently:",
-            syncErr,
-          );
-        });
       }
-    } catch (syncSetupErr) {
-      // Non-blocking — don't fail the redirect if sync setup throws
-      console.warn(
-        "[Meta Callback] Could not initiate auto-sync:",
-        syncSetupErr,
+
+      return NextResponse.redirect(
+        `${process.env.NEXT_PUBLIC_APP_URL}/settings/business?meta_session=${pendingSession.id}`,
       );
     }
   } else {
@@ -278,8 +301,37 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  console.debug("[Meta Callback] Redirecting to dashboard with success");
   return NextResponse.redirect(
     `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?success=meta_connected`,
   );
+}
+
+// ─── Webhook Subscription ─────────────────────────────────────────────────────
+// Subscribes the ad account to Meta webhooks so events fire to /api/webhooks/meta.
+// Must be called after saving each ad account — Meta requires per-account subscription.
+
+async function subscribeToMetaWebhooks(platformAccountId: string, accessToken: string) {
+  const actId = platformAccountId.startsWith("act_")
+    ? platformAccountId
+    : `act_${platformAccountId}`;
+
+  const res = await fetch(
+    `https://graph.facebook.com/v25.0/${actId}/subscribed_apps`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        subscribed_fields:
+          "with_issues_ad_objects,in_process_ad_objects,ad_account_update,client_account_status,leadgen,ads,adsets,campaigns",
+        access_token: accessToken,
+      }),
+    },
+  );
+
+  const data = await res.json();
+  if (data.success) {
+    console.log(`[Meta Webhook] Subscribed account ${actId} to webhook fields`);
+  } else {
+    console.error(`[Meta Webhook] Subscription failed for ${actId}:`, data);
+  }
 }

@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { launchCampaign, updateCampaignStatus } from "@/actions/campaigns";
+import { launchCampaign, updateCampaignStatus, duplicateCampaign } from "@/actions/campaigns";
 import { useActiveOrgContext } from "@/components/providers/active-org-provider";
 
 export function useCampaigns() {
@@ -126,7 +126,24 @@ export function useCampaigns() {
     },
   });
 
-  // 4. Update Status Mutation
+  // 4. Duplicate Campaign Mutation
+  const duplicateCampaignMutation = useMutation({
+    mutationFn: async ({ id }: { id: string }) => {
+      const result = await duplicateCampaign(id);
+      if (!result.success) throw new Error(result.error);
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["campaigns", activeOrgId] });
+      toast.success("Campaign duplicated", { description: "A draft copy has been created." });
+      router.refresh();
+    },
+    onError: (error) => {
+      toast.error("Failed to duplicate campaign", { description: error.message });
+    },
+  });
+
+  // 5. Update Status Mutation
   const updateStatusMutation = useMutation({
     mutationFn: async ({
       id,
@@ -136,7 +153,13 @@ export function useCampaigns() {
       action: "PAUSED" | "ACTIVE" | "ARCHIVED";
     }) => {
       const result = await updateCampaignStatus(id, action);
-      if (!result.success) throw new Error(result.error);
+      if (!result.success) {
+        const err = new Error(result.error) as any;
+        err.metaSubcode = result.metaSubcode;
+        err.metaUserMessage = result.metaUserMessage;
+        err.campaignId = id;
+        throw err;
+      }
       return result;
     },
     onSuccess: (_, variables) => {
@@ -145,8 +168,18 @@ export function useCampaigns() {
       toast.success(`Campaign ${variables.action.toLowerCase()} successfully`);
       router.refresh();
     },
-    onError: (error) => {
-      toast.error("Failed to update status", { description: error.message });
+    onError: (error: any) => {
+      if (error.metaSubcode === 1487566) {
+        toast.error("Campaign Deleted on Meta", {
+          description: "This campaign was deleted from Meta. Duplicate it to re-create with the same settings.",
+          action: {
+            label: "Duplicate",
+            onClick: () => duplicateCampaignMutation.mutate({ id: error.campaignId }),
+          },
+        });
+      } else {
+        toast.error("Failed to update status", { description: error.message });
+      }
     },
   });
 
@@ -161,5 +194,8 @@ export function useCampaigns() {
     // Update
     updateStatus: updateStatusMutation.mutate,
     isUpdating: updateStatusMutation.isPending,
+    // Duplicate
+    duplicateCampaign: duplicateCampaignMutation.mutate,
+    isDuplicating: duplicateCampaignMutation.isPending,
   };
 }

@@ -440,7 +440,6 @@ const [isRefiningCopy, setIsRefiningCopy] = useState(false);
         return;
       }
     }
-    scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
   // ── Auto-save on every new AI message ─────────────────────────────────────
@@ -616,6 +615,7 @@ const [isRefiningCopy, setIsRefiningCopy] = useState(false);
           ctaIntent: result.ctaIntent || "buy_now",
           businessType: result.meta?.detected_business_type || "general",
           targetingMode: result.targeting_mode,
+          locations: result.suggestedLocations,
         },
         (phase2: Phase2Result) => {
           updateDraft({
@@ -920,7 +920,6 @@ const [isRefiningCopy, setIsRefiningCopy] = useState(false);
             isRefiningCopy={isRefiningCopy}
             isReadingUrl={isReadingUrl}
             placeholder={currentPlaceholder}
-            scrollRef={scrollRef}
             campaignStore={campaignStore}
             actions={{
               removeInterest,

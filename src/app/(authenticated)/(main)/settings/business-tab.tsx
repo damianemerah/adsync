@@ -23,7 +23,6 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Building,
   EditPencil,
   SystemRestart,
   Trash,
@@ -43,7 +42,16 @@ import { useAdAccounts } from "@/hooks/use-ad-account";
 import { useSubscription } from "@/hooks/use-subscription";
 import { TIER_CONFIG, TierId } from "@/lib/constants";
 import { ConnectAccountDialog } from "@/components/ad-accounts/connect-account-dialog";
+import { MetaAccountSelectSheet } from "@/components/ad-accounts/meta-account-select-sheet";
+import { CompactAccountCard } from "@/components/ad-accounts/compact-card";
 import { CreateBusinessDialog } from "@/components/settings/create-business-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 const INDUSTRIES = [
   "E-commerce (Fashion/Beauty)",
@@ -202,9 +210,11 @@ function CapiConfigPanel({ account }: { account: any }) {
 export function BusinessTab({
   organization,
   activeOrgId,
+  metaSessionId,
 }: {
   organization: any;
   activeOrgId?: string | null;
+  metaSessionId?: string;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -218,7 +228,12 @@ export function BusinessTab({
     data: accounts,
     isLoading: accountsLoading,
     disconnectAccount,
+    setAsDefault,
+    renameAccount,
   } = useAdAccounts();
+
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
   const { data: subscription } = useSubscription();
 
   const currentTier = (subscription?.org?.tier || "starter") as TierId;
@@ -723,7 +738,7 @@ export function BusinessTab({
                 <div className="p-6 text-center text-muted-foreground text-sm">
                   Loading accounts...
                 </div>
-              ) : !accounts || accounts.length === 0 ? (
+              ) :!accounts || accounts.length === 0 ? (
                 <div className="p-6 text-center text-muted-foreground text-sm border border-dashed border-border rounded-md">
                   No ad accounts connected yet. Click &quot;Add Ad Account&quot;
                   to get started.
@@ -738,53 +753,23 @@ export function BusinessTab({
                     <p className="text-xs font-semibold text-subtle-foreground uppercase tracking-wider w-24 text-center">
                       Status
                     </p>
-                    <p className="text-xs font-semibold text-subtle-foreground uppercase tracking-wider w-16 text-right">
-                      Action
-                    </p>
+                    <p className="text-xs font-semibold text-subtle-foreground uppercase tracking-wider w-8" />
                   </div>
                   {accounts.map((account) => (
-                    <div
-                      key={account.id}
-                      className="border-b border-border last:border-0"
-                    >
-                      {/* Account row */}
-                      <div className="grid grid-cols-[1fr_auto_auto] items-center gap-4 px-5 py-4 hover:bg-muted/30 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <div className="h-9 w-9 bg-primary/10 rounded-lg flex items-center justify-center">
-                            <Building className="h-4 w-4 text-primary" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-sm text-foreground">
-                              {account.name}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {account.accountId} •{" "}
-                              {account.platform === "meta" ? "Meta" : "TikTok"}
-                            </p>
-                          </div>
-                        </div>
-                        <Badge
-                          variant={
-                            account.status === "healthy"
-                              ? "default"
-                              : "destructive"
-                          }
-                          className="w-24 justify-center capitalize text-xs"
-                        >
-                          {account.status || "Unknown"}
-                        </Badge>
-                        <div className="w-16 flex justify-end">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDisconnect(account.id)}
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
-                          >
-                            <Trash className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-
+                    <div key={account.id} className="border-b border-border last:border-0">
+                      <CompactAccountCard
+                        account={account}
+                        onSetDefault={() => {
+                          setAsDefault(account.id).catch((e) =>
+                            toast.error("Failed to set default", { description: e.message }),
+                          );
+                        }}
+                        onRename={() => {
+                          setRenamingId(account.id);
+                          setRenameValue(account.nickname || account.name);
+                        }}
+                        onDisconnect={() => handleDisconnect(account.id)}
+                      />
                       {/* CAPI config — only for Meta accounts */}
                       {account.platform === "meta" && (
                         <CapiConfigPanel account={account} />
@@ -846,6 +831,47 @@ export function BusinessTab({
         open={createBizOpen}
         onOpenChange={setCreateBizOpen}
       />
+
+      {/* Meta account picker — shown after OAuth when user has multiple accounts */}
+      {metaSessionId && (
+        <MetaAccountSelectSheet sessionId={metaSessionId} />
+      )}
+
+      {/* Rename Dialog */}
+      <Dialog open={!!renamingId} onOpenChange={(v) => !v && setRenamingId(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Rename Account</DialogTitle>
+          </DialogHeader>
+          <Input
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            placeholder="Enter a nickname"
+            className="mt-2"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && renamingId) {
+                renameAccount({ id: renamingId, newNickname: renameValue.trim() });
+                setRenamingId(null);
+              }
+            }}
+          />
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setRenamingId(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (renamingId) {
+                  renameAccount({ id: renamingId, newNickname: renameValue.trim() });
+                  setRenamingId(null);
+                }
+              }}
+            >
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

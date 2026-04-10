@@ -25,6 +25,8 @@ interface ChatBubbleProps {
   copyReady: boolean;
   /** True when this is the last copy_suggestion message in the conversation */
   isLastCopySuggestion?: boolean;
+  /** True when this is the last outcome_preview message — only this card shows follow-up links */
+  isLastOutcomePreview?: boolean;
 }
 
 export function ChatBubble({
@@ -44,6 +46,7 @@ export function ChatBubble({
   onConfirmAudience,
   copyReady,
   isLastCopySuggestion = false,
+  isLastOutcomePreview = false,
 }: ChatBubbleProps) {
   const isAI = message.role === "ai";
 
@@ -92,7 +95,7 @@ export function ChatBubble({
             locations={message.data.locations || []}
             inferredAssumptions={message.data.inferredAssumptions}
             refinementQuestion={message.data.refinementQuestion}
-            followUps={message.data.followUps}
+            followUps={isLastOutcomePreview ? message.data.followUps : null}
             onRemoveInterest={onRemoveInterest}
             onAddInterest={onAddInterest}
             currentInterests={currentInterests}

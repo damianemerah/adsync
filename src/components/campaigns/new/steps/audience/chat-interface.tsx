@@ -18,7 +18,6 @@ interface ChatInterfaceProps {
   isReadingUrl?: boolean;
   copyReady: boolean;
   placeholder: string;
-  scrollRef: React.RefObject<HTMLDivElement | null>;
   campaignStore: any; // Passed for read-only access in bubbles if needed
   actions: {
     removeInterest: (i: any) => void;
@@ -69,7 +68,6 @@ export function ChatInterface({
   isRefiningCopy,
   isReadingUrl,
   placeholder,
-  scrollRef,
   campaignStore,
   actions,
   copyReady,
@@ -87,6 +85,13 @@ export function ChatInterface({
   // renders the refinement action buttons (Shorter / More Fire / Try Again).
   const lastCopySuggestionIdx = messages.reduce(
     (last, msg, idx) => (msg.type === "copy_suggestion" ? idx : last),
+    -1,
+  );
+
+  // Find the index of the last outcome_preview message so only that bubble
+  // renders the follow-up suggestions (↳ links at the bottom of the card).
+  const lastOutcomePreviewIdx = messages.reduce(
+    (last, msg, idx) => (msg.type === "outcome_preview" ? idx : last),
     -1,
   );
 
@@ -150,6 +155,7 @@ export function ChatInterface({
                 onConfirmAudience={() => actions.confirmAudience()}
                 copyReady={copyReady}
                 isLastCopySuggestion={idx === lastCopySuggestionIdx}
+                isLastOutcomePreview={idx === lastOutcomePreviewIdx}
               />
             );
           })}
@@ -163,7 +169,6 @@ export function ChatInterface({
               </div>
             </div>
           )}
-          <div ref={scrollRef} />
         </div>
       </ScrollArea>
 

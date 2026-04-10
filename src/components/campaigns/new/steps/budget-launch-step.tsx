@@ -10,6 +10,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import {
   SystemRestart,
@@ -124,22 +131,34 @@ export function BudgetLaunchStep({
   // ─── Real health checks ──────────────────────────────────────────────────
   const { data: adAccounts, isLoading: isLoadingAccounts } = useAdAccounts();
 
-  const hasHealthyAccount =
-    !isLoadingAccounts &&
-    (adAccounts ?? []).some((a) => a.status === "healthy");
+  const healthyAccounts = (adAccounts ?? []).filter((a) => a.status === "healthy");
+
+  const hasHealthyAccount = !isLoadingAccounts && healthyAccounts.length > 0;
 
   const hasPaymentIssue =
     !isLoadingAccounts &&
     (adAccounts ?? []).some((a) => a.status === "payment_issue");
 
+  // Selected ad account for this campaign (defaults to the marked default, then first healthy)
+  const defaultAccount = adAccounts?.find((a) => a.isDefault) ?? adAccounts?.[0];
+  const [selectedAdAccountId, setSelectedAdAccountId] = useState<string>(
+    () => defaultAccount?.id ?? "",
+  );
+  // Sync once accounts load (handles the case where accounts load after mount)
+  useEffect(() => {
+    if (!selectedAdAccountId && defaultAccount?.id) {
+      setSelectedAdAccountId(defaultAccount.id);
+    }
+  }, [defaultAccount?.id]);
+
   // Mock check for if the org has a pixel configured
   const hasPixel = false;
-  // If objective is website/sales, and they haven't connected a pixel or skipped it, we pause them
+  // Pixel is recommended but not strictly required for launch
   const isWebsiteObjective = objective === "traffic";
   const needsPixel = isWebsiteObjective && !hasPixel && !skipPixel;
 
   const missingWhatsappNumber = objective === "whatsapp" && !destinationValue?.trim();
-  const canLaunch = !isLaunching && hasHealthyAccount && !needsPixel && !missingWhatsappNumber;
+  const canLaunch = !isLaunching && hasHealthyAccount && !missingWhatsappNumber;
 
   useEffect(() => {
     if (!budget || !campaignName) return;
@@ -254,10 +273,8 @@ export function BudgetLaunchStep({
 
     if (objective === "leads" && !leadGenFormId && suggestedLeadForm) {
       try {
-        const accounts = adAccounts;
-        const defaultAccount =
-          accounts?.find((a: any) => a.isDefault) ?? accounts?.[0];
-        const adAccountId = defaultAccount?.accountId;
+        const selectedAccount = adAccounts?.find((a) => a.id === selectedAdAccountId) ?? adAccounts?.[0];
+        const adAccountId = selectedAccount?.accountId;
 
         if (!adAccountId) {
           toast.error("No ad account found");
@@ -343,6 +360,7 @@ export function BudgetLaunchStep({
         objective: objective || "sales",
       },
       campaignId: persistedDraftId || undefined,
+      adAccountId: selectedAdAccountId || undefined,
       leadGenFormId: finalLeadGenFormId || undefined,
       // Include carousel data if present (2+ cards)
       ...(carouselCards && carouselCards.length >= 2 && { carouselCards }),
@@ -493,6 +511,37 @@ export function BudgetLaunchStep({
               className="font-medium h-12 rounded-md border-border bg-card shadow-sm focus-visible:ring-primary/20"
             />
           </div>
+
+          {/* ── Ad Account Selector ── */}
+          {healthyAccounts.length > 1 && (
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-subtle-foreground uppercase tracking-wider">
+                Ad Account
+              </label>
+              <Select
+                value={selectedAdAccountId}
+                onValueChange={setSelectedAdAccountId}
+              >
+                <SelectTrigger className="h-12 bg-card border-border font-medium">
+                  <SelectValue placeholder="Choose ad account…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {healthyAccounts.map((acc) => (
+                    <SelectItem key={acc.id} value={acc.id}>
+                      <span className="flex items-center gap-2">
+                        {acc.nickname || acc.name}
+                        {acc.isDefault && (
+                          <span className="text-[10px] text-muted-foreground font-normal">
+                            (default)
+                          </span>
+                        )}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
 
         {/* Right Column — Launch Card */}
@@ -560,10 +609,10 @@ export function BudgetLaunchStep({
                         ? "Pixel Connected"
                         : skipPixel
                           ? "Sales tracking disabled (No Pixel)"
-                          : "Pixel Required"
+                          : "Pixel Recommended"
                     }
                     status={
-                      hasPixel ? "success" : skipPixel ? "warning" : "error"
+                      hasPixel ? "success" : "warning"
                     }
                     inverse
                   />
@@ -631,7 +680,7 @@ export function BudgetLaunchStep({
             <div className="relative z-10 max-w-xl">
               <div className="inline-flex items-center gap-2 bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-4">
                 <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
-                Action Required
+                Recommended
               </div>
 
               <h3 className="text-2xl font-bold text-yellow-900 mb-2">

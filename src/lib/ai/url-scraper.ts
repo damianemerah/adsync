@@ -51,14 +51,25 @@ export async function scrapeUrl(url: string): Promise<string | null> {
     });
     clearTimeout(timeout);
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.log(`[scrapeUrl] HTTP ${res.status} ${res.statusText} for ${url}`);
+      return null;
+    }
 
     const contentType = res.headers.get("content-type") || "";
-    if (!contentType.includes("text/html")) return null;
+    if (!contentType.includes("text/html")) {
+      console.log(`[scrapeUrl] Non-HTML content-type "${contentType}" for ${url}`);
+      return null;
+    }
 
     const html = await res.text();
-    return extractTextFromHtml(html);
-  } catch {
+    const result = extractTextFromHtml(html);
+    if (!result) {
+      console.log(`[scrapeUrl] extractTextFromHtml returned null for ${url}`);
+    }
+    return result;
+  } catch (e){
+    console.log(`[scrapeUrl] Fetch error for ${url}:`, e)
     return null;
   }
 }

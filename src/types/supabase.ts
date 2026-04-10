@@ -1225,6 +1225,41 @@ export type Database = {
           },
         ]
       }
+      meta_oauth_pending: {
+        Row: {
+          access_token: string
+          accounts: Json
+          expires_at: string
+          id: string
+          org_id: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          accounts: Json
+          expires_at?: string
+          id?: string
+          org_id: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          accounts?: Json
+          expires_at?: string
+          id?: string
+          org_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_oauth_pending_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification_logs: {
         Row: {
           channel: string | null

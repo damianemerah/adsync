@@ -4,6 +4,35 @@ import { decrypt, encrypt } from "@/lib/crypto";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
+export async function getMetaPendingAccounts(sessionId: string) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("Unauthorized");
+
+  const { data: session, error } = await supabase
+    .from("meta_oauth_pending")
+    .select("accounts, org_id, expires_at")
+    .eq("id", sessionId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (error || !session) return null;
+  if (new Date(session.expires_at) < new Date()) return null;
+
+  return {
+    accounts: session.accounts as Array<{
+      account_id: string;
+      name: string;
+      currency: string;
+    }>,
+    orgId: session.org_id,
+  };
+}
+
 export async function disconnectAdAccount(id: string) {
   const supabase = await createClient();
 
