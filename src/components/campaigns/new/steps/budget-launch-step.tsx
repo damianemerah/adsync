@@ -113,6 +113,8 @@ export function BudgetLaunchStep({
     leadGenFormId,
     suggestedLeadForm,
     carouselCards,
+    pageId,
+    instagramAccountId,
   } = useCampaignStore();
 
   const orgROI = useOrgROI();
@@ -150,6 +152,28 @@ export function BudgetLaunchStep({
       setSelectedAdAccountId(defaultAccount.id);
     }
   }, [defaultAccount?.id]);
+
+  // ─── Facebook Pages + Instagram accounts ─────────────────────────────────
+  const selectedAccount = adAccounts?.find((a) => a.id === selectedAdAccountId);
+  const { data: pages } = useQuery({
+    queryKey: ["meta", "pages", selectedAccount?.accountId],
+    queryFn: async () => {
+      const res = await fetchMetaPages(selectedAccount!.accountId);
+      return res.success ? res.pages : [];
+    },
+    enabled: !!selectedAccount?.accountId && platform === "meta",
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Auto-select first page when pages load and none is selected yet
+  useEffect(() => {
+    if (pages && pages.length > 0 && !pageId) {
+      updateDraft({
+        pageId: pages[0].id,
+        instagramAccountId: pages[0].instagramAccountId ?? undefined,
+      });
+    }
+  }, [pages]);
 
   // Mock check for if the org has a pixel configured
   const hasPixel = false;
@@ -361,6 +385,8 @@ export function BudgetLaunchStep({
       },
       campaignId: persistedDraftId || undefined,
       adAccountId: selectedAdAccountId || undefined,
+      pageId: pageId ?? pages?.[0]?.id,
+      instagramAccountId: instagramAccountId ?? undefined,
       leadGenFormId: finalLeadGenFormId || undefined,
       // Include carousel data if present (2+ cards)
       ...(carouselCards && carouselCards.length >= 2 && { carouselCards }),
@@ -540,6 +566,61 @@ export function BudgetLaunchStep({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+          )}
+
+          {/* ── Facebook Page + Instagram Account ── */}
+          {platform === "meta" && pages && pages.length > 0 && (
+            <div className="space-y-4">
+              {/* Page selector — only show dropdown if multiple pages */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-subtle-foreground uppercase tracking-wider">
+                  Facebook Page
+                </label>
+                {pages.length > 1 ? (
+                  <Select
+                    value={pageId ?? pages[0].id}
+                    onValueChange={(val) => {
+                      const selected = pages.find((p) => p.id === val);
+                      updateDraft({
+                        pageId: val,
+                        instagramAccountId: selected?.instagramAccountId ?? undefined,
+                      });
+                    }}
+                  >
+                    <SelectTrigger className="h-12 bg-card border-border font-medium">
+                      <SelectValue placeholder="Choose a page…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {pages.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <p className="text-sm font-medium text-foreground h-12 flex items-center px-3 rounded-md border border-border bg-card/50">
+                    {pages[0].name}
+                  </p>
+                )}
+              </div>
+
+              {/* Instagram identity — read-only, derived from selected page */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-subtle-foreground uppercase tracking-wider">
+                  Instagram Account
+                </label>
+                {instagramAccountId ? (
+                  <p className="text-sm font-medium text-foreground h-12 flex items-center px-3 rounded-md border border-border bg-card/50">
+                    {pages.find((p) => p.id === (pageId ?? pages[0].id))?.instagramAccountName ?? instagramAccountId}
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground h-12 flex items-center px-3 rounded-md border border-border bg-card/50 italic">
+                    No Instagram account linked to this Page
+                  </p>
+                )}
+              </div>
             </div>
           )}
         </div>

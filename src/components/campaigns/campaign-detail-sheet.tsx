@@ -28,6 +28,7 @@ function CampaignDetailSheetInner() {
       return await fetchCampaignById(campaignId);
     },
     enabled: !!campaignId,
+    staleTime: 0,
   });
 
   const handleOpenChange = (open: boolean) => {
@@ -40,7 +41,7 @@ function CampaignDetailSheetInner() {
     <Sheet open={!!campaignId} onOpenChange={handleOpenChange}>
       <SheetContent
         side="bottom"
-        className="h-[85vh] w-full rounded-t-[20px] p-0 gap-0 shadow-2xl overflow-hidden"
+        className="h-[85vh] w-full rounded-t-[20px] p-0 gap-0 shadow-2xl overflow-auto no-scrollbar"
       >
         <SheetHeader className="sr-only">
           <SheetTitle>Campaign Details</SheetTitle>

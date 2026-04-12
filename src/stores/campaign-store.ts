@@ -68,6 +68,7 @@ export interface CampaignState {
   adSetName?: string;
   platformCampaignId?: string; // Set after launch
   pageId?: string; // Meta specific Page ID
+  instagramAccountId?: string; // Instagram Business Account ID linked to the selected Page
   platformAccountId?: string; // Ad account ID being used
 
   // Objective-specific fields

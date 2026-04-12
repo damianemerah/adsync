@@ -647,6 +647,7 @@ export const MetaService = {
         name: adName,
         object_story_spec: {
           page_id: copy.pageId,
+          ...(copy.instagramAccountId && { instagram_actor_id: copy.instagramAccountId }),
           ...(videoId ? { video_data: linkData } : { link_data: linkData }),
         },
         // Advantage+ Creative — v25.0 individual feature flags.
@@ -727,18 +728,22 @@ export const MetaService = {
   getMetaPages: async (
     token: string,
     adAccountId: string,
-  ): Promise<Array<{ id: string; name: string }>> => {
+  ): Promise<Array<{ id: string; name: string; instagramAccountId?: string; instagramAccountName?: string }>> => {
     const id = adAccountId.startsWith("act_")
       ? adAccountId
       : `act_${adAccountId}`;
     const data = await MetaService.request(
-      `/${id}/promote_pages?fields=id,name&limit=100`,
+      `/${id}/promote_pages?fields=id,name,instagram_business_account.fields(id,name)&limit=100`,
       "GET",
       token,
     );
-    return (data.data || []).map((p: { id: string; name: string }) => ({
+    return (data.data || []).map((p: { id: string; name: string; instagram_business_account?: { id: string; name: string } }) => ({
       id: p.id,
       name: p.name,
+      ...(p.instagram_business_account && {
+        instagramAccountId: p.instagram_business_account.id,
+        instagramAccountName: p.instagram_business_account.name,
+      }),
     }));
   },
 

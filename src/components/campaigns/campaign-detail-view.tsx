@@ -27,7 +27,6 @@ import {
   CreditCard,
   OpenNewWindow,
   Facebook,
-  Globe,
   ViewGrid,
   MoreHoriz,
   Pause,
@@ -53,6 +52,7 @@ import {
   MetricKey,
 } from "@/components/dashboard/performance-chart";
 import { useState, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useDashboardStore } from "@/store/dashboard-store";
 
 interface CampaignDetailViewProps {
@@ -63,6 +63,7 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
+  const queryClient = useQueryClient();
   const { updateStatus, isUpdating, duplicateCampaign, isDuplicating } = useCampaigns();
   const [activeMetrics, setActiveMetrics] = useState<MetricKey[]>([
     "revenue",
@@ -105,7 +106,8 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
           `Synced ${insightsResult.count || 0} days of insights and ${adsResult.count || 0} ads`,
           { id: "sync-campaign" },
         );
-        router.refresh(); // Refresh the page to show new data
+        // Invalidate React Query cache so the detail view re-fetches fresh data
+        queryClient.invalidateQueries({ queryKey: ["campaign", campaign.id] });
       } else {
         throw new Error(
           insightsResult.error || adsResult.error || "Sync failed",

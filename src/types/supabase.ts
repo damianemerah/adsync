@@ -503,6 +503,8 @@ export type Database = {
           name: string
           objective: string | null
           organization_id: string
+          placement_cache: Json | null
+          placement_synced_at: string | null
           placement_type: string | null
           platform: string | null
           platform_campaign_id: string | null
@@ -543,6 +545,8 @@ export type Database = {
           name: string
           objective?: string | null
           organization_id: string
+          placement_cache?: Json | null
+          placement_synced_at?: string | null
           placement_type?: string | null
           platform?: string | null
           platform_campaign_id?: string | null
@@ -583,6 +587,8 @@ export type Database = {
           name?: string
           objective?: string | null
           organization_id?: string
+          placement_cache?: Json | null
+          placement_synced_at?: string | null
           placement_type?: string | null
           platform?: string | null
           platform_campaign_id?: string | null

@@ -71,6 +71,8 @@ interface LaunchConfig {
   businessDescription?: string; // [NEW] For AI context building
   campaignId?: string; // [NEW] Draft ID to update instead of creating a new row
   adAccountId?: string; // [NEW] DB UUID of the ad account to use — defaults to org's default account
+  pageId?: string; // [NEW] Facebook Page ID to use for the ad identity
+  instagramAccountId?: string; // [NEW] Instagram Business Account ID linked to the selected Page
   // Objective-specific fields
   leadGenFormId?: string; // leads: Meta Lead Gen Form ID
   appStoreUrl?: string; // app_promotion: Play Store or App Store URL
@@ -345,15 +347,18 @@ export async function launchCampaign(config: LaunchConfig) {
     // 5. META API CHAIN
 
     // Step A: Find Facebook Page ID
-    // We need a Page to represent the business in the ad
-    const pages = await MetaService.request(
-      "/me/accounts?fields=id,name",
-      "GET",
-      accessToken,
-    );
-    if (!pages.data?.length)
-      throw new Error("No Facebook Page found. Please create one on Facebook.");
-    const pageId = pages.data[0].id;
+    // Use user-selected pageId if provided; fall back to first page from Meta
+    let pageId = config.pageId ?? null;
+    if (!pageId) {
+      const pages = await MetaService.request(
+        "/me/accounts?fields=id,name",
+        "GET",
+        accessToken,
+      );
+      if (!pages.data?.length)
+        throw new Error("No Facebook Page found. Please create one on Facebook.");
+      pageId = pages.data[0].id;
+    }
 
     // Step B: Prepare Targeting Objects
     // Now we use the stored IDs directly
@@ -580,6 +585,7 @@ export async function launchCampaign(config: LaunchConfig) {
       isCarousel ? carouselImageData.map((c) => c.imageHash) : (imageHash ?? ""),
       {
         pageId,
+        instagramAccountId: config.instagramAccountId ?? undefined,
         primaryText: config.adCopy.primary,
         headline: config.adCopy.headline,
         destinationUrl: finalUrl,
@@ -1160,6 +1166,14 @@ export async function syncCampaignAds(campaignId: string) {
       token,
     );
 
+    console.log("[syncCampaignAds] metaId:", metaId);
+    console.log("[syncCampaignAds] adsRes keys:", Object.keys(adsRes));
+    console.log("[syncCampaignAds] adsRes.data length:", adsRes.data?.length ?? "undefined");
+    console.log("[syncCampaignAds] adsRes.data raw:", JSON.stringify(adsRes.data, null, 2));
+    if (adsRes.error) {
+      console.log("[syncCampaignAds] adsRes.error:", JSON.stringify(adsRes.error, null, 2));
+    }
+
     if (!adsRes.data || adsRes.data.length === 0) {
       return { success: true, count: 0, message: "No ads found" };
     }
@@ -1167,6 +1181,7 @@ export async function syncCampaignAds(campaignId: string) {
     // Process ads
     const adsData = adsRes.data.map((ad: any) => {
       const insights = ad.insights?.data?.[0] || {};
+      console.log("[syncCampaignAds] insights:", insights);
       const imageUrl =
         ad.creative?.image_url ||
         ad.creative?.thumbnail_url ||
@@ -1184,6 +1199,52 @@ export async function syncCampaignAds(campaignId: string) {
         ctr: parseFloat(insights.ctr || "0"),
       };
     });
+
+    // Persist ads to DB so cache-on-read in getCampaignById finds fresh data
+    const adsToUpsert = adsRes.data.map((ad: any) => {
+      const insights = ad.insights?.data?.[0] || {};
+      const imageUrl =
+        ad.creative?.image_url ||
+        ad.creative?.thumbnail_url ||
+        ad.creative?.object_story_spec?.video_data?.image_url ||
+        null;
+      return {
+        platform_ad_id: ad.id,
+        campaign_id: campaignId,
+        name: ad.name,
+        status: ad.status.toLowerCase(),
+        creative_snapshot: { thumbnail_url: imageUrl, image_url: imageUrl },
+        clicks: parseInt(insights.clicks || "0", 10),
+        impressions: parseInt(insights.impressions || "0", 10),
+        spend_cents: Math.round(parseFloat(insights.spend || "0") * 100),
+        ctr: parseFloat(insights.ctr || "0"),
+        synced_at: new Date().toISOString(),
+      };
+    });
+
+    await supabase
+      .from("ads")
+      .upsert(adsToUpsert, { onConflict: "platform_ad_id" });
+
+    // Also refresh placement cache while we have a valid token
+    try {
+      if (!metaId) throw new Error("No Meta campaign ID");
+      const placementRes = await MetaService.getPlacementInsights(
+        token,
+        metaId,
+      );
+      if (placementRes.data && placementRes.data.length > 0) {
+        await supabase
+          .from("campaigns")
+          .update({
+            placement_cache: placementRes.data,
+            placement_synced_at: new Date().toISOString(),
+          })
+          .eq("id", campaignId);
+      }
+    } catch {
+      // Non-fatal: placement cache update is best-effort
+    }
 
     return { success: true, count: adsData.length, ads: adsData };
   } catch (error: any) {
@@ -1219,24 +1280,48 @@ export async function getCampaignPlacementInsights(campaignId: string) {
 
   if (!campaign || !campaign.ad_accounts) throw new Error("Campaign not found");
 
+  // Check placement_cache freshness (1-hour TTL)
+  const placementIsFresh =
+    campaign.placement_synced_at &&
+    Date.now() - new Date(campaign.placement_synced_at).getTime() <
+      60 * 60 * 1000;
+
+  if (placementIsFresh && campaign.placement_cache) {
+    return { success: true, data: campaign.placement_cache as any[] };
+  }
+
   try {
     const token = decrypt(campaign.ad_accounts.access_token);
     const metaId = campaign.platform_campaign_id;
     if (!metaId) throw new Error("Campaign has no Meta ID");
 
-    // Fetch placement insights
+    // Fetch placement insights from Meta
     const res = await MetaService.getPlacementInsights(token, metaId);
 
     if (!res.data || res.data.length === 0) {
+      // Return stale cache if available rather than empty
+      if (campaign.placement_cache) {
+        return { success: true, data: campaign.placement_cache as any[] };
+      }
       return { success: true, data: [] };
     }
 
-    return {
-      success: true,
-      data: res.data,
-    };
+    // Persist to DB for future cache hits
+    await supabase
+      .from("campaigns")
+      .update({
+        placement_cache: res.data,
+        placement_synced_at: new Date().toISOString(),
+      })
+      .eq("id", campaignId);
+
+    return { success: true, data: res.data };
   } catch (error: any) {
     console.error("Sync Placement Insights Error:", error);
+    // Serve stale cache on error rather than failing silently
+    if (campaign.placement_cache) {
+      return { success: true, data: campaign.placement_cache as any[] };
+    }
     return { success: false, error: error.message };
   }
 }
