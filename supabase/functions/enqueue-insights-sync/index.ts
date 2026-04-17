@@ -92,7 +92,13 @@ serve(async (req) => {
         .select("id")
         .single();
 
+      // jobErr code 23505 = unique constraint violation (dedup index).
+      // This means a pending job already exists for this org — skip silently.
       if (jobErr) {
+        if (jobErr.code === "23505") {
+          console.log(`[Enqueuer] ⏭️ Skipping org ${orgId} — pending job already exists`);
+          continue;
+        }
         console.error(`[Enqueuer] Failed to create job for org ${orgId}:`, jobErr);
         continue;
       }

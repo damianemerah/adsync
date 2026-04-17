@@ -230,6 +230,7 @@ export async function getAccountHealth(): Promise<AccountHealthResult> {
       a.last_known_balance_cents !== null &&
       a.last_known_balance_cents < 200000, // < ₦2,000
   );
+  console.log("lowBalanceAccounts🔥", adAccounts)
   if (lowBalanceAccounts.length > 0) {
     totalProblems++;
     checks.push({

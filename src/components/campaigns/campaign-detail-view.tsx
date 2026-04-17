@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { syncCampaignInsights, syncCampaignAds } from "@/actions/campaigns";
 import { toast } from "sonner";
+import { useCampaignDetail } from "@/hooks/use-campaign-detail";
 import { ROIMetricsCard } from "@/components/campaigns/roi-metrics-card";
 import { MarkAsSoldButton } from "@/components/campaigns/mark-as-sold-button";
 import { PixelSnippetCard } from "@/components/campaigns/pixel-snippet-card";
@@ -69,8 +70,8 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
     "revenue",
     "spend",
   ]);
-  const [isSyncing, setIsSyncing] = useState(false);
   const { dateRange } = useDashboardStore();
+  const { syncAll, isSyncingAll: isSyncing } = useCampaignDetail(campaign.id);
 
   // Tab management: read from URL query param
   const activeTab = searchParams.get("tab") || "overview";
@@ -91,36 +92,7 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
   // Manual refresh handler
   const handleRefresh = async () => {
     if (campaign.status === "draft") return;
-
-    setIsSyncing(true);
-    toast.loading("Syncing campaign data...", { id: "sync-campaign" });
-
-    try {
-      const [insightsResult, adsResult] = await Promise.all([
-        syncCampaignInsights(campaign.id),
-        syncCampaignAds(campaign.id),
-      ]);
-
-      if (insightsResult.success && adsResult.success) {
-        toast.success(
-          `Synced ${insightsResult.count || 0} days of insights and ${adsResult.count || 0} ads`,
-          { id: "sync-campaign" },
-        );
-        // Invalidate React Query cache so the detail view re-fetches fresh data
-        queryClient.invalidateQueries({ queryKey: ["campaign", campaign.id] });
-      } else {
-        throw new Error(
-          insightsResult.error || adsResult.error || "Sync failed",
-        );
-      }
-    } catch (error: any) {
-      toast.error("Failed to sync campaign", {
-        id: "sync-campaign",
-        description: error.message,
-      });
-    } finally {
-      setIsSyncing(false);
-    }
+    syncAll();
   };
 
   // Calculate CTR for chart data since API might return it or we compute it
@@ -617,7 +589,7 @@ function AdsTable({
       key: "ctr",
       title: "CTR",
       className: "font-mono text-slate-700",
-      render: (ad) => `${(ad.ctr ?? 0).toFixed(2)}%`,
+      render: (ad) => `${Number(ad.ctr ?? 0).toFixed(2)}%`,
     },
     {
       key: "spend",

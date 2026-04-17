@@ -16,7 +16,7 @@
  * ```
  */
 
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
@@ -76,7 +76,16 @@ export interface JobMetric {
  * @throws Error if database insert fails
  */
 export async function enqueueJob(options: EnqueueJobOptions): Promise<string> {
-  const supabase = await createClient();
+  // Bug 2 fix: use service_role to bypass RLS (no INSERT policy for anon/user clients)
+  const supabase = createAdminClient();
+
+  // Bug 5 fix: reject payloads that would OOM edge function workers (150MB limit)
+  const payloadStr = JSON.stringify(options.payload ?? {});
+  if (payloadStr.length > 64 * 1024) {
+    throw new Error(
+      `Job payload too large: ${payloadStr.length} bytes (max 64KB)`,
+    );
+  }
 
   const { data, error } = await supabase
     .from("job_queue")
@@ -106,6 +115,10 @@ export async function enqueueJob(options: EnqueueJobOptions): Promise<string> {
 /**
  * Marks a job as processing (locks it for execution)
  *
+ * @deprecated fetchNextJob now calls the claim_next_job RPC which atomically
+ * fetches and transitions the job to 'processing' in one query. This function
+ * is retained for backward compatibility only.
+ *
  * @param supabase Supabase client (edge functions pass this)
  * @param jobId Job UUID
  * @returns True if lock acquired, false if already processing
@@ -114,22 +127,23 @@ export async function markJobProcessing(
   supabase: SupabaseClient<Database>,
   jobId: string,
 ): Promise<boolean> {
-  const { error, count } = await supabase
+  const { data: lockedRows, error } = await supabase
     .from("job_queue")
     .update({
       status: "processing",
       started_at: new Date().toISOString(),
     })
     .eq("id", jobId)
-    .eq("status", "pending"); // Optimistic lock: only update if still pending
+    .eq("status", "pending") // Optimistic lock: only update if still pending
+    .select("id");
 
   if (error) {
     console.error(`[JobQueue] Failed to lock job ${jobId}:`, error);
     return false;
   }
 
-  // If count is 0, job was already locked by another worker
-  return count !== 0;
+  // If no rows returned, job was already locked by another worker
+  return !!lockedRows?.length;
 }
 
 /**
@@ -215,26 +229,22 @@ export async function markJobFailed(
       `[JobQueue] Job ${jobId} permanently failed after ${newAttempts} attempts, moving to DLQ`,
     );
 
-    // Move to Dead Letter Queue
-    await supabase.from("job_dlq").insert({
-      job_id: jobId,
-      type: job.type,
-      payload: job.payload,
-      error_message: errorMessage,
-      error_stack: errorStack ?? null,
-      attempts: newAttempts,
+    // Bug 3 fix: single atomic RPC replaces two separate HTTP round-trips.
+    // Inserts into job_dlq AND marks job_queue.status='failed' in one transaction.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: dlqError } = await (supabase as any).rpc("fail_job_to_dlq", {
+      p_job_id: jobId,
+      p_error_msg: errorMessage,
+      p_error_stack: errorStack ?? null,
+      p_attempts: newAttempts,
     });
 
-    // Mark as failed (no more retries)
-    await supabase
-      .from("job_queue")
-      .update({
-        status: "failed",
-        last_error: errorMessage,
-        attempts: newAttempts,
-        completed_at: new Date().toISOString(),
-      })
-      .eq("id", jobId);
+    if (dlqError) {
+      console.error(
+        `[JobQueue] Failed to atomically fail job ${jobId} to DLQ:`,
+        dlqError,
+      );
+    }
   } else {
     // Retry with exponential backoff
     const backoffMs = Math.min(1000 * Math.pow(2, newAttempts), 300000); // Max 5min
@@ -276,35 +286,34 @@ export async function recordMetric(
 }
 
 /**
- * Fetches next pending job of a specific type (FIFO)
+ * Atomically claims the next pending job of a specific type.
+ *
+ * Bug 1+4 fix: replaces the old two-step fetch+lock pattern with a single
+ * claim_next_job RPC that uses FOR UPDATE SKIP LOCKED. This means:
+ * - Backoff delays are honoured (filters updated_at <= NOW())
+ * - Concurrent workers each claim a distinct row with zero contention
  *
  * @param supabase Supabase client
  * @param jobType Type of job to fetch
- * @returns Job object or null if none pending
+ * @returns Job object (already in 'processing') or null if none eligible
  */
 export async function fetchNextJob(
   supabase: SupabaseClient<Database>,
   jobType: JobType,
 ): Promise<Job | null> {
-  const { data, error } = await supabase
-    .from("job_queue")
-    .select("*")
-    .eq("type", jobType)
-    .eq("status", "pending")
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .single();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any).rpc("claim_next_job", {
+    p_type: jobType,
+  });
 
   if (error) {
-    if (error.code === "PGRST116") {
-      // No rows returned (queue is empty)
-      return null;
-    }
-    console.error(`[JobQueue] Error fetching ${jobType} job:`, error);
+    console.error(`[JobQueue] Error claiming ${jobType} job:`, error);
     return null;
   }
 
-  return data as Job;
+  // rpc() returns an array for SETOF functions; take the first (and only) row
+  const rows = data as Job[] | null;
+  return rows?.[0] ?? null;
 }
 
 /**

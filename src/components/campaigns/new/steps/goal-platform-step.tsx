@@ -245,6 +245,16 @@ export function GoalPlatformStep() {
   );
 }
 
+interface GoalCardProps {
+  title: string;
+  desc: string;
+  icon: React.ElementType;
+  selected: boolean;
+  onClick: () => void;
+  isRevenue?: boolean;
+  comingSoon?: boolean;
+}
+
 function GoalCard({
   title,
   desc,
@@ -253,7 +263,7 @@ function GoalCard({
   onClick,
   isRevenue,
   comingSoon,
-}: any) {
+}: GoalCardProps) {
   return (
     <div
       onClick={comingSoon ? undefined : onClick}
@@ -382,7 +392,7 @@ function PlatformCard({
           comingSoon
             ? "bg-muted-foreground/40"
             : color === "blue"
-              ? "bg-[#1877F2]"
+              ? "bg-facebook"
               : "bg-foreground",
         )}
       >

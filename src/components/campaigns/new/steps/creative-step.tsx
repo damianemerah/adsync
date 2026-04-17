@@ -1,6 +1,6 @@
 "use client";
 
-import { useCampaignStore } from "@/stores/campaign-store";
+import { useCampaignStore, TargetingOption } from "@/stores/campaign-store";
 import { useCreatives } from "@/hooks/use-creatives";
 import { CreativeUploadDialog } from "@/components/creatives/creative-upload-dialog";
 import { useState, useEffect } from "react";
@@ -23,6 +23,7 @@ import {
   Play,
 } from "iconoir-react";
 import { cn } from "@/lib/utils";
+import { deriveAspectRatio } from "./creative/utils";
 import { Badge } from "@/components/ui/badge";
 import {
   generateAdCreative,
@@ -154,8 +155,8 @@ export function CreativeStep({
           adCopy.headline ||
           "Product",
         targeting: {
-          interests: (targetInterests || []).map((i: any) => i.name),
-          behaviors: (targetBehaviors || []).map((b: any) => b.name),
+          interests: (targetInterests || []).map((i: TargetingOption) => i.name),
+          behaviors: (targetBehaviors || []).map((b: TargetingOption) => b.name),
           locations:
             locations.length > 0
               ? locations.map((l) => l.name)
@@ -178,26 +179,13 @@ export function CreativeStep({
             : "sales",
       } as const;
 
-      // Pick aspect ratio based on platform & objective
-      const aspectRatio: "1:1" | "9:16" | "4:5" =
-        platform === "tiktok"
-          ? "9:16"
-          : objective?.toString().includes("awareness")
-            ? "9:16"
-            : objective?.toString().includes("sale")
-              ? "4:5"
-              : "1:1";
+      const aspectRatio = deriveAspectRatio(platform, objective);
 
       const promptToUse =
         typeof overridePrompt === "string" ? overridePrompt : customPrompt;
       const composedPrompt = promptToUse
         ? `${adCopy.headline || "product shot"}. Additional instructions: ${promptToUse}`
         : adCopy.headline || aiPrompt || "product shot";
-
-      console.log("composedPrompt", composedPrompt);
-      console.log("campaignContext", campaignContext);
-      console.log("aspectRatio", aspectRatio);
-      
 
       const result = await generateAdCreative({
         prompt: composedPrompt,
@@ -243,18 +231,11 @@ export function CreativeStep({
     let finalUrl = imageUrl;
     const toastId = toast.loading("Saving to your library...");
     try {
-      const aspectRatio =
-        platform === "tiktok"
-          ? "9:16"
-          : objective?.toString().includes("awareness")
-            ? "9:16"
-            : objective?.toString().includes("sale")
-              ? "4:5"
-              : "1:1";
+      const aspectRatio = deriveAspectRatio(platform, objective);
       const saved = await saveCreativeToLibrary({
         imageUrl,
         prompt: pendingGeneratedImage?.prompt ?? adCopy.headline ?? "",
-        aspectRatio: (pendingGeneratedImage?.aspectRatio as any) ?? aspectRatio,
+        aspectRatio: (pendingGeneratedImage?.aspectRatio as "1:1" | "9:16" | "4:5") ?? aspectRatio,
       });
       finalUrl = saved.publicUrl;
       toast.dismiss(toastId);
@@ -276,12 +257,7 @@ export function CreativeStep({
       toast.error("Could not save campaign draft");
     }
     const ratio =
-      pendingGeneratedImage?.aspectRatio ||
-      (platform === "tiktok"
-        ? "9:16"
-        : objective?.toString().includes("awareness")
-          ? "9:16"
-          : "1:1");
+      pendingGeneratedImage?.aspectRatio || deriveAspectRatio(platform, objective);
     const params = new URLSearchParams({
       image: imageUrl,
       prompt: imagePrompt,
@@ -450,7 +426,7 @@ export function CreativeStep({
                     )}
 
                     {/* Real Creatives */}
-                    {creatives?.map((item: any) => (
+                    {creatives?.map((item) => (
                       <div
                         key={item.id}
                         onClick={() => toggleCreative(item.original_url)}

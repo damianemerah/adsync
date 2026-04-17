@@ -33,10 +33,9 @@ export async function GET(request: Request) {
   // Fetch ad account token
   const { data: adAccount } = await supabase
     .from("ad_accounts")
-    .select("access_token")
+    .select("access_token, platform_account_id")
     .eq("organization_id", activeOrgId)
     .eq("platform", "meta")
-    .eq("health_status", "healthy")
     .order("is_default", { ascending: false })
     .limit(1)
     .single();
@@ -52,7 +51,8 @@ export async function GET(request: Request) {
 
   try {
     const accessToken = decrypt(adAccount.access_token);
-    let results = await MetaService.searchInterests(accessToken, query);
+    const accountId = adAccount.platform_account_id;
+    let results = await MetaService.searchInterests(accessToken, accountId, query);
 
     const hasExact = results.some(
       (r: any) => r.name.toLowerCase() === query.toLowerCase(),
@@ -75,6 +75,7 @@ export async function GET(request: Request) {
         if (keyword !== query) {
           const retryResults = await MetaService.searchInterests(
             accessToken,
+            accountId,
             keyword,
           );
           if (retryResults.length > 0) results = retryResults;

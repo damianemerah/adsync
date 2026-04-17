@@ -4,7 +4,7 @@ import { useCampaignStore } from "@/stores/campaign-store";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
-import { saveDraft, getDraft, deleteDraft } from "@/actions/drafts";
+import { getDraft } from "@/actions/drafts";
 import {
   FloppyDisk,
   MoreVert,
@@ -20,12 +20,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/layout/page-header";
 import { useSubscription } from "@/hooks/use-subscription";
 import { PaymentDialog } from "@/components/billing/payment-dialog";
+import { useDraftPersistence } from "@/hooks/use-draft-persistence";
+import { WizardTabNav } from "@/components/campaigns/new/wizard-tab-nav";
 
 // Step Components
 import { GoalPlatformStep } from "@/components/campaigns/new/steps/goal-platform-step";
@@ -45,12 +47,9 @@ import {
 
 export default function NewCampaignPage() {
   const router = useRouter();
-  /* eslint-disable react-hooks/exhaustive-deps */
   const searchParams = useSearchParams();
   const draftId = searchParams.get("draftId");
-  const [persistedDraftId, setPersistedDraftId] = useState<string | null>(
-    draftId,
-  );
+
   const {
     currentStep: step,
     setStep,
@@ -58,11 +57,17 @@ export default function NewCampaignPage() {
     hydrate,
     ...campaignState
   } = useCampaignStore();
-  const [savingState, setSavingState] = useState<"none" | "save" | "exit">(
-    "none",
-  );
-  const isSaving = savingState !== "none";
-  const [isDeleting, setIsDeleting] = useState(false);
+
+  const {
+    persistedDraftId,
+    savingState,
+    isSaving,
+    isDeleting,
+    onDraftSaved,
+    handleSaveOnly,
+    handleSaveAndExit,
+    handleDeleteDraft,
+  } = useDraftPersistence(draftId);
 
   const { data: subscriptionData, isLoading: isLoadingSub } = useSubscription();
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
@@ -71,12 +76,6 @@ export default function NewCampaignPage() {
     !isLoadingSub &&
     (subscriptionData?.org?.status === "active" ||
       subscriptionData?.org?.status === "trialing");
-
-  useEffect(() => {
-    if (!isLoadingSub && !hasActiveSub) {
-      setIsPaymentOpen(true);
-    }
-  }, [isLoadingSub, hasActiveSub]);
 
   // Hydrate from Server Draft if ID present
   useEffect(() => {
@@ -95,81 +94,12 @@ export default function NewCampaignPage() {
         },
       );
     } else if (!isResume) {
-      // Start fresh ONLY if not resuming from another flow
       resetDraft();
     }
-  }, [draftId, searchParams]);
-
-  const handleSaveAndExit = async () => {
-    setSavingState("exit");
-    try {
-      const savedId = await saveDraft(
-        campaignState,
-        persistedDraftId || undefined,
-      );
-      if (savedId && savedId !== persistedDraftId) {
-        setPersistedDraftId(savedId);
-      }
-      toast.success("Draft saved", {
-        description: "You can resume this ad from the dashboard.",
-      });
-      router.push("/campaigns");
-    } catch (error) {
-      toast.error("Failed to save draft");
-      console.error(error);
-    } finally {
-      setSavingState("none");
-    }
-  };
-
-  const handleSaveOnly = async () => {
-    setSavingState("save");
-    try {
-      const savedId = await saveDraft(
-        campaignState,
-        persistedDraftId || undefined,
-      );
-      if (savedId && savedId !== persistedDraftId) {
-        setPersistedDraftId(savedId);
-        router.replace(`/campaigns/new?draftId=${savedId}`, { scroll: false });
-      }
-      toast.success("Draft saved", {
-        description: "Your progress is saved.",
-      });
-    } catch (error) {
-      toast.error("Failed to save draft");
-      console.error(error);
-    } finally {
-      setSavingState("none");
-    }
-  };
-
-  const handleDeleteDraft = async () => {
-    if (!persistedDraftId) {
-      if (confirm("Discard this ad and start over?")) {
-        resetDraft();
-      }
-      return;
-    }
-
-    if (!confirm("Delete this draft? This can't be undone.")) return;
-
-    setIsDeleting(true);
-    try {
-      await deleteDraft(persistedDraftId);
-      toast.success("Draft deleted");
-      resetDraft();
-      router.push("/campaigns");
-    } catch (error) {
-      toast.error("Failed to delete draft");
-      console.error(error);
-      setIsDeleting(false);
-    }
-  };
+  }, [draftId, searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleTabChange = (value: string) => {
-    const newStep = parseInt(value);
-    setStep(newStep);
+    setStep(parseInt(value));
   };
 
   // Calculate validation states
@@ -185,7 +115,6 @@ export default function NewCampaignPage() {
   const canGoToLaunch = canAccessLaunchStep(fullState);
   const completionPercentage = getWizardCompletionPercentage(fullState);
 
-  // Dynamic Step configuration based on objective
   const hasExtraStep =
     campaignState.objective === "app_promotion" ||
     campaignState.objective === "leads";
@@ -193,12 +122,8 @@ export default function NewCampaignPage() {
   const extraStepLabel =
     campaignState.objective === "app_promotion" ? "App Info" : "Lead Form";
 
-  const numSteps = hasExtraStep ? 5 : 4;
-
-  // Validation logic
   const canGoToExtraStep = canAccessExtraStep(fullState);
 
-  // If we have an extra step, the guards shift
   const canGoToAudienceAdjusted = hasExtraStep
     ? canGoToExtraStep
     : canGoToAudience;
@@ -298,7 +223,6 @@ export default function NewCampaignPage() {
         }
       >
         <div className="flex items-center gap-4">
-          {/* Completion Badge */}
           <Badge
             variant="outline"
             className="hidden sm:flex border-border text-foreground"
@@ -306,7 +230,6 @@ export default function NewCampaignPage() {
             {completionPercentage}% Complete
           </Badge>
 
-          {/* Global Reset */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -355,86 +278,17 @@ export default function NewCampaignPage() {
           onValueChange={handleTabChange}
           className="w-full"
         >
-          {/* Tab Navigation */}
-          <TabsList
-            className={cn(
-              "grid w-full mb-8 h-auto gap-2 bg-transparent p-0",
-              hasExtraStep ? "grid-cols-5" : "grid-cols-4"
-            )}
-          >
-            <TabsTrigger
-              value="1"
-              className={cn(
-                "h-12 rounded-lg border-2 transition-all data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=inactive]:border-border data-[state=inactive]:bg-background",
-                "flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2",
-              )}
-            >
-              <span className="text-xs sm:text-sm font-bold">1.</span>
-              <span className="text-xs sm:text-sm">Goal</span>
-            </TabsTrigger>
+          <WizardTabNav
+            hasExtraStep={hasExtraStep}
+            extraStepLabel={extraStepLabel}
+            canGoTo={{
+              extraStep: canGoToExtraStep,
+              audience: canGoToAudienceAdjusted,
+              creative: canGoToCreativeAdjusted,
+              launch: canGoToLaunchAdjusted,
+            }}
+          />
 
-            {hasExtraStep && (
-              <TabsTrigger
-                value="2"
-                disabled={!canGoToExtraStep}
-                className={cn(
-                  "h-12 rounded-lg border-2 transition-all data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=inactive]:border-border data-[state=inactive]:bg-background",
-                  "flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2",
-                  "disabled:opacity-40 disabled:cursor-not-allowed",
-                )}
-              >
-                <span className="text-xs sm:text-sm font-bold">2.</span>
-                <span className="text-xs sm:text-sm">{extraStepLabel}</span>
-              </TabsTrigger>
-            )}
-
-            <TabsTrigger
-              value={hasExtraStep ? "3" : "2"}
-              disabled={!canGoToAudienceAdjusted}
-              className={cn(
-                "h-12 rounded-lg border-2 transition-all data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=inactive]:border-border data-[state=inactive]:bg-background",
-                "flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2",
-                "disabled:opacity-40 disabled:cursor-not-allowed",
-              )}
-            >
-              <span className="text-xs sm:text-sm font-bold">
-                {hasExtraStep ? "3" : "2"}.
-              </span>
-              <span className="text-xs sm:text-sm">Targeting</span>
-            </TabsTrigger>
-
-            <TabsTrigger
-              value={hasExtraStep ? "4" : "3"}
-              disabled={!canGoToCreativeAdjusted}
-              className={cn(
-                "h-12 rounded-lg border-2 transition-all data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=inactive]:border-border data-[state=inactive]:bg-background",
-                "flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2",
-                "disabled:opacity-40 disabled:cursor-not-allowed",
-              )}
-            >
-              <span className="text-xs sm:text-sm font-bold">
-                {hasExtraStep ? "4" : "3"}.
-              </span>
-              <span className="text-xs sm:text-sm">Creative</span>
-            </TabsTrigger>
-
-            <TabsTrigger
-              value={hasExtraStep ? "5" : "4"}
-              disabled={!canGoToLaunchAdjusted}
-              className={cn(
-                "h-12 rounded-lg border-2 transition-all data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=inactive]:border-border data-[state=inactive]:bg-background",
-                "flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2",
-                "disabled:opacity-40 disabled:cursor-not-allowed",
-              )}
-            >
-              <span className="text-xs sm:text-sm font-bold">
-                {hasExtraStep ? "5" : "4"}.
-              </span>
-              <span className="text-xs sm:text-sm">Launch 🚀</span>
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Tab Content */}
           <TabsContent value="1" className="mt-0">
             <GoalPlatformStep />
           </TabsContent>
@@ -452,36 +306,21 @@ export default function NewCampaignPage() {
           <TabsContent value={hasExtraStep ? "3" : "2"} className="mt-0">
             <AudienceChatStep
               persistedDraftId={persistedDraftId}
-              onDraftSaved={(id) => {
-                setPersistedDraftId(id);
-                router.replace(`/campaigns/new?draftId=${id}`, {
-                  scroll: false,
-                });
-              }}
+              onDraftSaved={onDraftSaved}
             />
           </TabsContent>
 
           <TabsContent value={hasExtraStep ? "4" : "3"} className="mt-0">
             <CreativeStep
               persistedDraftId={persistedDraftId}
-              onDraftSaved={(id) => {
-                setPersistedDraftId(id);
-                router.replace(`/campaigns/new?draftId=${id}`, {
-                  scroll: false,
-                });
-              }}
+              onDraftSaved={onDraftSaved}
             />
           </TabsContent>
 
           <TabsContent value={hasExtraStep ? "5" : "4"} className="mt-0">
             <BudgetLaunchStep
               persistedDraftId={persistedDraftId}
-              onDraftSaved={(id) => {
-                setPersistedDraftId(id);
-                router.replace(`/campaigns/new?draftId=${id}`, {
-                  scroll: false,
-                });
-              }}
+              onDraftSaved={onDraftSaved}
             />
           </TabsContent>
         </Tabs>

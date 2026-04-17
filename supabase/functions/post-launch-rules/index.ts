@@ -5,9 +5,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 // Removed permissive CORS that allowed any origin to call this endpoint
 
 // ── Benchmarks & Constants ──────────────────────────────────────────────────
-// FX_RATE is now fetched dynamically from the database (fx_rates table)
-// Fallback to static 1600 if DB fetch fails
-let FX_RATE = 1600; // Will be updated from DB on startup
+// FX_RATE is fetched dynamically inside each request — never at module scope.
+// This avoids stale state on warm Deno isolate restarts.
 
 const NG_BENCHMARKS = {
   cpcUsd: 0.12,
@@ -31,20 +30,34 @@ interface CampaignMetrics {
 
 type ActionType = "NOTIFY" | "SUGGEST";
 type Severity = "info" | "success" | "warning" | "critical";
+type Suggestion =
+  | "creative_refresh"
+  | "audience_expand"
+  | "budget_scale_up"
+  | "pause_review";
+
+const SUGGESTION_LABELS: Record<Suggestion, string> = {
+  creative_refresh: "Refresh Creative",
+  audience_expand: "Expand Audience",
+  budget_scale_up: "Scale Budget",
+  pause_review: "Review & Pause",
+};
 
 interface TriggeredRule {
   id: string;
   action: ActionType;
   severity: Severity;
   message: string;
+  suggestion: Suggestion;
 }
 
 interface RuleDef {
   id: string;
-  condition: (m: CampaignMetrics) => boolean;
+  condition: (m: CampaignMetrics, fxRate: number) => boolean;
   action: ActionType;
   severity: Severity;
-  messageFn: (m: CampaignMetrics) => string;
+  messageFn: (m: CampaignMetrics, fxRate: number) => string;
+  suggestion: Suggestion;
 }
 
 // ── Rules ──────────────────────────────────────────────────────────────────
@@ -54,29 +67,32 @@ const RULES: RuleDef[] = [
     condition: (m) => m.ageHours >= 48 && m.impressions >= 1_000 && m.ctr < 0.8,
     action: "NOTIFY",
     severity: "warning",
+    suggestion: "creative_refresh",
     messageFn: (m) =>
       `Your CTR is ${m.ctr.toFixed(2)}% — below the ${(NG_BENCHMARKS.ctrTraffic * 100).toFixed(2)}% benchmark. Consider refreshing your creative or broadening your audience.`,
   },
   {
     id: "high_cpc",
-    condition: (m) => {
-      const cpcThreshold = NG_BENCHMARKS.cpcUsd * FX_RATE * 1.5;
+    condition: (m, fxRate) => {
+      const cpcThreshold = NG_BENCHMARKS.cpcUsd * fxRate * 1.5;
       return m.ageHours >= 48 && m.clicks >= 20 && m.cpcNgn > cpcThreshold;
     },
     action: "NOTIFY",
     severity: "warning",
-    messageFn: (m) =>
-      `Cost per click is ₦${Math.round(m.cpcNgn).toLocaleString()} — above the ₦${Math.round(NG_BENCHMARKS.cpcUsd * FX_RATE).toLocaleString()} benchmark. Try adding more interests or expanding locations.`,
+    suggestion: "audience_expand",
+    messageFn: (m, fxRate) =>
+      `Cost per click is ₦${Math.round(m.cpcNgn).toLocaleString()} — above the ₦${Math.round(NG_BENCHMARKS.cpcUsd * fxRate).toLocaleString()} benchmark. Try adding more interests or expanding locations.`,
   },
   {
     id: "scaling_opportunity",
-    condition: (m) =>
+    condition: (m, fxRate) =>
       m.ageDays >= 3 &&
       m.ctr >= 2.0 &&
-      m.cpcNgn <= NG_BENCHMARKS.cpcUsd * FX_RATE &&
-      m.conversions >= 5, // Currently we default conversions to 0, so this might not fire often unless wired
+      m.cpcNgn <= NG_BENCHMARKS.cpcUsd * fxRate &&
+      m.conversions >= 5,
     action: "SUGGEST",
     severity: "success",
+    suggestion: "budget_scale_up",
     messageFn: (m) =>
       `🚀 Campaign "${m.campaignName}" is performing well! CTR ${m.ctr.toFixed(1)}%, CPC ₦${Math.round(m.cpcNgn)}. Consider increasing budget by 25%.`,
   },
@@ -86,6 +102,7 @@ const RULES: RuleDef[] = [
       m.ageDays >= 5 && m.spendNgn >= 10_000 && m.conversions === 0,
     action: "SUGGEST",
     severity: "critical",
+    suggestion: "pause_review",
     messageFn: (m) =>
       `⚠️ You've spent ₦${Math.round(m.spendNgn).toLocaleString()} on "${m.campaignName}" with no recorded sales. Consider pausing to review targeting or creative.`,
   },
@@ -95,6 +112,7 @@ const RULES: RuleDef[] = [
       m.ageDays >= 7 && m.reach > 0 && m.impressions / m.reach > 3,
     action: "NOTIFY",
     severity: "info",
+    suggestion: "creative_refresh",
     messageFn: (m) => {
       const freq = (m.impressions / m.reach).toFixed(1);
       return `Ad frequency is ${freq}× for "${m.campaignName}" — your audience is seeing it too often. Refresh your creative to avoid fatigue.`;
@@ -102,15 +120,19 @@ const RULES: RuleDef[] = [
   },
 ];
 
-function evaluatePostLaunchRules(metrics: CampaignMetrics): TriggeredRule[] {
+function evaluatePostLaunchRules(
+  metrics: CampaignMetrics,
+  fxRate: number,
+): TriggeredRule[] {
   const triggered: TriggeredRule[] = [];
   for (const rule of RULES) {
-    if (rule.condition(metrics)) {
+    if (rule.condition(metrics, fxRate)) {
       triggered.push({
         id: rule.id,
         action: rule.action,
         severity: rule.severity,
-        message: rule.messageFn(metrics),
+        message: rule.messageFn(metrics, fxRate),
+        suggestion: rule.suggestion,
       });
     }
   }
@@ -190,8 +212,9 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // ─────────────────────────────────────────────────────────────────────
-    // Fetch current FX rate from database
+    // Fetch current FX rate — scoped locally, never mutates module state.
     // ─────────────────────────────────────────────────────────────────────
+    let fxRate = 1600;
     try {
       const { data: fxData } = await supabase
         .from("fx_rates")
@@ -200,8 +223,8 @@ serve(async (req) => {
         .single();
 
       if (fxData?.rate_ngn_per_usd) {
-        FX_RATE = parseFloat(fxData.rate_ngn_per_usd);
-        console.log(`✓ Using dynamic FX rate: ${FX_RATE}`);
+        fxRate = parseFloat(fxData.rate_ngn_per_usd);
+        console.log(`✓ Using dynamic FX rate: ${fxRate}`);
       } else {
         console.warn("⚠️ No active FX rate found, using fallback: 1600");
       }
@@ -281,7 +304,7 @@ serve(async (req) => {
             conversions: 0, // In the future, this can be hydrated by querying link_clicks
           };
 
-          const triggeredRules = evaluatePostLaunchRules(evalMetrics);
+          const triggeredRules = evaluatePostLaunchRules(evalMetrics, fxRate);
           if (triggeredRules.length === 0) continue;
 
           const ownerId = await getOrgOwner(
@@ -291,37 +314,40 @@ serve(async (req) => {
           if (!ownerId) continue;
 
           const sorted = [...triggeredRules].sort((a, b) => {
-            const order = { critical: 0, warning: 1, info: 2, success: 3 };
+            const order: Record<Severity, number> = {
+              critical: 0,
+              warning: 1,
+              info: 2,
+              success: 3,
+            };
             return order[a.severity] - order[b.severity];
           });
 
-          for (const rule of sorted) {
-            const dedupKey = `${rule.id}:${campaign.id}:${week}`;
+          // Only send the top-severity rule per campaign per weekly window.
+          const topRule = sorted[0];
+          const dedupKey = `${topRule.id}:${campaign.id}:${week}`;
 
-            const title =
-              rule.severity === "critical"
-                ? "⚠️ Campaign Needs Attention"
-                : rule.severity === "warning"
-                  ? "Campaign Alert"
-                  : rule.severity === "success"
-                    ? "🚀 Scaling Opportunity"
-                    : "Campaign Insight";
+          const title =
+            topRule.severity === "critical"
+              ? "⚠️ Campaign Needs Attention"
+              : topRule.severity === "warning"
+                ? "Campaign Alert"
+                : topRule.severity === "success"
+                  ? "🚀 Scaling Opportunity"
+                  : "Campaign Insight";
 
-            const result = await sendInAppNotification(supabase, {
-              userId: ownerId,
-              type: rule.severity === "success" ? "success" : rule.severity,
-              category: "campaign",
-              title,
-              message: rule.message,
-              actionLabel: "View Campaign",
-              actionUrl: `/campaigns?id=${campaign.id}`,
-              dedupKey,
-            });
+          const result = await sendInAppNotification(supabase, {
+            userId: ownerId,
+            type: topRule.severity === "success" ? "success" : topRule.severity,
+            category: "campaign",
+            title,
+            message: topRule.message,
+            actionLabel: SUGGESTION_LABELS[topRule.suggestion],
+            actionUrl: `/campaigns?id=${campaign.id}`,
+            dedupKey,
+          });
 
-            if (!result?.deduped) postLaunchTriggered++;
-
-            break; // Only send top-severity rule per campaign per run
-          }
+          if (!result?.deduped) postLaunchTriggered++;
         } catch (ruleErr: any) {
           console.error(
             `[PostLaunch] Campaign ${campaign.id}:`,

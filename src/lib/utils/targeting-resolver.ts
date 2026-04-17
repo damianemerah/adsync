@@ -54,9 +54,11 @@ function hasWordOverlap(resultName: string, intended: string): boolean {
 
 const NG_AREA_TO_SEARCH_FORMAT: Record<string, string> = {
   // ── Lagos (region key: 2607) ────────────────────────────────────────────────
-  // Bare "Lagos" → Lagos region. "Lagos Nigeria" → Lagos city (1630653) — avoid.
+  // Bare "Lagos" → Lagos region. "Lagos Nigeria" via API → Lagos city (1630653) — avoid.
+  // Map "lagos nigeria" here so it hits the NG_REGION_KEY_MAP fast path instead.
   lagos: "Lagos",
   "lagos state": "Lagos",
+  "lagos nigeria": "Lagos",
   lekki: "Lagos",
   "victoria island": "Lagos",
   vi: "Lagos",
@@ -81,6 +83,7 @@ const NG_AREA_TO_SEARCH_FORMAT: Record<string, string> = {
   fct: "Federal Capital Territory",
   "abuja fct": "Federal Capital Territory",
   abuja: "Federal Capital Territory",
+  "abuja nigeria": "Federal Capital Territory",
   wuse: "Federal Capital Territory",
   "wuse 2": "Federal Capital Territory",
   maitama: "Federal Capital Territory",
@@ -124,9 +127,11 @@ const NG_AREA_TO_SEARCH_FORMAT: Record<string, string> = {
   "kano nigeria": "Kano State",
 
   // ── Oyo State (region key: 2621) ───────────────────────────────────────────
-  // "Oyo" bare → Oyo State region. "Oyo Nigeria" → "Oyo, Oyo" city.
+  // "Oyo" bare → Oyo State region. "Oyo Nigeria" via API → "Oyo, Oyo" city — avoid.
+  // Map "oyo nigeria" here so it hits the NG_REGION_KEY_MAP fast path.
   oyo: "Oyo State",
   "oyo state": "Oyo State",
+  "oyo nigeria": "Oyo State",
   ibadan: "Oyo State",  // Ibadan is in Oyo State; city targeting unsupported in NG
 
   // ── Ogun (region key: 2609) ────────────────────────────────────────────────

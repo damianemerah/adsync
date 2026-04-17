@@ -23,7 +23,7 @@ function TargetingSkeleton() {
       {[40, 64, 52].map((w, i) => (
         <div
           key={i}
-          className="h-7 rounded-full bg-muted animate-pulse"
+          className="h-5 rounded-full bg-muted-foreground/50 animate-pulse"
           style={{ width: `${w}px` }}
         />
       ))}
@@ -51,6 +51,7 @@ export function AudienceSummaryPanel() {
 
   const [suggestions, setSuggestions] = useState<Array<{ id: string; name: string }>>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [locationSearchType, setLocationSearchType] = useState<"country" | "region" | "city">("region");
 
   // Fetch interest suggestions when 2+ interests are selected
   useEffect(() => {
@@ -112,7 +113,8 @@ export function AudienceSummaryPanel() {
       id: loc.key || loc.id,
       name: loc.name,
       type: loc.type,
-      country: loc.country_name || loc.country,
+      // For country-type results, the location itself is the country
+      country: loc.type === "country" ? loc.name : (loc.country_name || loc.country),
     };
     if (!locations.some((l: any) => l.id === newLoc.id)) {
       updateDraft({ locations: [...locations, newLoc] });
@@ -261,10 +263,34 @@ export function AudienceSummaryPanel() {
           Target Locations
         </label>
         <div className="flex flex-wrap gap-2">
-          <div className="w-full pt-1">
+          {/* Location granularity selector */}
+          <div className="w-full grid grid-cols-3 gap-1.5">
+            {(["country", "region", "city"] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setLocationSearchType(t)}
+                className={cn(
+                  "h-7 text-[11px] font-medium rounded-md border transition-all capitalize",
+                  locationSearchType === t
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background text-muted-foreground border-border hover:border-primary/50",
+                )}
+              >
+                {t === "region" ? "State/Region" : t.charAt(0).toUpperCase() + t.slice(1)}
+              </button>
+            ))}
+          </div>
+          <div className="w-full">
             <AsyncTagInput
-              placeholder="Add city..."
+              placeholder={
+                locationSearchType === "country"
+                  ? "Search country..."
+                  : locationSearchType === "region"
+                    ? "Search state or region..."
+                    : "Search city..."
+              }
               searchType="location"
+              searchParams={{ type: locationSearchType }}
               onAdd={addLocation}
             />
           </div>
@@ -276,7 +302,10 @@ export function AudienceSummaryPanel() {
                 className="border-border bg-background text-foreground py-1.5 pl-3 pr-1 gap-2 rounded-full"
               >
                 <MapPin className="h-3 w-3 text-primary" />
-                {loc.name}
+                <span>
+                  {loc.name}
+                  <span className="text-[10px] text-muted-foreground ml-1 capitalize">({loc.type})</span>
+                </span>
                 <button
                   onClick={() => removeLocation(loc)}
                   className="hover:bg-muted rounded-full p-0.5 ml-1"
@@ -290,7 +319,7 @@ export function AudienceSummaryPanel() {
               No locations yet
             </p>
           )}
-          {locations.some(
+          {locationSearchType === "city" && locations.some(
             (l: any) =>
               l.type === "city" &&
               l.country &&
@@ -298,7 +327,7 @@ export function AudienceSummaryPanel() {
           ) && (
             <p className="w-full text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-0.5">
               <WarningTriangle className="w-3 h-3 shrink-0" />
-              City targeting isn't available in Nigeria — your ad will reach all of Nigeria.
+              City targeting isn't available in Nigeria — your ad will reach all of Nigeria. Use State/Region and search "Lagos State" or "Anambra State" instead.
             </p>
           )}
         </div>
@@ -325,7 +354,9 @@ export function AudienceSummaryPanel() {
               }}
             />
           </div>
-          {targetBehaviors?.length > 0 ? (
+          {isResolvingTargeting ? (
+            <TargetingSkeleton />
+          ) : targetBehaviors?.length > 0 ? (
             targetBehaviors.map((beh: any) => (
                 <Badge
                   key={beh.id}
@@ -348,8 +379,6 @@ export function AudienceSummaryPanel() {
                   {beh.name} <Xmark className="h-3 w-3 ml-1 opacity-50" />
                 </Badge>
               ))
-          ) : isResolvingTargeting ? (
-            <TargetingSkeleton />
           ) : targetingResolutionError ? (
             <p className="text-xs text-amber-600 italic">Couldn't load — add manually</p>
           ) : (
@@ -381,7 +410,9 @@ export function AudienceSummaryPanel() {
               }}
             />
           </div>
-          {targetWorkPositions?.length > 0 ? (
+          {isResolvingTargeting ? (
+            <TargetingSkeleton />
+          ) : targetWorkPositions?.length > 0 ? (
             targetWorkPositions.map((pos: any) => (
               <Badge
                 key={pos.id}
@@ -404,8 +435,6 @@ export function AudienceSummaryPanel() {
                 {pos.name} <Xmark className="h-3 w-3 ml-1 opacity-50" />
               </Badge>
             ))
-          ) : isResolvingTargeting ? (
-            <TargetingSkeleton />
           ) : targetingResolutionError ? (
             <p className="text-xs text-amber-600 italic">Couldn't load — add manually</p>
           ) : (
@@ -437,7 +466,9 @@ export function AudienceSummaryPanel() {
               }}
             />
           </div>
-          {targetIndustries?.length > 0 ? (
+          {isResolvingTargeting ? (
+            <TargetingSkeleton />
+          ) : targetIndustries?.length > 0 ? (
             targetIndustries.map((industry: any) => (
               <Badge
                 key={industry.id}
@@ -460,8 +491,6 @@ export function AudienceSummaryPanel() {
                 {industry.name} <Xmark className="h-3 w-3 ml-1 opacity-50" />
               </Badge>
             ))
-          ) : isResolvingTargeting ? (
-            <TargetingSkeleton />
           ) : targetingResolutionError ? (
             <p className="text-xs text-amber-600 italic">Couldn't load — add manually</p>
           ) : (
@@ -493,7 +522,9 @@ export function AudienceSummaryPanel() {
               }}
             />
           </div>
-          {targetLifeEvents?.length > 0 ? (
+          {isResolvingTargeting ? (
+            <TargetingSkeleton />
+          ) : targetLifeEvents?.length > 0 ? (
             targetLifeEvents.map((event: any) => (
                 <Badge
                   key={event.id}
@@ -516,8 +547,6 @@ export function AudienceSummaryPanel() {
                   {event.name} <Xmark className="h-3 w-3 ml-1 opacity-50" />
                 </Badge>
               ))
-          ) : isResolvingTargeting ? (
-            <TargetingSkeleton />
           ) : targetingResolutionError ? (
             <p className="text-xs text-amber-600 italic">Couldn't load — add manually</p>
           ) : (
@@ -541,7 +570,9 @@ export function AudienceSummaryPanel() {
               onAdd={addInterest}
             />
           </div>
-          {targetInterests.length > 0 ? (
+          {isResolvingTargeting ? (
+            <TargetingSkeleton />
+          ) : targetInterests.length > 0 ? (
             targetInterests.map((int: any) => (
                 <Badge
                   key={int.id}
@@ -559,8 +590,6 @@ export function AudienceSummaryPanel() {
                   <Xmark className="h-3 w-3 ml-1 opacity-50" />
                 </Badge>
               ))
-          ) : isResolvingTargeting ? (
-            <TargetingSkeleton />
           ) : targetingResolutionError ? (
             <p className="text-xs text-amber-600 italic">Couldn't load — add interests manually above</p>
           ) : (

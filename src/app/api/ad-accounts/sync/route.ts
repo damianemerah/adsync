@@ -33,8 +33,12 @@ export async function POST(request: Request) {
     try {
       // Fetch Balance, Currency, Status, Funding Source
       const fields =
-        "balance,currency,account_status,funding_source_details,amount_spent";
-      const url = `https://graph.facebook.com/v25.0/${account.platform_account_id}?fields=${fields}&access_token=${accessToken}`;
+        "balance,currency,account_status,funding_source_details,amount_spent,spend_cap,is_prepay_account";
+      // Meta requires the act_ prefix to identify ad account nodes
+      const actId = account.platform_account_id.startsWith("act_")
+        ? account.platform_account_id
+        : `act_${account.platform_account_id}`;
+      const url = `https://graph.facebook.com/v25.0/${actId}?fields=${fields}&access_token=${accessToken}`;
 
       const res = await fetch(url);
       const fbData = await res.json();
@@ -58,8 +62,18 @@ export async function POST(request: Request) {
       if (fbData.account_status === 3 || fbData.account_status === 9)
         healthStatus = "payment_issue";
 
+      // For prepaid bank-transfer accounts (e.g. NGN), Meta returns balance="0"
+      // and tracks real funds via spend_cap. Use spend_cap - amount_spent as effective balance.
+      const rawBalance = fbData.balance != null ? parseInt(fbData.balance, 10) : null;
+      const isPrepay = fbData.is_prepay_account === true;
+      const spendCap = fbData.spend_cap != null ? parseInt(fbData.spend_cap, 10) : 0;
+      const amountSpent = fbData.amount_spent != null ? parseInt(fbData.amount_spent, 10) : 0;
+      const effectiveBalance = isPrepay && rawBalance === 0 && spendCap > 0
+        ? spendCap - amountSpent
+        : rawBalance;
+
       updateData = {
-        last_known_balance_cents: fbData.balance ? parseInt(fbData.balance) : 0, // FB returns "1234" for 12.34 usually, but check currency
+        last_known_balance_cents: effectiveBalance,
         currency: fbData.currency,
         health_status: healthStatus,
         funding_source_details: fbData.funding_source_details || null,

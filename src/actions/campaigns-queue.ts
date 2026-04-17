@@ -223,6 +223,21 @@ export async function launchCampaignQueued(config: LaunchConfig) {
   let dbError;
 
   if (dbCampaignId) {
+    // Guard: don't re-queue a campaign that's already in-flight or live
+    const { data: existing } = await supabase
+      .from("campaigns")
+      .select("status")
+      .eq("id", dbCampaignId)
+      .single();
+
+    if (existing && existing.status && !["draft", "failed"].includes(existing.status)) {
+      throw new Error(
+        existing.status === "queuing"
+          ? "This campaign is already queued for launch."
+          : "This campaign has already been launched."
+      );
+    }
+
     // Update existing draft
     console.log(`[Queue] Updating existing draft campaign: ${dbCampaignId}`);
     const { error } = await supabase
@@ -272,6 +287,7 @@ export async function launchCampaignQueued(config: LaunchConfig) {
       campaignId: dbCampaignId,
       jobId,
       status: "queuing",
+      showPixelPrompt: config.objective === "traffic" || config.objective === "sales",
       message:
         "Campaign is being launched in the background. You'll be notified when it's ready.",
     };

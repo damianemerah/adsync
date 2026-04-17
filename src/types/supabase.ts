@@ -437,8 +437,6 @@ export type Database = {
           date: string
           id: string
           impressions: number | null
-          media_viewers: number | null
-          media_views: number | null
           reach: number | null
           spend_cents: number | null
           synced_at: string | null
@@ -450,8 +448,6 @@ export type Database = {
           date: string
           id?: string
           impressions?: number | null
-          media_viewers?: number | null
-          media_views?: number | null
           reach?: number | null
           spend_cents?: number | null
           synced_at?: string | null
@@ -463,8 +459,6 @@ export type Database = {
           date?: string
           id?: string
           impressions?: number | null
-          media_viewers?: number | null
-          media_views?: number | null
           reach?: number | null
           spend_cents?: number | null
           synced_at?: string | null
@@ -497,8 +491,6 @@ export type Database = {
           impressions: number | null
           issues_checked_at: string | null
           last_click_at: string | null
-          media_viewers: number | null
-          media_views: number | null
           meta_issues: Json | null
           name: string
           objective: string | null
@@ -539,8 +531,6 @@ export type Database = {
           impressions?: number | null
           issues_checked_at?: string | null
           last_click_at?: string | null
-          media_viewers?: number | null
-          media_views?: number | null
           meta_issues?: Json | null
           name: string
           objective?: string | null
@@ -581,8 +571,6 @@ export type Database = {
           impressions?: number | null
           issues_checked_at?: string | null
           last_click_at?: string | null
-          media_viewers?: number | null
-          media_views?: number | null
           meta_issues?: Json | null
           name?: string
           objective?: string | null
@@ -1238,6 +1226,7 @@ export type Database = {
           expires_at: string
           id: string
           org_id: string
+          token_expires_at: string | null
           user_id: string
         }
         Insert: {
@@ -1246,6 +1235,7 @@ export type Database = {
           expires_at?: string
           id?: string
           org_id: string
+          token_expires_at?: string | null
           user_id: string
         }
         Update: {
@@ -1254,6 +1244,7 @@ export type Database = {
           expires_at?: string
           id?: string
           org_id?: string
+          token_expires_at?: string | null
           user_id?: string
         }
         Relationships: [

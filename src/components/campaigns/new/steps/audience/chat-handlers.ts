@@ -47,20 +47,20 @@ interface TargetingNames {
 // ─── Extract Targeting Names ─────────────────────────────────────────────────
 
 export function extractTargetingNames(result: AIStrategyResult): TargetingNames {
-  const interestNames = (result.interests || []).map((i: any) =>
-    typeof i === "string" ? i : i.name,
+  const interestNames = (result.interests || []).map((i) =>
+    typeof i === "string" ? i : (i as { name: string }).name,
   );
-  const behaviorNames = (result.behaviors || []).map((b: any) =>
-    typeof b === "string" ? b : b.name,
+  const behaviorNames = (result.behaviors || []).map((b) =>
+    typeof b === "string" ? b : (b as { name: string }).name,
   );
-  const lifeEventNames = (result.lifeEvents || []).map((e: any) =>
-    typeof e === "string" ? e : e.name,
+  const lifeEventNames = (result.lifeEvents || []).map((e) =>
+    typeof e === "string" ? e : (e as { name: string }).name,
   );
   const workPositionNames = (result.workPositions ?? []).filter(
-    (p: any) => typeof p === "string" && p,
+    (p): p is string => typeof p === "string" && !!p,
   );
   const industryNames = (result.industries ?? []).filter(
-    (i: any) => typeof i === "string" && i,
+    (i): i is string => typeof i === "string" && !!i,
   );
   const locationNames: string[] = Array.from(
     new Set(

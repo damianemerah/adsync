@@ -4,15 +4,38 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 // pg_cron-invoked edge function — no CORS headers needed
 
 const META_API_VERSION = "v25.0";
-const STALE_DAYS = 30; // Refresh at 30 days (30-day buffer before 60-day expiration)
+const STALE_DAYS = 30; // Fallback: refresh tokens that have no expiry date after 30 days
+const REFRESH_BEFORE_DAYS = 15; // Refresh tokens with a known expiry 15 days before they expire
 
 // ── AES-GCM helpers (Deno Web Crypto API) ─────────────────────────────────────
 
 async function decrypt(encryptedToken: string, key: string): Promise<string> {
   const parts = encryptedToken.split(":");
   if (parts.length !== 3) return encryptedToken;
-  const [ivHex, authTagHex, encryptedHex] = parts;
 
+  const [prefix, part2, part3] = parts;
+
+  // v1/v2 → AES-256-CBC (written by Next.js OAuth callback and refresh jobs)
+  if (prefix === "v1" || prefix === "v2") {
+    const keyMaterial = await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(key.padEnd(32).slice(0, 32)),
+      { name: "AES-CBC" },
+      false,
+      ["decrypt"],
+    );
+    const iv = new Uint8Array(part2.match(/.{1,2}/g)!.map((b) => parseInt(b, 16)));
+    const encryptedBytes = new Uint8Array(part3.match(/.{1,2}/g)!.map((b) => parseInt(b, 16)));
+    try {
+      const buf = await crypto.subtle.decrypt({ name: "AES-CBC", iv }, keyMaterial, encryptedBytes);
+      return new TextDecoder().decode(buf);
+    } catch (e) {
+      console.error("CBC decryption failed", e);
+      return encryptedToken;
+    }
+  }
+
+  // Format A: IV_HEX:AUTH_TAG_HEX:CIPHERTEXT_HEX → AES-256-GCM (written by this function after a prior refresh)
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(key.padEnd(32).slice(0, 32)),
@@ -20,30 +43,17 @@ async function decrypt(encryptedToken: string, key: string): Promise<string> {
     false,
     ["decrypt"],
   );
-
-  const iv = new Uint8Array(
-    ivHex.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16)),
-  );
-  const authTag = new Uint8Array(
-    authTagHex.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16)),
-  );
-  const encryptedBytes = new Uint8Array(
-    encryptedHex.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16)),
-  );
-
-  const combined = new Uint8Array(encryptedBytes.length + authTag.length);
-  combined.set(encryptedBytes);
-  combined.set(authTag, encryptedBytes.length);
-
+  const iv = new Uint8Array(prefix.match(/.{1,2}/g)!.map((b) => parseInt(b, 16)));
+  const authTag = new Uint8Array(part2.match(/.{1,2}/g)!.map((b) => parseInt(b, 16)));
+  const ciphertext = new Uint8Array(part3.match(/.{1,2}/g)!.map((b) => parseInt(b, 16)));
+  const combined = new Uint8Array(ciphertext.length + authTag.length);
+  combined.set(ciphertext);
+  combined.set(authTag, ciphertext.length);
   try {
-    const decryptedBuffer = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv },
-      keyMaterial,
-      combined,
-    );
-    return new TextDecoder().decode(decryptedBuffer);
+    const buf = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, keyMaterial, combined);
+    return new TextDecoder().decode(buf);
   } catch (e) {
-    console.error("Decryption failed", e);
+    console.error("GCM decryption failed", e);
     return encryptedToken;
   }
 }
@@ -153,6 +163,9 @@ serve(async (req) => {
     const staleThreshold = new Date(
       Date.now() - STALE_DAYS * 24 * 60 * 60 * 1000,
     ).toISOString();
+    const expiryRefreshThreshold = new Date(
+      Date.now() + REFRESH_BEFORE_DAYS * 24 * 60 * 60 * 1000,
+    ).toISOString();
 
     // Fetch all Meta accounts that have a token (including expired ones - we'll try to refresh them)
     // Only exclude permanently disabled accounts
@@ -180,18 +193,24 @@ serve(async (req) => {
       (accounts ?? []).map(async (account: any) => {
         checked++;
 
-        // Determine staleness: use token_refreshed_at (or connected_at if never refreshed)
-        // We use connected_at as fallback because that's when the long-lived token was issued
+        // Determine whether this token needs refreshing:
+        // 1. Expiry-based: token_expires_at is known and within 15 days
+        // 2. Staleness fallback: no expiry stored, use last-refreshed/connected timestamp
+        // 3. Already expired: always attempt regardless
         const referenceTs: string | null =
           account.token_refreshed_at ?? account.connected_at ?? null;
 
-        const isStale =
-          referenceTs === null || referenceTs <= staleThreshold;
+        const willExpireSoon =
+          account.token_expires_at !== null &&
+          account.token_expires_at <= expiryRefreshThreshold;
 
-        // For expired tokens, always attempt refresh regardless of staleness
+        const isStale =
+          account.token_expires_at === null &&
+          (referenceTs === null || referenceTs <= staleThreshold);
+
         const isExpired = account.health_status === "token_expired";
 
-        if (!isStale && !isExpired) {
+        if (!willExpireSoon && !isStale && !isExpired) {
           skipped++;
           return { id: account.id, status: "skipped" };
         }
@@ -261,12 +280,29 @@ serve(async (req) => {
 
         const encryptedToken = await encrypt(newToken, ENCRYPTION_KEY);
 
+        // Fetch new expiry from Meta so we can store it for precise scheduling
+        let newTokenExpiresAt: string | null = null;
+        try {
+          const debugUrl =
+            `https://graph.facebook.com/${META_API_VERSION}/debug_token` +
+            `?input_token=${encodeURIComponent(newToken)}` +
+            `&access_token=${META_APP_ID}|${META_APP_SECRET}`;
+          const debugRes = await fetch(debugUrl);
+          const debugData = await debugRes.json();
+          if (debugData.data?.expires_at) {
+            newTokenExpiresAt = new Date(debugData.data.expires_at * 1000).toISOString();
+          }
+        } catch (debugErr) {
+          console.warn(`[TokenRefresh] Could not fetch new expiry for account ${account.id}:`, debugErr);
+        }
+
         // Update token and restore health status if it was expired
         await supabase
           .from("ad_accounts")
           .update({
             access_token: encryptedToken,
             token_refreshed_at: new Date().toISOString(),
+            token_expires_at: newTokenExpiresAt,
             health_status: "healthy",
             last_health_check: new Date().toISOString(),
           })

@@ -105,6 +105,9 @@ export async function POST(request: NextRequest) {
       access_token: encrypt(accessToken),
       health_status: "healthy",
       last_health_check: new Date().toISOString(),
+      connected_at: new Date().toISOString(),
+      token_expires_at: session.token_expires_at ?? null,
+      token_refreshed_at: null,
       disconnected_at: null,
       // First account for this org becomes default automatically
       ...(existingCount === 0 ? { is_default: true } : {}),

@@ -54,6 +54,36 @@ function band(mid: number): EstimateRange {
   };
 }
 
+// ── Outcome Helpers ────────────────────────────────────────────────────────
+
+export function getObjectiveOutcomeLabel(objective: string | null): string {
+  if (objective === "whatsapp") return "WhatsApp conversations";
+  if (objective === "traffic") return "website visitors";
+  return "people reached";
+}
+
+export function getObjectiveOutcomeRange(
+  estimate: BudgetEstimate,
+  objective: string | null,
+): { low: number; high: number } {
+  if (objective === "whatsapp") {
+    return {
+      low: estimate.estimatedConversations.low,
+      high: estimate.estimatedConversations.high,
+    };
+  }
+  if (objective === "traffic") {
+    return {
+      low: estimate.estimatedClicks.low,
+      high: estimate.estimatedClicks.high,
+    };
+  }
+  return {
+    low: estimate.estimatedReach.low,
+    high: estimate.estimatedReach.high,
+  };
+}
+
 // ── Main Estimator ─────────────────────────────────────────────────────────
 
 export function estimateBudget(

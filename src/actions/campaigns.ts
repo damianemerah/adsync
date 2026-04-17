@@ -18,6 +18,7 @@ import { pickGeoStrategy } from "@/lib/utils/geo-strategy";
 import {
   allLocationsUnsupportedForCityTargeting,
   getFallbackCountryCodes,
+  CITY_TARGETING_UNSUPPORTED,
 } from "@/lib/constants/geo-targeting";
 import { getActiveOrgId } from "@/lib/active-org";
 import type { CTAData } from "@/types/cta-types";
@@ -410,17 +411,41 @@ export async function launchCampaign(config: LaunchConfig) {
     const geoStrategy = pickGeoStrategy(config.objective);
     const geo_locations: any = {};
 
+    // Country-type locations are always usable regardless of objective
+    const countryLocations = config.targetLocations
+      .filter((l) => l.type === "country")
+      .map((l) => l.id); // Meta uses ISO-2 codes as keys for countries (e.g. "NG", "US")
+
     if (geoStrategy.type === "broad") {
-      // Awareness / Engagement: prefer regions (states), else fall back to country NG
+      // Awareness / Engagement: prefer explicit country selections, then regions (states),
+      // then cities (for countries where city targeting IS supported), then default to NG.
       // Broad geo → better CPM efficiency and correct reach for brand awareness objectives.
       const regions = config.targetLocations
         .filter((l) => l.type === "region")
         .map((l) => ({ key: l.id }));
 
-      if (regions.length > 0) {
+      // Cities are only usable for countries that support city targeting (e.g. not Nigeria)
+      const cities = config.targetLocations
+        .filter(
+          (l) =>
+            l.type === "city" &&
+            l.country &&
+            !(l.country in CITY_TARGETING_UNSUPPORTED),
+        )
+        .map((l) => ({
+          key: l.id,
+          radius: geoStrategy.radius_km,
+          distance_unit: "kilometer",
+        }));
+
+      if (countryLocations.length > 0) {
+        geo_locations.countries = countryLocations;
+      } else if (regions.length > 0) {
         geo_locations.regions = regions;
+      } else if (cities.length > 0) {
+        geo_locations.cities = cities;
       } else {
-        // No region IDs — target entire Nigeria (safest broad fallback)
+        // No region or supported city IDs — target entire Nigeria (safest broad fallback)
         geo_locations.countries = ["NG"];
       }
     } else {
@@ -435,7 +460,9 @@ export async function launchCampaign(config: LaunchConfig) {
           distance_unit: "kilometer",
         }));
 
-      if (allLocationsUnsupportedForCityTargeting(config.targetLocations)) {
+      if (countryLocations.length > 0) {
+        geo_locations.countries = countryLocations;
+      } else if (allLocationsUnsupportedForCityTargeting(config.targetLocations)) {
         // Country doesn't support city targeting — fall back to country-level.
         const countryCodes = getFallbackCountryCodes(config.targetLocations);
         geo_locations.countries = countryCodes.length > 0 ? countryCodes : ["NG"];
@@ -738,12 +765,14 @@ export async function launchCampaign(config: LaunchConfig) {
     await sendNotification({
       userId: user.id,
       organizationId: orgId as string,
-      title: "Campaign Launched",
-      message: `Your campaign "${config.name}" has been sent to Meta for review.`,
+      title: "🎉 Campaign Launched!",
+      message: `Your campaign "${config.name}" has been submitted to Meta. It will start running once approved — usually within a few hours.`,
       type: "success",
       category: "campaign",
       actionUrl: `/campaigns`,
       actionLabel: "View Campaigns",
+      // Prevent duplicate notifications if the action is retried (e.g. network timeout)
+      dedupKey: `campaign_launched:${campaignRes.id}`,
     });
 
     revalidatePath("/campaigns");

@@ -769,6 +769,11 @@ export function BusinessTab({
                           setRenameValue(account.nickname || account.name);
                         }}
                         onDisconnect={() => handleDisconnect(account.id)}
+                        onReconnect={
+                          account.platform === "meta"
+                            ? () => { window.location.href = "/api/connect/meta"; }
+                            : undefined
+                        }
                       />
                       {/* CAPI config — only for Meta accounts */}
                       {account.platform === "meta" && (

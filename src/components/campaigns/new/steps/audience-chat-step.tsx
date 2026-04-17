@@ -5,6 +5,8 @@
 import {
   useCampaignStore,
   Message,
+  TargetingOption,
+  LocationOption,
 } from "@/stores/campaign-store";
 import { messageContainsUrl } from "@/lib/ai/url-scraper";
 import type { TriageMessage } from "@/lib/ai/service";
@@ -34,13 +36,18 @@ import {
   runPhase2Targeting,
   type Phase2Result,
 } from "./audience/chat-handlers";
-import { estimateBudget } from "@/lib/intelligence/estimator";
+import {
+  estimateBudget,
+  getObjectiveOutcomeLabel,
+  getObjectiveOutcomeRange,
+} from "@/lib/intelligence/estimator";
 import type { AdSyncObjective } from "@/lib/constants";
 import { TIER_CONFIG } from "@/lib/constants";
 import { useSubscription } from "@/hooks/use-subscription";
 import { useOrganization } from "@/hooks/use-organization";
 import { useActiveOrgContext } from "@/components/providers/active-org-provider";
 import { PaymentDialog } from "@/components/billing/payment-dialog";
+import { SubscriptionBanner } from "@/components/billing/subscription-banner";
 
 // Extracted Components
 import { ChatInterface } from "./audience/chat-interface";
@@ -69,10 +76,13 @@ function buildTriageHistory(messages: Message[]): TriageMessage[] {
     }));
 }
 
-function generateCampaignName(prompt: string, interests: any[]): string {
+function generateCampaignName(
+  prompt: string,
+  interests: Array<{ id?: string; name: string } | string>,
+): string {
   if (interests && interests.length > 0) {
-    const main =
-      typeof interests[0] === "string" ? interests[0] : interests[0].name;
+    const first = interests[0];
+    const main = typeof first === "string" ? first : first.name;
     return `${main} Campaign`;
   }
   if (prompt) {
@@ -99,22 +109,13 @@ function buildOutcomePreview(
     budget,
     (objective || "whatsapp") as AdSyncObjective,
   );
-  if (objective === "whatsapp") {
-    return {
-      label: "WhatsApp messages/day",
-      range: `${est.estimatedConversations.low}–${est.estimatedConversations.high}`,
-    };
-  }
-  if (objective === "traffic") {
-    return {
-      label: "website visitors/day",
-      range: `${est.estimatedClicks.low}–${est.estimatedClicks.high}`,
-    };
-  }
-  return {
-    label: "people reached/day",
-    range: `${est.estimatedReach.low.toLocaleString()}–${est.estimatedReach.high.toLocaleString()}`,
-  };
+  const label = getObjectiveOutcomeLabel(objective);
+  const { low, high } = getObjectiveOutcomeRange(est, objective);
+  const range =
+    objective === "whatsapp" || objective === "traffic"
+      ? `${low}–${high}`
+      : `${low.toLocaleString()}–${high.toLocaleString()}`;
+  return { label: `${label}/day`, range };
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -183,6 +184,8 @@ const [isRefiningCopy, setIsRefiningCopy] = useState(false);
   }, []);
 
   const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
+  const [trialExpired, setTrialExpired] = useState(false);
+  const [subscriptionInactive, setSubscriptionInactive] = useState(false);
   const [copyReady, setCopyReady] = useState(false);
   const [chatPhase, setChatPhase] = useState<"initial" | "refining">("initial");
 
@@ -281,8 +284,8 @@ const [isRefiningCopy, setIsRefiningCopy] = useState(false);
         ]);
       }, 800);
       incrementRefinementCount();
-    } catch (err: any) {
-      if (err?.name === "AbortError") return;
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") return;
       setIsTyping(false);
       toast.error("Copy refinement failed. Please try again.", {
         duration: 4000,
@@ -303,36 +306,35 @@ const [isRefiningCopy, setIsRefiningCopy] = useState(false);
 
   // ─── Audience Editing ──────────────────────────────────────────────────────
 
-  const removeInterest = (interest: any) => {
-    const id = interest.id || interest;
+  const removeInterest = (interest: TargetingOption) => {
     updateDraft({
       targetInterests: targetInterests.filter(
-        (i: any) => i.id !== id && i.name !== interest.name,
+        (i) => i.id !== interest.id && i.name !== interest.name,
       ),
     });
   };
 
-  const addInterest = (interest: any) => {
-    if (!targetInterests.some((i: any) => i.id === interest.id)) {
+  const addInterest = (interest: TargetingOption) => {
+    if (!targetInterests.some((i) => i.id === interest.id)) {
       updateDraft({ targetInterests: [...targetInterests, interest] });
     }
   };
 
-  const removeLocation = (loc: any) => {
+  const removeLocation = (loc: LocationOption & { key?: string }) => {
     const id = loc.id || loc.key;
     updateDraft({
-      locations: locations.filter((l: any) => l.id !== id && l.key !== id),
+      locations: locations.filter((l) => l.id !== id),
     });
   };
 
-  const addLocation = (loc: any) => {
-    const newLoc = {
-      id: loc.key || loc.id,
+  const addLocation = (loc: Omit<LocationOption, "id"> & { key?: string; country_name?: string }) => {
+    const newLoc: LocationOption = {
+      id: loc.key || (loc as LocationOption).id,
       name: loc.name,
       type: loc.type,
       country: loc.country_name || loc.country,
     };
-    if (!locations.some((l: any) => l.id === newLoc.id)) {
+    if (!locations.some((l) => l.id === newLoc.id)) {
       updateDraft({ locations: [...locations, newLoc] });
     }
   };
@@ -341,8 +343,6 @@ const [isRefiningCopy, setIsRefiningCopy] = useState(false);
 
   useEffect(() => {
     if (messages.length > 0) return;
-
-    console.log("🚀 [AudienceChatStep] Init chat", messages);
 
     const greeting =
       objective === "whatsapp"
@@ -539,6 +539,21 @@ const [isRefiningCopy, setIsRefiningCopy] = useState(false);
         handleRateLimit(res);
         return;
       }
+
+      if (res.status === 403) {
+        const errBody = await res.json().catch(() => ({}));
+        const msg: string = errBody?.error ?? "";
+        setIsTyping(false);
+        // Restore the user message in the thread so context isn't lost
+        setMessages((prev) => [...prev.filter((m) => m.id !== userMsg.id), userMsg]);
+        if (msg.toLowerCase().includes("trial")) {
+          setTrialExpired(true);
+        } else {
+          setSubscriptionInactive(true);
+        }
+        return;
+      }
+
       if (!res.ok) throw new Error("AI Failed");
       const result: AIStrategyResult = await res.json();
 
@@ -696,17 +711,17 @@ const [isRefiningCopy, setIsRefiningCopy] = useState(false);
           }, 900);
         }
       }, 1000);
-    } catch (err: any) {
-      console.log("Error in handleSend:", err);
-      if (err?.name === "AbortError") return;
+    } catch (err: unknown) {
+      const errObj = err as { name?: string; message?: string; code?: string; cause?: { code?: string } };
+      if (errObj?.name === "AbortError") return;
       setIsTyping(false);
 
       const isNetworkError =
-        err?.message?.toLowerCase().includes("timeout") ||
-        err?.message?.toLowerCase().includes("network") ||
-        err?.message?.toLowerCase().includes("fetch") ||
-        err?.code === "UND_ERR_CONNECT_TIMEOUT" ||
-        err?.cause?.code === "UND_ERR_CONNECT_TIMEOUT";
+        errObj?.message?.toLowerCase().includes("timeout") ||
+        errObj?.message?.toLowerCase().includes("network") ||
+        errObj?.message?.toLowerCase().includes("fetch") ||
+        errObj?.code === "UND_ERR_CONNECT_TIMEOUT" ||
+        errObj?.cause?.code === "UND_ERR_CONNECT_TIMEOUT";
 
       if (isNetworkError) {
         setMessages((prev) => [
@@ -904,6 +919,25 @@ const [isRefiningCopy, setIsRefiningCopy] = useState(false);
           </SheetContent>
         </Sheet>
       </div>
+
+      {/* Subscription banners — inline, non-blocking */}
+      {trialExpired && (
+        <div className="mb-3">
+          <SubscriptionBanner
+            variant="expired"
+            planId="growth"
+            description="Your free trial has ended. Subscribe to keep using AI ad generation and all campaign tools."
+          />
+        </div>
+      )}
+      {subscriptionInactive && !trialExpired && (
+        <div className="mb-3">
+          <SubscriptionBanner
+            variant="inactive"
+            planId="growth"
+          />
+        </div>
+      )}
 
       <ResizablePanelGroup
         direction="horizontal"

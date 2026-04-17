@@ -72,6 +72,7 @@ async function fetchInterestCandidatesWithVariants(
   keywords: string[],
   searchFn: (query: string) => Promise<Candidate[]>,
 ): Promise<Map<string, Candidate[]>> {
+  console.log("Calling fetchInterestCandidatesWithVariantss")
   const results = await Promise.all(
     keywords.map(async (kw) => {
       const variants = [kw, `${kw} products`];
@@ -292,7 +293,7 @@ export async function POST(request: Request) {
     .select("access_token, platform_account_id")
     .eq("organization_id", activeOrgId)
     .eq("platform", "meta")
-    .eq("health_status", "healthy")
+
     .order("is_default", { ascending: false })
     .limit(1)
     .single();
@@ -317,7 +318,7 @@ export async function POST(request: Request) {
       industryCandidates,
     ] = await Promise.all([
       fetchInterestCandidatesWithVariants(interests, (q) =>
-        MetaService.searchInterests(accessToken, q),
+        MetaService.searchInterests(accessToken, accountId, q),
       ),
       fetchCandidates(behaviors, (q) =>
         MetaService.searchBehaviors(accessToken, accountId, q), 10,
@@ -333,12 +334,24 @@ export async function POST(request: Request) {
       ),
     ]);
 
+    console.log("interestCandidates🔥", interestCandidates);
+    console.log("behaviorCandidates🔥", behaviorCandidates);
+    console.log("lifeEventCandidates🔥", lifeEventCandidates);
+    console.log("workPositionCandidates🔥", workPositionCandidates);
+    console.log("industryCandidates🔥", industryCandidates);
+
     // ── Single batched mini call for contextual selection ─────────────────────
     const pooledInterests = poolCandidates(interests, interestCandidates);
     const pooledBehaviors = poolCandidates(behaviors, behaviorCandidates, resolveLocalBehavior);
     const pooledLifeEvents = poolCandidates(lifeEvents, lifeEventCandidates, resolveLocalLifeEvent);
     const pooledWorkPositions = poolCandidates(workPositions, workPositionCandidates);
     const pooledIndustries = poolCandidates(industries, industryCandidates);
+
+    console.log("pooledInterests🔥", pooledInterests);
+    console.log("pooledBehaviors🔥", pooledBehaviors);
+    console.log("pooledLifeEvents🔥", pooledLifeEvents);
+    console.log("pooledWorkPositions🔥", pooledWorkPositions);
+    console.log("pooledIndustries🔥", pooledIndustries);
 
     const selections = await selectBestCandidates(
       {
@@ -351,12 +364,20 @@ export async function POST(request: Request) {
       { adCopy, ctaIntent, businessType, targetingMode, locations },
     );
 
+    console.log("selections🔥", selections);
+
     // ── Assemble final resolved items ─────────────────────────────────────────
     const resolvedInterests = buildResolved(selections.interests || []);
     const resolvedBehaviors = buildResolved(selections.behaviors || []);
     const resolvedLifeEvents = buildResolved(selections.lifeEvents || []);
     const resolvedWorkPositions = buildResolved(selections.workPositions || []);
     const resolvedIndustries = buildResolved(selections.industries || []);
+
+    console.log("resolvedInterests🔥", resolvedInterests);
+    console.log("resolvedBehaviors🔥", resolvedBehaviors);
+    console.log("resolvedLifeEvents🔥", resolvedLifeEvents);
+    console.log("resolvedWorkPositions🔥", resolvedWorkPositions);
+    console.log("resolvedIndustries🔥", resolvedIndustries);
 
     return NextResponse.json({
       interests: resolvedInterests,

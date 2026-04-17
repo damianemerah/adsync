@@ -67,13 +67,17 @@ export async function GET(request: NextRequest) {
   const debugRes = await fetch(debugUrl);
   const debugData = await debugRes.json();
 
+  let tokenExpiresAt: string | null = null;
+
   if (debugData.data?.expires_at) {
     const expiresAtSeconds = debugData.data.expires_at;
     const now = Math.floor(Date.now() / 1000);
     const daysUntilExpiry = (expiresAtSeconds - now) / (60 * 60 * 24);
 
+    tokenExpiresAt = new Date(expiresAtSeconds * 1000).toISOString();
+
     console.debug("[Meta Callback] Token validation:", {
-      expires_at: new Date(expiresAtSeconds * 1000).toISOString(),
+      expires_at: tokenExpiresAt,
       days_until_expiry: Math.floor(daysUntilExpiry),
     });
 
@@ -217,6 +221,9 @@ export async function GET(request: NextRequest) {
           access_token: encrypt(finalToken),
           health_status: "healthy",
           last_health_check: new Date().toISOString(),
+          connected_at: new Date().toISOString(),
+          token_expires_at: tokenExpiresAt,
+          token_refreshed_at: null,
           disconnected_at: null,
           // First account ever for this org becomes default automatically
           ...(existingCount === 0 ? { is_default: true } : {}),
@@ -279,6 +286,7 @@ export async function GET(request: NextRequest) {
           org_id: targetOrgId,
           accounts,
           access_token: encrypt(finalToken),
+          token_expires_at: tokenExpiresAt,
         })
         .select("id")
         .single();

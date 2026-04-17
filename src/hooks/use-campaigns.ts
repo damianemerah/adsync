@@ -4,7 +4,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { launchCampaign, updateCampaignStatus, duplicateCampaign, deleteCampaign, archiveCampaign, renameCampaign } from "@/actions/campaigns";
+import { launchCampaignQueued as launchCampaign } from "@/actions/campaigns-queue";
+import { updateCampaignStatus, duplicateCampaign, deleteCampaign, archiveCampaign, renameCampaign } from "@/actions/campaigns";
 import { useActiveOrgContext } from "@/components/providers/active-org-provider";
 
 export function useCampaigns() {
@@ -41,7 +42,7 @@ export function useCampaigns() {
         name: c.name,
         platform: c.platform as "meta" | "tiktok" | null, // 'meta' | 'tiktok'
         status:
-          (c.status as "active" | "paused" | "draft" | "completed") || "draft",
+          (c.status as "active" | "paused" | "draft" | "completed" | "queuing" | "failed") || "draft",
         budget: c.daily_budget_cents / 100,
         currency: c.ad_accounts?.currency || "NGN",
         createdAt: new Date(c.created_at || Date.now()).toLocaleDateString(),
@@ -111,13 +112,16 @@ export function useCampaigns() {
   const launchMutation = useMutation({
     mutationFn: launchCampaign,
     onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["campaigns", activeOrgId] });
       if (data.success) {
-        queryClient.invalidateQueries({ queryKey: ["campaigns", activeOrgId] });
-        toast.success("Campaign launched successfully!");
-        router.push("/campaigns");
+        // When queuing, the step shows its own success modal — don't also redirect
+        if ((data as any).status !== "queuing") {
+          toast.success("Campaign launched successfully!");
+          router.push("/campaigns");
+        }
       } else {
-        toast.error("Failed to launch campaign", {
-          description: data.error,
+        toast.error("Failed to queue campaign", {
+          description: (data as any).error,
         });
       }
     },

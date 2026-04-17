@@ -24,7 +24,6 @@ import {
   CheckCircle,
   Check,
   Coins,
-  Sparks,
   StatUp,
   WarningTriangle,
 } from "iconoir-react";
@@ -33,9 +32,16 @@ import { PaymentDialog } from "@/components/billing/payment-dialog";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { estimateBudget, predictROAS } from "@/lib/intelligence";
+import {
+  getObjectiveOutcomeLabel,
+  getObjectiveOutcomeRange,
+} from "@/lib/intelligence/estimator";
 import { createLeadForm, fetchMetaPages } from "@/actions/lead-forms";
 import { saveDraft } from "@/actions/drafts";
 import { toast } from "sonner";
+import { CheckItem } from "./budget/check-item";
+import { UnresolvedTargetingWarning } from "./budget/unresolved-targeting-warning";
+import { LaunchSuccessModal } from "./budget/launch-success-modal";
 
 // ─── Outcome Tiers ────────────────────────────────────────────────────────────
 
@@ -251,36 +257,19 @@ export function BudgetLaunchStep({
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
-  /** Extract the right low/high for the current objective from an estimate */
-  const getOutcomeRange = (est: ReturnType<typeof estimateBudget>) => {
-    if (objective === "whatsapp") {
-      return {
-        low: est.estimatedConversations.low,
-        high: est.estimatedConversations.high,
-      };
-    }
-    if (objective === "traffic") {
-      return { low: est.estimatedClicks.low, high: est.estimatedClicks.high };
-    }
-    // awareness / engagement — show reach
-    return { low: est.estimatedReach.low, high: est.estimatedReach.high };
-  };
 
   // ─── Outcome metric label by objective ──────────────────────────────────────
 
-  const outcomeLabel =
-    objective === "whatsapp"
-      ? "WhatsApp conversations"
-      : objective === "traffic"
-        ? "website visitors"
-        : "people reached";
+  const outcomeLabel = getObjectiveOutcomeLabel(objective);
 
+  const { low: outcomeLow, high: outcomeHigh } = getObjectiveOutcomeRange(
+    estimate,
+    objective,
+  );
   const outcomeRange =
-    objective === "whatsapp"
-      ? `${estimate.estimatedConversations.low}–${estimate.estimatedConversations.high}`
-      : objective === "traffic"
-        ? `${estimate.estimatedClicks.low}–${estimate.estimatedClicks.high}`
-        : `${estimate.estimatedReach.low.toLocaleString()}–${estimate.estimatedReach.high.toLocaleString()}`;
+    objective === "whatsapp" || objective === "traffic"
+      ? `${outcomeLow}–${outcomeHigh}`
+      : `${outcomeLow.toLocaleString()}–${outcomeHigh.toLocaleString()}`;
 
   // ─── Tier select handler ─────────────────────────────────────────────────────
 
@@ -392,13 +381,10 @@ export function BudgetLaunchStep({
       ...(carouselCards && carouselCards.length >= 2 && { carouselCards }),
     };
 
-    console.log("🚀 [UI Start Launch] Payload sent to action:", launchPayload);
-
     launchCampaign(launchPayload, {
-      onSuccess: (result: any) => {
-        console.log("✅ [UI Launch Success] Result:", result);
-        if (result?.dbCampaignId) {
-          setDbCampaignId(result.dbCampaignId);
+      onSuccess: (result: { campaignId?: string; showPixelPrompt?: boolean } | undefined) => {
+        if (result?.campaignId) {
+          setDbCampaignId(result.campaignId);
           if (result.showPixelPrompt) setShowPixelPrompt(true);
           setShowSuccess(true);
         } else {
@@ -406,7 +392,7 @@ export function BudgetLaunchStep({
           router.push("/campaigns");
         }
       },
-      onError: (err: any) => {
+      onError: (err: Error) => {
         console.error("❌ [UI Launch Error]:", err);
         if (
           err.message.includes("subscription") ||
@@ -446,7 +432,7 @@ export function BudgetLaunchStep({
                 const active = selectedTier === tier.key;
                 const tEst = tierEstimates[tier.key];
                 const range = tEst
-                  ? getOutcomeRange(tEst)
+                  ? getObjectiveOutcomeRange(tEst, objective)
                   : { low: 0, high: 0 };
                 return (
                   <button
@@ -518,7 +504,7 @@ export function BudgetLaunchStep({
                 {outcomeLabel}/day
               </span>
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-subtle-foreground">
               Est. ₦{estimate.costPerClickNgn.toLocaleString()} per click ·{" "}
               {estimate.estimatedReach.low.toLocaleString()}–
               {estimate.estimatedReach.high.toLocaleString()} people reached
@@ -753,21 +739,21 @@ export function BudgetLaunchStep({
       {/* Website Tracking Section */}
       {needsPixel && (
         <div className="pt-8 border-t border-border animate-in fade-in slide-in-from-bottom-2">
-          <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-6 md:p-8 relative overflow-hidden">
+          <div className="bg-warning-bg border-2 border-warning-border rounded-lg p-6 md:p-8 relative overflow-hidden">
             <div className="absolute top-0 right-0 p-8 opacity-10">
-              <StatUp className="w-32 h-32 text-yellow-600" />
+              <StatUp className="w-32 h-32 text-warning-icon" />
             </div>
 
             <div className="relative z-10 max-w-xl">
-              <div className="inline-flex items-center gap-2 bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-4">
-                <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+              <div className="inline-flex items-center gap-2 bg-warning-icon-bg text-warning-text-secondary px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-4">
+                <span className="w-2 h-2 rounded-full bg-warning-icon animate-pulse" />
                 Recommended
               </div>
 
-              <h3 className="text-2xl font-bold text-yellow-900 mb-2">
+              <h3 className="text-2xl font-bold text-warning-text mb-2">
                 To track how much Naira this ad makes, you need the Tenzu Pixel.
               </h3>
-              <p className="text-yellow-800/80 mb-6">
+              <p className="text-warning-text-secondary/80 mb-6">
                 Without it, you won't know if your ₦{budget.toLocaleString()}{" "}
                 daily spend is actually generating sales on your website.
               </p>
@@ -778,12 +764,12 @@ export function BudgetLaunchStep({
                     <button
                       key={platform}
                       onClick={() => {
-                        // Future Phase: Open Pixel integration modal
+                        // TODO: Phase 2 — open Pixel integration modal for each platform
                         alert(
                           `Would open ${platform} integration instructions`,
                         );
                       }}
-                      className="p-3 bg-white border border-yellow-200 rounded-md hover:border-yellow-400 hover:shadow-sm transition-all text-center text-sm font-bold text-yellow-900"
+                      className="p-3 bg-white border border-warning-border rounded-md hover:border-warning-icon hover:shadow-sm transition-all text-center text-sm font-bold text-warning-text"
                     >
                       {platform}
                     </button>
@@ -793,7 +779,7 @@ export function BudgetLaunchStep({
 
               <button
                 onClick={() => setSkipPixel(true)}
-                className="text-sm font-semibold text-yellow-700 hover:text-yellow-900 underline underline-offset-4"
+                className="text-sm font-semibold text-warning-icon hover:text-warning-text underline underline-offset-4"
               >
                 Skip tracking for now
               </button>
@@ -822,53 +808,10 @@ export function BudgetLaunchStep({
       )}
 
       {/* Unresolved targeting warning */}
-      {(() => {
-        const unresolvedInterests = targetInterests.filter(
-          (i) => !/^\d+$/.test(i.id),
-        );
-        const unresolvedBehaviors = (targetBehaviors || []).filter(
-          (b) => !/^\d+$/.test(b.id),
-        );
-        const totalUnresolved =
-          unresolvedInterests.length + unresolvedBehaviors.length;
-        const totalTargets =
-          targetInterests.length + (targetBehaviors || []).length;
-        const unresolvedRatio =
-          totalTargets > 0 ? totalUnresolved / totalTargets : 0;
-
-        if (totalUnresolved === 0) return null;
-
-        const isSevere = unresolvedRatio > 0.3;
-
-        return (
-          <div
-            className={cn(
-              "p-4 rounded-lg border flex items-start gap-3",
-              isSevere
-                ? "bg-red-50 border-red-200 text-red-800"
-                : "bg-amber-50 border-amber-200 text-amber-800",
-            )}
-          >
-            <WarningTriangle
-              className={cn(
-                "h-5 w-5 mt-0.5 shrink-0",
-                isSevere ? "text-red-500" : "text-amber-500",
-              )}
-            />
-            <div className="text-sm">
-              <p className="font-bold mb-0.5">
-                {totalUnresolved} targeting option
-                {totalUnresolved > 1 ? "s" : ""} could not be verified
-              </p>
-              <p className="text-xs opacity-80">
-                {isSevere
-                  ? "Over 30% of your targeting is unverified. Consider refining your audience for better results."
-                  : "Unverified options will be dropped at launch. Your ad will still run with the verified targets."}
-              </p>
-            </div>
-          </div>
-        );
-      })()}
+      <UnresolvedTargetingWarning
+        targetInterests={targetInterests}
+        targetBehaviors={targetBehaviors || []}
+      />
 
       {/* Launch Button */}
       <div className="pt-4 border-t border-border">
@@ -893,246 +836,20 @@ export function BudgetLaunchStep({
 
       <PaymentDialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen} />
 
-      {/* Success Modal */}
-      {showSuccess && (
-        <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
-          <Card className="max-w-lg w-full animate-in zoom-in-95 slide-in-from-bottom-4">
-            <CardContent className="p-8 space-y-6">
-              <div className="flex flex-col items-center text-center space-y-4">
-                <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center animate-in zoom-in-50">
-                  <CheckCircle className="h-12 w-12 text-primary" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-heading font-bold text-foreground mb-2">
-                    {showPixelPrompt
-                      ? "Ad launched! One last step..."
-                      : "Your ad is live! 🎉"}
-                  </h2>
-                  <p className="text-muted-foreground">
-                    {showPixelPrompt
-                      ? "To track the exact Naira your ad makes, you need to install the Tenzu Pixel."
-                      : "Meta is reviewing it now. Messages should start coming in within 24 hours."}
-                  </p>
-                </div>
-              </div>
-
-              {showPixelPrompt ? (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 text-left">
-                  <div className="flex items-start gap-3">
-                    <div className="bg-yellow-100 p-2 rounded-full mt-0.5">
-                      <StatUp className="w-5 h-5 text-yellow-700" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-yellow-900 mb-1">
-                        Install Tracking Pixel
-                      </h4>
-                      <p className="text-sm text-yellow-800 mb-3">
-                        Copy this snippet into your website's{" "}
-                        <code>&lt;head&gt;</code> tag to enable ROI tracking.
-                      </p>
-                      <Button
-                        asChild
-                        size="sm"
-                        className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold"
-                      >
-                        <Link href={`/campaigns/${dbCampaignId}`}>
-                          Get Snippet Code
-                        </Link>
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-3 p-4 bg-muted/30 rounded-md">
-                  <div className="text-center">
-                    <div className="text-xs text-muted-foreground">
-                      Daily Budget
-                    </div>
-                    <div className="text-lg font-bold text-foreground">
-                      ₦{budget.toLocaleString()}
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-xs text-muted-foreground">
-                      Expected{" "}
-                      {outcomeLabel.replace(/^[a-z]/, (c) => c.toUpperCase())}
-                    </div>
-                    <div className="text-lg font-bold text-primary">
-                      {outcomeRange}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="space-y-3">
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="w-full h-12 rounded-lg font-bold"
-                  onClick={() => {
-                    resetDraft();
-                    setShowSuccess(false);
-                    router.push("/campaigns");
-                  }}
-                >
-                  Watch it perform → View Dashboard
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-                <Button
-                  size="lg"
-                  className="w-full h-14 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-lg shadow-sm border border-border"
-                  onClick={() => {
-                    if (dbCampaignId)
-                      router.push(
-                        `/creations/studio?campaign_id=${dbCampaignId}`,
-                      );
-                  }}
-                  disabled={!dbCampaignId}
-                >
-                  <Sparks className="mr-2 h-5 w-5" />
-                  Improve My Creative with AI
-                </Button>
-              </div>
-
-              <div className="text-center">
-                <button
-                  onClick={() => {
-                    resetDraft();
-                    setShowSuccess(false);
-                    router.push("/campaigns");
-                  }}
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  I'll add creative later
-                </button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      <LaunchSuccessModal
+        show={showSuccess}
+        onClose={() => {
+          resetDraft();
+          setShowSuccess(false);
+          router.push("/campaigns");
+        }}
+        dbCampaignId={dbCampaignId}
+        showPixelPrompt={showPixelPrompt}
+        budget={budget}
+        outcomeLabel={outcomeLabel}
+        outcomeRange={outcomeRange}
+      />
     </div>
   );
 }
 
-function CheckItem({
-  label,
-  status,
-  inverse = false,
-}: {
-  label: string;
-  status: "success" | "warning" | "error" | "loading";
-  inverse?: boolean;
-}) {
-  return (
-    <div className="flex items-center gap-3">
-      <div
-        className={cn(
-          "h-6 w-6 rounded-full flex items-center justify-center shrink-0",
-          status === "success"
-            ? "bg-primary/20 text-primary"
-            : status === "warning"
-              ? "bg-yellow-100 text-yellow-600"
-              : status === "loading"
-                ? "bg-white/10 text-white/60"
-                : "bg-red-100 text-red-600",
-        )}
-      >
-        {status === "success" ? (
-          <Check className="h-4 w-4" />
-        ) : status === "warning" ? (
-          <span className="text-yellow-600 font-bold text-xs">!</span>
-        ) : status === "loading" ? (
-          <div className="h-3 w-3 rounded-full border-2 border-white/40 border-t-white/80 animate-spin" />
-        ) : (
-          <div className="h-2 w-2 bg-red-600 rounded-full" />
-        )}
-      </div>
-      <span
-        className={cn(
-          "text-sm font-medium",
-          status === "loading" && "opacity-60",
-          inverse ? "text-muted" : "text-foreground",
-        )}
-      >
-        {label}
-      </span>
-    </div>
-  );
-}
-
-// ─── Ad Preview Card Component ───────────────────────────────────────────────
-
-function AdPreviewCard({
-  campaignName,
-  adCopy,
-  creativeUrl,
-  platform,
-}: {
-  campaignName: string;
-  adCopy: any;
-  creativeUrl: string;
-  platform: any;
-}) {
-  return (
-    <div className="rounded-lg bg-card overflow-hidden shadow-sm border border-border animate-in fade-in slide-in-from-bottom-4">
-      {/* Header (Fake User) */}
-      <div className="p-3 flex items-center gap-3 border-b border-border/50">
-        <div className="h-8 w-8 rounded-full bg-linear-to-br from-purple-500 to-indigo-500 flex items-center justify-center text-white text-xs font-bold">
-          {campaignName?.[0]?.toUpperCase() || "B"}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-foreground truncate">
-            {campaignName || "Your Business"}
-          </p>
-          <p className="text-[10px] text-muted-foreground">Sponsored</p>
-        </div>
-        {platform === "meta" ? (
-          <div className="h-4 w-4 bg-blue-600 rounded-sm flex items-center justify-center text-[8px] text-white font-bold">
-            f
-          </div>
-        ) : (
-          <div className="h-4 w-4 bg-black rounded-full flex items-center justify-center text-[8px] text-white font-bold">
-            t
-          </div>
-        )}
-      </div>
-
-      {/* Primary Text */}
-      <div className="px-3 py-2">
-        <p className="text-sm text-foreground line-clamp-3 leading-relaxed">
-          {adCopy.primary || "Your primary ad text will appear here..."}
-        </p>
-      </div>
-
-      {/* Creative */}
-      <div className="bg-black/5 aspect-4/5 relative w-full overflow-hidden">
-        {creativeUrl ? (
-          <img
-            src={creativeUrl}
-            alt="Ad creative"
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-xs">
-            No image selected
-          </div>
-        )}
-      </div>
-
-      {/* Headline & CTA */}
-      <div className="bg-muted/30 p-3 flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">
-            {platform === "whatsapp" ? "whatsapp.com" : "yoursite.com"}
-          </p>
-          <p className="text-sm font-bold text-foreground truncate">
-            {adCopy.headline || "Your Headline Here"}
-          </p>
-        </div>
-        <button className="px-4 py-1.5 bg-muted-foreground/10 text-foreground text-xs font-bold rounded border border-border whitespace-nowrap">
-          {adCopy?.cta?.displayLabel || "Learn More"}
-        </button>
-      </div>
-    </div>
-  );
-}

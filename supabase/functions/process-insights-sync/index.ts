@@ -32,45 +32,24 @@ serve(async (req) => {
   );
 
   try {
-    // 1. FETCH NEXT PENDING JOB
-    const { data: job, error: fetchErr } = await supabase
-      .from("job_queue")
-      .select("*")
-      .eq("type", "insights_sync")
-      .eq("status", "pending")
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .single();
+    // 1. ATOMICALLY CLAIM NEXT PENDING JOB (Bug 1+4 fix: FOR UPDATE SKIP LOCKED)
+    const { data: claimedRows, error: fetchErr } = await supabase
+      .rpc("claim_next_job", { p_type: "insights_sync" });
 
     if (fetchErr) {
-      if (fetchErr.code === "PGRST116") {
-        return new Response(
-          JSON.stringify({ message: "No pending insights sync jobs" }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
-        );
-      }
       throw fetchErr;
     }
 
-    console.log(`[Worker] Processing insights sync job ${job.id}`);
+    const job = claimedRows?.[0] ?? null;
 
-    // 2. ACQUIRE LOCK
-    const { error: lockErr, count } = await supabase
-      .from("job_queue")
-      .update({
-        status: "processing",
-        started_at: new Date().toISOString(),
-      })
-      .eq("id", job.id)
-      .eq("status", "pending");
-
-    if (lockErr || count === 0) {
-      console.log(`[Worker] Job ${job.id} already locked, skipping`);
+    if (!job) {
       return new Response(
-        JSON.stringify({ message: "Job already processing" }),
-        { status: 200 }
+        JSON.stringify({ message: "No pending insights sync jobs" }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
       );
     }
+
+    console.log(`[Worker] Processing insights sync job ${job.id}`);
 
     // 3. PROCESS CAMPAIGNS IN BATCHES
     const { campaign_ids } = job.payload;
@@ -224,8 +203,6 @@ async function syncCampaignInsights(supabase: any, campaign: any) {
       impressions: parseInt(day.impressions || "0", 10),
       reach: parseInt(day.reach || "0", 10),
       ctr: parseFloat(day.ctr || "0"),
-      media_views: parseInt(day.media_views || "0", 10), // v25.0 metric
-      media_viewers: parseInt(day.media_viewers || "0", 10), // v25.0 metric
       synced_at: new Date().toISOString(),
     }));
 
@@ -266,7 +243,7 @@ async function syncCampaignInsights(supabase: any, campaign: any) {
 async function fetchMetaInsights(token: string, campaignId: string) {
   const url =
     `${BASE_URL}/${campaignId}/insights` +
-    `?fields=impressions,reach,clicks,ctr,cpc,spend,media_views,media_viewers` + // v25.0: Added new metrics
+    `?fields=impressions,reach,clicks,ctr,cpc,spend` + // v25.0
     `&date_preset=last_7d` +
     `&time_increment=1` +
     `&access_token=${token}`;
@@ -302,16 +279,31 @@ async function fetchMetaInsights(token: string, campaignId: string) {
 
 async function decrypt(encrypted: string, key: string): Promise<string> {
   const parts = encrypted.split(":");
-  if (parts.length !== 3) {
-    return encrypted;
+  if (parts.length !== 3) return encrypted;
+
+  const [prefix, part2, part3] = parts;
+
+  // v1/v2 → AES-256-CBC (written by Next.js OAuth callback and refresh jobs)
+  if (prefix === "v1" || prefix === "v2") {
+    const keyMaterial = await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(key.padEnd(32).slice(0, 32)),
+      { name: "AES-CBC" },
+      false,
+      ["decrypt"]
+    );
+    const iv = new Uint8Array(part2.match(/.{1,2}/g)!.map((b) => parseInt(b, 16)));
+    const encryptedBytes = new Uint8Array(part3.match(/.{1,2}/g)!.map((b) => parseInt(b, 16)));
+    try {
+      const buf = await crypto.subtle.decrypt({ name: "AES-CBC", iv }, keyMaterial, encryptedBytes);
+      return new TextDecoder().decode(buf);
+    } catch (e) {
+      console.error("CBC decryption failed", e);
+      return encrypted;
+    }
   }
 
-  const [version, ivHex, encryptedHex] = parts;
-
-  if (version !== "v1" && version !== "v2") {
-    return encrypted;
-  }
-
+  // Format A: IV_HEX:AUTH_TAG_HEX:CIPHERTEXT_HEX → AES-256-GCM (written by refresh-meta-tokens edge function)
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(key.padEnd(32).slice(0, 32)),
@@ -319,23 +311,17 @@ async function decrypt(encrypted: string, key: string): Promise<string> {
     false,
     ["decrypt"]
   );
-
-  const iv = new Uint8Array(
-    ivHex.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16))
-  );
-  const encryptedBytes = new Uint8Array(
-    encryptedHex.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16))
-  );
-
+  const iv = new Uint8Array(prefix.match(/.{1,2}/g)!.map((b) => parseInt(b, 16)));
+  const authTag = new Uint8Array(part2.match(/.{1,2}/g)!.map((b) => parseInt(b, 16)));
+  const ciphertext = new Uint8Array(part3.match(/.{1,2}/g)!.map((b) => parseInt(b, 16)));
+  const combined = new Uint8Array(ciphertext.length + authTag.length);
+  combined.set(ciphertext);
+  combined.set(authTag, ciphertext.length);
   try {
-    const decryptedBuffer = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv },
-      keyMaterial,
-      encryptedBytes
-    );
-    return new TextDecoder().decode(decryptedBuffer);
+    const buf = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, keyMaterial, combined);
+    return new TextDecoder().decode(buf);
   } catch (e) {
-    console.error("Decryption failed", e);
+    console.error("GCM decryption failed", e);
     return encrypted;
   }
 }

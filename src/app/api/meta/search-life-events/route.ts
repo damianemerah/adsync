@@ -35,7 +35,6 @@ export async function GET(request: Request) {
     .select("access_token, platform_account_id")
     .eq("organization_id", activeOrgId)
     .eq("platform", "meta")
-    .eq("health_status", "healthy")
     .order("is_default", { ascending: false })
     .limit(1)
     .single();

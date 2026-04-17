@@ -36,46 +36,27 @@ serve(async (req) => {
   );
 
   try {
-    // 1. FETCH NEXT PENDING JOB (FIFO with lock)
-    const { data: job, error: fetchErr } = await supabase
-      .from("job_queue")
-      .select("*")
-      .eq("type", "campaign_launch")
-      .eq("status", "pending")
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .single();
+    // 1. ATOMICALLY CLAIM NEXT PENDING JOB (Bug 1+4 fix: FOR UPDATE SKIP LOCKED)
+    // claim_next_job filters updated_at <= NOW() (honours backoff delay) and
+    // transitions the row to 'processing' in a single query, so concurrent
+    // workers each claim a distinct job with zero contention.
+    const { data: claimedRows, error: fetchErr } = await supabase
+      .rpc("claim_next_job", { p_type: "campaign_launch" });
 
     if (fetchErr) {
-      if (fetchErr.code === "PGRST116") {
-        // No rows - queue is empty
-        return new Response(
-          JSON.stringify({ message: "No pending campaign launch jobs" }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
-        );
-      }
       throw fetchErr;
     }
 
-    console.log(`[Worker] Processing job ${job.id} for campaign ${job.payload.campaignId}`);
+    const job = claimedRows?.[0] ?? null;
 
-    // 2. ACQUIRE LOCK (Mark as processing)
-    const { error: lockErr, count } = await supabase
-      .from("job_queue")
-      .update({
-        status: "processing",
-        started_at: new Date().toISOString(),
-      })
-      .eq("id", job.id)
-      .eq("status", "pending"); // Optimistic lock
-
-    if (lockErr || count === 0) {
-      console.log(`[Worker] Job ${job.id} already locked, skipping`);
+    if (!job) {
       return new Response(
-        JSON.stringify({ message: "Job already processing" }),
-        { status: 200 }
+        JSON.stringify({ message: "No pending campaign launch jobs" }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
       );
     }
+
+    console.log(`[Worker] Processing job ${job.id} for campaign ${job.payload.campaignId}`);
 
     // 3. EXECUTE META API CHAIN WITH ROLLBACK TRACKING
     const { campaignId, config } = job.payload;
@@ -224,6 +205,7 @@ serve(async (req) => {
       console.log(`[Worker] ✅ Campaign ${campaignId} saved to database`);
 
       // ── STEP 7: SEND SUCCESS NOTIFICATION ───────────────────────────────
+      // In-app insert is synchronous; external delivery (email/WhatsApp) is queued.
       await supabase.from("notifications").insert({
         user_id: job.user_id,
         type: "success",
@@ -232,6 +214,23 @@ serve(async (req) => {
         message: `Your campaign "${config.name}" has been sent to Meta for review. You'll see results within 24 hours.`,
         action_url: "/campaigns",
         action_label: "View Campaigns",
+      });
+      await supabase.from("job_queue").insert({
+        type: "notification_send",
+        organization_id: job.payload?.organization_id ?? null,
+        user_id: job.user_id,
+        status: "pending",
+        max_attempts: 3,
+        payload: {
+          userId: job.user_id,
+          type: "success",
+          category: "campaign",
+          title: "Campaign Launched",
+          message: `Your campaign "${config.name}" has been sent to Meta for review. You'll see results within 24 hours.`,
+          actionUrl: "/campaigns",
+          actionLabel: "View Campaigns",
+          channels: ["email"],
+        },
       });
 
       // ── MARK JOB COMPLETE ───────────────────────────────────────────────
@@ -265,22 +264,28 @@ serve(async (req) => {
       console.error("[Worker] ❌ Meta API Error:", metaError.message);
 
       // ──────────────────────────────────────────────────────────────────
-      // ROLLBACK: Delete all created Meta resources
+      // ROLLBACK: Enqueue cleanup job — resources deleted with retry
       // ──────────────────────────────────────────────────────────────────
       if (metaResources.length > 0) {
-        console.log(`[Worker] 🔄 Rolling back ${metaResources.length} Meta resources...`);
-
-        for (const resource of metaResources.reverse()) {
-          try {
-            await deleteMetaResource(accessToken, resource.id);
-            console.log(`[Worker] ✅ Deleted ${resource.type} ${resource.id}`);
-          } catch (deleteErr: any) {
-            console.error(
-              `[Worker] ⚠️ Failed to delete ${resource.type} ${resource.id}:`,
-              deleteErr.message
-            );
-          }
+        console.log(`[Worker] 🔄 Enqueueing Meta resource cleanup for ${metaResources.length} resources...`);
+        const resources: Record<string, string> = {};
+        for (const r of metaResources) {
+          if (r.type === "campaign") resources.metaCampaignId = r.id;
+          if (r.type === "adset") resources.metaAdSetId = r.id;
+          if (r.type === "ad") resources.metaAdId = r.id;
         }
+        await supabase.from("job_queue").insert({
+          type: "meta_resource_cleanup",
+          organization_id: job.payload?.organization_id ?? null,
+          status: "pending",
+          max_attempts: 3,
+          payload: {
+            campaignId,
+            mode: "rollback",
+            resources,
+          },
+        });
+        console.log(`[Worker] 🔄 Cleanup job enqueued for resources: ${Object.keys(resources).join(", ")}`);
       }
 
       // ── MARK CAMPAIGN AS FAILED IN DB ──────────────────────────────────
@@ -308,14 +313,32 @@ serve(async (req) => {
       );
 
       // ── SEND ERROR NOTIFICATION ────────────────────────────────────────
+      const failMsg = `Failed to launch "${config.name}": ${metaError.message}. ${isRetryable ? "We'll retry automatically." : "Please check your settings and try again."}`;
       await supabase.from("notifications").insert({
         user_id: job.user_id,
         type: "critical",
         category: "campaign",
         title: "Campaign Launch Failed",
-        message: `Failed to launch "${config.name}": ${metaError.message}. ${isRetryable ? "We'll retry automatically." : "Please check your settings and try again."}`,
+        message: failMsg,
         action_url: "/campaigns/new",
         action_label: "Try Again",
+      });
+      await supabase.from("job_queue").insert({
+        type: "notification_send",
+        organization_id: job.payload?.organization_id ?? null,
+        user_id: job.user_id,
+        status: "pending",
+        max_attempts: 3,
+        payload: {
+          userId: job.user_id,
+          type: "critical",
+          category: "campaign",
+          title: "Campaign Launch Failed",
+          message: failMsg,
+          actionUrl: "/campaigns/new",
+          actionLabel: "Try Again",
+          channels: ["email", "whatsapp"],
+        },
       });
 
       const duration = Date.now() - startTime;
@@ -592,10 +615,6 @@ async function createMetaAd(
   });
 }
 
-async function deleteMetaResource(token: string, resourceId: string) {
-  return metaRequest(`/${resourceId}`, "DELETE", token);
-}
-
 // ============================================================================
 // Helper Functions
 // ============================================================================
@@ -639,21 +658,32 @@ function formatWhatsAppUrl(phone: string, adHeadline: string) {
 }
 
 async function decrypt(encrypted: string, key: string): Promise<string> {
-  // Handle versioned encryption (v2:IV:DATA format)
   const parts = encrypted.split(":");
-  if (parts.length !== 3) {
-    // Legacy format or plaintext
-    return encrypted;
+  if (parts.length !== 3) return encrypted;
+
+  const [prefix, part2, part3] = parts;
+
+  // v1/v2 → AES-256-CBC (written by Next.js OAuth callback and refresh jobs)
+  if (prefix === "v1" || prefix === "v2") {
+    const keyMaterial = await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(key.padEnd(32).slice(0, 32)),
+      { name: "AES-CBC" },
+      false,
+      ["decrypt"]
+    );
+    const iv = new Uint8Array(part2.match(/.{1,2}/g)!.map((b) => parseInt(b, 16)));
+    const encryptedBytes = new Uint8Array(part3.match(/.{1,2}/g)!.map((b) => parseInt(b, 16)));
+    try {
+      const buf = await crypto.subtle.decrypt({ name: "AES-CBC", iv }, keyMaterial, encryptedBytes);
+      return new TextDecoder().decode(buf);
+    } catch (e) {
+      console.error("CBC decryption failed", e);
+      return encrypted;
+    }
   }
 
-  const [version, ivHex, encryptedHex] = parts;
-
-  if (version !== "v1" && version !== "v2") {
-    // Unrecognized version, assume plaintext
-    return encrypted;
-  }
-
-  // Decrypt using AES-256-GCM
+  // Format A: IV_HEX:AUTH_TAG_HEX:CIPHERTEXT_HEX → AES-256-GCM (written by refresh-meta-tokens edge function)
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(key.padEnd(32).slice(0, 32)),
@@ -661,20 +691,19 @@ async function decrypt(encrypted: string, key: string): Promise<string> {
     false,
     ["decrypt"]
   );
-
-  const iv = new Uint8Array(ivHex.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16)));
-  const encryptedBytes = new Uint8Array(
-    encryptedHex.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16))
-  );
-
-  // GCM mode includes auth tag in ciphertext
-  const decryptedBuffer = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv },
-    keyMaterial,
-    encryptedBytes
-  );
-
-  return new TextDecoder().decode(decryptedBuffer);
+  const iv = new Uint8Array(prefix.match(/.{1,2}/g)!.map((b) => parseInt(b, 16)));
+  const authTag = new Uint8Array(part2.match(/.{1,2}/g)!.map((b) => parseInt(b, 16)));
+  const ciphertext = new Uint8Array(part3.match(/.{1,2}/g)!.map((b) => parseInt(b, 16)));
+  const combined = new Uint8Array(ciphertext.length + authTag.length);
+  combined.set(ciphertext);
+  combined.set(authTag, ciphertext.length);
+  try {
+    const buf = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, keyMaterial, combined);
+    return new TextDecoder().decode(buf);
+  } catch (e) {
+    console.error("GCM decryption failed", e);
+    return encrypted;
+  }
 }
 
 async function markJobFailed(
@@ -695,24 +724,13 @@ async function markJobFailed(
   const exhausted = newAttempts >= job.max_attempts;
 
   if (exhausted || !shouldRetry) {
-    // Move to DLQ
-    await supabase.from("job_dlq").insert({
-      job_id: jobId,
-      type: job.type,
-      payload: job.payload,
-      error_message: error,
-      attempts: newAttempts,
+    // Bug 3 fix: atomic RPC — inserts into job_dlq AND marks job failed in one transaction
+    await supabase.rpc("fail_job_to_dlq", {
+      p_job_id: jobId,
+      p_error_msg: error,
+      p_error_stack: null,
+      p_attempts: newAttempts,
     });
-
-    await supabase
-      .from("job_queue")
-      .update({
-        status: "failed",
-        last_error: error,
-        attempts: newAttempts,
-        completed_at: new Date().toISOString(),
-      })
-      .eq("id", jobId);
   } else {
     // Retry with exponential backoff
     const backoffMs = Math.min(1000 * Math.pow(2, newAttempts), 300000);

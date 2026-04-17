@@ -38,8 +38,7 @@ function buildTargetingPayload(
   const hardControls: Record<string, unknown> = {
     geo_locations: targeting.geo_locations,
     age_min: targeting.age_min,
-    // age_max must be 65 when advantage_audience: 1 — user's max becomes a soft suggestion only
-    age_max: 65,
+    age_max: targeting.age_max,
     targeting_automation: { advantage_audience: 1 },
   };
 
@@ -124,14 +123,31 @@ export const MetaService = {
 
     return data;
   },
-  searchInterests: async (token: string, query: string) => {
-    // Searches for interests like "Fashion" to get ID "600312329"
+  searchInterests: async (
+    token: string,
+    adAccountId: string,
+    query: string,
+  ): Promise<Array<{ id: string; name: string }>> => {
+    // Searches for interests via account-scoped targetingsearch (adinterest global search deprecated in v25+)
+    const params = new URLSearchParams({
+      type: "adTargetingCategory",
+      class: "interests",
+      q: query,
+      limit: "10",
+    });
+    const id = adAccountId.startsWith("act_")
+      ? adAccountId
+      : `act_${adAccountId}`;
+      console.log("Calling meta search")
     const data = await MetaService.request(
-      `/search?type=adinterest&q=${encodeURIComponent(query)}&limit=10`,
+      `/${id}/targetingsearch?${params.toString()}`,
       "GET",
       token,
     );
-    return data.data || [];
+    console.log("interest data📁", query, data)
+    return (data.data || []).filter(
+      (item: any) => !item.type || item.type === "interests",
+    );
   },
 
   validateInterests: async (
@@ -787,7 +803,7 @@ export const MetaService = {
       ? adAccountId
       : `act_${adAccountId}`;
     return MetaService.request(
-      `/${id}/insights?date_preset=last_30d&level=account&fields=spend,impressions,clicks,cpc,ctr,cpm,reach,media_views`,
+      `/${id}/insights?date_preset=last_30d&level=account&fields=spend,impressions,clicks,cpc,ctr,cpm,reach`,
       "GET",
       token,
     );
@@ -801,7 +817,7 @@ export const MetaService = {
     // time_increment=1 gives us daily breakdown
     // date_preset=last_30d covers the standard view
     return MetaService.request(
-      `/${campaignId}/insights?fields=spend,impressions,clicks,cpc,ctr,reach,media_views&time_increment=1&date_preset=last_30d`,
+      `/${campaignId}/insights?fields=spend,impressions,clicks,cpc,ctr,reach&time_increment=1&date_preset=last_30d`,
       "GET",
       token,
     );
@@ -819,7 +835,7 @@ export const MetaService = {
   // [NEW] Fetch Breakdown specifically for Sub-Placements (Reels vs Feed etc)
   getPlacementInsights: async (token: string, campaignId: string) => {
     return MetaService.request(
-      `/${campaignId}/insights?fields=reach,impressions,spend,clicks,cpc,ctr,actions,action_values,media_views&breakdowns=publisher_platform,platform_position&date_preset=maximum`,
+      `/${campaignId}/insights?fields=reach,impressions,spend,clicks,cpc,ctr,actions,action_values&breakdowns=publisher_platform,platform_position&date_preset=maximum`,
       "GET",
       token,
     );

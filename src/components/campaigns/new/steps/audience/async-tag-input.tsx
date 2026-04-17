@@ -13,12 +13,15 @@ interface AsyncTagInputProps {
   placeholder: string;
   searchType: "location" | "interest" | "behavior" | "life-events" | "work-position" | "industry";
   onAdd: (value: any) => void;
+  /** Extra query-string params appended to the search API call (e.g. { type: "region" }) */
+  searchParams?: Record<string, string>;
 }
 
 export function AsyncTagInput({
   placeholder,
   searchType,
   onAdd,
+  searchParams,
 }: AsyncTagInputProps) {
   const [value, setValue] = useState("");
   const [open, setOpen] = useState(false);
@@ -46,8 +49,11 @@ export function AsyncTagInput({
         setLoading(true);
         setOpen(true);
         try {
+          const extraParams = searchParams
+            ? "&" + new URLSearchParams(searchParams).toString()
+            : "";
           const res = await fetch(
-            `/api/meta/search-${searchType}?query=${encodeURIComponent(value)}`,
+            `/api/meta/search-${searchType}?query=${encodeURIComponent(value)}${extraParams}`,
           );
           const data = await res.json();
           // The API sometimes returns data inside a data object depending on the route
@@ -68,7 +74,8 @@ export function AsyncTagInput({
       }
     }, 400);
     return () => clearTimeout(delay);
-  }, [value, searchType]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, searchType, JSON.stringify(searchParams)]);
 
   return (
     <div ref={containerRef} className="relative w-full">

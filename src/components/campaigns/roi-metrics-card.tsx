@@ -64,18 +64,7 @@ export function ROIMetricsCard({ campaignId }: ROIMetricsCardProps) {
       icon: HandCash,
       color: "text-amber-600 bg-amber-50",
     },
-    // v25.0: Show media metrics only if they exist (for video/reel campaigns)
-    ...(roi.mediaViews > 0
-      ? [
-          {
-            label: "Media Views",
-            value: roi.mediaViews.toLocaleString(),
-            detail: `${roi.mediaViewers.toLocaleString()} unique viewers`,
-            icon: Globe, // Using Globe for video views
-            color: "text-purple-600 bg-purple-50",
-          },
-        ]
-      : []),
+
     {
       label: "Sales",
       value: roi.salesCount > 0 ? roi.salesCount.toLocaleString() : "—",

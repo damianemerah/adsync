@@ -75,6 +75,8 @@ export async function getCampaignById(supabase: SupabaseClient, id: string) {
       freshAd?.synced_at &&
       Date.now() - new Date(freshAd.synced_at).getTime() < 15 * 60 * 1000;
 
+    console.log("adsAreFresh🔥", adsAreFresh);
+
     if (adsAreFresh) {
       const { data: cachedAds } = await supabase
         .from("ads")
@@ -113,6 +115,8 @@ export async function getCampaignById(supabase: SupabaseClient, id: string) {
         .select("*")
         .eq("campaign_id", id)
         .order("date", { ascending: true });
+
+      console.log("dbMetrics🔥", dbMetrics);
 
       if (dbMetrics && dbMetrics.length > 0) {
         performanceData = dbMetrics.map((m: any) => ({
@@ -164,9 +168,11 @@ export async function getCampaignById(supabase: SupabaseClient, id: string) {
       console.log("insightsRes🔥", insightsRes);
       console.log("demoRes🔥", demoRes);
       console.log("adsRes🔥", adsRes);
+      console.log("balanceRes🔥", balanceRes);
 
       // --- A. Process Time Series & SAVE TO DB ---
       if (insightsRes.data && insightsRes.data.length > 0) {
+        console.log("insightsRes.data🔥");
         // 1. Map for UI
         performanceData = insightsRes.data
           .map((day: any) => ({
@@ -218,6 +224,7 @@ export async function getCampaignById(supabase: SupabaseClient, id: string) {
 
       // --- B. Process Demographics ---
       if (demoRes.data && demoRes.data.length > 0) {
+        console.log("demoRes.data🔥");
         demographics.age = demoRes.data.map((d: any) => ({
           name: d.age,
           value: parseInt(d.reach),
@@ -241,6 +248,7 @@ export async function getCampaignById(supabase: SupabaseClient, id: string) {
 
       // --- C. Process Ads ---
       if (adsRes.data && adsRes.data.length > 0) {
+        console.log("adsRes.data🔥");
         const now = new Date().toISOString();
 
         ads = adsRes.data.map((ad: any) => ({

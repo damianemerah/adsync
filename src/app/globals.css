@@ -42,6 +42,16 @@
   --ai: #8b5cf6; /* Violet 500 */
   --ai-foreground: #ffffff;
 
+  /* Warning (yellow) — used for pixel prompts, advisory sections */
+  --warning-bg: #fefce8;        /* yellow-50 */
+  --warning-border: #fef08a;    /* yellow-200 */
+  --warning-text: #713f12;      /* yellow-900 */
+  --warning-text-secondary: #92400e; /* yellow-800 */
+  --warning-icon: #ca8a04;      /* yellow-600 */
+  --warning-icon-bg: #fef9c3;   /* yellow-100 */
+  --warning-btn: #ca8a04;       /* yellow-600 */
+  --warning-btn-hover: #a16207; /* yellow-700 */
+
   --shadow-card: 0 0 0 9px #f9fafb;
 }
 
@@ -98,6 +108,16 @@
   /* AI Utilities */
   --color-ai: var(--ai);
   --color-ai-foreground: var(--ai-foreground);
+
+  /* Warning Utilities */
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-border: var(--warning-border);
+  --color-warning-text: var(--warning-text);
+  --color-warning-text-secondary: var(--warning-text-secondary);
+  --color-warning-icon: var(--warning-icon);
+  --color-warning-icon-bg: var(--warning-icon-bg);
+  --color-warning-btn: var(--warning-btn);
+  --color-warning-btn-hover: var(--warning-btn-hover);
 }
 
 @utility container {

@@ -122,8 +122,9 @@ export function useCreatives() {
 import { getCreativeHistory } from "@/actions/ai-images";
 
 export function useCreativeHistory(creativeId: string | null) {
+  const { activeOrgId } = useActiveOrgContext();
   const query = useQuery({
-    queryKey: ["creative-history", creativeId],
+    queryKey: ["creative-history", creativeId, activeOrgId],
     queryFn: async () => {
       if (!creativeId) return null;
       console.log("🪝 useCreativeHistory: Fetching for", creativeId);
