@@ -2,8 +2,8 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useCampaignStore } from "@/stores/campaign-store";
-import { useCampaigns } from "@/hooks/use-campaigns";
-import { useAdAccounts } from "@/hooks/use-ad-account";
+import { useCampaignMutations } from "@/hooks/use-campaigns";
+import { useAdAccountsList, AdAccountUI } from "@/hooks/use-ad-account";
 import { useOrgROI } from "@/hooks/use-org-roi";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -124,7 +124,7 @@ export function BudgetLaunchStep({
   } = useCampaignStore();
 
   const orgROI = useOrgROI();
-  const { launchCampaign, isLaunching } = useCampaigns();
+  const { launchCampaign, isLaunching } = useCampaignMutations();
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [dbCampaignId, setDbCampaignId] = useState<string | null>(null);
@@ -137,18 +137,18 @@ export function BudgetLaunchStep({
   );
 
   // ─── Real health checks ──────────────────────────────────────────────────
-  const { data: adAccounts, isLoading: isLoadingAccounts } = useAdAccounts();
+  const { data: adAccounts, isLoading: isLoadingAccounts } = useAdAccountsList();
 
-  const healthyAccounts = (adAccounts ?? []).filter((a) => a.status === "healthy");
+  const healthyAccounts = (adAccounts ?? []).filter((a: AdAccountUI) => a.status === "healthy");
 
   const hasHealthyAccount = !isLoadingAccounts && healthyAccounts.length > 0;
 
   const hasPaymentIssue =
     !isLoadingAccounts &&
-    (adAccounts ?? []).some((a) => a.status === "payment_issue");
+    (adAccounts ?? []).some((a: AdAccountUI) => a.status === "payment_issue");
 
   // Selected ad account for this campaign (defaults to the marked default, then first healthy)
-  const defaultAccount = adAccounts?.find((a) => a.isDefault) ?? adAccounts?.[0];
+  const defaultAccount = adAccounts?.find((a: AdAccountUI) => a.isDefault) ?? adAccounts?.[0];
   const [selectedAdAccountId, setSelectedAdAccountId] = useState<string>(
     () => defaultAccount?.id ?? "",
   );
@@ -160,7 +160,7 @@ export function BudgetLaunchStep({
   }, [defaultAccount?.id]);
 
   // ─── Facebook Pages + Instagram accounts ─────────────────────────────────
-  const selectedAccount = adAccounts?.find((a) => a.id === selectedAdAccountId);
+  const selectedAccount = adAccounts?.find((a: AdAccountUI) => a.id === selectedAdAccountId);
   const { data: pages } = useQuery({
     queryKey: ["meta", "pages", selectedAccount?.accountId],
     queryFn: async () => {
@@ -286,7 +286,7 @@ export function BudgetLaunchStep({
 
     if (objective === "leads" && !leadGenFormId && suggestedLeadForm) {
       try {
-        const selectedAccount = adAccounts?.find((a) => a.id === selectedAdAccountId) ?? adAccounts?.[0];
+        const selectedAccount = adAccounts?.find((a: AdAccountUI) => a.id === selectedAdAccountId) ?? adAccounts?.[0];
         const adAccountId = selectedAccount?.accountId;
 
         if (!adAccountId) {
@@ -411,7 +411,7 @@ export function BudgetLaunchStep({
         <div className="inline-flex items-center justify-center p-3 rounded-full bg-primary/10 mb-2">
           <Coins className="h-6 w-6 text-primary" />
         </div>
-        <h1 className="text-3xl font-heading font-bold text-foreground">
+        <h1 className="text-3xl font-heading text-foreground">
           How many {outcomeLabel} do you want?
         </h1>
         <p className="text-subtle-foreground max-w-lg mx-auto">
@@ -446,18 +446,18 @@ export function BudgetLaunchStep({
                     )}
                   >
                     {tier.popular && (
-                      <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                      <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
                         Best
                       </span>
                     )}
-                    <p className="text-[10px] font-bold text-subtle-foreground uppercase tracking-wider mb-1">
+                    <p className="text-xs font-bold text-subtle-foreground uppercase tracking-wider mb-1">
                       {tier.label}
                     </p>
                     <p className="text-sm font-black text-foreground">
                       ~{range.low.toLocaleString()}–
                       {range.high.toLocaleString()}
                     </p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                    <p className="text-xs text-subtle-foreground mt-0.5">
                       {outcomeLabel}
                     </p>
                     <p className="text-xs font-bold text-primary mt-2">
@@ -538,12 +538,12 @@ export function BudgetLaunchStep({
                   <SelectValue placeholder="Choose ad account…" />
                 </SelectTrigger>
                 <SelectContent>
-                  {healthyAccounts.map((acc) => (
+                  {healthyAccounts.map((acc: AdAccountUI) => (
                     <SelectItem key={acc.id} value={acc.id}>
                       <span className="flex items-center gap-2">
                         {acc.nickname || acc.name}
                         {acc.isDefault && (
-                          <span className="text-[10px] text-muted-foreground font-normal">
+                          <span className="text-xs text-subtle-foreground font-normal">
                             (default)
                           </span>
                         )}
@@ -602,7 +602,7 @@ export function BudgetLaunchStep({
                     {pages.find((p) => p.id === (pageId ?? pages[0].id))?.instagramAccountName ?? instagramAccountId}
                   </p>
                 ) : (
-                  <p className="text-sm text-muted-foreground h-12 flex items-center px-3 rounded-md border border-border bg-card/50 italic">
+                  <p className="text-sm text-subtle-foreground h-12 flex items-center px-3 rounded-md border border-border bg-card/50 italic">
                     No Instagram account linked to this Page
                   </p>
                 )}
@@ -696,7 +696,7 @@ export function BudgetLaunchStep({
                     <span className="text-sm font-bold text-foreground block mb-1">
                       Track Every Naira
                     </span>
-                    <span className="text-xs text-muted-foreground inline-block">
+                    <span className="text-xs text-subtle-foreground inline-block">
                       After launch, tap "Sold! 🎉" every time a customer buys.
                       We'll show you exactly how much your ₦
                       {budget.toLocaleString()}/day is making.
@@ -705,7 +705,7 @@ export function BudgetLaunchStep({
                 </div>
 
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">
+                  <span className="text-subtle-foreground">
                     Est. Cost / Click
                   </span>
                   <span className="font-bold">
@@ -713,13 +713,13 @@ export function BudgetLaunchStep({
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">Weekly Spend</span>
+                  <span className="text-subtle-foreground">Weekly Spend</span>
                   <span className="font-bold">
                     ₦{estimate.weeklySpendNgn.toLocaleString()}
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">Platform</span>
+                  <span className="text-subtle-foreground">Platform</span>
                   <span className="font-bold capitalize">
                     {platform === "meta"
                       ? metaPlacement === "instagram"

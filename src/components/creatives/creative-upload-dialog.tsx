@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
-import { useCreatives } from "@/hooks/use-creatives";
+import { useCreativeMutations } from "@/hooks/use-creatives";
 import { ImageCropper } from "@/components/creatives/image-cropper";
 import {
   Dialog,
@@ -119,7 +119,7 @@ export function CreativeUploadDialog({
   onOpenChange,
   onUploadComplete,
 }: CreativeUploadDialogProps) {
-  const { uploadCreative } = useCreatives();
+  const { uploadCreative } = useCreativeMutations();
 
   const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
 
@@ -388,7 +388,7 @@ export function CreativeUploadDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4 overflow-y-auto">
+          <div className="space-y-4 py-4 overflow-y-auto no-scrollbar">
             {/* Drop Zone */}
             {!hasUploading && !allDone && (
               <label className="relative border-2 border-dashed border-border rounded-lg p-10 flex flex-col items-center justify-center text-center hover:bg-muted/50 hover:border-primary transition-all cursor-pointer group bg-muted/20">
@@ -405,7 +405,7 @@ export function CreativeUploadDialog({
                 <h3 className="font-bold text-lg text-foreground">
                   Drag & Drop files
                 </h3>
-                <p className="text-muted-foreground text-sm">
+                <p className="text-subtle-foreground text-sm">
                   or click to browse — multiple files supported
                 </p>
               </label>
@@ -413,7 +413,7 @@ export function CreativeUploadDialog({
 
             {/* Upload Queue */}
             {uploadQueue.length > 0 && (
-              <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-56 overflow-y-auto pr-1 no-scrollbar">
                 {uploadQueue.map((item) => (
                   <div
                     key={item.id}
@@ -556,7 +556,7 @@ export function CreativeUploadDialog({
               Crop Image
               {uploadQueue.filter((i) => i.status === "pending_crop").length >
                 1 && (
-                <span className="ml-2 text-sm font-normal text-muted-foreground">
+                <span className="ml-2 text-sm font-normal text-subtle-foreground">
                   ({uploadQueue.findIndex((i) => i.id === cropItem?.id) + 1} of{" "}
                   {uploadQueue.length})
                 </span>

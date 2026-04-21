@@ -38,12 +38,12 @@ export function LaunchSuccessModal({
               <CheckCircle className="h-12 w-12 text-primary" />
             </div>
             <div>
-              <h2 className="text-2xl font-heading font-bold text-foreground mb-2">
+              <h2 className="text-2xl font-heading text-foreground mb-2">
                 {showPixelPrompt
                   ? "Ad launched! One last step..."
                   : "Your ad is live! 🎉"}
               </h2>
-              <p className="text-muted-foreground">
+              <p className="text-subtle-foreground">
                 {showPixelPrompt
                   ? "To track the exact Naira your ad makes, you need to install the Tenzu Pixel."
                   : "Meta is reviewing it now. Messages should start coming in within 24 hours."}
@@ -80,13 +80,13 @@ export function LaunchSuccessModal({
           ) : (
             <div className="grid grid-cols-2 gap-3 p-4 bg-muted/30 rounded-md">
               <div className="text-center">
-                <div className="text-xs text-muted-foreground">Daily Budget</div>
+                <div className="text-xs text-subtle-foreground">Daily Budget</div>
                 <div className="text-lg font-bold text-foreground">
                   ₦{budget.toLocaleString()}
                 </div>
               </div>
               <div className="text-center">
-                <div className="text-xs text-muted-foreground">
+                <div className="text-xs text-subtle-foreground">
                   Expected{" "}
                   {outcomeLabel.replace(/^[a-z]/, (c) => c.toUpperCase())}
                 </div>

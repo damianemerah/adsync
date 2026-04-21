@@ -100,7 +100,7 @@ async function selectBestCandidates(
   const isB2B = context.targetingMode === "b2b";
 
   const limits = {
-    interests: isB2B ? "2 to 4" : "4 to 8",
+    interests: isB2B ? "2 to 4" : "6 to 8",
     behaviors: isB2B ? "1 to 3" : "2 to 4",
     lifeEvents: "0 to 4",
     workPositions: isB2B ? "2 to 5" : "0",

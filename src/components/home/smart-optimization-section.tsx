@@ -29,7 +29,7 @@ export function SmartOptimizationSection() {
                     <CheckCircle className="w-5 h-5" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground font-bold uppercase">
+                    <p className="text-xs text-subtle-foreground font-bold uppercase">
                       Status
                     </p>
                     <p className="font-bold text-foreground">Rule Active</p>
@@ -57,7 +57,7 @@ export function SmartOptimizationSection() {
               <span className="text-blue-600">Optimizations</span>
             </h2>
 
-            <p className="text-xl text-muted-foreground leading-relaxed">
+            <p className="text-xl text-subtle-foreground leading-relaxed">
               Stop checking your ads 10 times a day. Set up smart rules to
               automatically pause losing ads, increase budgets for winners, and
               get notified when something important happens.
@@ -72,7 +72,7 @@ export function SmartOptimizationSection() {
                   <h4 className="font-bold text-foreground text-lg mb-1">
                     Auto-Stop Loss
                   </h4>
-                  <p className="text-muted-foreground text-sm">
+                  <p className="text-subtle-foreground text-sm">
                     Automatically pause ads when CPA exceeds your limit to save
                     budget.
                   </p>
@@ -87,7 +87,7 @@ export function SmartOptimizationSection() {
                   <h4 className="font-bold text-foreground text-lg mb-1">
                     Smart Scaling
                   </h4>
-                  <p className="text-muted-foreground text-sm">
+                  <p className="text-subtle-foreground text-sm">
                     Increase budget by 20% daily for high-ROAS campaigns
                     automatically.
                   </p>

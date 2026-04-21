@@ -53,7 +53,7 @@ export default function CreativeAnalyzePage() {
       <GlobalContextBar />
 
       {/* 3. Main Content */}
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto no-scrollbar">
         <div className="container mx-auto px-4 lg:px-8 py-8 space-y-10">
           {/* Sub-Header / Toolbar Section */}
           <div className="flex flex-col gap-6">
@@ -134,7 +134,7 @@ function AdAnalyzeCard({
     <div className="bg-card rounded-lg shadow-sm hover:shadow-sm border border-border transition-all duration-300 p-5 group flex flex-col h-full">
       {/* 1. Image Display */}
       <div className="relative aspect-square bg-muted/50 rounded-lg overflow-hidden mb-5 border border-border/50">
-        <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+        <div className="absolute inset-0 flex items-center justify-center text-subtle-foreground">
           {/* Fallback if no image */}
           <Image
             src={data.image || "/placeholder.png"}
@@ -154,7 +154,7 @@ function AdAnalyzeCard({
       {/* 2. Title */}
       <div className="mb-5 grow">
         <h3
-          className="font-heading font-bold text-foreground text-base truncate mb-1"
+          className="font-heading text-foreground text-base truncate mb-1"
           title={data.name}
         >
           {data.name}

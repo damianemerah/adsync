@@ -76,7 +76,7 @@ export function NotificationBell() {
         </div>
 
         {/* List */}
-        <div className="max-h-[360px] overflow-y-auto divide-y divide-border">
+        <div className="max-h-[360px] overflow-y-auto divide-y divide-border no-scrollbar">
           {recent.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center px-6">
               <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center mb-3">
@@ -85,7 +85,7 @@ export function NotificationBell() {
               <p className="text-sm font-medium text-foreground">
                 You're all caught up
               </p>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-subtle-foreground mt-1">
                 We'll alert you when something needs attention.
               </p>
             </div>
@@ -190,7 +190,7 @@ function NotificationRow({
         >
           {notification.title}
         </p>
-        <p className="text-[12px] text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">
+        <p className="text-[12px] text-subtle-foreground mt-0.5 line-clamp-2 leading-relaxed">
           {notification.message}
         </p>
         {notification.action_label && notification.action_url && (
@@ -200,7 +200,7 @@ function NotificationRow({
             </span>
           </div>
         )}
-        <span className="text-[10px] text-muted-foreground/70 mt-1.5 block font-medium">
+        <span className="text-[10px] text-subtle-foreground/70 mt-1.5 block font-medium">
           {timeAgo}
         </span>
       </div>

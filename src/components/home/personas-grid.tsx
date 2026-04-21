@@ -49,7 +49,7 @@ export function PersonasGrid() {
           <h2 className="text-sm font-bold tracking-widest text-primary uppercase mb-3">
             Who is Tenzu for?
           </h2>
-          <h3 className="text-3xl md:text-5xl font-heading font-bold text-foreground">
+          <h3 className="text-3xl md:text-5xl font-heading text-foreground">
             Made For You If...
           </h3>
         </div>

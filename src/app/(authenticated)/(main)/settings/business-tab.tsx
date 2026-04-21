@@ -38,7 +38,7 @@ import { deleteOrganization } from "@/actions/organization";
 import { updateAdAccountCapi } from "@/actions/ad-accounts";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { useAdAccounts } from "@/hooks/use-ad-account";
+import { useAdAccountsList, useAdAccountMutations } from "@/hooks/use-ad-account";
 import { useSubscription } from "@/hooks/use-subscription";
 import { TIER_CONFIG, TierId } from "@/lib/constants";
 import { ConnectAccountDialog } from "@/components/ad-accounts/connect-account-dialog";
@@ -131,7 +131,7 @@ function CapiConfigPanel({ account }: { account: any }) {
       {open && (
         <div className="px-5 pb-4 pt-1 space-y-4">
           {/* Explainer */}
-          <p className="text-xs text-muted-foreground leading-relaxed">
+          <p className="text-xs text-subtle-foreground leading-relaxed">
             Connect Meta&apos;s Conversions API so every WhatsApp sale recorded
             in Tenzu is sent back to Meta server-side. This teaches Andromeda to
             find more buyers — no website pixel needed.
@@ -224,13 +224,12 @@ export function BusinessTab({
   const [isDeleting, setIsDeleting] = useState(false);
   const router = useRouter();
 
+  const { data: accounts, isLoading: accountsLoading } = useAdAccountsList();
   const {
-    data: accounts,
-    isLoading: accountsLoading,
     disconnectAccount,
     setAsDefault,
     renameAccount,
-  } = useAdAccounts();
+  } = useAdAccountMutations();
 
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -480,7 +479,7 @@ export function BusinessTab({
                     placeholder="Briefly describe what you do..."
                     className="h-24 resize-none"
                   />
-                  <p className="text-xs text-muted-foreground font-medium">
+                  <p className="text-xs text-subtle-foreground font-medium">
                     This provides background context for the AI when generating
                     campaign strategy.
                   </p>
@@ -526,7 +525,7 @@ export function BusinessTab({
                     defaultValue={organization.whatsapp_number || ""}
                     placeholder="e.g. +234 801 234 5678"
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-subtle-foreground">
                     Used as the default CTA destination for WhatsApp campaigns.
                   </p>
                 </div>
@@ -540,7 +539,7 @@ export function BusinessTab({
                     defaultValue={organization.business_website || ""}
                     placeholder="e.g. https://yourstore.com"
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-subtle-foreground">
                     The AI uses this to understand your business when generating campaigns.
                   </p>
                 </div>
@@ -561,7 +560,7 @@ export function BusinessTab({
                   </p>
                   <p className="font-medium text-foreground">
                     {organization.industry || (
-                      <span className="text-muted-foreground italic">
+                      <span className="text-subtle-foreground italic">
                         Not set
                       </span>
                     )}
@@ -573,7 +572,7 @@ export function BusinessTab({
                   </p>
                   <p className="font-medium text-foreground capitalize">
                     {organization.selling_method || (
-                      <span className="text-muted-foreground italic">
+                      <span className="text-subtle-foreground italic">
                         Not set
                       </span>
                     )}
@@ -594,7 +593,7 @@ export function BusinessTab({
                   </p>
                   <p className="font-medium text-foreground">
                     {organization.business_description || (
-                      <span className="text-muted-foreground italic">
+                      <span className="text-subtle-foreground italic">
                         No description provided yet. Editing this helps the AI
                         generate more relevant ads.
                       </span>
@@ -608,7 +607,7 @@ export function BusinessTab({
                   <p className="font-medium text-foreground">
                     {organization.city || organization.state
                       ? [organization.city, organization.state].filter(Boolean).join(", ")
-                      : <span className="text-muted-foreground italic">Not set</span>}
+                      : <span className="text-subtle-foreground italic">Not set</span>}
                   </p>
                 </div>
                 <div>
@@ -617,7 +616,7 @@ export function BusinessTab({
                   </p>
                   <p className="font-medium text-foreground break-all">
                     {organization.business_website || (
-                      <span className="text-muted-foreground italic">Not set</span>
+                      <span className="text-subtle-foreground italic">Not set</span>
                     )}
                   </p>
                 </div>
@@ -627,7 +626,7 @@ export function BusinessTab({
                   </p>
                   <p className="font-medium text-foreground">
                     {organization.business_phone || (
-                      <span className="text-muted-foreground italic">Not set</span>
+                      <span className="text-subtle-foreground italic">Not set</span>
                     )}
                   </p>
                 </div>
@@ -637,7 +636,7 @@ export function BusinessTab({
                   </p>
                   <p className="font-medium text-foreground">
                     {organization.whatsapp_number || (
-                      <span className="text-muted-foreground italic">Not set</span>
+                      <span className="text-subtle-foreground italic">Not set</span>
                     )}
                   </p>
                 </div>
@@ -698,7 +697,7 @@ export function BusinessTab({
                 </p>
                 <div className="flex items-center gap-3">
                   {!canConnect && (
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-subtle-foreground">
                       {maxAccounts}/{maxAccounts} limit reached
                     </p>
                   )}
@@ -735,11 +734,11 @@ export function BusinessTab({
 
               {/* Account List */}
               {accountsLoading ? (
-                <div className="p-6 text-center text-muted-foreground text-sm">
+                <div className="p-6 text-center text-subtle-foreground text-sm">
                   Loading accounts...
                 </div>
               ) :!accounts || accounts.length === 0 ? (
-                <div className="p-6 text-center text-muted-foreground text-sm border border-dashed border-border rounded-md">
+                <div className="p-6 text-center text-subtle-foreground text-sm border border-dashed border-border rounded-md">
                   No ad accounts connected yet. Click &quot;Add Ad Account&quot;
                   to get started.
                 </div>
@@ -803,7 +802,7 @@ export function BusinessTab({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 border border-destructive/20 rounded-lg bg-background/50">
             <div>
               <p className="font-semibold text-foreground">Delete Business</p>
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="text-sm text-subtle-foreground mt-1">
                 Permanently remove <strong>{organization.name}</strong>, along
                 with all its campaigns, ad accounts, and data from Tenzu. This
                 action cannot be undone.

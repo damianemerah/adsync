@@ -210,6 +210,8 @@ export async function POST(request: Request) {
         }
 
         // C. Ad Sets Upsert
+        // Build a map of platform_adset_id → DB id after upsert (needed for ads)
+        const adsetIdMap: Record<string, string> = {};
         if (c.adsets?.data) {
           const adsets = c.adsets.data.map((adset: any) => ({
             campaign_id: campaignData.id,
@@ -221,31 +223,44 @@ export async function POST(request: Request) {
               ? parseInt(adset.daily_budget)
               : 0,
           }));
-          const { error: asError } = await supabase
+          const { data: upsertedAdsets, error: asError } = await supabase
             .from("ad_sets")
-            .upsert(adsets, { onConflict: "platform_adset_id" });
+            .upsert(adsets, { onConflict: "platform_adset_id" })
+            .select("id, platform_adset_id");
 
-          if (asError)
+          if (asError) {
             console.error(`[Sync] AdSet Error ${c.id}:`, asError.message);
+          } else if (upsertedAdsets) {
+            for (const as of upsertedAdsets) {
+              if (as.platform_adset_id) adsetIdMap[as.platform_adset_id] = as.id;
+            }
+          }
         }
 
-        // D. Ads Upsert
+        // D. Ads Upsert — requires ad_set_id (NOT NULL constraint)
         if (c.ads?.data) {
-          const ads = c.ads.data.map((ad: any) => ({
-            campaign_id: campaignData.id,
-            platform_ad_id: ad.id,
-            name: ad.name,
-            status: mapStatus(ad.status),
-            creative_snapshot: ad.creative || {},
-            creative_id: null,
-          }));
+          // Find the first available ad_set DB id from the map (1:1:1 rule)
+          const firstAdSetId = Object.values(adsetIdMap)[0] ?? null;
+          if (!firstAdSetId) {
+            console.warn(`[Sync] No ad_set DB id found for campaign ${c.id} — skipping ads upsert`);
+          } else {
+            const ads = c.ads.data.map((ad: any) => ({
+              campaign_id: campaignData.id,
+              ad_set_id: firstAdSetId,
+              platform_ad_id: ad.id,
+              name: ad.name,
+              status: mapStatus(ad.status),
+              creative_snapshot: ad.creative || {},
+              creative_id: null,
+            }));
 
-          const { error: adError } = await supabase
-            .from("ads")
-            .upsert(ads, { onConflict: "platform_ad_id" });
+            const { error: adError } = await supabase
+              .from("ads")
+              .upsert(ads, { onConflict: "platform_ad_id" });
 
-          if (adError)
-            console.error(`[Sync] Ads Error ${c.id}:`, adError.message);
+            if (adError)
+              console.error(`[Sync] Ads Error ${c.id}:`, adError.message);
+          }
         }
       } catch (innerError) {
         console.error(`[Sync] Failed processing campaign ${c.id}`, innerError);

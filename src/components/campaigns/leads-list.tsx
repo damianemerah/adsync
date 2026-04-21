@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchCampaignLeads,
@@ -10,6 +10,7 @@ import {
   type LeadSubmission,
 } from "@/actions/leads";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Card,
   CardContent,
@@ -190,14 +191,12 @@ export function LeadsList({ campaignId }: LeadsListProps) {
         </CardHeader>
         <CardContent>
           {leads.length === 0 ? (
-            <div className="text-center py-12">
-              <UserIcon className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">No leads yet</h3>
-              <p className="text-muted-foreground">
-                Leads will appear here when users submit your lead generation
-                forms.
-              </p>
-            </div>
+            <EmptyState
+              icon={<UserIcon className="h-6 w-6" />}
+              title="No leads yet"
+              description="Leads will appear here when users submit your lead generation forms."
+              className="border-none shadow-none py-12"
+            />
           ) : (
             <Table>
               <TableHeader>
@@ -241,7 +240,7 @@ export function LeadsList({ campaignId }: LeadsListProps) {
                             </a>
                           </div>
                         ) : (
-                          <span className="text-muted-foreground">-</span>
+                          <span className="text-subtle-foreground">-</span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -256,11 +255,11 @@ export function LeadsList({ campaignId }: LeadsListProps) {
                             </a>
                           </div>
                         ) : (
-                          <span className="text-muted-foreground">-</span>
+                          <span className="text-subtle-foreground">-</span>
                         )}
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2 text-sm text-subtle-foreground">
                           <CalendarIcon className="w-4 h-4" />
                           {formatDistanceToNow(new Date(lead.submitted_at), {
                             addSuffix: true,

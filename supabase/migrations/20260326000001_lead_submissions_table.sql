@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS lead_submissions (
   adgroup_id TEXT, -- Meta ad set ID (optional from webhook)
   page_id TEXT, -- Facebook Page ID
 
-  -- AdSync References (for multi-org scoping)
+  -- References (for multi-org scoping)
   campaign_id UUID REFERENCES campaigns(id) ON DELETE CASCADE,
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
 
@@ -126,5 +126,5 @@ COMMENT ON COLUMN lead_submissions.leadgen_id IS 'Meta''s unique lead ID from we
 COMMENT ON COLUMN lead_submissions.form_id IS 'Meta Lead Gen Form ID (references the form template)';
 COMMENT ON COLUMN lead_submissions.field_data IS 'JSONB array of form field responses: [{"name": "email", "values": ["user@example.com"]}]';
 COMMENT ON COLUMN lead_submissions.submitted_at IS 'Timestamp when user submitted the form (from Meta created_time field)';
-COMMENT ON COLUMN lead_submissions.campaign_id IS 'AdSync campaign that generated this lead (for org scoping and analytics)';
+COMMENT ON COLUMN lead_submissions.campaign_id IS 'Tenzu campaign that generated this lead (for org scoping and analytics)';
 COMMENT ON COLUMN lead_submissions.organization_id IS 'Organization owner of this lead (for multi-org RLS filtering)';

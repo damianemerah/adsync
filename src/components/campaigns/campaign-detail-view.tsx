@@ -44,8 +44,9 @@ import {
 import { DataTable, Column } from "@/components/ui/data-table";
 import { Campaign } from "@/lib/api/campaigns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useCampaigns } from "@/hooks/use-campaigns";
+import { useCampaignMutations } from "@/hooks/use-campaigns";
 import { CampaignMetrics } from "@/lib/utils/campaign-metrics";
+import { EmptyState } from "@/components/ui/empty-state";
 
 import {
   PerformanceChart,
@@ -65,7 +66,7 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const queryClient = useQueryClient();
-  const { updateStatus, isUpdating, duplicateCampaign, isDuplicating } = useCampaigns();
+  const { updateStatus, isUpdating, duplicateCampaign, isDuplicating } = useCampaignMutations();
   const [activeMetrics, setActiveMetrics] = useState<MetricKey[]>([
     "revenue",
     "spend",
@@ -137,17 +138,14 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
 
   if (campaign.status === "draft") {
     return (
-      <div className="flex flex-col h-full bg-slate-50/50">
+      <div className="flex flex-col h-full bg-muted/30">
         {/* Header */}
-        <div className="p-6 bg-white border-b border-slate-200 flex justify-between items-center">
+        <div className="p-6 bg-card border-b border-border flex justify-between items-center">
           <div>
-            <h2 className="text-xl font-bold text-slate-900">
+            <h2 className="text-xl font-heading text-foreground">
               {campaign.name || "Untitled Draft"}
             </h2>
-            <Badge
-              variant="secondary"
-              className="mt-1 bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
-            >
+            <Badge variant="warning-soft" className="mt-1">
               Draft
             </Badge>
           </div>
@@ -160,11 +158,11 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
         </div>
 
         {/* Empty State Content */}
-        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-500">
-          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-            <Edit className="w-8 h-8 text-slate-400" />
+        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-subtle-foreground">
+          <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+            <Edit className="w-8 h-8 text-muted-foreground" />
           </div>
-          <h3 className="text-lg font-medium text-slate-900">
+          <h3 className="text-lg font-medium text-foreground">
             This campaign hasn't been launched yet.
           </h3>
           <p className="max-w-sm mt-2">
@@ -375,7 +373,7 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
         {/* Overview Tab */}
         <TabsContent
           value="overview"
-          className="flex-1 overflow-y-auto p-6 space-y-6 m-0"
+          className="flex-1 overflow-y-auto p-6 space-y-6 m-0 no-scrollbar"
         >
           {/* Post-launch intelligence alert — surfaces highest-severity triggered rule */}
           <PostLaunchRuleAlert campaign={campaign} />
@@ -400,9 +398,11 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
               <MarkAsSoldButton campaignId={campaign.id} />
             </div>
             <ROIMetricsCard campaignId={campaign.id} />
-            {campaign.pixelToken && (
-              <PixelSnippetCard pixelToken={campaign.pixelToken} />
-            )}
+            {campaign.pixelToken &&
+              (campaign.objective === "traffic" ||
+                campaign.objective === "sales") && (
+                <PixelSnippetCard pixelToken={campaign.pixelToken} />
+              )}
             <SubPlacementROICard campaignId={campaign.id} />
           </div>
 
@@ -489,7 +489,7 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
 
         {/* Leads Tab */}
         {isLeadGenCampaign && (
-          <TabsContent value="leads" className="flex-1 overflow-y-auto p-6 m-0">
+          <TabsContent value="leads" className="flex-1 overflow-y-auto p-6 m-0 no-scrollbar">
             <LeadsList campaignId={campaign.id} />
           </TabsContent>
         )}
@@ -497,7 +497,7 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
         {/* Analytics Tab */}
         <TabsContent
           value="analytics"
-          className="flex-1 overflow-y-auto p-6 space-y-6 m-0"
+          className="flex-1 overflow-y-auto p-6 space-y-6 m-0 no-scrollbar"
         >
           {/* Demographics Visualization */}
           {campaign.demographics && (
@@ -611,9 +611,12 @@ function AdsTable({
         pageSize={5}
         striped
         emptyState={
-          <div className="text-center py-8 text-slate-500 text-sm">
-            No ads found for this campaign.
-          </div>
+          <EmptyState
+            icon={<ViewGrid className="h-6 w-6" />}
+            title="No ads yet"
+            description="Ad performance data will appear here once your campaign is live."
+            className="border-none shadow-none py-8"
+          />
         }
       />
     </div>

@@ -142,7 +142,7 @@ export function ChatBubble({
                     )}
                   >
                     {label}
-                    {mode === "prefill" && <span className="ml-1.5 text-[10px] opacity-40">edit ✎</span>}
+                    {mode === "prefill" && <span className="ml-1.5 text-xs opacity-40">edit ✎</span>}
                   </button>
                 );
               })}
@@ -162,7 +162,7 @@ export function ChatBubble({
                       {idx > 0 && (
                         <div className="flex items-center gap-2 mb-3 mt-4">
                           <div className="h-px bg-border/50 flex-1" />
-                          <span className="text-[10px] font-bold text-subtle-foreground uppercase tracking-wider">
+                          <span className="text-xs font-bold text-subtle-foreground uppercase tracking-wider">
                             Option {idx + 1}
                           </span>
                           <div className="h-px bg-border/50 flex-1" />

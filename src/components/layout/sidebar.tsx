@@ -52,7 +52,7 @@ export function Sidebar({ activeOrgId }: { activeOrgId?: string | null }) {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
   const { data: subscription } = useSubscription();
-  const { isOpen, toggle } = useSidebar(); // Use context
+  const { isOpen, toggle, mobileOpen, closeMobile } = useSidebar(); // Use context
   const { unreadCount } = useNotifications();
   const [openSections, setOpenSections] = useState<string[]>([
     "Analyze",
@@ -120,10 +120,27 @@ export function Sidebar({ activeOrgId }: { activeOrgId?: string | null }) {
   ];
 
   return (
+    <>
+      {/* Mobile backdrop — shown when mobileOpen */}
+      <div
+        onClick={closeMobile}
+        aria-hidden="true"
+        className={cn(
+          "fixed inset-0 z-40 bg-foreground/40 backdrop-blur-[2px] transition-opacity duration-200 lg:hidden",
+          mobileOpen
+            ? "opacity-100"
+            : "pointer-events-none opacity-0",
+        )}
+      />
     <aside
       className={cn(
-        "fixed left-0 top-0 z-50 h-screen flex flex-col bg-sidebar border-r border-border text-subtle-foreground transition-all duration-300 font-sans shadow-sm border border-border", // [UPDATED] bg-sidebar, shadow-sm border border-border
-        isOpen ? "w-65" : "w-20",
+        "fixed left-0 top-0 z-50 h-screen flex flex-col bg-sidebar border-r border-border text-subtle-foreground transition-all duration-300 font-sans",
+        // Desktop (lg+): always in flow, width toggles between expanded/collapsed
+        isOpen ? "lg:w-65" : "lg:w-20",
+        "lg:translate-x-0",
+        // Mobile (<lg): always full-width drawer, translated off-canvas unless mobileOpen
+        "w-64",
+        mobileOpen ? "translate-x-0" : "-translate-x-full",
       )}
     >
       {/* 1. Header (Org Switcher) */}
@@ -363,7 +380,7 @@ export function Sidebar({ activeOrgId }: { activeOrgId?: string | null }) {
                     <p className="text-sm font-medium text-foreground truncate">
                       {user?.user_metadata?.full_name || "User"}
                     </p>
-                    <p className="text-[11px] text-muted-foreground capitalize truncate font-medium">
+                    <p className="text-[11px] text-subtle-foreground capitalize truncate font-medium">
                       {subscription?.org?.tier || ""}
                     </p>
                   </div>
@@ -402,5 +419,6 @@ export function Sidebar({ activeOrgId }: { activeOrgId?: string | null }) {
         </DropdownMenu>
       </div>
     </aside>
+    </>
   );
 }

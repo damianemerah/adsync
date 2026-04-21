@@ -220,7 +220,7 @@ function PreferenceRow({
     <div className="flex items-center justify-between">
       <div className="space-y-0.5">
         <Label className="text-base">{label}</Label>
-        <p className="text-sm text-muted-foreground">{description}</p>
+        <p className="text-sm text-subtle-foreground">{description}</p>
       </div>
       <Switch checked={checked} onCheckedChange={onCheckedChange} />
     </div>

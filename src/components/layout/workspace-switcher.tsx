@@ -112,7 +112,7 @@ export function WorkspaceSwitcher({ activeOrgId }: WorkspaceSwitcherProps) {
                   <OrgAvatar name={org.name} size="sm" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{org.name}</p>
-                    <p className="text-xs text-muted-foreground capitalize">
+                    <p className="text-xs text-subtle-foreground capitalize">
                       {org.subscription_tier || "starter"}
                     </p>
                   </div>
@@ -142,7 +142,7 @@ export function WorkspaceSwitcher({ activeOrgId }: WorkspaceSwitcherProps) {
               </Button>
             ) : (
               <div className="text-center py-1">
-                <p className="text-xs text-muted-foreground mb-1.5">
+                <p className="text-xs text-subtle-foreground mb-1.5">
                   {maxOrgs === 1
                     ? "Upgrade to Growth to manage multiple businesses."
                     : `${organizations.length}/${maxOrgs} businesses used.`}

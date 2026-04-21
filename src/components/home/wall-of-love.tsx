@@ -108,7 +108,7 @@ export function WallOfLove() {
                         <p className="font-bold text-foreground text-sm">
                           {testimonial.name}
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-subtle-foreground">
                           {testimonial.role}
                         </p>
                       </div>

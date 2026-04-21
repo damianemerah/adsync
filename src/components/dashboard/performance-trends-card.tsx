@@ -70,9 +70,9 @@ export function PerformanceTrendsCard({
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <Skeleton className="h-[400px] w-full rounded-md" />
+          <Skeleton className="w-full aspect-video lg:h-[400px] lg:aspect-auto rounded-md" />
         ) : (
-          <div className="h-[400px] w-full">
+          <div className="w-full aspect-video lg:h-[400px] lg:aspect-auto">
             <PerformanceChart
               data={performance}
               activeMetrics={activeMetrics.length > 0 ? activeMetrics : CHARTABLE_METRICS}

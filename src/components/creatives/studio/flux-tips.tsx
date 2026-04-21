@@ -11,7 +11,7 @@ export function FluxTips() {
   return (
     <HoverCard openDelay={200}>
       <HoverCardTrigger asChild>
-        <div className="cursor-help text-muted-foreground hover:text-foreground p-1 transition-colors">
+        <div className="cursor-help text-subtle-foreground hover:text-foreground p-1 transition-colors">
           <HelpCircle className="w-4 h-4" />
         </div>
       </HoverCardTrigger>

@@ -340,7 +340,7 @@ export default function OnboardingPage() {
         <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shadow-sm border border-border shadow-primary/25">
           <Flash className="h-4 w-4 text-white fill-current" />
         </div>
-        <span className="font-heading font-bold text-xl text-foreground">
+        <span className="font-heading text-xl text-foreground">
           Tenzu
         </span>
       </div>
@@ -348,7 +348,7 @@ export default function OnboardingPage() {
       <div className="w-full max-w-4xl">
         {/* Progress Header */}
         <div className="mb-5 px-1">
-          <div className="flex justify-between text-xs font-medium text-muted-foreground mb-2">
+          <div className="flex justify-between text-xs font-medium text-subtle-foreground mb-2">
             <span>Step {step} of 5</span>
             <span>{Math.round(progress)}% complete</span>
           </div>
@@ -420,7 +420,7 @@ export default function OnboardingPage() {
                     <h3 className="text-xl font-bold text-foreground mb-1">
                       Name your workspace
                     </h3>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-subtle-foreground">
                       This is how your business will appear in Tenzu.
                     </p>
                   </div>
@@ -464,7 +464,7 @@ export default function OnboardingPage() {
                         className="text-sm font-medium flex justify-between"
                       >
                         What do you sell?
-                        <span className="text-xs text-muted-foreground font-normal">
+                        <span className="text-xs text-subtle-foreground font-normal">
                           Optional — helps our AI
                         </span>
                       </Label>
@@ -487,7 +487,7 @@ export default function OnboardingPage() {
                     <h3 className="text-xl font-bold text-foreground mb-1">
                       How does your business work?
                     </h3>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-subtle-foreground">
                       Our AI uses this to build smarter targeting for your ads.
                     </p>
                   </div>
@@ -525,7 +525,7 @@ export default function OnboardingPage() {
                               <div className="font-semibold text-sm text-foreground">
                                 {method.label}
                               </div>
-                              <div className="text-xs text-muted-foreground">
+                              <div className="text-xs text-subtle-foreground">
                                 {method.desc}
                               </div>
                             </div>
@@ -602,7 +602,7 @@ export default function OnboardingPage() {
                     <h3 className="text-xl font-bold text-foreground mb-1">
                       What describes you best?
                     </h3>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-subtle-foreground">
                       We'll personalize your experience around your role.
                     </p>
                   </div>
@@ -656,7 +656,7 @@ export default function OnboardingPage() {
                               <div className="font-bold text-sm text-foreground">
                                 {role.label}
                               </div>
-                              <div className="text-xs text-muted-foreground">
+                              <div className="text-xs text-subtle-foreground">
                                 {role.desc}
                               </div>
                             </div>
@@ -692,7 +692,7 @@ export default function OnboardingPage() {
                         <h3 className="text-xl font-bold text-foreground mb-1">
                           Start your free trial
                         </h3>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-subtle-foreground">
                           14 days of full Growth access. No credit card
                           required.
                         </p>
@@ -748,7 +748,7 @@ export default function OnboardingPage() {
                       {/* Subscribe now option */}
                       <div className="flex items-center gap-3">
                         <div className="flex-1 h-px bg-slate-200" />
-                        <span className="text-xs text-muted-foreground shrink-0">
+                        <span className="text-xs text-subtle-foreground shrink-0">
                           or
                         </span>
                         <div className="flex-1 h-px bg-slate-200" />
@@ -759,7 +759,7 @@ export default function OnboardingPage() {
                           <p className="text-sm font-semibold text-foreground">
                             Ready to subscribe now?
                           </p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs text-subtle-foreground">
                             Skip the trial — pick a plan and get instant access.
                           </p>
                         </div>
@@ -814,7 +814,7 @@ export default function OnboardingPage() {
                     <h3 className="text-xl font-bold text-foreground mb-1">
                       Connect your ad accounts
                     </h3>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-subtle-foreground">
                       Pull in your past ads and launch your first campaign
                       instantly.
                     </p>
@@ -839,7 +839,7 @@ export default function OnboardingPage() {
                         <h4 className="font-bold text-sm text-foreground">
                           Connect Meta
                         </h4>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-subtle-foreground">
                           Facebook & Instagram Ads
                         </p>
                       </div>
@@ -860,7 +860,7 @@ export default function OnboardingPage() {
                         <h4 className="font-bold text-sm text-foreground">
                           Connect TikTok
                         </h4>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-subtle-foreground">
                           TikTok Ads Manager
                         </p>
                       </div>
@@ -870,7 +870,7 @@ export default function OnboardingPage() {
 
                   <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
                     <Shield className="h-4 w-4 text-slate-400 shrink-0" />
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-subtle-foreground">
                       Read-only access. We never post or spend on your behalf.
                       You can add more accounts later in Settings.
                     </p>
@@ -933,7 +933,7 @@ export default function OnboardingPage() {
           </div>
         </Card>
 
-        <p className="text-center mt-6 text-sm text-muted-foreground">
+        <p className="text-center mt-6 text-sm text-subtle-foreground">
           Need help?{" "}
           <Link href="#" className="text-primary font-semibold hover:underline">
             Chat with support

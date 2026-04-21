@@ -143,7 +143,7 @@ export function JobStatusBadge({
           <TooltipContent>
             <p className="text-sm">{tooltip}</p>
             {error && (
-              <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+              <p className="text-xs text-subtle-foreground mt-1 max-w-xs">
                 {error}
               </p>
             )}

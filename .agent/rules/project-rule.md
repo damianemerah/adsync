@@ -113,6 +113,12 @@ sell fashion, beauty, food, and services primarily via WhatsApp.
 - Record Sale button text = "Sold! 🎉"
 - Always show monetary values in ₦ — never in USD to the user
 
+### H. Hook Architecture (Mutation-Query Separation)
+
+- **Strict Separation:** Never build monolithic React hooks that combine data fetching (queries) and data manipulation (mutations) into a single hook.
+- **Granularity:** Always separate data fetching (e.g., `useCampaignsList`, `useAdAccountsList`) from mutation operations (e.g., `useCampaignMutations`, `useAdAccountMutations`).
+- **Render Optimization:** This ensures that components performing write operations do not unnecessarily subscribe to query data, effectively eliminating expensive and unexpected component re-renders.
+
 ---
 
 ## 4. Current Mission

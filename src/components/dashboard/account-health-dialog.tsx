@@ -64,7 +64,7 @@ export function AccountHealthDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto no-scrollbar sm:max-w-[520px] p-0 gap-0 rounded-lg overflow-hidden border-border shadow-2xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto no-scrollbar sm:max-w-[520px] p-0 gap-0 rounded-lg overflow-hidden border-border">
         {/* Top Section */}
         <div className="flex flex-col items-center pt-10 pb-6 px-8 text-center relative">
           {/* Animated icon */}
@@ -74,10 +74,10 @@ export function AccountHealthDialog({
               isPending
                 ? "bg-muted"
                 : allClear
-                  ? "bg-green-50"
+                  ? "bg-status-success-soft"
                   : totalProblems >= 2
-                    ? "bg-red-50"
-                    : "bg-orange-50",
+                    ? "bg-status-danger-soft"
+                    : "bg-status-warning-soft",
             )}
           >
             {/* Pulse ring on problems */}
@@ -85,7 +85,7 @@ export function AccountHealthDialog({
               <span
                 className={cn(
                   "absolute inset-0 rounded-full animate-ping opacity-20",
-                  totalProblems >= 2 ? "bg-red-400" : "bg-orange-400",
+                  totalProblems >= 2 ? "bg-status-danger" : "bg-status-warning",
                 )}
               />
             )}
@@ -93,11 +93,11 @@ export function AccountHealthDialog({
             {isPending ? (
               <RefreshDouble className="h-7 w-7 text-muted-foreground animate-spin" />
             ) : allClear ? (
-              <ShieldCheck className="h-7 w-7 text-green-600" />
+              <ShieldCheck className="h-7 w-7 text-status-success" />
             ) : totalProblems >= 2 ? (
-              <WarningCircle className="h-7 w-7 text-red-500" />
+              <WarningCircle className="h-7 w-7 text-status-danger" />
             ) : (
-              <WarningTriangle className="h-7 w-7 text-orange-500" />
+              <WarningTriangle className="h-7 w-7 text-status-warning" />
             )}
           </div>
 
@@ -105,7 +105,7 @@ export function AccountHealthDialog({
             <h2 className="text-xl font-bold text-foreground tracking-tight">
               Account Check-Up
             </h2>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-subtle-foreground">
               {isPending ? (
                 "Scanning your account..."
               ) : allClear ? (
@@ -199,24 +199,24 @@ function CheckRow({
         <div
           className={cn(
             "h-8 w-8 rounded-full flex items-center justify-center shrink-0",
-            check.status === "healthy" && "bg-green-50",
-            check.status === "warning" && "bg-orange-50",
-            check.status === "critical" && "bg-red-50",
+            check.status === "healthy" && "bg-status-success-soft",
+            check.status === "warning" && "bg-status-warning-soft",
+            check.status === "critical" && "bg-status-danger-soft",
           )}
         >
           {check.status === "healthy" ? (
-            <Check className="h-4 w-4 text-green-600" />
+            <Check className="h-4 w-4 text-status-success" />
           ) : check.status === "critical" ? (
-            <WarningCircle className="h-4 w-4 text-red-500" />
+            <WarningCircle className="h-4 w-4 text-status-danger" />
           ) : (
-            <WarningTriangle className="h-4 w-4 text-orange-500" />
+            <WarningTriangle className="h-4 w-4 text-status-warning" />
           )}
         </div>
 
         {/* Text */}
         <div className="flex-1 min-w-0 text-left">
           <p className="text-sm font-semibold text-foreground">{check.label}</p>
-          <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+          <p className="text-xs text-subtle-foreground mt-0.5 leading-relaxed">
             {check.description}
           </p>
         </div>
@@ -225,18 +225,16 @@ function CheckRow({
         {hasProblem && (
           <div className="flex items-center gap-2 shrink-0">
             <Badge
-              className={cn(
-                "text-[10px] font-bold px-2 py-0.5 rounded-full h-auto border-0",
-                check.status === "critical"
-                  ? "bg-red-100 text-red-600"
-                  : "bg-orange-100 text-orange-600",
-              )}
+              variant={
+                check.status === "critical" ? "danger-soft" : "warning-soft"
+              }
+              className="text-xs font-bold px-2 py-0.5 rounded-full h-auto"
             >
               {check.problemCount ?? 1} Problem
               {(check.problemCount ?? 1) > 1 ? "s" : ""}
             </Badge>
             {hasDetail && (
-              <span className="text-muted-foreground">
+              <span className="text-subtle-foreground">
                 {expanded ? (
                   <NavArrowUp className="h-4 w-4" />
                 ) : (
@@ -252,9 +250,9 @@ function CheckRow({
       {expanded && hasDetail && (
         <div
           className={cn(
-            "px-4 pb-4 ml-11 text-sm text-muted-foreground leading-relaxed border-t border-dashed border-border pt-3",
-            check.status === "critical" && "bg-red-50/40",
-            check.status === "warning" && "bg-orange-50/40",
+            "px-4 pb-4 ml-11 text-sm text-subtle-foreground leading-relaxed border-t border-dashed border-border pt-3",
+            check.status === "critical" && "bg-status-danger-soft/40",
+            check.status === "warning" && "bg-status-warning-soft/40",
           )}
         >
           <p>{check.detail}</p>
@@ -266,8 +264,8 @@ function CheckRow({
                 className={cn(
                   "mt-3 h-8 text-xs font-semibold rounded-lg",
                   check.status === "critical"
-                    ? "border-red-200 text-red-600 hover:bg-red-50"
-                    : "border-orange-200 text-orange-600 hover:bg-orange-50",
+                    ? "border-status-danger/30 text-status-danger hover:bg-status-danger-soft"
+                    : "border-status-warning/30 text-status-warning hover:bg-status-warning-soft",
                 )}
               >
                 {check.actionLabel} →

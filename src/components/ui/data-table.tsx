@@ -286,7 +286,7 @@ function DefaultEmptyState() {
       <p className="font-heading font-semibold text-foreground text-lg mb-1">
         No results found
       </p>
-      <p className="text-sm text-muted-foreground">
+      <p className="text-sm text-subtle-foreground">
         Try adjusting your filters or search query.
       </p>
     </div>

@@ -212,9 +212,9 @@ export function CommonMetaErrors() {
           >
             <div className="flex items-start justify-between gap-2 mb-1">
               <p className="font-medium">{err.title}</p>
-              <span className="text-xs text-muted-foreground font-mono">#{err.code}</span>
+              <span className="text-xs text-subtle-foreground font-mono">#{err.code}</span>
             </div>
-            <p className="text-xs text-muted-foreground">{err.solution}</p>
+            <p className="text-xs text-subtle-foreground">{err.solution}</p>
           </div>
         ))}
       </div>

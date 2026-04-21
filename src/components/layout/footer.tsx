@@ -17,7 +17,7 @@ export function Footer() {
                 AdSync
               </span>
             </div>
-            <p className="text-muted-foreground leading-relaxed mb-8 max-w-sm font-medium">
+            <p className="text-subtle-foreground leading-relaxed mb-8 max-w-sm font-medium">
               Smart Ad Management and Automation tool for Meta, TikTok and
               Google Ads.
             </p>
@@ -139,7 +139,7 @@ export function Footer() {
         </div>
 
         <div className="border-t border-border pt-8 flex flex-col md:flex-row justify-between items-center gap-6">
-          <p className="text-sm text-muted-foreground font-medium">
+          <p className="text-sm text-subtle-foreground font-medium">
             © 2026 AdSync Inc. All rights reserved.
           </p>
           <div className="flex items-center gap-2">

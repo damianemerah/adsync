@@ -52,7 +52,7 @@ export function PromptInputControls({
             <div className="flex items-center gap-2">
               <Square className="w-3.5 h-3.5" />
               <span>Square (1:1)</span>
-              <span className="text-[10px] text-muted-foreground ml-1">
+              <span className="text-[10px] text-subtle-foreground ml-1">
                 IG Feed
               </span>
             </div>
@@ -61,7 +61,7 @@ export function PromptInputControls({
             <div className="flex items-center gap-2">
               <SmartphoneDevice className="w-3.5 h-3.5" />
               <span>Vertical (9:16)</span>
-              <span className="text-[10px] text-muted-foreground ml-1">
+              <span className="text-[10px] text-subtle-foreground ml-1">
                 Stories/Reels
               </span>
             </div>
@@ -70,7 +70,7 @@ export function PromptInputControls({
             <div className="flex items-center gap-2">
               <SelectWindow className="w-3.5 h-3.5" />
               <span>Portrait (4:5)</span>
-              <span className="text-[10px] text-muted-foreground ml-1">
+              <span className="text-[10px] text-subtle-foreground ml-1">
                 Fb Feed
               </span>
             </div>
@@ -79,7 +79,7 @@ export function PromptInputControls({
             <div className="flex items-center gap-2">
               <PcCheck className="w-3.5 h-3.5" />
               <span>Landscape (16:9)</span>
-              <span className="text-[10px] text-muted-foreground ml-1">
+              <span className="text-[10px] text-subtle-foreground ml-1">
                 Web
               </span>
             </div>
@@ -111,19 +111,19 @@ export function PromptInputControls({
             <SelectContent>
               <SelectItem value="social_ad">
                 <span className="block">Social Ad</span>
-                <span className="text-[10px] text-muted-foreground">
+                <span className="text-[10px] text-subtle-foreground">
                   Standard text overlay
                 </span>
               </SelectItem>
               <SelectItem value="product_image">
                 <span className="block">Product Shot</span>
-                <span className="text-[10px] text-muted-foreground">
+                <span className="text-[10px] text-subtle-foreground">
                   Clean, no text
                 </span>
               </SelectItem>
               <SelectItem value="poster">
                 <span className="block">Poster / Flyer</span>
-                <span className="text-[10px] text-muted-foreground">
+                <span className="text-[10px] text-subtle-foreground">
                   Heavy text design
                 </span>
               </SelectItem>

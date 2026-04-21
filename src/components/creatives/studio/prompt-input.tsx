@@ -97,7 +97,7 @@ export function PromptInput({
             {charCount} chars
           </span>
           {charCount > 0 && isPromptLengthGood && (
-            <span className="text-muted-foreground ml-1">✓</span>
+            <span className="text-subtle-foreground ml-1">✓</span>
           )}
         </div>
       </div>

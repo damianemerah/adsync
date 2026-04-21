@@ -92,7 +92,7 @@ export function SubscriptionGate({
           <h2 className="text-2xl font-bold text-foreground mb-2">
             Your trial has ended
           </h2>
-          <p className="text-muted-foreground max-w-md mx-auto">
+          <p className="text-subtle-foreground max-w-md mx-auto">
             Your 14-day {prevTierLabel} trial is over. Subscribe to a plan to
             keep your campaigns running and access all features.
           </p>
@@ -112,7 +112,7 @@ export function SubscriptionGate({
               )}
             >
               {plan.recommended && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white text-[10px] font-bold px-3 py-1 rounded-full">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white text-xs font-bold px-3 py-1 rounded-full">
                   Most Popular
                 </div>
               )}
@@ -125,7 +125,7 @@ export function SubscriptionGate({
                     <span className="text-lg font-black text-foreground">
                       {plan.price}
                     </span>
-                    <span className="text-xs text-muted-foreground">/mo</span>
+                    <span className="text-xs text-subtle-foreground">/mo</span>
                   </div>
                 </div>
                 <div
@@ -179,7 +179,7 @@ export function SubscriptionGate({
           </Button>
         </div>
 
-        <p className="text-center text-xs text-muted-foreground mt-4">
+        <p className="text-center text-xs text-subtle-foreground mt-4">
           Secured by Paystack · Cancel anytime
         </p>
       </div>

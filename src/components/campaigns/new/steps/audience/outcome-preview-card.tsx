@@ -134,7 +134,7 @@ export function OutcomePreviewCard({
                 {isSelected && <Check className="h-3 w-3 mr-1" />}
                 {intName}
                 {!isResolved && (
-                  <span className="ml-1 text-[9px] opacity-50">?</span>
+                  <span className="ml-1 text-xs opacity-50">?</span>
                 )}
               </Badge>
             );
@@ -150,7 +150,7 @@ export function OutcomePreviewCard({
               onClick={() => setShowAssumptions(!showAssumptions)}
               className="flex items-center justify-between w-full text-left"
             >
-              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+              <p className="text-xs font-medium text-subtle-foreground uppercase tracking-wide">
                 What I assumed
               </p>
               {showAssumptions ? (
@@ -160,7 +160,7 @@ export function OutcomePreviewCard({
               )}
             </button>
           ) : (
-            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+            <p className="text-xs font-medium text-subtle-foreground uppercase tracking-wide">
               What I assumed
             </p>
           )}
@@ -170,7 +170,7 @@ export function OutcomePreviewCard({
               {inferredAssumptions.map((assumption: string, i: number) => (
                 <span
                   key={i}
-                  className="text-[11px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border"
+                  className="text-xs px-2 py-0.5 rounded-full bg-muted text-subtle-foreground border border-border"
                 >
                   {assumption}
                 </span>
@@ -212,7 +212,7 @@ export function OutcomePreviewCard({
       {/* Follow-up suggestions — Perplexity-style ↳ text links */}
       {followUps && followUps.length > 0 && (
         <div className="space-y-1 pt-1">
-          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+          <p className="text-xs font-medium text-subtle-foreground uppercase tracking-wide">
             Improve this ad
           </p>
           {followUps.map((fu) => (
@@ -221,7 +221,7 @@ export function OutcomePreviewCard({
               onClick={() => onFollowUpSelect?.(fu.instruction)}
               className="flex items-center gap-1.5 text-sm text-primary hover:underline w-full text-left py-0.5"
             >
-              <span className="text-muted-foreground text-xs">↳</span>
+              <span className="text-subtle-foreground text-xs">↳</span>
               {fu.label}
             </button>
           ))}

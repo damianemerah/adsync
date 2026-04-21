@@ -18,6 +18,12 @@ const getPlacementSpec = (placementId: MetaPlacement) => {
   return { publisher_platforms: config.publisherPlatforms };
 };
 
+function generateAdObjectName(suffix: string, format?: "carousel" | "video"): string {
+  const label = format ? `${format.charAt(0).toUpperCase() + format.slice(1)} ` : "";
+  const timestamp = new Date().toISOString().slice(0, 16).replace("T", " ");
+  return `${label}${suffix} - ${timestamp}`;
+}
+
 /**
  * Build the Meta API targeting object.
  *
@@ -550,6 +556,7 @@ export const MetaService = {
     }>,
     videoId?: string,
     thumbnailUrl?: string | null,
+    campaignName?: string,
   ) => {
     const id = adAccountId.startsWith("act_")
       ? adAccountId
@@ -649,11 +656,11 @@ export const MetaService = {
           };
     }
 
-    const adName = isCarousel
-      ? "AdSync Carousel Creative"
-      : videoId
-        ? "AdSync Video Creative"
-        : "AdSync Creative";
+    const format = isCarousel ? "carousel" : videoId ? "video" : undefined;
+    const fmtPrefix = format ? `${format.charAt(0).toUpperCase() + format.slice(1)} ` : "";
+    const adName = campaignName
+      ? `${campaignName} - ${fmtPrefix}Creative`
+      : generateAdObjectName("Creative", format);
 
     const creativeRes = await MetaService.request(
       `/${id}/adcreatives`,
@@ -690,7 +697,9 @@ export const MetaService = {
     );
 
     return MetaService.request(`/${id}/ads`, "POST", token, {
-      name: isCarousel ? "AdSync Carousel Ad" : videoId ? "AdSync Video Ad 1" : "AdSync Ad 1",
+      name: campaignName
+        ? `${campaignName} - ${fmtPrefix}Ad`
+        : generateAdObjectName("Ad", format),
       adset_id: adSetId,
       creative: { creative_id: creativeRes.id },
       // ACTIVE — the parent Campaign (PAUSED) is the kill-switch.

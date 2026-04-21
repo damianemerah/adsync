@@ -51,7 +51,7 @@ export function FormMetadataPanel({
             className="h-12 bg-muted/50 border-border"
             type="url"
           />
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-subtle-foreground">
             Required by Meta. Must link to a valid privacy policy on your
             website.
           </p>

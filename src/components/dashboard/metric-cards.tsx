@@ -1,8 +1,15 @@
 "use client";
 
-import { Card, CardContent } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
-import { ArrowUpRight } from "iconoir-react";
+import { motion } from "motion/react";
+import { MetricChip, type MetricTone } from "@/components/ui/metric-chip";
+import {
+  ChatBubble,
+  Coins,
+  StatUp,
+  Shop,
+  Wallet,
+  Percentage,
+} from "iconoir-react";
 import { CampaignMetrics } from "@/lib/utils/campaign-metrics";
 
 interface MetricCardProps {
@@ -10,50 +17,27 @@ interface MetricCardProps {
   value: string;
   change: string | null;
   trend: "up" | "down" | "neutral";
-  theme?: string; // kept for backwards-compat with metrics array, not used in display
+  tone?: MetricTone;
+  icon?: React.ReactNode;
 }
 
-export function MetricCard({ label, value, change, trend }: MetricCardProps) {
-
+export function MetricCard({
+  label,
+  value,
+  change,
+  trend,
+  tone,
+  icon,
+}: MetricCardProps) {
   return (
-    <Card
-      className="relative overflow-hidden border p-0 shadow-none bg-card border-border"
-    >
-      <CardContent className="px-5 py-3 flex flex-col h-full justify-between">
-        {/* Header: Label */}
-        <div className="flex gap-2 items-center mb-3">
-          <p className="text-xs font-bold text-subtle-foreground uppercase tracking-wider">
-            {label}
-          </p>
-        </div>
-
-        {/* Value + Trend */}
-        <div className="flex items-center justify-between gap-2">
-          <h3 className="text-base font-semibold font-heading text-foreground">
-            {value}
-          </h3>
-
-          {change !== null && (
-            <span
-              className={cn(
-                "text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1",
-                trend === "up"
-                  ? "text-emerald-700 bg-emerald-50"
-                  : trend === "down"
-                    ? "text-destructive bg-destructive/10"
-                    : "text-muted-foreground bg-muted",
-              )}
-            >
-              {trend === "up" && <ArrowUpRight className="h-3 w-3" />}
-              {trend === "down" && (
-                <ArrowUpRight className="h-3 w-3 rotate-90" />
-              )}
-              {change}
-            </span>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+    <MetricChip
+      label={label}
+      value={value}
+      tone={tone}
+      icon={icon}
+      change={change}
+      trend={trend}
+    />
   );
 }
 
@@ -81,6 +65,7 @@ interface MetricCardsProps {
     reach?: string | number;
     revenue?: string | number;
     sales?: string | number;
+    whatsapp_clicks?: string | number;
     // Optional prior-period fields for real % change
     prev_spend?: string | number;
     prev_impressions?: string | number;
@@ -89,6 +74,7 @@ interface MetricCardsProps {
     prev_ctr?: string | number;
     prev_revenue?: string | number;
     prev_sales?: string | number;
+    prev_whatsapp_clicks?: string | number;
   };
 }
 
@@ -108,6 +94,7 @@ export function MetricCards({ summary }: MetricCardsProps) {
   const clicks = toNum(summary?.clicks);
   const cpc = toNum(summary?.cpc);
   const ctr = toNum(summary?.ctr);
+  const whatsappClicks = toNum(summary?.whatsapp_clicks);
 
   const prevSpend = toNum(summary?.prev_spend);
   const prevRevenue = toNum(summary?.prev_revenue);
@@ -116,6 +103,7 @@ export function MetricCards({ summary }: MetricCardsProps) {
   const prevClicks = toNum(summary?.prev_clicks);
   const prevCpc = toNum(summary?.prev_cpc);
   const prevCtr = toNum(summary?.prev_ctr);
+  const prevWhatsappClicks = toNum(summary?.prev_whatsapp_clicks);
 
   const roas = CampaignMetrics.calculateROAS(revenue, spend);
   const prevRoas = CampaignMetrics.calculateROAS(prevRevenue, prevSpend);
@@ -128,59 +116,98 @@ export function MetricCards({ summary }: MetricCardsProps) {
   const salesChange = pctChange(sales, prevSales);
   const roasChange = pctChange(roas, prevRoas);
   const profitChange = pctChange(profit, prevProfit);
+  const whatsappChange = pctChange(whatsappClicks, prevWhatsappClicks);
 
-  // ROAS Color Logic
+  // ROAS tone — map status to a muted categorical tint
   const roasStatus = CampaignMetrics.getROASStatus(roas);
-  const roasTheme =
+  const roasTone: MetricTone =
     roasStatus === "profit"
-      ? "green"
+      ? "teal"
       : roasStatus === "break-even"
         ? "orange"
-        : "red";
+        : "pink";
 
-  const metrics = [
+  const metrics: MetricCardProps[] = [
+    {
+      label: "People Messaged",
+      value: formatInt(whatsappClicks),
+      change: whatsappChange?.text ?? null,
+      trend: whatsappChange?.trend ?? "neutral",
+      tone: "primary",
+      icon: <ChatBubble className="h-4 w-4" />,
+    },
     {
       label: "Total Revenue",
       value: formatMoney(revenue),
       change: revenueChange?.text ?? null,
-      trend: (revenueChange?.trend ?? "neutral") as "up" | "down" | "neutral",
-      theme: "green" as const,
+      trend: revenueChange?.trend ?? "neutral",
+      tone: "teal",
+      icon: <Coins className="h-4 w-4" />,
     },
     {
       label: "ROAS",
       value: `${roas.toFixed(2)}x`,
       change: roasChange?.text ?? null,
-      trend: (roasChange?.trend ?? "neutral") as "up" | "down" | "neutral",
-      theme: roasTheme as any,
+      trend: roasChange?.trend ?? "neutral",
+      tone: roasTone,
+      icon: <StatUp className="h-4 w-4" />,
     },
     {
       label: "Total Sales",
       value: formatInt(sales),
       change: salesChange?.text ?? null,
-      trend: (salesChange?.trend ?? "neutral") as "up" | "down" | "neutral",
-      theme: "indigo" as const,
+      trend: salesChange?.trend ?? "neutral",
+      tone: "purple",
+      icon: <Shop className="h-4 w-4" />,
     },
     {
       label: "Total Spend",
       value: formatMoney(spend),
       change: spendChange?.text ?? null,
-      trend: (spendChange?.trend ?? "neutral") as "up" | "down" | "neutral",
-      theme: "blue" as const,
+      trend: spendChange?.trend ?? "neutral",
+      tone: "blue",
+      icon: <Wallet className="h-4 w-4" />,
     },
     {
       label: "Profit / Loss",
       value: formatMoney(profit),
       change: profitChange?.text ?? null,
-      trend: (profitChange?.trend ?? "neutral") as "up" | "down" | "neutral",
-      theme: profit >= 0 ? "green" : "red",
+      trend: profitChange?.trend ?? "neutral",
+      tone: profit >= 0 ? "teal" : "pink",
+      icon: <Percentage className="h-4 w-4" />,
     },
   ];
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+    <motion.div
+      initial="hidden"
+      animate="show"
+      variants={{
+        hidden: {},
+        show: { transition: { staggerChildren: 0.04 } },
+      }}
+      className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 no-scrollbar sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-4 sm:overflow-visible sm:px-0 md:grid-cols-3 lg:grid-cols-6"
+    >
       {metrics.map((m) => (
-        <MetricCard key={m.label} {...m} />
+        <motion.div
+          key={m.label}
+          variants={{
+            hidden: { opacity: 0, y: 8 },
+            show: { opacity: 1, y: 0, transition: { duration: 0.2 } },
+          }}
+          className="min-w-[180px] shrink-0 sm:min-w-0"
+        >
+          <MetricChip
+            label={m.label}
+            value={m.value}
+            tone={m.tone}
+            icon={m.icon}
+            change={m.change}
+            trend={m.trend}
+            className="h-full"
+          />
+        </motion.div>
       ))}
-    </div>
+    </motion.div>
   );
 }

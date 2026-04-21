@@ -97,7 +97,7 @@ export function GoalPlatformStep() {
   return (
     <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4">
       <div className="text-center space-y-2">
-        <h1 className="text-3xl font-heading font-bold text-foreground tracking-tight">
+        <h1 className="text-3xl font-heading text-foreground tracking-tight">
           What do you want to achieve?
         </h1>
         <p className="text-subtle-foreground">
@@ -109,7 +109,7 @@ export function GoalPlatformStep() {
         <div>
           <div className="flex items-center gap-2 mb-3">
             <p className="text-sm font-bold text-foreground">Make Sales 💰</p>
-            <span className="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide border border-green-200">
+            <span className="bg-status-success-soft text-status-success text-xs font-bold px-2 py-0.5 rounded-full uppercase tracking-wide border border-status-success/30">
               Recommended
             </span>
           </div>
@@ -278,12 +278,12 @@ function GoalCard({
     >
       {isRevenue && selected && !comingSoon && (
         <div className="absolute top-0 right-0 p-1.5">
-          <div className="bg-green-500 rounded-full h-2 w-2" />
+          <div className="bg-status-success rounded-full h-2 w-2" />
         </div>
       )}
       {comingSoon && (
         <div className="absolute top-2 right-2">
-          <span className="bg-primary/10 text-primary text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider whitespace-nowrap">
+          <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded-full uppercase tracking-wider whitespace-nowrap">
             Coming Soon
           </span>
         </div>
@@ -337,7 +337,7 @@ function PlacementCard({
       )}
     >
       {placement.badge && (
-        <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider whitespace-nowrap">
+        <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-bold px-2 py-0.5 rounded-full uppercase tracking-wider whitespace-nowrap">
           {placement.badge}
         </span>
       )}
@@ -355,7 +355,7 @@ function PlacementCard({
         <p className="text-xs font-bold text-foreground leading-tight">
           {placement.label}
         </p>
-        <p className="text-[10px] text-subtle-foreground mt-0.5">
+        <p className="text-xs text-subtle-foreground mt-0.5">
           {placement.description}
         </p>
       </div>
@@ -405,7 +405,7 @@ function PlatformCard({
       <div className="flex-1 min-w-0">
         <span className="font-bold text-foreground">{name}</span>
         {comingSoon && (
-          <p className="text-[10px] font-semibold text-primary uppercase tracking-wider mt-0.5">
+          <p className="text-xs font-semibold text-primary uppercase tracking-wider mt-0.5">
             Coming Phase 2
           </p>
         )}

@@ -29,7 +29,9 @@ export async function getDashboardData(
     .select("*")
     .eq("organization_id", activeOrgId)
     .eq("platform", filter?.platform || "meta")
-    .eq("health_status", "healthy");
+    // Serve data for healthy, warning, and paused accounts.
+    // Exclude only truly disconnected accounts (token is gone / revoked).
+    .is("disconnected_at", null);
 
   if (filter?.accountId) {
     query = query.eq("id", filter.accountId);
@@ -203,6 +205,7 @@ export async function getDashboardData(
         reach: "0",
         revenue: localSummary.revenue,
         sales: localSummary.sales,
+        whatsapp_clicks: localSummary.whatsapp_clicks,
       },
     };
   }
@@ -346,6 +349,7 @@ export async function getDashboardData(
         ...summary,
         revenue: localSummary.revenue,
         sales: localSummary.sales,
+        whatsapp_clicks: localSummary.whatsapp_clicks,
       },
     };
   } catch (error) {
@@ -459,6 +463,7 @@ export async function getDashboardData(
         reach: "0",
         revenue: localSummary.revenue,
         sales: localSummary.sales,
+        whatsapp_clicks: localSummary.whatsapp_clicks,
       },
     };
   }

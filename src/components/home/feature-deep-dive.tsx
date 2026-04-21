@@ -13,7 +13,7 @@ export function FeatureDeepDive() {
           <Badge variant="outline" className="mb-4 bg-background text-primary border-primary/20">
             Why Tenzu?
           </Badge>
-          <h2 className="text-4xl md:text-5xl font-heading font-bold text-foreground mb-4">
+          <h2 className="text-4xl md:text-5xl font-heading text-foreground mb-4">
             Everything you need to scale, in one platform.
           </h2>
           <p className="text-lg text-subtle-foreground">

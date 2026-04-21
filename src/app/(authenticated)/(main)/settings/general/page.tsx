@@ -58,7 +58,7 @@ export default function GeneralSettingsPage() {
         <form onSubmit={handleSubmit}>
           <CardContent className="p-6 space-y-6">
             <div>
-              <h3 className="text-lg font-heading font-bold text-foreground">
+              <h3 className="text-lg font-heading text-foreground">
                 Personal Info
               </h3>
               <p className="text-sm text-subtle-foreground">
@@ -108,7 +108,7 @@ export default function GeneralSettingsPage() {
       <Card>
         <CardContent className="p-6 space-y-6">
           <div>
-            <h3 className="text-lg font-heading font-bold text-foreground">
+            <h3 className="text-lg font-heading text-foreground">
               Change Password
             </h3>
             <p className="text-sm text-subtle-foreground">
@@ -119,7 +119,7 @@ export default function GeneralSettingsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="font-medium text-foreground">Password</p>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-subtle-foreground">
                 Use a strong, unique password for your account.
               </p>
             </div>
@@ -144,7 +144,7 @@ export default function GeneralSettingsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="font-medium text-destructive">Delete Account</p>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-subtle-foreground">
                 Permanently remove your data and access.
               </p>
             </div>

@@ -57,7 +57,7 @@ export function HelpCenterSheet() {
           Help Center
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">
+      <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto no-scrollbar">
         <SheetHeader className="mb-6">
           <SheetTitle className="flex items-center gap-2 text-xl font-heading">
             <HelpCircle className="h-5 w-5 text-primary" />
@@ -68,7 +68,7 @@ export function HelpCenterSheet() {
         <div className="space-y-6">
           <div className="space-y-2">
             <h3 className="font-semibold text-foreground">Video Tutorials</h3>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-subtle-foreground">
               Learn how to get the most out of AdSync.
             </p>
           </div>
@@ -108,7 +108,7 @@ export function HelpCenterSheet() {
             <h4 className="font-semibold text-primary text-sm mb-1">
               Need more help?
             </h4>
-            <p className="text-xs text-muted-foreground mb-3">
+            <p className="text-xs text-subtle-foreground mb-3">
               Check our documentation or contact support.
             </p>
             <Button

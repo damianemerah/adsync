@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useCreatives } from "@/hooks/use-creatives";
+import { useCreativesList } from "@/hooks/use-creatives";
 import {
   Dialog,
   DialogContent,
@@ -26,7 +26,7 @@ export function CreativeSelectorDialog({
   onOpenChange,
   onSelect,
 }: CreativeSelectorDialogProps) {
-  const { creatives, isLoading } = useCreatives();
+  const { data: creatives, isLoading } = useCreativesList();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUrls, setSelectedUrls] = useState<string[]>([]); // [NEW]
 
@@ -77,7 +77,7 @@ export function CreativeSelectorDialog({
               <SystemRestart className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : filteredCreatives?.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+            <div className="flex flex-col items-center justify-center h-64 text-subtle-foreground">
               <MediaImage className="h-12 w-12 mb-4 opacity-20" />
               <p>No images found</p>
             </div>

@@ -1,8 +1,9 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createClient } from "@/lib/supabase/client"; // Update path if needed
+import { createClient } from "@/lib/supabase/client";
 import { useActiveOrgContext } from "@/components/providers/active-org-provider";
+import { getCreativeHistory } from "@/actions/ai-images";
 
 function dataUrlToBlob(dataUrl: string): Blob {
   const [header, base64] = dataUrl.split(",");
@@ -13,13 +14,15 @@ function dataUrlToBlob(dataUrl: string): Blob {
   return new Blob([bytes], { type: mime });
 }
 
-export function useCreatives() {
-  const queryClient = useQueryClient();
+// ---------------------------------------------------------------------------
+// Query Hook — subscribe to this if you only need to READ creatives
+// ---------------------------------------------------------------------------
+
+export function useCreativesList() {
   const supabase = createClient();
   const { activeOrgId } = useActiveOrgContext();
 
-  // 1. Fetch Creatives
-  const query = useQuery({
+  return useQuery({
     queryKey: ["creatives", activeOrgId],
     queryFn: async () => {
       let query = supabase
@@ -37,8 +40,18 @@ export function useCreatives() {
       return data;
     },
   });
+}
 
-  // 2. Upload Mutation
+// ---------------------------------------------------------------------------
+// Mutation Hook — subscribe to this if you only need to WRITE creatives.
+// No useQuery inside — components using this will NOT re-render on list changes.
+// ---------------------------------------------------------------------------
+
+export function useCreativeMutations() {
+  const queryClient = useQueryClient();
+  const { activeOrgId } = useActiveOrgContext();
+
+  // 1. Upload Mutation
   const uploadMutation = useMutation({
     mutationFn: async ({
       file,
@@ -49,14 +62,12 @@ export function useCreatives() {
       dimensions: { width: number; height: number };
       thumbnailDataUrl?: string;
     }) => {
-      // A. Upload to Storage using server action (prevents org folder pollution)
       const { uploadCreativeFile } = await import("@/actions/creatives");
       const { publicUrl } = await uploadCreativeFile({
         file,
         bucket: "creatives",
       });
 
-      // B. Optionally Upload Thumbnail
       let thumbnailUrl = null;
       if (thumbnailDataUrl) {
         try {
@@ -75,7 +86,6 @@ export function useCreatives() {
         }
       }
 
-      // E. Insert into DB using server action (prevents RLS bypass)
       const { saveCreative } = await import("@/actions/creatives");
 
       const result = await saveCreative({
@@ -97,7 +107,7 @@ export function useCreatives() {
     },
   });
 
-  // 3. Delete Mutation
+  // 2. Delete Mutation
   const deleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
       const { deleteCreatives } = await import("@/actions/creatives");
@@ -109,8 +119,6 @@ export function useCreatives() {
   });
 
   return {
-    creatives: query.data || [],
-    isLoading: query.isLoading,
     uploadCreative: uploadMutation.mutateAsync,
     isUploading: uploadMutation.isPending,
     deleteCreatives: deleteMutation.mutateAsync,
@@ -118,8 +126,10 @@ export function useCreatives() {
   };
 }
 
-// [NEW] Hook for Creative History
-import { getCreativeHistory } from "@/actions/ai-images";
+
+// ---------------------------------------------------------------------------
+// Creative History Query — pure query, no mutations
+// ---------------------------------------------------------------------------
 
 export function useCreativeHistory(creativeId: string | null) {
   const { activeOrgId } = useActiveOrgContext();

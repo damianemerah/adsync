@@ -8,14 +8,15 @@ import { launchCampaignQueued as launchCampaign } from "@/actions/campaigns-queu
 import { updateCampaignStatus, duplicateCampaign, deleteCampaign, archiveCampaign, renameCampaign } from "@/actions/campaigns";
 import { useActiveOrgContext } from "@/components/providers/active-org-provider";
 
-export function useCampaigns() {
+// ---------------------------------------------------------------------------
+// Query Hook — subscribe to this if you only need to READ campaigns
+// ---------------------------------------------------------------------------
+
+export function useCampaignsList() {
   const supabase = createClient();
-  const queryClient = useQueryClient();
-  const router = useRouter();
   const { activeOrgId } = useActiveOrgContext();
 
-  // 1. Fetch Campaigns
-  const query = useQuery({
+  return useQuery({
     queryKey: ["campaigns", activeOrgId],
     queryFn: async () => {
       let q = supabase
@@ -40,7 +41,7 @@ export function useCampaigns() {
       return data.map((c: any) => ({
         id: c.id,
         name: c.name,
-        platform: c.platform as "meta" | "tiktok" | null, // 'meta' | 'tiktok'
+        platform: c.platform as "meta" | "tiktok" | null,
         status:
           (c.status as "active" | "paused" | "draft" | "completed" | "queuing" | "failed") || "draft",
         budget: c.daily_budget_cents / 100,
@@ -69,24 +70,33 @@ export function useCampaigns() {
       }));
     },
   });
+}
 
-  // 2. Sync Mutation (Fetches from Meta -> Updates DB)
+// ---------------------------------------------------------------------------
+// Mutation Hook — subscribe to this if you only need to WRITE campaigns.
+// No useQuery inside — components using this will NOT re-render on list changes.
+// ---------------------------------------------------------------------------
+
+export function useCampaignMutations() {
+  const supabase = createClient();
+  const queryClient = useQueryClient();
+  const router = useRouter();
+  const { activeOrgId } = useActiveOrgContext();
+
+  // 1. Sync Mutation (Fetches from Meta -> Updates DB)
   const syncMutation = useMutation({
     mutationFn: async () => {
-      // Get all active ad accounts first
-      // ✅ Filter out soft-deleted (disconnected) accounts
       let q = supabase
         .from("ad_accounts")
         .select("id")
         .eq("health_status", "healthy")
-        .is("disconnected_at", null); // Only sync connected accounts
+        .is("disconnected_at", null);
       if (activeOrgId) q = q.eq("organization_id", activeOrgId);
       const { data: accounts } = await q;
 
       if (!accounts || accounts.length === 0)
         throw new Error("No connected ad accounts.");
 
-      // Sync each account
       const results = await Promise.all(
         accounts.map((acc) =>
           fetch("/api/campaigns/sync", {
@@ -108,13 +118,12 @@ export function useCampaigns() {
     },
   });
 
-  // 3. Launch Mutation
+  // 2. Launch Mutation
   const launchMutation = useMutation({
     mutationFn: launchCampaign,
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["campaigns", activeOrgId] });
       if (data.success) {
-        // When queuing, the step shows its own success modal — don't also redirect
         if ((data as any).status !== "queuing") {
           toast.success("Campaign launched successfully!");
           router.push("/campaigns");
@@ -130,7 +139,7 @@ export function useCampaigns() {
     },
   });
 
-  // 4. Duplicate Campaign Mutation
+  // 3. Duplicate Campaign Mutation
   const duplicateCampaignMutation = useMutation({
     mutationFn: async ({ id }: { id: string }) => {
       const result = await duplicateCampaign(id);
@@ -147,7 +156,7 @@ export function useCampaigns() {
     },
   });
 
-  // 5. Update Status Mutation
+  // 4. Update Status Mutation
   const updateStatusMutation = useMutation({
     mutationFn: async ({
       id,
@@ -187,7 +196,7 @@ export function useCampaigns() {
     },
   });
 
-  // 6. Delete Campaign Mutation (Meta DELETE + DB hard delete)
+  // 5. Delete Campaign Mutation (Meta DELETE + DB hard delete)
   const deleteCampaignMutation = useMutation({
     mutationFn: async ({ id }: { id: string }) => {
       const result = await deleteCampaign(id);
@@ -204,7 +213,7 @@ export function useCampaigns() {
     },
   });
 
-  // 7. Archive Campaign Mutation (app-only — DB status='completed')
+  // 6. Archive Campaign Mutation (app-only — DB status='completed')
   const archiveCampaignMutation = useMutation({
     mutationFn: async ({ id }: { id: string }) => {
       const result = await archiveCampaign(id);
@@ -221,7 +230,7 @@ export function useCampaigns() {
     },
   });
 
-  // 8. Rename Campaign Mutation
+  // 7. Rename Campaign Mutation
   const renameCampaignMutation = useMutation({
     mutationFn: async ({ id, name }: { id: string; name: string }) => {
       const result = await renameCampaign(id, name);
@@ -239,7 +248,6 @@ export function useCampaigns() {
   });
 
   return {
-    ...query,
     // Sync
     syncCampaigns: syncMutation.mutate,
     isSyncing: syncMutation.isPending,
@@ -263,3 +271,4 @@ export function useCampaigns() {
     isRenaming: renameCampaignMutation.isPending,
   };
 }
+

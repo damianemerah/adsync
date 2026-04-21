@@ -63,7 +63,7 @@ export function CarouselEditor({
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-bold text-foreground">Carousel Cards ({cards.length}/10)</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <p className="text-xs text-subtle-foreground mt-0.5">
             Customize each card's headline, description, and link
           </p>
         </div>
@@ -132,7 +132,7 @@ export function CarouselEditor({
                       {card.headline}
                     </h4>
                     {card.description && (
-                      <p className="text-xs text-muted-foreground truncate mt-0.5">
+                      <p className="text-xs text-subtle-foreground truncate mt-0.5">
                         {card.description}
                       </p>
                     )}
@@ -161,7 +161,7 @@ export function CarouselEditor({
       </div>
 
       {cards.length === 0 && (
-        <div className="text-center py-6 text-sm text-muted-foreground">
+        <div className="text-center py-6 text-sm text-subtle-foreground">
           Select 2+ images to enable carousel mode
         </div>
       )}

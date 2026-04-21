@@ -12,13 +12,29 @@ const badgeVariants = cva(
         default:
           "border-transparent bg-primary text-primary-foreground [a&]:hover:bg-primary/90",
         secondary:
-          "border-transparent bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90",
+          "border-transparent bg-muted text-foreground [a&]:hover:bg-muted/80",
         destructive:
-          "border-transparent bg-destructive text-white [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
+          "border-transparent bg-destructive text-destructive-foreground [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40",
         outline:
           "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
+        /* Solid status variants */
         success:
-          "border-transparent bg-green-500 text-white [a&]:hover:bg-green-600 focus-visible:ring-green-500/20 dark:focus-visible:ring-green-500/40 dark:bg-green-600",
+          "border-transparent bg-status-success text-status-success-foreground [a&]:hover:bg-status-success/90",
+        warning:
+          "border-transparent bg-status-warning text-status-warning-foreground [a&]:hover:bg-status-warning/90",
+        danger:
+          "border-transparent bg-status-danger text-status-danger-foreground [a&]:hover:bg-status-danger/90",
+        info:
+          "border-transparent bg-status-info text-status-info-foreground [a&]:hover:bg-status-info/90",
+        /* Soft status variants — tint bg + colored text, preferred for inline status chips */
+        "success-soft":
+          "border-transparent bg-status-success-soft text-status-success",
+        "warning-soft":
+          "border-transparent bg-status-warning-soft text-status-warning",
+        "danger-soft":
+          "border-transparent bg-status-danger-soft text-status-danger",
+        "info-soft":
+          "border-transparent bg-status-info-soft text-status-info",
       },
     },
     defaultVariants: {

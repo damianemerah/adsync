@@ -20,20 +20,20 @@ export function CheckItem({
           status === "success"
             ? "bg-primary/20 text-primary"
             : status === "warning"
-              ? "bg-yellow-100 text-yellow-600"
+              ? "bg-status-warning-soft text-status-warning"
               : status === "loading"
                 ? "bg-white/10 text-white/60"
-                : "bg-red-100 text-red-600",
+                : "bg-status-danger-soft text-status-danger",
         )}
       >
         {status === "success" ? (
           <Check className="h-4 w-4" />
         ) : status === "warning" ? (
-          <span className="text-yellow-600 font-bold text-xs">!</span>
+          <span className="font-bold text-xs">!</span>
         ) : status === "loading" ? (
           <div className="h-3 w-3 rounded-full border-2 border-white/40 border-t-white/80 animate-spin" />
         ) : (
-          <div className="h-2 w-2 bg-red-600 rounded-full" />
+          <div className="h-2 w-2 bg-status-danger rounded-full" />
         )}
       </div>
       <span

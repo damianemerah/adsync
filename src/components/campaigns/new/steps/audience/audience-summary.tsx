@@ -129,7 +129,7 @@ export function AudienceSummaryPanel() {
           Demographics
         </label>
         <div className="space-y-2">
-          <span className="text-xs text-muted-foreground">Age Range</span>
+          <span className="text-xs text-subtle-foreground">Age Range</span>
           <div className="flex items-center gap-2">
             <Input
               type="number"
@@ -165,7 +165,7 @@ export function AudienceSummaryPanel() {
           </div>
         </div>
         <div className="space-y-2">
-          <span className="text-xs text-muted-foreground">Gender</span>
+          <span className="text-xs text-subtle-foreground">Gender</span>
           <div className="grid grid-cols-3 gap-2">
             {(["all", "male", "female"] as const).map((g) => (
               <button
@@ -186,12 +186,12 @@ export function AudienceSummaryPanel() {
 
         {/* Languages (Phase 1A) */}
         <div className="space-y-2">
-          <span className="text-xs text-muted-foreground flex items-center justify-between">
+          <span className="text-xs text-subtle-foreground flex items-center justify-between">
             <span>Language</span>
             {targetLanguages?.length > 0 && (
               <button
                 onClick={() => updateDraft({ targetLanguages: [] })}
-                className="text-[10px] text-primary hover:underline"
+                className="text-xs text-primary hover:underline"
               >
                 Clear
               </button>
@@ -249,7 +249,7 @@ export function AudienceSummaryPanel() {
             />
             <span className="text-xs text-subtle-foreground group-hover:text-foreground transition-colors">
               Exclude previous customers
-              <span className="text-[10px] text-muted-foreground ml-1">
+              <span className="text-xs text-subtle-foreground ml-1">
                 (Coming soon)
               </span>
             </span>
@@ -270,7 +270,7 @@ export function AudienceSummaryPanel() {
                 key={t}
                 onClick={() => setLocationSearchType(t)}
                 className={cn(
-                  "h-7 text-[11px] font-medium rounded-md border transition-all capitalize",
+                  "h-7 text-xs font-medium rounded-md border transition-all capitalize",
                   locationSearchType === t
                     ? "bg-primary text-primary-foreground border-primary"
                     : "bg-background text-muted-foreground border-border hover:border-primary/50",
@@ -304,7 +304,7 @@ export function AudienceSummaryPanel() {
                 <MapPin className="h-3 w-3 text-primary" />
                 <span>
                   {loc.name}
-                  <span className="text-[10px] text-muted-foreground ml-1 capitalize">({loc.type})</span>
+                  <span className="text-xs text-subtle-foreground ml-1 capitalize">({loc.type})</span>
                 </span>
                 <button
                   onClick={() => removeLocation(loc)}
@@ -315,7 +315,7 @@ export function AudienceSummaryPanel() {
               </Badge>
             ))
           ) : (
-            <p className="text-sm text-muted-foreground italic">
+            <p className="text-sm text-subtle-foreground italic">
               No locations yet
             </p>
           )}
@@ -325,7 +325,7 @@ export function AudienceSummaryPanel() {
               l.country &&
               l.country in CITY_TARGETING_UNSUPPORTED,
           ) && (
-            <p className="w-full text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-0.5">
+            <p className="w-full text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-0.5">
               <WarningTriangle className="w-3 h-3 shrink-0" />
               City targeting isn't available in Nigeria — your ad will reach all of Nigeria. Use State/Region and search "Lagos State" or "Anambra State" instead.
             </p>
@@ -364,8 +364,8 @@ export function AudienceSummaryPanel() {
                   className={cn(
                     "py-1 px-3 rounded-full cursor-pointer border transition-colors",
                     isResolvedId(beh.id)
-                      ? "bg-purple-500/10 text-purple-600 border-purple-200 hover:bg-purple-500/20"
-                      : "bg-amber-500/10 text-amber-600 border-amber-200 hover:bg-amber-500/20",
+                      ? "bg-ai/10 text-ai border-ai/20 hover:bg-ai/20"
+                      : "bg-status-warning-soft text-status-warning border border-status-warning/30 hover:bg-status-warning-soft/80",
                   )}
                   onClick={() =>
                     updateDraft({
@@ -382,7 +382,7 @@ export function AudienceSummaryPanel() {
           ) : targetingResolutionError ? (
             <p className="text-xs text-amber-600 italic">Couldn't load — add manually</p>
           ) : (
-            <p className="text-sm text-muted-foreground italic">
+            <p className="text-sm text-subtle-foreground italic">
               No behaviors yet
             </p>
           )}
@@ -420,8 +420,8 @@ export function AudienceSummaryPanel() {
                 className={cn(
                   "py-1 px-3 rounded-full cursor-pointer border transition-colors",
                   isResolvedId(pos.id)
-                    ? "bg-blue-500/10 text-blue-600 border-blue-200 hover:bg-blue-500/20"
-                    : "bg-amber-500/10 text-amber-600 border-amber-200 hover:bg-amber-500/20",
+                    ? "bg-status-info-soft text-status-info border-status-info/30 hover:bg-status-info-soft/80"
+                    : "bg-status-warning-soft text-status-warning border border-status-warning/30 hover:bg-status-warning-soft/80",
                 )}
                 onClick={() =>
                   updateDraft({
@@ -438,7 +438,7 @@ export function AudienceSummaryPanel() {
           ) : targetingResolutionError ? (
             <p className="text-xs text-amber-600 italic">Couldn't load — add manually</p>
           ) : (
-            <p className="text-sm text-muted-foreground italic">
+            <p className="text-sm text-subtle-foreground italic">
               No work positions yet
             </p>
           )}
@@ -476,8 +476,8 @@ export function AudienceSummaryPanel() {
                 className={cn(
                   "py-1 px-3 rounded-full cursor-pointer border transition-colors",
                   isResolvedId(industry.id)
-                    ? "bg-violet-500/10 text-violet-600 border-violet-200 hover:bg-violet-500/20"
-                    : "bg-amber-500/10 text-amber-600 border-amber-200 hover:bg-amber-500/20",
+                    ? "bg-ai/10 text-ai border-ai/20 hover:bg-ai/20"
+                    : "bg-status-warning-soft text-status-warning border border-status-warning/30 hover:bg-status-warning-soft/80",
                 )}
                 onClick={() =>
                   updateDraft({
@@ -494,7 +494,7 @@ export function AudienceSummaryPanel() {
           ) : targetingResolutionError ? (
             <p className="text-xs text-amber-600 italic">Couldn't load — add manually</p>
           ) : (
-            <p className="text-sm text-muted-foreground italic">
+            <p className="text-sm text-subtle-foreground italic">
               No industries yet
             </p>
           )}
@@ -532,8 +532,8 @@ export function AudienceSummaryPanel() {
                   className={cn(
                     "py-1 px-3 rounded-full cursor-pointer border transition-colors",
                     isResolvedId(event.id)
-                      ? "bg-pink-500/10 text-pink-600 border-pink-200 hover:bg-pink-500/20"
-                      : "bg-amber-500/10 text-amber-600 border-amber-200 hover:bg-amber-500/20",
+                      ? "bg-status-info-soft text-status-info border-status-info/30 hover:bg-status-info-soft/80"
+                      : "bg-status-warning-soft text-status-warning border border-status-warning/30 hover:bg-status-warning-soft/80",
                   )}
                   onClick={() =>
                     updateDraft({
@@ -550,7 +550,7 @@ export function AudienceSummaryPanel() {
           ) : targetingResolutionError ? (
             <p className="text-xs text-amber-600 italic">Couldn't load — add manually</p>
           ) : (
-            <p className="text-sm text-muted-foreground italic">
+            <p className="text-sm text-subtle-foreground italic">
               No life events yet
             </p>
           )}
@@ -581,7 +581,7 @@ export function AudienceSummaryPanel() {
                     "py-1 px-3 rounded-full cursor-pointer transition-colors",
                     isResolvedId(int.id)
                       ? "bg-primary/10 text-primary hover:bg-primary/20"
-                      : "bg-amber-500/10 text-amber-600 border border-amber-200 hover:bg-amber-500/20",
+                      : "bg-status-warning-soft text-status-warning border border-status-warning/30 hover:bg-status-warning-soft/80",
                   )}
                   onClick={() => removeInterest(int)}
                 >
@@ -593,7 +593,7 @@ export function AudienceSummaryPanel() {
           ) : targetingResolutionError ? (
             <p className="text-xs text-amber-600 italic">Couldn't load — add interests manually above</p>
           ) : (
-            <p className="text-sm text-muted-foreground italic">
+            <p className="text-sm text-subtle-foreground italic">
               No interests yet
             </p>
           )}
@@ -602,11 +602,11 @@ export function AudienceSummaryPanel() {
         {/* Interest suggestions */}
         {(suggestions.length > 0 || loadingSuggestions) && (
           <div className="pt-1 space-y-1.5">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">
+            <p className="text-xs text-subtle-foreground uppercase tracking-wider font-medium">
               Related interests
             </p>
             {loadingSuggestions ? (
-              <p className="text-xs text-muted-foreground italic">Finding related interests...</p>
+              <p className="text-xs text-subtle-foreground italic">Finding related interests...</p>
             ) : (
               <div className="flex flex-wrap gap-1.5">
                 {suggestions.map((s) => (

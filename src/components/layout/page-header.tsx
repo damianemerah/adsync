@@ -37,7 +37,7 @@ export function PageHeader({
       >
         <div className="flex items-center gap-4">
           {title && (
-            <h1 className="text-xl font-heading font-bold text-foreground tracking-tight">
+            <h1 className="text-xl font-heading text-foreground tracking-tight">
               {title}
             </h1>
           )}

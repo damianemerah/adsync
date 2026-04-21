@@ -11,6 +11,7 @@ import {
   Legend,
 } from "recharts";
 import { Dollar, Eye, CursorPointer, Magnet, GraphUp } from "iconoir-react";
+import { EmptyState } from "@/components/ui/empty-state";
 
 // Using CSS variables would be ideal, but Recharts often needs explicit colors.
 // We can use the HSL values from globals.css or these semantic approximations.
@@ -26,8 +27,8 @@ export const METRIC_CONFIG = {
     theme: "blue",
   },
   impressions: {
-    label: "Impressions",
-    color: "#9333EA", // Purple - keep or align with branding? Let's keep distinct colors for charts but use HSL if possible
+    label: "People Reached",
+    color: "hsl(var(--ai))", // Use AI purple from design system
     icon: Eye,
     theme: "purple",
   },
@@ -65,10 +66,12 @@ export function PerformanceChart({
 }: PerformanceChartProps) {
   if (!data || data.length === 0) {
     return (
-      <div className="h-full flex items-center justify-center text-muted-foreground flex-col gap-2">
-        <GraphUp className="h-10 w-10 opacity-20" />
-        <p>No performance data available yet.</p>
-      </div>
+      <EmptyState
+        icon={<GraphUp className="h-6 w-6" />}
+        title="No data yet"
+        description="Performance data will appear here once your campaign starts running."
+        className="h-full border-none shadow-none"
+      />
     );
   }
 

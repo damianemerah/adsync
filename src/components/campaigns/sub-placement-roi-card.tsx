@@ -110,7 +110,7 @@ export function SubPlacementROICard({ campaignId }: SubPlacementROICardProps) {
         </CardTitle>
         <Badge
           variant="secondary"
-          className="bg-primary/10 text-primary font-bold text-[10px] space-x-1"
+          className="bg-primary/10 text-primary font-bold text-xs space-x-1"
         >
           <Sparks className="h-3 w-3" />
           <span>PRO INSIGHTS</span>
@@ -147,7 +147,7 @@ export function SubPlacementROICard({ campaignId }: SubPlacementROICardProps) {
                     {isWinner && (
                       <Badge
                         variant="secondary"
-                        className="bg-orange-100 text-orange-700 hover:bg-orange-200 border-orange-200 text-[10px] px-1.5 py-0 items-center justify-center flex gap-1 animate-in fade-in zoom-in duration-300"
+                        className="bg-orange-100 text-orange-700 hover:bg-orange-200 border-orange-200 text-xs px-1.5 py-0 items-center justify-center flex gap-1 animate-in fade-in zoom-in duration-300"
                       >
                         🔥 High Converting
                       </Badge>
@@ -162,7 +162,7 @@ export function SubPlacementROICard({ campaignId }: SubPlacementROICardProps) {
               {/* Right: Metrics */}
               <div className="flex items-center gap-6 sm:justify-end">
                 <div className="text-right">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                     Spend
                   </p>
                   <p className="font-mono font-medium text-slate-900 mt-0.5">
@@ -171,7 +171,7 @@ export function SubPlacementROICard({ campaignId }: SubPlacementROICardProps) {
                 </div>
                 <div className="h-8 w-px bg-slate-200"></div>
                 <div className="text-right w-20">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                     CPC
                   </p>
                   <p

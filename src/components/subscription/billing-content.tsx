@@ -288,7 +288,7 @@ export function BillingContent() {
           
           {/* Current Subscription */}
           <section>
-            <h2 className="text-lg font-heading font-bold mb-4">
+            <h2 className="text-lg font-heading mb-4">
               Current Subscription
             </h2>
             <Card className="bg-card border-border shadow-sm">
@@ -319,7 +319,7 @@ export function BillingContent() {
                           AI Credits used
                         </span>
                         <span className="font-bold">
-                          {creditsUsed} <span className="text-muted-foreground font-normal">/ {creditQuota}</span>
+                          {creditsUsed} <span className="text-subtle-foreground font-normal">/ {creditQuota}</span>
                         </span>
                       </div>
                       <Progress value={creditsPercent} className="h-2" />
@@ -349,7 +349,7 @@ export function BillingContent() {
 
           {/* Plan Cards */}
           <section>
-            <h2 className="text-lg font-heading font-bold mb-4">Available Plans</h2>
+            <h2 className="text-lg font-heading mb-4">Available Plans</h2>
             <div className="grid md:grid-cols-3 gap-6">
               {PLANS.map((plan) => {
                 const isCurrent = currentTier === plan.id;
@@ -435,7 +435,7 @@ export function BillingContent() {
           {/* Credit Pack Top-Ups */}
           <section>
             <div className="mb-6">
-              <h2 className="text-xl font-heading font-bold text-foreground">
+              <h2 className="text-xl font-heading text-foreground">
                 Need More Credits?
               </h2>
               <p className="text-subtle-foreground text-sm mt-1">

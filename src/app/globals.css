@@ -11,6 +11,10 @@
   --background: #ffffff;
   --foreground: #030018;
 
+  /* Card / Surface */
+  --card: #ffffff;
+  --card-foreground: #030018;
+
   /* Layout & Sidebar */
   --sidebar: #ffffff;
   --subtle-foreground: #445469;
@@ -32,8 +36,39 @@
   --destructive: #e54b4f;
   --destructive-foreground: #ffffff;
 
+  /* Status Tokens — use these instead of raw green/red/orange/blue */
+  --status-success: #12a971;          /* emerald-darkened for text */
+  --status-success-foreground: #ffffff;
+  --status-success-soft: #ecfdf5;     /* light bg tint */
+  --status-warning: #b45309;          /* amber-700 for text */
+  --status-warning-foreground: #ffffff;
+  --status-warning-soft: #fef3c7;     /* amber-100 */
+  --status-danger: #c0363b;           /* destructive-darkened for text */
+  --status-danger-foreground: #ffffff;
+  --status-danger-soft: #fef2f2;      /* red-50 */
+  --status-info: #1e6fd0;             /* blue-700 for text */
+  --status-info-foreground: #ffffff;
+  --status-info-soft: #eff6ff;        /* blue-50 */
+
+  /* Chart Palette — categorical colors for Recharts + muted metric chips */
+  --chart-1: #2563eb;        /* blue-600 */
+  --chart-1-soft: #eff6ff;   /* blue-50 */
+  --chart-2: #db2777;        /* pink-600 */
+  --chart-2-soft: #fdf2f8;   /* pink-50 */
+  --chart-3: #7c3aed;        /* violet-600 */
+  --chart-3-soft: #f5f3ff;   /* violet-50 */
+  --chart-4: #0d9488;        /* teal-600 (emerald-adjacent) */
+  --chart-4-soft: #f0fdfa;   /* teal-50 */
+  --chart-5: #ea580c;        /* orange-600 */
+  --chart-5-soft: #fff7ed;   /* orange-50 */
+  --chart-6: #1e293b;        /* slate-800 (navy) */
+  --chart-6-soft: #f1f5f9;   /* slate-100 */
+
   /* Brand Colors */
   --facebook: #1877f2;
+  --brand-meta: #0866ff;
+  --brand-tiktok: #010101;
+  --brand-tiktok-foreground: #ffffff;
   --google: #4285f4; /* Also commonly used: #DB4437, #F4B400, #0F9D58 */
   --spotify: #1db954;
   --whatsapp: #25D366;
@@ -66,11 +101,40 @@
   --primary-foreground: #030018;
   --sidebar: #05021a;
   --subtle-foreground: #cbd5e1; /* Slate 300 - lighter than muted */
+  --sidebar-border: #1b1832;
   --border: #1b1832;
   --muted: #1b1832;
   --muted-foreground: #98a2b3;
   --ring: #12e193;
   --shadow-card: 0 0 0 9px #f9fafb;
+
+  /* Status Tokens — dark mode */
+  --status-success: #12e193;
+  --status-success-foreground: #030018;
+  --status-success-soft: rgba(18, 225, 147, 0.12);
+  --status-warning: #f59e0b;
+  --status-warning-foreground: #030018;
+  --status-warning-soft: rgba(245, 158, 11, 0.14);
+  --status-danger: #f87171;
+  --status-danger-foreground: #030018;
+  --status-danger-soft: rgba(248, 113, 113, 0.12);
+  --status-info: #60a5fa;
+  --status-info-foreground: #030018;
+  --status-info-soft: rgba(96, 165, 250, 0.12);
+
+  /* Chart Palette — dark mode (slightly brighter, matching -soft tints) */
+  --chart-1: #60a5fa;
+  --chart-1-soft: rgba(96, 165, 250, 0.12);
+  --chart-2: #f472b6;
+  --chart-2-soft: rgba(244, 114, 182, 0.12);
+  --chart-3: #a78bfa;
+  --chart-3-soft: rgba(167, 139, 250, 0.12);
+  --chart-4: #2dd4bf;
+  --chart-4-soft: rgba(45, 212, 191, 0.12);
+  --chart-5: #fb923c;
+  --chart-5-soft: rgba(251, 146, 60, 0.12);
+  --chart-6: #94a3b8;
+  --chart-6-soft: rgba(148, 163, 184, 0.12);
 }
 
 @theme inline {
@@ -82,6 +146,8 @@
   --color-primary-foreground: var(--primary-foreground);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-popover: var(--popover);
@@ -89,6 +155,7 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-ring: var(--ring); /* This enables outline-ring and ring utilities */
   --color-sidebar: var(--sidebar);
@@ -99,8 +166,39 @@
   --shadow-soft: 0 1px 2px 0 var(--shadow-color);
   --shadow-card: 0 0 0 1px var(--border);
 
+  /* Status Utilities (text-status-success, bg-status-success-soft, etc.) */
+  --color-status-success: var(--status-success);
+  --color-status-success-foreground: var(--status-success-foreground);
+  --color-status-success-soft: var(--status-success-soft);
+  --color-status-warning: var(--status-warning);
+  --color-status-warning-foreground: var(--status-warning-foreground);
+  --color-status-warning-soft: var(--status-warning-soft);
+  --color-status-danger: var(--status-danger);
+  --color-status-danger-foreground: var(--status-danger-foreground);
+  --color-status-danger-soft: var(--status-danger-soft);
+  --color-status-info: var(--status-info);
+  --color-status-info-foreground: var(--status-info-foreground);
+  --color-status-info-soft: var(--status-info-soft);
+
+  /* Chart Utilities (text-chart-1, bg-chart-1-soft, etc.) */
+  --color-chart-1: var(--chart-1);
+  --color-chart-1-soft: var(--chart-1-soft);
+  --color-chart-2: var(--chart-2);
+  --color-chart-2-soft: var(--chart-2-soft);
+  --color-chart-3: var(--chart-3);
+  --color-chart-3-soft: var(--chart-3-soft);
+  --color-chart-4: var(--chart-4);
+  --color-chart-4-soft: var(--chart-4-soft);
+  --color-chart-5: var(--chart-5);
+  --color-chart-5-soft: var(--chart-5-soft);
+  --color-chart-6: var(--chart-6);
+  --color-chart-6-soft: var(--chart-6-soft);
+
   /* Brand Utilities */
   --color-facebook: var(--facebook);
+  --color-brand-meta: var(--brand-meta);
+  --color-brand-tiktok: var(--brand-tiktok);
+  --color-brand-tiktok-foreground: var(--brand-tiktok-foreground);
   --color-google: var(--google);
   --color-spotify: var(--spotify);
   --color-whatsapp: var(--whatsapp);
@@ -197,8 +295,13 @@
     color: var(--subtle-foreground);
   }
 
+  .no-scrollbar {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE / Edge */
+  }
+
   .no-scrollbar::-webkit-scrollbar {
-    display: none;
+    display: none; /* Chrome / Safari / Opera */
   }
 
   .text-primary-foreground {

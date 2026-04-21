@@ -50,21 +50,21 @@ export function TrialBanner() {
       className={cn(
         "border-b px-4 py-2.5",
         urgency === "high"
-          ? "bg-red-50 border-red-100"
+          ? "bg-status-danger-soft border-status-danger/15"
           : urgency === "medium"
-            ? "bg-amber-50 border-amber-100"
+            ? "bg-status-warning-soft border-status-warning/20"
             : "bg-primary/5 border-primary/10",
       )}
     >
-      <div className="max-w-screen-xl mx-auto flex items-center justify-between gap-4">
+      <div className="max-w-screen-xl mx-auto flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <div
             className={cn(
               "h-7 w-7 rounded-full flex items-center justify-center shrink-0",
               urgency === "high"
-                ? "bg-red-100"
+                ? "bg-status-danger/15"
                 : urgency === "medium"
-                  ? "bg-amber-100"
+                  ? "bg-status-warning/20"
                   : "bg-primary/10",
             )}
           >
@@ -72,9 +72,9 @@ export function TrialBanner() {
               className={cn(
                 "h-3.5 w-3.5 fill-current",
                 urgency === "high"
-                  ? "text-red-600"
+                  ? "text-status-danger"
                   : urgency === "medium"
-                    ? "text-amber-600"
+                    ? "text-status-warning"
                     : "text-primary",
               )}
             />
@@ -83,9 +83,9 @@ export function TrialBanner() {
             className={cn(
               "text-sm font-medium",
               urgency === "high"
-                ? "text-red-900"
+                ? "text-status-danger"
                 : urgency === "medium"
-                  ? "text-amber-900"
+                  ? "text-status-warning"
                   : "text-foreground",
             )}
           >
@@ -102,29 +102,16 @@ export function TrialBanner() {
         <div className="flex items-center gap-2 shrink-0">
           <Button
             size="sm"
+            variant={urgency === "high" ? "destructive" : "default"}
             onClick={() => router.push("/settings/subscription")}
-            className={cn(
-              "h-8 text-xs font-bold gap-1",
-              urgency === "high"
-                ? "bg-red-600 hover:bg-red-700 text-white shadow-sm shadow-red-600/20"
-                : urgency === "medium"
-                  ? "bg-amber-500 hover:bg-amber-600 text-white shadow-sm shadow-amber-500/20"
-                  : "bg-primary hover:bg-primary/90 text-white shadow-sm shadow-primary/20",
-            )}
+            className="h-8 text-xs font-bold gap-1"
           >
             Upgrade Now
             <ArrowRight className="h-3 w-3" />
           </Button>
           <button
             onClick={handleDismiss}
-            className={cn(
-              "h-8 w-8 rounded-lg flex items-center justify-center transition-colors",
-              urgency === "high"
-                ? "text-red-400 hover:text-red-600 hover:bg-red-100"
-                : urgency === "medium"
-                  ? "text-amber-400 hover:text-amber-600 hover:bg-amber-100"
-                  : "text-muted-foreground hover:text-foreground hover:bg-primary/10",
-            )}
+            className="h-8 w-8 rounded-lg flex items-center justify-center text-subtle-foreground hover:text-foreground hover:bg-muted transition-colors"
             aria-label="Dismiss"
           >
             <Xmark className="h-4 w-4" />

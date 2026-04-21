@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { getAccountHealth } from "@/actions/account-health";
 import { useDashboardStore } from "@/store/dashboard-store";
 import { useInsights } from "@/hooks/use-insights";
-import { useCampaigns } from "@/hooks/use-campaigns";
+import { useCampaignsList } from "@/hooks/use-campaigns";
 import { useMetaConnectionRefresh } from "@/hooks/use-meta-connection-refresh";
 import { calculateChannelBreakdown, CampaignForBreakdown } from "@/lib/utils/campaign-metrics";
 import { useState } from "react";
@@ -75,13 +75,14 @@ export function UnifiedDashboard({
   useMetaConnectionRefresh({ activeOrgId, selectedPlatform });
 
   // Live-fetch campaigns from DB; fall back to server-rendered initial list
-  const { data: liveCampaigns } = useCampaigns();
+  const { data: liveCampaigns } = useCampaignsList();
   const allCampaigns = liveCampaigns ?? campaigns;
 
   // Apply all GlobalContextBar filters to the campaign list
   const displayCampaigns = allCampaigns.filter((c) => {
-    if (selectedPlatform && selectedPlatform !== "all" && c.platform !== selectedPlatform) return false;
-    if (selectedAccountId && c.ad_account_id !== selectedAccountId) return false;
+    if (selectedPlatform && selectedPlatform !== "all" && c.platform && c.platform !== selectedPlatform) return false;
+    if (selectedAccountId && c.ad_account_id && c.ad_account_id !== selectedAccountId) return false;
+    if (selectedAccountId && !c.ad_account_id && c.status !== "draft") return false;
     if (!selectedCampaignIds.includes("all") && !selectedCampaignIds.includes(c.id)) return false;
     if (status !== "all" && c.status !== status) return false;
     return true;
@@ -133,12 +134,12 @@ export function UnifiedDashboard({
       />
 
       {/* Main Content */}
-      <main className="flex-1 p-2 md:p-4 lg:p-6 overflow-y-auto">
-        <div className="mx-auto space-y-8">
+      <main className="flex-1 p-2 md:p-4 lg:p-6 overflow-y-auto no-scrollbar">
+        <div className="mx-auto max-w-7xl space-y-8">
           {/* Metrics Grid */}
           {isLoadingInsights && !liveData ? (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-              {[...Array(5)].map((_, i) => (
+            <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+              {[...Array(6)].map((_, i) => (
                 <Skeleton key={i} className="h-24 w-full rounded-lg" />
               ))}
             </div>
@@ -177,27 +178,24 @@ export function UnifiedDashboard({
             />
           </div>
 
-          {/* Revenue Breakdown & Demographics Grid */}
-          <div className="grid gap-8 lg:grid-cols-3">
-            <div className="lg:col-span-1 h-full">
-              <RevenueChannelBreakdown
-                whatsappRevenue={revenueBreakdown.whatsappRevenue}
-                websiteRevenue={revenueBreakdown.websiteRevenue}
-                whatsappSales={revenueBreakdown.whatsappSales}
-                websiteSales={revenueBreakdown.websiteSales}
-              />
-            </div>
-            <div className="lg:col-span-2">
-              <DemographicsCharts
-                demographics={
-                  dashboardData?.demographics ?? {
-                    age: [],
-                    gender: [],
-                    region: [],
-                  }
+          {/* Analytics Grid: Revenue + Demographics */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <RevenueChannelBreakdown
+              whatsappRevenue={revenueBreakdown.whatsappRevenue}
+              websiteRevenue={revenueBreakdown.websiteRevenue}
+              whatsappSales={revenueBreakdown.whatsappSales}
+              websiteSales={revenueBreakdown.websiteSales}
+            />
+  
+            <DemographicsCharts
+              demographics={
+                dashboardData?.demographics ?? {
+                  age: [],
+                  gender: [],
+                  region: [],
                 }
-              />
-            </div>
+              }
+            />
           </div>
         </div>
       </main>

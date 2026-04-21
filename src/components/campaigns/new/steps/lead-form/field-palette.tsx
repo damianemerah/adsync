@@ -48,7 +48,7 @@ export function FieldPalette({ fields, onAdd }: FieldPaletteProps) {
             </span>
           </div>
         </div>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-subtle-foreground">
           These fields are automatically filled from the user's Meta profile,
           making it faster for them to submit the form.
         </p>

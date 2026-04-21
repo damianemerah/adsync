@@ -36,20 +36,20 @@ export function LeadFormPreviewPanel({
 
       {/* Phone Frame */}
       <div className="flex-1 flex items-start justify-center overflow-hidden">
-        <div className="w-full max-w-[220px] rounded-[28px] border-2 border-border bg-background shadow-md overflow-hidden flex flex-col">
+        <div className="w-full max-w-[220px] rounded-lg border-2 border-border bg-background overflow-hidden flex flex-col">
           {/* Notch */}
           <div className="bg-muted/60 py-2 flex justify-center">
             <div className="w-16 h-1 rounded-full bg-muted-foreground/30" />
           </div>
 
           {/* Form Content */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-3 max-h-[480px]">
-            <p className="text-[11px] font-bold text-foreground">
+          <div className="flex-1 overflow-y-auto p-3 space-y-3 max-h-[480px] no-scrollbar">
+            <p className="text-xs font-bold text-foreground">
               Fill in your info
             </p>
 
             {fields.length === 0 && (
-              <p className="text-[10px] text-muted-foreground italic text-center py-4">
+              <p className="text-xs text-subtle-foreground italic text-center py-4">
                 Add fields to preview your form
               </p>
             )}
@@ -68,12 +68,12 @@ export function LeadFormPreviewPanel({
 
               return (
                 <div key={field.id} className="space-y-0.5">
-                  <p className="text-[10px] font-semibold text-foreground truncate">
+                  <p className="text-xs font-semibold text-foreground truncate">
                     {label}
                   </p>
                   {field.type === "USER_CHOICE" ? (
                     <div className="border border-border rounded-md px-2 py-1.5 bg-muted/40">
-                      <p className="text-[10px] text-muted-foreground truncate">
+                      <p className="text-xs text-subtle-foreground truncate">
                         {(field.choices ?? []).filter(Boolean)[0] ||
                           "Select an option"}
                       </p>
@@ -81,11 +81,11 @@ export function LeadFormPreviewPanel({
                   ) : (
                     <div className="border border-border rounded-md px-2 py-1.5 bg-muted/40">
                       {isStandard ? (
-                        <p className="text-[9px] text-muted-foreground italic">
+                        <p className="text-xs text-subtle-foreground italic">
                           Auto-filled from your profile
                         </p>
                       ) : (
-                        <p className="text-[10px] text-muted-foreground">
+                        <p className="text-xs text-subtle-foreground">
                           &nbsp;
                         </p>
                       )}
@@ -96,11 +96,11 @@ export function LeadFormPreviewPanel({
             })}
 
             {thankYouMessage && (
-              <div className="mt-2 p-2 bg-primary/5 border border-primary/20 rounded-lg">
-                <p className="text-[9px] text-primary font-medium">
+              <div className="mt-2 p-2 bg-primary/5 border border-primary/20 rounded-md">
+                <p className="text-xs text-primary font-medium">
                   After submit:
                 </p>
-                <p className="text-[10px] text-foreground line-clamp-2">
+                <p className="text-xs text-foreground line-clamp-2">
                   {thankYouMessage}
                 </p>
               </div>
@@ -110,7 +110,7 @@ export function LeadFormPreviewPanel({
           {/* Submit Button */}
           <div className="p-3 border-t border-border bg-muted/20">
             <div className="w-full rounded-full bg-primary py-1.5 flex items-center justify-center">
-              <span className="text-[10px] font-bold text-primary-foreground">
+              <span className="text-xs font-bold text-primary-foreground">
                 Submit
               </span>
             </div>

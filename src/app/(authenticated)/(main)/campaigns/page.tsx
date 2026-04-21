@@ -1,6 +1,6 @@
 "use client";
 
-import { useCampaigns } from "@/hooks/use-campaigns";
+import { useCampaignsList, useCampaignMutations } from "@/hooks/use-campaigns";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
@@ -13,14 +13,16 @@ import { Suspense, useState } from "react"; // Added useState
 import { GlobalFilter } from "@/components/layout/global-filter";
 import { useDashboardStore } from "@/store/dashboard-store";
 import { toast } from "sonner";
-import { useAdAccounts } from "@/hooks/use-ad-account";
+import { useAdAccountsList } from "@/hooks/use-ad-account";
 import { useAuth } from "@/components/providers/auth-provider";
 import { DashboardEmptyState } from "@/components/dashboard/empty-state";
+import { GlobalContextBar } from "@/components/layout/global-context-bar";
 
 function CampaignsPageContent() {
   const router = useRouter();
-  const { data: campaigns, isLoading, duplicateCampaign, deleteCampaign, archiveCampaign, renameCampaign } = useCampaigns();
-  const { data: accounts, isLoading: isLoadingAccounts } = useAdAccounts();
+  const { data: campaigns, isLoading } = useCampaignsList();
+  const { duplicateCampaign, deleteCampaign, archiveCampaign, renameCampaign } = useCampaignMutations();
+  const { data: accounts, isLoading: isLoadingAccounts } = useAdAccountsList();
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
@@ -28,21 +30,29 @@ function CampaignsPageContent() {
   const {
     selectedPlatform,
     selectedAccountId,
+    selectedCampaignIds, // Need this from GlobalContextBar
     status,
     searchQuery,
     dateRange,
   } = useDashboardStore();
 
-
   // 3. Filter Campaigns
   const filteredCampaigns = campaigns?.filter((campaign) => {
-    // Platform Filter
-    if (selectedPlatform !== "all" && campaign.platform !== selectedPlatform) {
+    // Platform Filter (safe for drafts without platform)
+    if (selectedPlatform && selectedPlatform !== "all" && campaign.platform && campaign.platform !== selectedPlatform) {
       return false;
     }
 
-    // Account Filter
-    if (selectedAccountId && campaign.ad_account_id !== selectedAccountId) {
+    // Account Filter (safe for drafts without account id)
+    if (selectedAccountId && campaign.ad_account_id && campaign.ad_account_id !== selectedAccountId) {
+      return false;
+    }
+    if (selectedAccountId && !campaign.ad_account_id && campaign.status !== "draft") {
+      return false;
+    }
+    
+    // Dropdown Campaign Filter from GlobalContextBar
+    if (!selectedCampaignIds.includes("all") && !selectedCampaignIds.includes(campaign.id)) {
       return false;
     }
 
@@ -62,15 +72,6 @@ function CampaignsPageContent() {
         campaign.objective?.toLowerCase().includes(query) ||
         campaign.id.includes(query)
       );
-    }
-
-    // Date Range (Optional - usually filtered at API level for metrics, but we can do basic creation time here)
-    if (dateRange?.from && dateRange?.to) {
-      const campaignDate = new Date(campaign.created_at);
-      if (campaignDate < dateRange.from || campaignDate > dateRange.to) {
-        // return false; // NOTE: Typically we show all campaigns regardless of date, but filter METRICS by date.
-        // For now, let's NOT filter campaigns list by date, as users might want to see old campaigns even if range is recent.
-      }
     }
 
     return true;
@@ -131,7 +132,7 @@ function CampaignsPageContent() {
       <div className="flex flex-col bg-muted/30 min-h-screen">
       <PageHeader title="Campaigns" />
 
-        <main className="flex-1 p-8 overflow-y-auto">
+        <main className="flex-1 p-8 overflow-y-auto no-scrollbar">
           <DashboardEmptyState
             userName={userName}
             hasAdAccount={false}
@@ -164,13 +165,15 @@ function CampaignsPageContent() {
         </Link>
       </PageHeader>
 
+      <GlobalContextBar />
+
       {/* 4. Filter Toolbar */}
       <div className="border-b border-border bg-white px-6 py-4 lg:px-8">
         <GlobalFilter />
       </div>
 
       {/* 4. The Main List (Reusing your View Component) */}
-      <main className="flex-1 overflow-y-auto p-6 lg:p-8">
+      <main className="flex-1 overflow-y-auto p-6 lg:p-8 no-scrollbar">
         <div className="mx-auto max-w-[1600px]">
           <CampaignsView
             campaigns={filteredCampaigns || []}

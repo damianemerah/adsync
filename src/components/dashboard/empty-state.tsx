@@ -35,7 +35,7 @@ export function DashboardEmptyState({
           >
             <Rocket className="h-6 w-6" />
           </EmptyMedia>
-          <EmptyTitle className="text-2xl sm:text-3xl font-heading font-bold text-foreground">
+          <EmptyTitle className="text-2xl sm:text-3xl font-heading text-foreground">
             Welcome to Tenzu, {userName}!
           </EmptyTitle>
           <EmptyDescription className="max-w-lg mx-auto text-sm sm:text-base mt-2">

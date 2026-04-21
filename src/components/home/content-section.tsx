@@ -38,7 +38,7 @@ export function ContentSection() {
           <h2 className="text-sm font-bold tracking-widest text-primary uppercase mb-3">
             How It Works
           </h2>
-          <h3 className="text-4xl md:text-5xl font-heading font-bold text-foreground">
+          <h3 className="text-4xl md:text-5xl font-heading text-foreground">
             From Zero to Running Ad in 2 Minutes
           </h3>
           <p className="mt-4 text-lg text-subtle-foreground">

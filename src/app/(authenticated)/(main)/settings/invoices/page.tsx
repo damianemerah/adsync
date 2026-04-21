@@ -75,7 +75,7 @@ export default function InvoicesPage() {
       key: "reference",
       title: "Reference",
       render: (row) => (
-        <span className="text-xs text-muted-foreground font-mono truncate max-w-[120px] block">
+        <span className="text-xs text-subtle-foreground font-mono truncate max-w-[120px] block">
           {row.reference || "—"}
         </span>
       ),

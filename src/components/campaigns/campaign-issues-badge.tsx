@@ -63,12 +63,12 @@ export function CampaignIssuesBadge({
         <div key={idx} className="text-xs">
           <div className="font-semibold">{issue.error_summary}</div>
           {issue.error_code && (
-            <div className="text-muted-foreground">Code: {issue.error_code}</div>
+            <div className="text-subtle-foreground">Code: {issue.error_code}</div>
           )}
         </div>
       ))}
       {issues.length > 3 && (
-        <div className="text-xs text-muted-foreground">
+        <div className="text-xs text-subtle-foreground">
           +{issues.length - 3} more issue{issues.length - 3 > 1 ? "s" : ""}
         </div>
       )}

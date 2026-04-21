@@ -298,7 +298,7 @@ export function ReferenceImageControls({
                   </div>
                 ))}
               </div>
-              <p className="text-sm text-muted-foreground mt-4">
+              <p className="text-sm text-subtle-foreground mt-4">
                 The first image is treated as the primary subject reference.
               </p>
             </div>

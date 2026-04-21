@@ -2,7 +2,7 @@
 
 import { useCampaignStore } from "@/stores/campaign-store";
 import { useOrganization } from "@/hooks/use-organization";
-import { useCreatives } from "@/hooks/use-creatives";
+import { useCreativesList } from "@/hooks/use-creatives";
 import { PhoneMockup } from "./phone-mockup";
 import { Badge } from "@/components/ui/badge";
 import { Phone, OpenNewWindow, Sparks, MapPin } from "iconoir-react";
@@ -30,7 +30,7 @@ export function PhoneMockupPanel({ compact = false }: PhoneMockupPanelProps) {
   const { organization } = useOrganization();
   const brandName = organization?.name ?? undefined;
 
-  const { creatives } = useCreatives();
+  const { data: creatives } = useCreativesList();
 
   const resolvedCreatives = selectedCreatives.map((url) => {
     const matched = creatives?.find((c) => c.original_url === url);

@@ -86,7 +86,7 @@ export function StudioSidebar({
       )}
 
       {/* Prompt section */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
+      <div className="flex-1 overflow-y-auto p-4 space-y-6 no-scrollbar">
         <div className="space-y-3">
           <h3 className="text-xs font-bold uppercase tracking-wider text-subtle-foreground">
             Refine this image

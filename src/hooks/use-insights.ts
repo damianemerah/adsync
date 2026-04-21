@@ -51,7 +51,9 @@ export function useInsights(filter?: InsightsFilter) {
 
       const res = await fetch(`/api/insights?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to fetch insights");
-      return res.json() as Promise<DashboardInsightsData>;
+      const data = await res.json();
+      console.log("📈 [useInsights] Data received from API:", data);
+      return data as DashboardInsightsData;
     },
     // Refresh every 5 minutes to avoid spamming Meta API
     staleTime: 5 * 60 * 1000,

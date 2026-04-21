@@ -21,7 +21,7 @@ export default function SignupPage() {
       <div className="flex flex-col justify-center px-8 sm:px-12 lg:px-20 xl:px-24 bg-background">
         <div className="w-full max-w-sm mx-auto space-y-8">
           <div className="space-y-2.5">
-            <h1 className="text-3xl font-heading font-bold text-foreground tracking-tight">
+            <h1 className="text-3xl font-heading text-foreground tracking-tight">
               Create your account
             </h1>
             <p className="text-base text-subtle-foreground">

@@ -170,6 +170,7 @@ serve(async (req) => {
         config.adCopy,
         finalUrl,
         config.objective,
+        config.name,
         config.leadGenFormId
       );
       metaResources.push({ type: "ad", id: metaAd.id });
@@ -203,6 +204,69 @@ serve(async (req) => {
       }
 
       console.log(`[Worker] ✅ Campaign ${campaignId} saved to database`);
+
+      // ── PERSIST AD SET ROW ──────────────────────────────────────────────
+      // CRITICAL: syncCampaignAds requires an ad_set_id (NOT NULL).
+      // The launch worker previously only created the ad set on Meta but never
+      // wrote the row to our DB, causing all subsequent ad upserts to fail.
+      const { error: adSetErr } = await supabase
+        .from("ad_sets")
+        .upsert(
+          {
+            campaign_id: campaignId,
+            platform_adset_id: metaAdSet.id,
+            name: `${config.name} - Ad Set`,
+            status: "paused", // Mirrors Meta: created as PAUSED
+            targeting_snapshot: {
+              locations: config.targetLocations || [],
+              interests: config.targetInterests || [],
+              ageRange: config.targetAgeRange || {},
+              gender: config.targetGender || "all",
+            },
+            bid_amount_cents: config.budget ? config.budget * 100 : 0,
+          },
+          { onConflict: "platform_adset_id" }
+        );
+
+      if (adSetErr) {
+        // Non-fatal: campaign is launched, just log the warning
+        console.warn("[Worker] ⚠️ Failed to persist ad_set row:", adSetErr.message);
+      } else {
+        console.log(`[Worker] ✅ Ad set ${metaAdSet.id} persisted to DB`);
+      }
+
+      // ── PERSIST AD ROW ─────────────────────────────────────────────────
+      // Also store the ad row immediately after creation.
+      const { data: adSetRow } = await supabase
+        .from("ad_sets")
+        .select("id")
+        .eq("platform_adset_id", metaAdSet.id)
+        .single();
+
+      if (adSetRow) {
+        const { error: adErr } = await supabase
+          .from("ads")
+          .upsert(
+            {
+              campaign_id: campaignId,
+              ad_set_id: adSetRow.id,
+              platform_ad_id: metaAd.id,
+              name: metaAd.name,
+              status: "paused", // Mirrors Meta
+              creative_snapshot: {
+                image_url: config.creatives?.[0] ?? null,
+                thumbnail_url: config.creatives?.[0] ?? null,
+              },
+            },
+            { onConflict: "platform_ad_id" }
+          );
+
+        if (adErr) {
+          console.warn("[Worker] ⚠️ Failed to persist ad row:", adErr.message);
+        } else {
+          console.log(`[Worker] ✅ Ad ${metaAd.id} persisted to DB`);
+        }
+      }
 
       // ── STEP 7: SEND SUCCESS NOTIFICATION ───────────────────────────────
       // In-app insert is synchronous; external delivery (email/WhatsApp) is queued.
@@ -561,6 +625,7 @@ async function createMetaAd(
   adCopy: any,
   destinationUrl: string,
   objective: string,
+  campaignName: string,
   leadGenFormId?: string
 ) {
   const id = adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
@@ -599,7 +664,7 @@ async function createMetaAd(
 
   // Create creative
   const creativeRes = await metaRequest(`/${id}/adcreatives`, "POST", token, {
-    name: "AdSync Creative",
+    name: `${campaignName} - Creative`,
     object_story_spec: {
       page_id: pageId,
       link_data: linkData,
@@ -608,7 +673,7 @@ async function createMetaAd(
 
   // Create ad
   return metaRequest(`/${id}/ads`, "POST", token, {
-    name: "AdSync Ad 1",
+    name: `${campaignName} - Ad`,
     adset_id: adSetId,
     creative: { creative_id: creativeRes.id },
     status: "PAUSED",

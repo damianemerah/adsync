@@ -95,7 +95,7 @@ export function AsyncTagInput({
         {open && (
           <div className="absolute top-full left-0 right-0 z-50 mt-1">
             {loading ? (
-              <div className="bg-popover text-xs p-2 border border-border rounded-lg shadow-sm text-center text-muted-foreground">
+              <div className="bg-popover text-xs p-2 border border-border rounded-lg shadow-sm text-center text-subtle-foreground">
                 Searching...
               </div>
             ) : results.length > 0 ? (
@@ -114,7 +114,7 @@ export function AsyncTagInput({
                       {searchType === "location" ? (
                         <div className="flex flex-col">
                           <span>{item.name}</span>
-                          <span className="text-[10px] text-muted-foreground capitalize">
+                          <span className="text-xs text-subtle-foreground capitalize">
                             {item.type} • {item.country_name}
                           </span>
                         </div>

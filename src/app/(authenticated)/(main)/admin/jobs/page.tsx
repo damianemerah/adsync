@@ -114,7 +114,7 @@ export default function AdminJobsPage() {
     <div className="space-y-6 p-6">
       <div>
         <h1 className="text-3xl font-bold">Job Queue Health</h1>
-        <p className="text-muted-foreground mt-1">
+        <p className="text-subtle-foreground mt-1">
           Monitor background job performance and failures
         </p>
       </div>
@@ -142,7 +142,7 @@ export default function AdminJobsPage() {
                   <div className="text-2xl font-bold">
                     {stats.success}/{stats.total}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-xs text-subtle-foreground mt-1">
                     Avg: {stats.avgDuration}ms
                   </p>
                   <Badge
@@ -237,7 +237,7 @@ export default function AdminJobsPage() {
                         {job.attempts} attempts
                       </Badge>
                     </div>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-subtle-foreground">
                       {formatDistanceToNow(
                         new Date(job.created_at || Date.now()),
                         {
@@ -250,7 +250,7 @@ export default function AdminJobsPage() {
                     {job.error_message}
                   </p>
                   {(job.payload as any)?.campaignId && (
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <p className="text-xs text-subtle-foreground mt-1">
                       Campaign: {(job.payload as any).campaignId}
                     </p>
                   )}
@@ -258,7 +258,7 @@ export default function AdminJobsPage() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-8 text-muted-foreground">
+            <div className="text-center py-8 text-subtle-foreground">
               <p>No failed jobs in the last 24 hours</p>
               <p className="text-sm mt-1">Your queue is healthy! 🎉</p>
             </div>

@@ -14,7 +14,7 @@ export function CTASection() {
 
       <div className="container px-6 relative z-10 text-center">
         <div className="max-w-3xl mx-auto space-y-8">
-          <h2 className="text-4xl md:text-6xl font-heading font-bold tracking-tight">
+          <h2 className="text-4xl md:text-6xl font-heading tracking-tight">
             Start your <span className="text-primary">7-Day Free Trial</span>
           </h2>
           <p className="text-xl text-subtle-foreground max-w-2xl mx-auto leading-relaxed">

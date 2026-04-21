@@ -109,7 +109,7 @@ export function PaymentDialog({
               <span className="font-bold text-lg">{planName} Plan</span>
               <span className="text-2xl font-black">
                 {formatCurrency(price)}
-                <span className="text-sm font-normal text-muted-foreground">
+                <span className="text-sm font-normal text-subtle-foreground">
                   /mo
                 </span>
               </span>
@@ -139,7 +139,7 @@ export function PaymentDialog({
             )}
           </Button>
 
-          <p className="text-xs text-center text-muted-foreground">
+          <p className="text-xs text-center text-subtle-foreground">
             Secured by Paystack. Cancel anytime.
           </p>
         </div>

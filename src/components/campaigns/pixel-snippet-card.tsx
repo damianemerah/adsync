@@ -66,7 +66,7 @@ export function PixelSnippetCard({ pixelToken }: PixelSnippetCardProps) {
       <CardContent className="pt-0">
         <p className="text-xs text-slate-500 mb-3">
           Paste this snippet once in your website&apos;s{" "}
-          <code className="px-1 py-0.5 bg-slate-100 rounded text-[11px]">
+          <code className="px-1 py-0.5 bg-slate-100 rounded text-xs">
             &lt;head&gt;
           </code>{" "}
           to track page views and purchases automatically.

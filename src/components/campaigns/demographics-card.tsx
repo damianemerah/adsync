@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserPlus, UserCircle, User } from "iconoir-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   BarChart,
   Bar,
@@ -37,17 +38,11 @@ export function DemographicsCard({ demographics }: DemographicsCardProps) {
     (!demographics.age?.length && !demographics.gender?.length)
   ) {
     return (
-      <Card className="border-slate-200 shadow-sm overflow-hidden bg-white mt-4">
-        <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50">
-          <CardTitle className="text-sm font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
-            <User className="h-4 w-4 text-primary" /> Demographics
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-6 flex justify-center items-center h-[200px] text-slate-500 flex-col gap-2">
-          <UserCircle className="h-8 w-8 text-slate-300" />
-          <p className="text-sm">Not enough demographic data available yet.</p>
-        </CardContent>
-      </Card>
+      <EmptyState
+        icon={<UserCircle className="h-6 w-6" />}
+        title="No demographic data yet"
+        description="Audience breakdown by age and gender will appear here as your ad starts delivering."
+      />
     );
   }
 

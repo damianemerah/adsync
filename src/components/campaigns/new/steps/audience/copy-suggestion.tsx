@@ -51,7 +51,7 @@ function EditableField({
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between">
-        <div className="text-[10px] font-bold text-subtle-foreground uppercase tracking-wider">
+        <div className="text-xs font-bold text-subtle-foreground uppercase tracking-wider">
           {label}
         </div>
         {!editing && (
@@ -60,7 +60,7 @@ function EditableField({
               setDraft(value);
               setEditing(true);
             }}
-            className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors"
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
           >
             <EditPencil className="h-3 w-3" /> Edit
           </button>
@@ -193,7 +193,7 @@ export function CopySuggestion({
         {/* Selection indicator */}
         <div className="flex items-center justify-between pt-1">
           {isSelected ? (
-            <span className="flex items-center gap-1.5 text-[11px] font-bold text-primary">
+            <span className="flex items-center gap-1.5 text-xs font-bold text-primary">
               <Check className="h-3 w-3" /> Using this copy
             </span>
           ) : (

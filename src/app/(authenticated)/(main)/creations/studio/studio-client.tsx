@@ -376,7 +376,7 @@ export function StudioClient({
                   <p className="font-bold text-foreground">
                     URL-to-Ad is coming soon
                   </p>
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <p className="text-sm text-subtle-foreground mt-1">
                     Paste your website URL and we'll automatically extract your
                     brand, products, and generate a ready-to-launch ad creative.
                   </p>

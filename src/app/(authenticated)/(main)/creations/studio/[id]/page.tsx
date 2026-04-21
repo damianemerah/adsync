@@ -1,3 +1,5 @@
+"use client";
+
 import { use } from "react";
 import { GenerationView } from "@/components/creatives/studio/generation-view";
 import { Sparks } from "iconoir-react";

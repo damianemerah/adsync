@@ -10,7 +10,7 @@ import { AuthProvider } from "@/components/providers/auth-provider";
 import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
-  title: "AdSync - AI-Powered Social Ad Manager for Meta & TikTok",
+  title: "Tenzu - AI-Powered Social Ad Manager for Meta & TikTok",
   description:
     "Run Meta & TikTok ads without the complexity. AI handles targeting and copywriting. Get WhatsApp alerts when your ads need attention.",
   generator: "v0.app",
@@ -42,7 +42,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="font-sans antialiased">
         <QueryProvider>
-          <ThemeProvider defaultTheme="system" storageKey="adsync-theme">
+          <ThemeProvider defaultTheme="system" storageKey="tenzu-theme">
             <AuthProvider>{children}</AuthProvider>
           </ThemeProvider>
           <Analytics />

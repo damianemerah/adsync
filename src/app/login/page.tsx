@@ -21,7 +21,7 @@ export default function LoginPage() {
           </div>
 
           <div className="space-y-2.5">
-            <h1 className="text-3xl font-heading font-bold text-foreground tracking-tight">
+            <h1 className="text-3xl font-heading text-foreground tracking-tight">
               Welcome back
             </h1>
             <p className="text-base text-subtle-foreground">

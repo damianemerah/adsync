@@ -92,7 +92,7 @@ export function CompactAccountCard({
               <Star className="h-3 w-3 text-yellow-500 fill-yellow-500 shrink-0" />
             )}
           </div>
-          <p className="text-xs text-muted-foreground truncate">
+          <p className="text-xs text-subtle-foreground truncate">
             {account.accountId} •{" "}
             {isMeta ? "Meta" : "TikTok"}
           </p>

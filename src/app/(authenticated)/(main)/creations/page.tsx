@@ -51,7 +51,7 @@ export default function CreationsHubPage() {
       <PageHeader title="AI Ad Creator" showCredits className="z-30" />
 
       {/* MAIN CONTENT */}
-      <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+      <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 no-scrollbar">
         <div className="container max-w-6xl mx-auto space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {modes.map((mode) => (
@@ -88,7 +88,7 @@ export default function CreationsHubPage() {
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
+                    <p className="text-sm text-subtle-foreground leading-relaxed">
                       {mode.description}
                     </p>
                   </div>

@@ -45,6 +45,12 @@ export async function GET(request: Request) {
       dateTo,
     });
 
+    console.log("📊 [API/Insights] Data returned from getDashboardData:", {
+      hasData: !!data,
+      performanceLength: data?.performance?.length,
+      summarySpend: data?.summary?.spend,
+    });
+
     if (!data) {
       return NextResponse.json({
         summary: {

@@ -122,7 +122,7 @@ export function MetaAccountSelectSheet({
                       <p className="font-medium text-sm truncate">
                         {account.name}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
+                      <p className="text-xs text-subtle-foreground mt-0.5">
                         ID: {account.account_id}
                       </p>
                     </div>

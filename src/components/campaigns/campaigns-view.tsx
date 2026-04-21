@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { motion } from "motion/react";
 import { Badge } from "@/components/ui/badge";
 import {
   Facebook,
@@ -170,8 +171,8 @@ export function CampaignsView({
 
       const trendColor =
         campaign.status === "active"
-          ? "#10b981" // emerald-500
-          : "#94a3b8"; // slate-400
+          ? "var(--primary)"
+          : "var(--muted-foreground)";
 
       // Resolve created_at timestamp for sorting
       const createdAtMs = campaign.createdAt
@@ -245,25 +246,25 @@ export function CampaignsView({
     {
       key: "name",
       title: "Name",
-      className: "font-semibold text-slate-900 pl-6",
+      className: "font-semibold text-foreground pl-6",
       headerClassName: "pl-6",
       render: (campaign) => (
         <div className="flex items-center gap-3">
           <div
             className={`h-2.5 w-2.5 rounded-full shrink-0 ${
               campaign.status === "active"
-                ? "bg-emerald-500 animate-pulse"
-                : "bg-slate-300"
+                ? "bg-primary animate-pulse"
+                : "bg-muted-foreground/40"
             }`}
           />
           {campaign.platform === "meta" && (
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100/50 text-blue-600 border border-blue-100">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-chart-1-soft text-chart-1 border border-chart-1/15">
               <Facebook className="h-4 w-4" />
             </div>
           )}
           {campaign.platform === "tiktok" && (
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-black text-white border border-slate-800">
-              <span className="font-bold text-[10px]">Tk</span>
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-tiktok text-brand-tiktok-foreground">
+              <span className="font-bold text-xs">Tk</span>
             </div>
           )}
           <span>{campaign.name}</span>
@@ -274,20 +275,21 @@ export function CampaignsView({
       key: "status",
       title: "Status",
       render: (campaign) => {
-        const statusStyles: Record<string, string> = {
-          active: "bg-emerald-100 text-emerald-700 hover:bg-emerald-200",
-          paused: "bg-amber-100 text-amber-700 hover:bg-amber-200",
-          draft: "bg-slate-100 text-slate-600 hover:bg-slate-200",
-          completed: "bg-blue-100 text-blue-700 hover:bg-blue-200",
-          failed: "bg-red-100 text-red-700 hover:bg-red-200",
+        const statusVariant: Record<
+          string,
+          "success-soft" | "warning-soft" | "danger-soft" | "info-soft" | "secondary"
+        > = {
+          active: "success-soft",
+          paused: "warning-soft",
+          draft: "secondary",
+          completed: "info-soft",
+          failed: "danger-soft",
         };
         return (
           <div className="flex items-center gap-2">
             <Badge
-              variant="secondary"
-              className={`rounded-full px-3 py-1 font-semibold border-0 capitalize ${
-                statusStyles[campaign.status] ?? statusStyles.draft
-              }`}
+              variant={statusVariant[campaign.status] ?? "secondary"}
+              className="rounded-sm px-3 py-1 font-semibold capitalize"
             >
               {campaign.status}
             </Badge>
@@ -304,13 +306,13 @@ export function CampaignsView({
     {
       key: "amountSpent",
       title: "Spend",
-      className: "font-mono font-medium text-slate-700",
+      className: "font-mono font-medium text-foreground",
       render: (campaign) => campaign.spendFormatted,
     },
     {
       key: "revenue",
       title: "Revenue",
-      className: "font-mono font-bold text-emerald-700",
+      className: "font-mono font-bold text-status-success",
       render: (campaign) => campaign.revenueFormatted,
     },
     {
@@ -321,10 +323,10 @@ export function CampaignsView({
         <span
           className={`px-2 py-1 rounded-md text-xs font-bold ${
             campaign.roasVal >= 1.5
-              ? "bg-emerald-100 text-emerald-700"
+              ? "bg-status-success-soft text-status-success"
               : campaign.roasVal >= 1.0
-                ? "bg-amber-100 text-amber-700"
-                : "bg-red-100 text-red-700"
+                ? "bg-status-warning-soft text-status-warning"
+                : "bg-status-danger-soft text-status-danger"
           }`}
         >
           {campaign.roasFormatted}
@@ -334,13 +336,13 @@ export function CampaignsView({
     {
       key: "sales",
       title: "Sales",
-      className: "font-mono font-medium text-slate-700",
+      className: "font-mono font-medium text-foreground",
       render: (campaign) => campaign.salesVal,
     },
     {
       key: "impressions",
       title: "Impressions",
-      className: "font-mono font-medium text-slate-700",
+      className: "font-mono font-medium text-foreground",
       render: (campaign) => campaign.impressionsDisplay,
     },
     {
@@ -349,7 +351,7 @@ export function CampaignsView({
       className: "w-[160px]",
       render: (campaign) => (
         <div className="flex items-center gap-2">
-          <span className="font-mono font-medium text-slate-700">
+          <span className="font-mono font-medium text-foreground">
             {campaign.ctrDisplay}
           </span>
           {campaign.trendData.length > 1 && (
@@ -366,7 +368,7 @@ export function CampaignsView({
     {
       key: "clicks",
       title: "Clicks",
-      className: "font-mono font-medium text-slate-700",
+      className: "font-mono font-medium text-foreground",
       render: (campaign) => campaign.clicksDisplay,
     },
     {
@@ -377,7 +379,7 @@ export function CampaignsView({
         <div onClick={(e) => e.stopPropagation()}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="p-1 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors">
+              <button className="p-1 rounded-full hover:bg-muted text-subtle-foreground hover:text-foreground transition-colors">
                 <MoreVert className="h-5 w-5" />
               </button>
             </DropdownMenuTrigger>
@@ -428,7 +430,7 @@ export function CampaignsView({
                     setArchiveTarget({ id: campaign.id, name: campaign.name });
                     setArchiveDialogOpen(true);
                   }}
-                  className="cursor-pointer text-amber-600 focus:text-amber-700"
+                  className="cursor-pointer text-status-warning focus:text-status-warning"
                 >
                   <Archive className="h-4 w-4 mr-2" /> Archive
                 </DropdownMenuItem>
@@ -493,7 +495,7 @@ export function CampaignsView({
           </Select>
 
           {/* Row count */}
-          <span className="text-xs text-muted-foreground ml-auto hidden sm:block">
+          <span className="text-xs text-subtle-foreground ml-auto hidden sm:block">
             {filteredCampaigns.length} of {displayCampaigns.length} campaign
             {displayCampaigns.length !== 1 ? "s" : ""}
           </span>
@@ -502,12 +504,256 @@ export function CampaignsView({
 
       {/* Row count when controlled (no inner filter bar) */}
       {isControlled && filteredCampaigns.length !== displayCampaigns.length && (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-subtle-foreground">
           Showing {filteredCampaigns.length} of {displayCampaigns.length} campaign
           {displayCampaigns.length !== 1 ? "s" : ""}
         </p>
       )}
 
+      {/* Mobile: card list (below md) */}
+      <motion.div
+        className="md:hidden space-y-3"
+        initial="hidden"
+        animate="show"
+        variants={{
+          hidden: {},
+          show: { transition: { staggerChildren: 0.04 } },
+        }}
+      >
+        {filteredCampaigns.length === 0 ? (
+          searchTerm || statusFilter !== "all" ? (
+            <Empty className="py-10 border border-dashed border-border rounded-lg">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <Search className="h-6 w-6" />
+                </EmptyMedia>
+                <EmptyTitle>No matching campaigns</EmptyTitle>
+                <EmptyDescription>
+                  Adjust your search filters to see more results.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          ) : (
+            <Empty className="py-10 border border-dashed border-border rounded-lg">
+              <EmptyHeader>
+                <EmptyMedia
+                  variant="icon"
+                  className="bg-primary/10 text-primary"
+                >
+                  <Rocket className="h-6 w-6" />
+                </EmptyMedia>
+                <EmptyTitle>No campaigns yet</EmptyTitle>
+                <EmptyDescription>
+                  Create your first AI-optimized campaign to start generating
+                  sales.
+                </EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
+                <Link href="/campaigns/new">
+                  <Button className="rounded-md bg-primary text-primary-foreground font-semibold">
+                    Create your first ad
+                  </Button>
+                </Link>
+              </EmptyContent>
+            </Empty>
+          )
+        ) : (
+          filteredCampaigns.map((campaign) => {
+            const statusVariant: Record<
+              string,
+              | "success-soft"
+              | "warning-soft"
+              | "danger-soft"
+              | "info-soft"
+              | "secondary"
+            > = {
+              active: "success-soft",
+              paused: "warning-soft",
+              draft: "secondary",
+              completed: "info-soft",
+              failed: "danger-soft",
+            };
+            return (
+              <motion.button
+                key={campaign.id}
+                type="button"
+                onClick={() => onRowClick?.(campaign.id)}
+                variants={{
+                  hidden: { opacity: 0, y: 8 },
+                  show: { opacity: 1, y: 0, transition: { duration: 0.2 } },
+                }}
+                whileTap={{ scale: 0.98 }}
+                className="w-full text-left rounded-lg border border-border bg-card p-4 flex flex-col gap-3 hover:border-primary/40 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  {campaign.platform === "meta" && (
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-chart-1-soft text-chart-1 border border-chart-1/15">
+                      <Facebook className="h-4 w-4" />
+                    </div>
+                  )}
+                  {campaign.platform === "tiktok" && (
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-tiktok text-brand-tiktok-foreground">
+                      <span className="font-bold text-xs">Tk</span>
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-foreground truncate">
+                      {campaign.name}
+                    </p>
+                    <p className="text-xs text-subtle-foreground">
+                      {campaign.createdAtStr}
+                    </p>
+                  </div>
+                  <Badge
+                    variant={statusVariant[campaign.status] ?? "secondary"}
+                    className="rounded-sm px-2 py-0.5 font-semibold capitalize shrink-0"
+                  >
+                    {campaign.status}
+                  </Badge>
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="p-1 rounded-full hover:bg-muted text-subtle-foreground hover:text-foreground transition-colors">
+                          <MoreVert className="h-5 w-5" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-52">
+                        {campaign.status === "draft" ? (
+                          <DropdownMenuItem
+                            onClick={() =>
+                              (window.location.href = `/campaigns/new?draftId=${campaign.id}`)
+                            }
+                            className="cursor-pointer font-medium"
+                          >
+                            <Edit className="h-4 w-4 mr-2" /> Resume Draft
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem asChild className="cursor-pointer">
+                            <Link href={`/campaigns/${campaign.id}`}>
+                              <Eye className="h-4 w-4 mr-2" /> View Details
+                            </Link>
+                          </DropdownMenuItem>
+                        )}
+                        {onDuplicate && (
+                          <DropdownMenuItem
+                            onClick={() => onDuplicate(campaign.id)}
+                            className="cursor-pointer"
+                          >
+                            <Copy className="h-4 w-4 mr-2" /> Duplicate
+                          </DropdownMenuItem>
+                        )}
+                        {onRename && (
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setRenameTarget({
+                                id: campaign.id,
+                                name: campaign.name,
+                              });
+                              setRenameValue(campaign.name);
+                              setRenameDialogOpen(true);
+                            }}
+                            className="cursor-pointer"
+                          >
+                            <EditPencil className="h-4 w-4 mr-2" /> Rename
+                          </DropdownMenuItem>
+                        )}
+                        {(onArchive || onDelete) && <DropdownMenuSeparator />}
+                        {onArchive && (
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setArchiveTarget({
+                                id: campaign.id,
+                                name: campaign.name,
+                              });
+                              setArchiveDialogOpen(true);
+                            }}
+                            className="cursor-pointer text-status-warning focus:text-status-warning"
+                          >
+                            <Archive className="h-4 w-4 mr-2" /> Archive
+                          </DropdownMenuItem>
+                        )}
+                        {onDelete && (
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setDeleteTarget({
+                                id: campaign.id,
+                                name: campaign.name,
+                              });
+                              setDeleteDialogOpen(true);
+                            }}
+                            className="cursor-pointer text-destructive focus:text-destructive"
+                          >
+                            <Trash className="h-4 w-4 mr-2" /> Delete
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3 text-sm">
+                  <div>
+                    <p className="text-xs uppercase tracking-wider font-semibold text-subtle-foreground">
+                      Spend
+                    </p>
+                    <p className="font-mono font-semibold text-foreground">
+                      {campaign.spendFormatted}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-wider font-semibold text-subtle-foreground">
+                      Revenue
+                    </p>
+                    <p className="font-mono font-bold text-status-success">
+                      {campaign.revenueFormatted}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-wider font-semibold text-subtle-foreground">
+                      ROAS
+                    </p>
+                    <span
+                      className={`inline-block px-2 py-0.5 rounded-md text-xs font-bold ${
+                        campaign.roasVal >= 1.5
+                          ? "bg-status-success-soft text-status-success"
+                          : campaign.roasVal >= 1.0
+                            ? "bg-status-warning-soft text-status-warning"
+                            : "bg-status-danger-soft text-status-danger"
+                      }`}
+                    >
+                      {campaign.roasFormatted}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-subtle-foreground border-t border-border pt-3">
+                  <span>
+                    CTR{" "}
+                    <span className="font-mono font-semibold text-foreground">
+                      {campaign.ctrDisplay}
+                    </span>
+                  </span>
+                  <span>
+                    Clicks{" "}
+                    <span className="font-mono font-semibold text-foreground">
+                      {campaign.clicksDisplay}
+                    </span>
+                  </span>
+                  <span>
+                    Sales{" "}
+                    <span className="font-mono font-semibold text-foreground">
+                      {campaign.salesVal}
+                    </span>
+                  </span>
+                </div>
+              </motion.button>
+            );
+          })
+        )}
+      </motion.div>
+
+      {/* Desktop: data table (md+) */}
+      <div className="hidden md:block">
       <DataTable
         columns={columns}
         data={filteredCampaigns}
@@ -543,8 +789,8 @@ export function CampaignsView({
               </EmptyHeader>
               <EmptyContent>
                 <Link href="/campaigns/new">
-                  <Button className="rounded-full bg-primary text-primary-foreground font-semibold">
-                    Start Campaign
+                  <Button className="rounded-md bg-primary text-primary-foreground font-semibold">
+                    Create your first ad
                   </Button>
                 </Link>
               </EmptyContent>
@@ -552,6 +798,7 @@ export function CampaignsView({
           )
         }
       />
+      </div>
 
       {/* ── Rename Dialog ── */}
       <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
@@ -575,7 +822,7 @@ export function CampaignsView({
               autoFocus
               maxLength={150}
             />
-            <p className="text-xs text-muted-foreground mt-1.5">
+            <p className="text-xs text-subtle-foreground mt-1.5">
               {renameValue.length}/150 characters
             </p>
           </div>
@@ -612,7 +859,7 @@ export function CampaignsView({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-amber-500 hover:bg-amber-600 text-white"
+              className="bg-status-warning hover:bg-status-warning/90 text-status-warning-foreground"
               onClick={() => {
                 if (archiveTarget) {
                   onArchive?.(archiveTarget.id);

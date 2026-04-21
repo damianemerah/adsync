@@ -92,7 +92,7 @@ export function MarkAsSoldButton({
               Sale Amount (₦)
             </Label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-subtle-foreground font-medium">
                 ₦
               </span>
               <Input

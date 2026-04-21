@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { createClient } from "@/lib/supabase/client"; // Ensure path matches your project structure
-import { Database } from "@/types/supabase"; // Assuming you ran the gen types command
+import { createClient } from "@/lib/supabase/client";
+import { Database } from "@/types/supabase";
 import {
   disconnectAdAccount,
   setAsDefaultAccount,
@@ -11,20 +11,18 @@ import { useActiveOrgContext } from "@/components/providers/active-org-provider"
 
 // --- TYPES ---
 
-// 1. Define the shape of your JSONB column
 interface FundingSource {
   brand: string;
   last4: string;
 }
 
-// 2. Define the shape the UI expects (The "Mapped" Type)
 export interface AdAccountUI {
   id: string;
-  platform: "meta" | "tiktok"; // narrowed type
+  platform: "meta" | "tiktok";
   name: string;
   nickname: string | null;
   accountId: string;
-  status: Database["public"]["Tables"]["ad_accounts"]["Row"]["health_status"]; // Uses your DB Enum and allows null
+  status: Database["public"]["Tables"]["ad_accounts"]["Row"]["health_status"];
   balance: string;
   currency: string;
   spendCap: string;
@@ -51,7 +49,6 @@ const fetchAdAccounts = async (
 ): Promise<AdAccountUI[]> => {
   const supabase = createClient();
 
-  // 1. Get Current User
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -60,7 +57,6 @@ const fetchAdAccounts = async (
   let orgId = activeOrgId;
 
   if (!orgId) {
-    // 2. Fallback: Get User's First Organization ID
     const { data: member } = await supabase
       .from("organization_members")
       .select("organization_id")
@@ -71,22 +67,17 @@ const fetchAdAccounts = async (
     orgId = member[0].organization_id as string;
   }
 
-  // 3. Fetch Accounts (Explicitly scoped to Org)
-  // ✅ Filter out soft-deleted (disconnected) accounts
   const { data, error } = await supabase
     .from("ad_accounts")
     .select("*")
     .eq("organization_id", orgId)
-    .is("disconnected_at", null) // Only show connected accounts
+    .is("disconnected_at", null)
     .order("connected_at", { ascending: false });
 
   if (error) throw new Error(error.message);
 
-  // --- THE MAPPING LAYER ---
   return data.map(
     (account: Database["public"]["Tables"]["ad_accounts"]["Row"]) => {
-      // Handle JSONB Type Casting
-      // We treat 'null' as a placeholder object to prevent UI crashes
       const fundingDetails =
         (account.funding_source_details as unknown as FundingSource) || {
           brand: "Unknown",
@@ -95,28 +86,19 @@ const fetchAdAccounts = async (
 
       return {
         id: account.id,
-        // Cast platform string to specific union type if needed
         platform: account.platform as "meta" | "tiktok",
-
-        // Logic: Show nickname if set, otherwise account name
         name: account.nickname || account.account_name || "Unnamed Account",
         nickname: account.nickname,
-
         accountId: account.platform_account_id,
-        status: account.health_status, // Maps directly to enum
-
-        // Formatting
+        status: account.health_status,
         balance: formatCurrency(
           account.last_known_balance_cents,
           account.currency,
         ),
         currency: account.currency || "NGN",
-        spendCap: "Unlimited", // Placeholder until we fetch snapshot data
-
+        spendCap: "Unlimited",
         paymentMethod: fundingDetails,
-
         isDefault: account.is_default || false,
-
         lastSynced: new Date(
           account.last_health_check || account.connected_at || Date.now(),
         ).toLocaleDateString(),
@@ -125,16 +107,27 @@ const fetchAdAccounts = async (
   );
 };
 
-// --- HOOK ---
+// ---------------------------------------------------------------------------
+// Query Hook — subscribe to this if you only need to READ ad accounts
+// ---------------------------------------------------------------------------
 
-export function useAdAccounts() {
-  const queryClient = useQueryClient();
+export function useAdAccountsList() {
   const { activeOrgId } = useActiveOrgContext();
 
-  const query = useQuery({
+  return useQuery({
     queryKey: ["ad_accounts", activeOrgId],
     queryFn: () => fetchAdAccounts(activeOrgId),
   });
+}
+
+// ---------------------------------------------------------------------------
+// Mutation Hook — subscribe to this if you only need to WRITE ad accounts.
+// No useQuery inside — components using this will NOT re-render on list changes.
+// ---------------------------------------------------------------------------
+
+export function useAdAccountMutations() {
+  const queryClient = useQueryClient();
+  const { activeOrgId } = useActiveOrgContext();
 
   const disconnectMutation = useMutation({
     mutationFn: disconnectAdAccount,
@@ -143,7 +136,6 @@ export function useAdAccounts() {
     },
   });
 
-  // Default Mutation (Server Action)
   const defaultMutation = useMutation({
     mutationFn: setAsDefaultAccount,
     onSuccess: () => {
@@ -151,7 +143,6 @@ export function useAdAccounts() {
     },
   });
 
-  // Sync Mutation (Calls API Route)
   const syncMutation = useMutation({
     mutationFn: async (id: string) => {
       const res = await fetch("/api/ad-accounts/sync", {
@@ -187,11 +178,11 @@ export function useAdAccounts() {
   });
 
   return {
-    ...query,
-    syncAccount: syncMutation.mutateAsync, // Async allows waiting for UI spinners
+    syncAccount: syncMutation.mutateAsync,
     isSyncing: syncMutation.isPending,
     disconnectAccount: disconnectMutation.mutateAsync,
     setAsDefault: defaultMutation.mutateAsync,
     renameAccount: renameMutation.mutate,
   };
 }
+

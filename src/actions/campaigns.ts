@@ -627,6 +627,7 @@ export async function launchCampaign(config: LaunchConfig) {
       isCarousel ? carouselImageData : undefined,
       videoId,
       thumbnailUrl,
+      config.name,
     );
 
     console.log("📣 [Meta API - Ad Creative/Ad Created]:", adRes);
@@ -1175,6 +1176,9 @@ export async function syncCampaignAds(campaignId: string) {
       ad_accounts (
         platform_account_id,
         access_token
+      ),
+      ad_sets (
+        id
       )
     `,
     )
@@ -1205,6 +1209,12 @@ export async function syncCampaignAds(campaignId: string) {
 
     if (!adsRes.data || adsRes.data.length === 0) {
       return { success: true, count: 0, message: "No ads found" };
+    }
+
+    const adSetId = campaign.ad_sets?.[0]?.id;
+    if (!adSetId) {
+       console.warn(`[syncCampaignAds] No ad_set found in DB for campaign ${campaignId}. Cannot sync ads.`);
+       return { success: true, count: 0, message: "No ad_set in DB" };
     }
 
     // Process ads
@@ -1240,6 +1250,7 @@ export async function syncCampaignAds(campaignId: string) {
       return {
         platform_ad_id: ad.id,
         campaign_id: campaignId,
+        ad_set_id: adSetId,
         name: ad.name,
         status: ad.status.toLowerCase(),
         creative_snapshot: { thumbnail_url: imageUrl, image_url: imageUrl },

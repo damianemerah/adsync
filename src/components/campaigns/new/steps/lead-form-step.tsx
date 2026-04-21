@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useCampaignStore } from "@/stores/campaign-store";
-import { useAdAccounts } from "@/hooks/use-ad-account";
+import { useAdAccountsList } from "@/hooks/use-ad-account";
 import { useOrganization } from "@/hooks/use-organization";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -44,6 +44,14 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { Phone } from "iconoir-react";
 import { FormField } from "@/types/lead-form-builder";
 import { FieldPalette } from "./lead-form/field-palette";
 import { SortableFieldRow } from "./lead-form/sortable-field-row";
@@ -75,7 +83,7 @@ export function LeadFormStep() {
   const { leadGenFormId, updateDraft, suggestedLeadForm, campaignName } =
     useCampaignStore();
   const queryClient = useQueryClient();
-  const { data: accounts } = useAdAccounts();
+  const { data: accounts } = useAdAccountsList();
   const { organization } = useOrganization();
 
   const defaultAccount = accounts?.find((a) => a.isDefault) ?? accounts?.[0];
@@ -85,6 +93,7 @@ export function LeadFormStep() {
   const [view, setView] = useState<ViewMode>("select");
   const [fields, setFields] = useState<FormField[]>(DEFAULT_FIELDS);
   const [hasAppliedAISuggestion, setHasAppliedAISuggestion] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const {
     register,
@@ -245,9 +254,9 @@ export function LeadFormStep() {
 
   const getFieldCountColor = () => {
     if (fieldCount < 2) return "text-destructive";
-    if (isOptimalRange) return "text-green-600";
-    if (isAcceptableRange) return "text-yellow-600";
-    if (hasTooManyFields) return "text-orange-600";
+    if (isOptimalRange) return "text-status-success";
+    if (isAcceptableRange) return "text-status-warning";
+    if (hasTooManyFields) return "text-status-danger";
     return "text-foreground";
   };
 
@@ -270,7 +279,7 @@ export function LeadFormStep() {
         <div className="inline-flex items-center justify-center p-3 rounded-full bg-primary/10 mb-2">
           <Mail className="h-6 w-6 text-primary" />
         </div>
-        <h1 className="text-3xl font-heading font-bold text-foreground">
+        <h1 className="text-3xl font-heading text-foreground">
           Lead Generation Form
         </h1>
         <p className="text-subtle-foreground max-w-lg mx-auto">
@@ -364,7 +373,7 @@ export function LeadFormStep() {
                     {forms.map((f) => (
                       <SelectItem key={f.id} value={f.id} className="py-3">
                         {f.name}{" "}
-                        <span className="text-xs text-muted-foreground ml-2">
+                        <span className="text-xs text-subtle-foreground ml-2">
                           ({f.id})
                         </span>
                       </SelectItem>
@@ -403,13 +412,43 @@ export function LeadFormStep() {
 
       {/* Create New Form */}
       {view === "create" && (
-        <ResizablePanelGroup
-          direction="horizontal"
-          className="min-h-[calc(100vh-20rem)] animate-in slide-in-from-right-4 fade-in"
-        >
-          {/* Left Panel */}
-          <ResizablePanel defaultSize={75} minSize={60} maxSize={90}>
-            <div className="space-y-6 pr-6">
+        <>
+          {/* Mobile: floating Preview button */}
+          <div className="lg:hidden fixed bottom-6 right-6 z-40">
+            <Sheet open={previewOpen} onOpenChange={setPreviewOpen}>
+              <SheetTrigger asChild>
+                <Button
+                  size="lg"
+                  className="h-14 px-5 rounded-lg border border-border bg-primary text-primary-foreground font-bold gap-2"
+                >
+                  <Phone className="h-5 w-5" />
+                  Preview
+                </Button>
+              </SheetTrigger>
+              <SheetContent
+                side="bottom"
+                className="max-h-[85dvh] rounded-t-3xl overflow-y-auto"
+              >
+                <SheetHeader className="mb-4">
+                  <SheetTitle className="font-heading flex items-center gap-2">
+                    <Phone className="h-5 w-5 text-primary" /> Form Preview
+                  </SheetTitle>
+                </SheetHeader>
+                <LeadFormPreviewPanel
+                  fields={fields}
+                  thankYouMessage={thankYouMessage}
+                />
+              </SheetContent>
+            </Sheet>
+          </div>
+
+          <ResizablePanelGroup
+            direction="horizontal"
+            className="min-h-[calc(100vh-20rem)] animate-in slide-in-from-right-4 fade-in"
+          >
+            {/* Left Panel */}
+            <ResizablePanel defaultSize={75} minSize={60} maxSize={90}>
+              <div className="space-y-6 lg:pr-6">
               {/* AI Auto-Generate Banner */}
               {!hasAppliedAISuggestion && (
                 <button
@@ -522,7 +561,7 @@ export function LeadFormStep() {
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-bold uppercase tracking-wider text-foreground">
                     Form Fields{" "}
-                    <span className="text-xs font-normal text-muted-foreground normal-case">
+                    <span className="text-xs font-normal text-subtle-foreground normal-case">
                       — drag to reorder
                     </span>
                   </p>
@@ -541,11 +580,11 @@ export function LeadFormStep() {
                       fieldCount < 2 &&
                         "bg-destructive/10 border border-destructive/20 text-destructive",
                       isOptimalRange &&
-                        "bg-green-50 border border-green-200 text-green-700",
+                        "bg-status-success-soft border border-status-success/30 text-status-success",
                       isAcceptableRange &&
-                        "bg-yellow-50 border border-yellow-200 text-yellow-700",
+                        "bg-status-warning-soft border border-status-warning/30 text-status-warning",
                       hasTooManyFields &&
-                        "bg-orange-50 border border-orange-200 text-orange-700",
+                        "bg-status-danger-soft border border-status-danger/30 text-status-danger",
                     )}
                   >
                     <span className="font-medium">
@@ -555,7 +594,7 @@ export function LeadFormStep() {
                 )}
 
                 {fields.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-6 border-2 border-dashed border-border rounded-md">
+                  <p className="text-sm text-subtle-foreground text-center py-6 border-2 border-dashed border-border rounded-md">
                     No fields yet. Add some above.
                   </p>
                 ) : (
@@ -603,24 +642,25 @@ export function LeadFormStep() {
                 )}
               </Button>
             </div>
-          </ResizablePanel>
+            </ResizablePanel>
 
-          {/* Resize Handle */}
-          <ResizableHandle className="hidden lg:flex w-[1.5px] bg-border hover:bg-accent data-[panel-group-direction=horizontal]:hover:w-1 transition-all data-[resize-handle-state=drag]:bg-primary/20 data-[resize-handle-state=hover]:bg-primary/10" />
+            {/* Resize Handle */}
+            <ResizableHandle className="hidden lg:flex w-[1.5px] bg-border hover:bg-accent data-[panel-group-direction=horizontal]:hover:w-1 transition-all data-[resize-handle-state=drag]:bg-primary/20 data-[resize-handle-state=hover]:bg-primary/10" />
 
-          {/* Right Preview Panel */}
-          <ResizablePanel
-            defaultSize={25}
-            minSize={10}
-            maxSize={40}
-            className="hidden lg:block"
-          >
-            <LeadFormPreviewPanel
-              fields={fields}
-              thankYouMessage={thankYouMessage}
-            />
-          </ResizablePanel>
-        </ResizablePanelGroup>
+            {/* Right Preview Panel */}
+            <ResizablePanel
+              defaultSize={25}
+              minSize={10}
+              maxSize={40}
+              className="hidden lg:block"
+            >
+              <LeadFormPreviewPanel
+                fields={fields}
+                thankYouMessage={thankYouMessage}
+              />
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </>
       )}
     </div>
   );

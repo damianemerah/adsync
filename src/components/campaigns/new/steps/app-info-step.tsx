@@ -28,7 +28,7 @@ export function AppInfoStep() {
         <div className="inline-flex items-center justify-center p-3 rounded-full bg-primary/10 mb-2">
           <Download className="h-6 w-6 text-primary" />
         </div>
-        <h1 className="text-3xl font-heading font-bold text-foreground">
+        <h1 className="text-3xl font-heading text-foreground">
           What app are you promoting?
         </h1>
         <p className="text-subtle-foreground max-w-lg mx-auto">
@@ -67,7 +67,7 @@ export function AppInfoStep() {
             placeholder="e.g. 123456789012345"
             className="h-12 border-border bg-muted/50 focus-visible:ring-primary/20"
           />
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-subtle-foreground">
             This is required by Meta to run App Install ads. It ensures clicks
             open your app directly if they already have it installed.
           </p>

@@ -3,7 +3,8 @@ import { PageHeader } from "@/components/layout/page-header";
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useCreatives } from "@/hooks/use-creatives";
+import { motion } from "motion/react";
+import { useCreativesList, useCreativeMutations } from "@/hooks/use-creatives";
 import {
   CloudUpload,
   FilterList,
@@ -41,7 +42,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DataTable } from "@/components/ui/data-table";
 import { Creative } from "@/types";
 import { CreativeCard } from "@/components/creatives/creative-card";
-import { useAdAccounts } from "@/hooks/use-ad-account";
+import { useAdAccountsList } from "@/hooks/use-ad-account";
 import { CreativeUploadDialog } from "@/components/creatives/creative-upload-dialog";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -52,8 +53,8 @@ import { useQueryClient } from "@tanstack/react-query";
 export default function CreativesPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { creatives, isLoading, deleteCreatives, isDeleting } = useCreatives();
-  const { data: accounts } = useAdAccounts();
+  const { data: creatives, isLoading: creativesLoading } = useCreativesList();
+  const { deleteCreatives, isDeleting } = useCreativeMutations();
 
   const [view, setView] = useState<"grid" | "list">("grid");
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
@@ -108,8 +109,8 @@ export default function CreativesPage() {
   // Filtered creatives based on type selection
   const filteredCreatives =
     filterType === "all"
-      ? creatives
-      : creatives.filter((c) => c.media_type === filterType);
+      ? (creatives || [])
+      : (creatives || []).filter((c: any) => c.media_type === filterType);
 
   // Delete a creative from storage + DB, then invalidate the list
   const handleDelete = async (id: string) => {
@@ -214,7 +215,7 @@ export default function CreativesPage() {
       key: "dimensions",
       title: "Dimensions",
       render: (item: Creative) => (
-        <span className="text-muted-foreground font-mono text-xs">
+        <span className="text-subtle-foreground font-mono text-xs">
           {item.width ? `${item.width}x${item.height}` : "---"}
         </span>
       ),
@@ -256,7 +257,7 @@ export default function CreativesPage() {
       </PageHeader>
 
       {/* MAIN CONTENT */}
-      <main className="flex-1 overflow-y-auto p-2 md:p-4 lg:p-6">
+      <main className="flex-1 overflow-y-auto p-2 md:p-4 lg:p-6 no-scrollbar">
         <div className="space-y-6 container max-w-7xl mx-auto">
           {/* Toolbar */}
           <div className="flex flex-col md:flex-row justify-end items-start md:items-center gap-4 bg-card p-2 rounded-lg shadow-sm border border-border">
@@ -347,20 +348,32 @@ export default function CreativesPage() {
           {/* Tab Content: Library */}
           <div className="mt-0">
             {view === "grid" ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+              <motion.div
+                className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6"
+                initial="hidden"
+                animate="show"
+                variants={{
+                  hidden: {},
+                  show: { transition: { staggerChildren: 0.04 } },
+                }}
+              >
                 {/* Add New tile */}
-                <div
+                <motion.div
                   onClick={() => setUploadModalOpen(true)}
+                  variants={{
+                    hidden: { opacity: 0, y: 8 },
+                    show: { opacity: 1, y: 0, transition: { duration: 0.2 } },
+                  }}
                   className="aspect-square rounded-lg border-2 border-dashed border-border bg-card/50 hover:bg-primary/5 hover:border-primary/50 transition-all cursor-pointer flex flex-col items-center justify-center gap-3 text-muted-foreground hover:text-primary group"
                 >
                   <div className="h-14 w-14 rounded-full bg-background shadow-sm border border-border flex items-center justify-center group-hover:scale-110 transition-transform">
                     <Plus className="w-6 h-6" />
                   </div>
                   <span className="text-sm font-medium">Add New</span>
-                </div>
+                </motion.div>
 
                 {/* Skeleton cards while loading */}
-                {isLoading &&
+                {creativesLoading &&
                   [...Array(8)].map((_, i) => (
                     <div
                       key={`skeleton-${i}`}
@@ -375,23 +388,34 @@ export default function CreativesPage() {
                   ))}
 
                 {/* Real cards */}
-                {!isLoading &&
+                {!creativesLoading &&
                   filteredCreatives.map((item) => (
-                    <CreativeCard
+                    <motion.div
                       key={item.id}
-                      data={item}
-                      selected={selectedItems.includes(item.id)}
-                      onSelect={() => toggleSelection(item.id)}
-                      onClick={() => handlePreview(item)}
-                      onDelete={handleDelete}
-                    />
+                      variants={{
+                        hidden: { opacity: 0, y: 8 },
+                        show: {
+                          opacity: 1,
+                          y: 0,
+                          transition: { duration: 0.2 },
+                        },
+                      }}
+                    >
+                      <CreativeCard
+                        data={item}
+                        selected={selectedItems.includes(item.id)}
+                        onSelect={() => toggleSelection(item.id)}
+                        onClick={() => handlePreview(item)}
+                        onDelete={handleDelete}
+                      />
+                    </motion.div>
                   ))}
 
                 {/* Empty state when filter has no results */}
-                {!isLoading &&
+                {!creativesLoading &&
                   filteredCreatives.length === 0 &&
                   filterType !== "all" && (
-                    <div className="col-span-full py-16 text-center text-muted-foreground">
+                    <div className="col-span-full py-16 text-center text-subtle-foreground">
                       <p className="font-medium">
                         No{" "}
                         {filterType === "generated_image"
@@ -407,7 +431,7 @@ export default function CreativesPage() {
                       </button>
                     </div>
                   )}
-              </div>
+              </motion.div>
             ) : (
               <DataTable
                 columns={columns}
@@ -444,7 +468,7 @@ export default function CreativesPage() {
               onClick={async () => {
                 // Download all selected creatives as a zip is complex;
                 // for now open each in a new tab so user can save manually.
-                const selected = creatives.filter((c) =>
+                const selected = (creatives || []).filter((c) =>
                   selectedItems.includes(c.id),
                 );
                 selected.forEach((c) => window.open(c.original_url, "_blank"));
@@ -528,12 +552,12 @@ export default function CreativesPage() {
                       if (e.key === "Enter") handleUpdateName();
                       if (e.key === "Escape") setIsEditingName(false);
                     }}
-                    className="bg-white/10 border-white/20 text-white text-2xl font-heading font-bold h-auto py-1 px-3 mb-2 focus-visible:ring-0 focus-visible:border-white/40 rounded-xl"
+                    className="bg-white/10 border-white/20 text-white text-2xl font-heading h-auto py-1 px-3 mb-2 focus-visible:ring-0 focus-visible:border-white/40 rounded-xl"
                     autoFocus
                   />
                 ) : (
                   <h2
-                    className="text-3xl font-heading font-bold text-white leading-tight tracking-tight drop-shadow-sm cursor-pointer hover:text-white/80 transition-colors block truncate w-full"
+                    className="text-3xl font-heading text-white leading-tight tracking-tight drop-shadow-sm cursor-pointer hover:text-white/80 transition-colors block truncate w-full"
                     onClick={() => setIsEditingName(true)}
                     title={previewItem?.name || "Library Asset"}
                   >
@@ -597,7 +621,7 @@ export default function CreativesPage() {
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="max-w-md p-6">
           <DialogHeader>
-            <DialogTitle className="text-xl font-heading font-bold">
+            <DialogTitle className="text-xl font-heading">
               Delete {selectedItems.length} Assets?
             </DialogTitle>
           </DialogHeader>

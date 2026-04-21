@@ -2,8 +2,8 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useInsights } from "@/hooks/use-insights";
-import { useAdAccounts } from "@/hooks/use-ad-account";
-import { useCampaigns } from "@/hooks/use-campaigns";
+import { useAdAccountsList } from "@/hooks/use-ad-account";
+import { useCampaignsList } from "@/hooks/use-campaigns";
 import { useDashboardStore } from "@/store/dashboard-store";
 
 import {
@@ -18,7 +18,15 @@ import {
   Calendar as CalendarIcon,
   Facebook,
   Download,
+  Filter,
 } from "iconoir-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import {
   Command,
@@ -31,20 +39,12 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { NotificationBell } from "@/components/layout/notification-bell";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 interface GlobalContextBarProps {
   onHealthCheckClick?: () => void;
@@ -55,8 +55,8 @@ export function GlobalContextBar({
   onHealthCheckClick,
   hasProblems = false,
 }: GlobalContextBarProps = {}) {
-  const { data: accounts } = useAdAccounts();
-  const { data: campaigns } = useCampaigns();
+  const { data: accounts } = useAdAccountsList();
+  const { data: campaigns } = useCampaignsList();
 
   // Store
   const {
@@ -68,8 +68,6 @@ export function GlobalContextBar({
     setSelectedCampaignIds,
     dateRange,
     setDateRange,
-    status,
-    setStatus,
   } = useDashboardStore();
 
   const [openAccount, setOpenAccount] = useState(false);
@@ -95,7 +93,7 @@ export function GlobalContextBar({
       }
 
       // Build CSV
-      const headers = ["Date", "Spend (₦)", "Impressions", "Clicks"];
+      const headers = ["Date", "Spend (₦)", "People Reached", "Clicks"];
       const rows = performance.map((row: any) => [
         row.date ?? "",
         row.spend ?? 0,
@@ -161,15 +159,216 @@ export function GlobalContextBar({
   );
 
   const filteredCampaigns = campaigns?.filter((camp) => {
-    if (camp.platform !== selectedPlatform) return false;
-    if (selectedAccountId && camp.ad_account_id !== selectedAccountId)
-      return false;
+    if (camp.platform && camp.platform !== selectedPlatform) return false;
+    if (selectedAccountId && camp.ad_account_id && camp.ad_account_id !== selectedAccountId) return false;
+    if (selectedAccountId && !camp.ad_account_id && camp.status !== "draft") return false;
     return true;
   });
 
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+
+  const activeFilterSummary = (() => {
+    const platformLabel = selectedPlatform === "meta" ? "Meta" : "TikTok";
+    const accountName = selectedAccountId
+      ? accounts?.find((a) => a.id === selectedAccountId)?.name
+      : null;
+    return accountName ? `${platformLabel} · ${accountName}` : platformLabel;
+  })();
+
   return (
     <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border">
-      <div className="mx-auto px-4 lg:px-8 py-4 flex flex-col lg:flex-row gap-6 items-end justify-between">
+      {/* Mobile: compact filter row */}
+      <div className="flex items-center gap-2 px-4 py-3 sm:hidden">
+        <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
+          <SheetTrigger asChild>
+            <Button
+              variant="outline"
+              className="h-10 flex-1 justify-start gap-2 rounded-md bg-card px-3 font-semibold"
+            >
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <span className="truncate text-sm text-foreground">
+                {activeFilterSummary}
+              </span>
+              <NavArrowDown className="ml-auto h-4 w-4 text-muted-foreground" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="bottom" className="h-[88vh] gap-0 p-0">
+            <SheetHeader className="border-b border-border px-4 py-3">
+              <SheetTitle className="font-heading text-base">
+                Filters
+              </SheetTitle>
+            </SheetHeader>
+            <div className="flex flex-col gap-4 overflow-y-auto px-4 py-4">
+              {/* Reuses inline controls below via portal approach would be ideal;
+                  simpler: embed a compact version */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  Ad Platform
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant={
+                      selectedPlatform === "meta" ? "default" : "outline"
+                    }
+                    onClick={() => setSelectedPlatform("meta")}
+                    className="h-11 justify-start gap-2"
+                  >
+                    <Facebook className="h-4 w-4" />
+                    Meta Ads
+                  </Button>
+                  <Button
+                    variant={
+                      selectedPlatform === "tiktok" ? "default" : "outline"
+                    }
+                    onClick={() => setSelectedPlatform("tiktok")}
+                    className="h-11 justify-start gap-2"
+                  >
+                    <span className="h-4 w-4 rounded-full bg-brand-tiktok text-brand-tiktok-foreground flex items-center justify-center text-[0.5rem] font-bold">
+                      T
+                    </span>
+                    TikTok Ads
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  Ad Account
+                </label>
+                <div className="flex flex-col gap-1.5">
+                  {filteredAccounts?.map((account) => (
+                    <Button
+                      key={account.id}
+                      variant={
+                        selectedAccountId === account.id ? "default" : "outline"
+                      }
+                      onClick={() => setSelectedAccountId(account.id)}
+                      className="h-11 justify-start"
+                    >
+                      {account.name}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  Campaigns
+                </label>
+                <div className="flex flex-col gap-1.5">
+                  <Button
+                    variant={
+                      selectedCampaignIds.includes("all")
+                        ? "default"
+                        : "outline"
+                    }
+                    onClick={() => setSelectedCampaignIds(["all"])}
+                    className="h-11 justify-start"
+                  >
+                    All Ads
+                  </Button>
+                  {filteredCampaigns?.map((camp) => {
+                    const selected = selectedCampaignIds.includes(camp.id);
+                    return (
+                      <Button
+                        key={camp.id}
+                        variant={selected ? "default" : "outline"}
+                        onClick={() => {
+                          const isAll = selectedCampaignIds.includes("all");
+                          let newIds = isAll ? [] : [...selectedCampaignIds];
+                          if (selected) {
+                            newIds = newIds.filter((id) => id !== camp.id);
+                          } else {
+                            newIds.push(camp.id);
+                          }
+                          if (newIds.length === 0) newIds = ["all"];
+                          setSelectedCampaignIds(newIds);
+                        }}
+                        className="h-11 justify-start"
+                      >
+                        {camp.name}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+            <div className="border-t border-border px-4 py-3">
+              <Button
+                onClick={() => setMobileFiltersOpen(false)}
+                className="h-11 w-full"
+              >
+                Apply Filters
+              </Button>
+            </div>
+          </SheetContent>
+        </Sheet>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-10 w-10 shrink-0 rounded-md bg-card"
+              title="Date range"
+            >
+              <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent
+            className="w-auto p-0 rounded-md border border-border"
+            align="end"
+          >
+            <Calendar
+              mode="range"
+              defaultMonth={dateRange?.from}
+              selected={dateRange as any}
+              onSelect={(val: any) => setDateRange(val)}
+              numberOfMonths={1}
+            />
+          </PopoverContent>
+        </Popover>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onHealthCheckClick}
+          title="Account Health Check"
+          className={cn(
+            "relative h-10 w-10 shrink-0 rounded-md border border-border bg-card",
+            hasProblems ? "text-status-warning" : "text-muted-foreground",
+          )}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            className="h-5 w-5"
+            stroke="currentColor"
+            strokeWidth="1.8"
+          >
+            <path
+              d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
+              strokeLinejoin="round"
+            />
+            {hasProblems ? (
+              <>
+                <line x1="12" y1="8" x2="12" y2="12" strokeLinecap="round" />
+                <circle cx="12" cy="15" r="0.5" fill="currentColor" />
+              </>
+            ) : (
+              <polyline
+                points="9 12 11 14 15 10"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            )}
+          </svg>
+          {hasProblems && (
+            <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-status-warning ring-2 ring-background" />
+          )}
+        </Button>
+      </div>
+
+      {/* Desktop + tablet: inline filter row */}
+      <div className="mx-auto hidden px-4 lg:px-8 py-4 sm:flex flex-col lg:flex-row gap-6 items-end justify-between">
         {/* Left Side: Filters */}
         <div className="flex items-end gap-3 flex-1 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0 no-scrollbar">
           {/* 1. Ad Platform */}
@@ -183,15 +382,15 @@ export function GlobalContextBar({
                   className="w-full h-14 justify-between rounded-md bg-card hover:border-primary/50 transition-all px-4 py-2 items-center border border-border group"
                 >
                   <div className="flex flex-col items-start gap-0.5 overflow-hidden text-left">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none group-hover:text-primary transition-colors">
+                    <span className="text-xs font-bold text-subtle-foreground uppercase tracking-wider leading-none group-hover:text-primary transition-colors">
                       Ad Platform
                     </span>
                     <div className="flex items-center gap-2 truncate w-full">
                       {selectedPlatform === "meta" && (
-                        <Facebook className="h-3.5 w-3.5 text-[#1877f2] shrink-0" />
+                        <Facebook className="h-3.5 w-3.5 text-chart-1 shrink-0" />
                       )}
                       {selectedPlatform === "tiktok" && (
-                        <div className="h-3.5 w-3.5 rounded-full bg-black text-white flex items-center justify-center text-[8px] font-bold shrink-0">
+                        <div className="h-3.5 w-3.5 rounded-full bg-brand-tiktok text-brand-tiktok-foreground flex items-center justify-center text-[0.5rem] font-bold shrink-0">
                           T
                         </div>
                       )}
@@ -259,7 +458,7 @@ export function GlobalContextBar({
                   className="w-full h-14 justify-between rounded-md bg-card hover:border-primary/50 transition-all px-4 py-2 items-center border border-border group"
                 >
                   <div className="flex flex-col items-start gap-0.5 overflow-hidden text-left">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none group-hover:text-primary transition-colors">
+                    <span className="text-xs font-bold text-subtle-foreground uppercase tracking-wider leading-none group-hover:text-primary transition-colors">
                       Ad Account
                     </span>
                     <span className="truncate font-bold text-foreground text-sm leading-tight w-full">
@@ -327,8 +526,8 @@ export function GlobalContextBar({
                   className="w-full h-14 justify-between rounded-md bg-card hover:border-primary/50 transition-all px-4 py-2 items-center border border-border group"
                 >
                   <div className="flex flex-col items-start gap-0.5 overflow-hidden text-left">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none group-hover:text-primary transition-colors">
-                      Campaigns
+                    <span className="text-xs font-bold text-subtle-foreground uppercase tracking-wider leading-none group-hover:text-primary transition-colors">
+                      Ads
                     </span>
                     <span className="truncate font-bold text-foreground text-sm leading-tight w-full">
                       {selectedCampaignIds.includes("all")
@@ -368,7 +567,7 @@ export function GlobalContextBar({
                               : "opacity-0",
                           )}
                         />
-                        All Campaigns
+                        All Ads
                       </CommandItem>
                       {filteredCampaigns?.map((camp) => (
                         <CommandItem
@@ -423,7 +622,7 @@ export function GlobalContextBar({
             className={cn(
               "relative h-11 w-11 rounded-md transition-colors border border-border bg-card",
               hasProblems
-                ? "text-orange-500 hover:text-orange-600 hover:bg-orange-50/50 hover:border-orange-500/50"
+                ? "text-status-warning hover:bg-status-warning-soft hover:border-status-warning/40"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
             )}
           >
@@ -454,7 +653,7 @@ export function GlobalContextBar({
               )}
             </svg>
             {hasProblems && (
-              <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-orange-500 ring-2 ring-background" />
+              <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-status-warning ring-2 ring-background" />
             )}
           </Button>
 

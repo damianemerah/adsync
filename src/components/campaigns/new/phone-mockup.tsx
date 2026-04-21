@@ -122,22 +122,22 @@ export function PhoneMockup({
         <div className="absolute right-2 bottom-20 flex flex-col items-center gap-4 z-10 text-white">
           <div className="flex flex-col items-center gap-1">
             <Avatar className="h-10 w-10 border border-white">
-              <AvatarFallback className="bg-purple-600 text-white text-[10px]">
+              <AvatarFallback className="bg-purple-600 text-white text-xs">
                 AD
               </AvatarFallback>
             </Avatar>
           </div>
           <div className="flex flex-col items-center gap-1">
             <Heart className="h-7 w-7 fill-white/20" strokeWidth={2} />
-            <span className="text-[10px] font-bold">1.2k</span>
+            <span className="text-xs font-bold">1.2k</span>
           </div>
           <div className="flex flex-col items-center gap-1">
             <ChatBubble className="h-7 w-7" strokeWidth={2} />
-            <span className="text-[10px] font-bold">24</span>
+            <span className="text-xs font-bold">24</span>
           </div>
           <div className="flex flex-col items-center gap-1">
             <ShareIos className="h-7 w-7" strokeWidth={2} />
-            <span className="text-[10px] font-bold">Share</span>
+            <span className="text-xs font-bold">Share</span>
           </div>
         </div>
 
@@ -153,7 +153,7 @@ export function PhoneMockup({
             </p>
             <div className="flex items-center gap-2 mt-2 opacity-80">
               <MusicNote className="h-3 w-3" />
-              <span className="text-[10px] animate-pulse">
+              <span className="text-xs animate-pulse">
                 Original Sound - Trending
               </span>
             </div>
@@ -201,7 +201,7 @@ export function PhoneMockup({
           <Avatar className="h-7 w-7">
             <AvatarFallback
               className={cn(
-                "text-[9px] font-bold",
+                "text-xs font-bold",
                 showFacebookHeader
                   ? "bg-blue-600 text-white"
                   : "bg-linear-to-tr from-purple-500 via-pink-500 to-orange-400 text-white",
@@ -211,7 +211,7 @@ export function PhoneMockup({
             </AvatarFallback>
           </Avatar>
           <div className="leading-none">
-            <p className="text-[10px] font-bold text-slate-900">
+            <p className="text-xs font-bold text-slate-900">
               {displayName}
             </p>
             <div className="flex items-center gap-1">
@@ -247,7 +247,7 @@ export function PhoneMockup({
             )}
           </>
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-[10px] text-slate-400">
+          <div className="w-full h-full flex items-center justify-center text-xs text-slate-400">
             No Image
           </div>
         )}
@@ -296,19 +296,19 @@ export function PhoneMockup({
       </div>
 
       {/* Caption Area (Scrollable remaining space) */}
-      <div className="px-3 pb-2 text-[11px] overflow-y-auto flex-1 overflow-auto no-scrollbar">
+      <div className="px-3 pb-2 text-xs overflow-y-auto flex-1 overflow-auto no-scrollbar">
         <p className="font-bold text-slate-900 mb-1">{likesDisplay} likes</p>
         <p className="text-slate-800 leading-snug">
           <span className="font-bold mr-1">{displayName}</span>
           {adCopy.primary ||
             "Your ad caption will appear here — write it in step 2!"}
         </p>
-        <p className="text-slate-400 text-[9px] mt-2 uppercase">Just now</p>
+        <p className="text-slate-400 text-xs mt-2 uppercase">Just now</p>
       </div>
 
       {/* CTA Bar (Sticky Bottom) */}
       <div className="p-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between shrink-0">
-        <div className="text-[10px]">
+        <div className="text-xs">
           <p className="text-slate-400">Headline</p>
           <p className="font-bold text-slate-900 truncate max-w-[140px]">
             {adCopy.headline || "Shop Now"}
@@ -318,7 +318,7 @@ export function PhoneMockup({
           <DropdownMenuTrigger asChild disabled={!onCTAChange}>
             <Button
               size="sm"
-              className="h-8 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-[10px]"
+              className="h-8 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs"
             >
               {CTA_LABEL}
             </Button>

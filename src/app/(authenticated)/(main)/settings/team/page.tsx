@@ -106,7 +106,7 @@ export default function TeamSettingsPage() {
       {/* Header + Invite Button */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-heading font-bold text-foreground">
+          <h2 className="text-xl font-heading text-foreground">
             Members
           </h2>
           <p className="text-sm text-subtle-foreground">
@@ -150,11 +150,11 @@ export default function TeamSettingsPage() {
             </div>
             <CardContent className="p-0">
               {isLoading ? (
-                <div className="p-8 text-center text-muted-foreground flex items-center justify-center gap-2">
+                <div className="p-8 text-center text-subtle-foreground flex items-center justify-center gap-2">
                   <SystemRestart className="h-4 w-4 animate-spin" /> Loading members...
                 </div>
               ) : members.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground">
+                <div className="p-8 text-center text-subtle-foreground">
                   No members yet.
                 </div>
               ) : (
@@ -174,7 +174,7 @@ export default function TeamSettingsPage() {
                         <p className="font-medium text-sm text-foreground">
                           {member.users?.full_name || "User"}
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-subtle-foreground">
                           {member.users?.email}
                         </p>
                       </div>
@@ -200,7 +200,7 @@ export default function TeamSettingsPage() {
                           <Trash className="w-4 h-4" />
                         </Button>
                       ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
+                        <span className="text-xs text-subtle-foreground">—</span>
                       )}
                     </div>
                   </div>
@@ -225,7 +225,7 @@ export default function TeamSettingsPage() {
             </div>
             <CardContent className="p-0">
               {invites.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground">
+                <div className="p-8 text-center text-subtle-foreground">
                   No pending invites.
                 </div>
               ) : (
@@ -242,7 +242,7 @@ export default function TeamSettingsPage() {
                         <p className="font-medium text-sm text-foreground">
                           {invite.email}
                         </p>
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1 text-xs text-subtle-foreground">
                           <Clock className="w-3 h-3" /> Sent{" "}
                           {new Date(invite.created_at).toLocaleDateString()}
                         </div>
