@@ -10,7 +10,6 @@ import { sendNotification } from "@/lib/notifications";
 import { getCampaignById } from "@/lib/api/campaigns";
 import {
   generateAttributionToken,
-  generatePixelToken,
   buildAttributionUrl,
 } from "@/lib/attribution";
 import { validatePreLaunch, validateDestinationUrl } from "@/lib/intelligence";
@@ -302,7 +301,6 @@ export async function launchCampaign(config: LaunchConfig) {
     const websiteUrl = finalUrl;
     try {
       const attrToken = generateAttributionToken();
-      const pixelToken = generatePixelToken();
       const { data: attrLink } = await supabase
         .from("attribution_links")
         .insert({
@@ -310,7 +308,6 @@ export async function launchCampaign(config: LaunchConfig) {
           organization_id: orgId as string,
           destination_url: websiteUrl,
           destination_type: "website",
-          pixel_token: pixelToken,
         })
         .select("id, token")
         .single();

@@ -43,7 +43,7 @@ export function RevenueChannelBreakdown({
 
   if (totalRevenue === 0) {
     return (
-      <Card className="border border-border shadow-sm flex flex-col">
+      <Card className="border border-border flex flex-col">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-heading font-semibold text-foreground">
             Revenue Source
@@ -57,7 +57,7 @@ export function RevenueChannelBreakdown({
   }
 
   return (
-    <Card className="border border-border shadow-sm flex flex-col">
+    <Card className="border border-border flex flex-col">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-heading font-semibold text-foreground">
           Revenue Source
@@ -103,7 +103,7 @@ export function RevenueChannelBreakdown({
         </div>
 
         {/* Text Breakdowns */}
-        <div className="w-full flex justify-center gap-6 mt-2 pt-2 border-t border-border/50">
+        <div className="w-full flex justify-center gap-4 mt-2 pt-2 border-t border-border/50">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <div className="h-3 w-3 rounded-full bg-primary shrink-0" />

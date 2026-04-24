@@ -3,20 +3,18 @@
 import { useQuery } from "@tanstack/react-query";
 import { getInvoices, type Invoice } from "@/actions/paystack";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+import { Button } from "@/components/ui/button";
 import { DataTable, Column } from "@/components/ui/data-table";
 import { formatDate } from "@/lib/utils";
-import { SystemRestart } from "iconoir-react";
+import { Download, SystemRestart } from "iconoir-react";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Type badge config
 // ─────────────────────────────────────────────────────────────────────────────
-const TYPE_LABELS: Record<
-  Invoice["type"],
-  { label: string; variant: "default" | "secondary" }
-> = {
-  subscription: { label: "Subscription", variant: "default" },
-  credit_pack: { label: "Credit Pack", variant: "secondary" },
+const TYPE_LABELS: Record<Invoice["type"], string> = {
+  subscription: "Subscription",
+  credit_pack: "Credit Pack",
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -38,14 +36,11 @@ export default function InvoicesPage() {
     {
       key: "type",
       title: "Type",
-      render: (row) => {
-        const config = TYPE_LABELS[row.type];
-        return (
-          <Badge variant={config.variant} className="text-xs">
-            {config.label}
-          </Badge>
-        );
-      },
+      render: (row) => (
+        <span className="text-sm text-subtle-foreground">
+          {TYPE_LABELS[row.type] || row.type}
+        </span>
+      ),
     },
     {
       key: "description",
@@ -80,6 +75,23 @@ export default function InvoicesPage() {
         </span>
       ),
     },
+    {
+      key: "actions",
+      title: "",
+      render: (row) => (
+        <div className="flex justify-end">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-subtle-foreground hover:text-foreground"
+            title="Download Receipt"
+          >
+            <Download className="h-4 w-4" />
+            <span className="sr-only">Download Receipt</span>
+          </Button>
+        </div>
+      ),
+    },
   ];
 
   if (isLoading) {
@@ -101,55 +113,7 @@ export default function InvoicesPage() {
         </p>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-muted/40 border-border">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Payments
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{invoices.length}</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-muted/40 border-border">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Spent
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">
-              ₦
-              {(
-                invoices.reduce((sum, inv) => sum + inv.amount_kobo, 0) / 100
-              ).toLocaleString()}
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="bg-muted/40 border-border">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              This Month
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">
-              ₦
-              {(
-                invoices
-                  .filter((inv) => {
-                    const invDate = new Date(inv.date);
-                    const now = new Date();
-                    return invDate.getMonth() === now.getMonth() && invDate.getFullYear() === now.getFullYear();
-                  })
-                  .reduce((sum, inv) => sum + inv.amount_kobo, 0) / 100
-              ).toLocaleString()}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+
 
       {/* Unified table */}
       <DataTable columns={columns} data={invoices} />

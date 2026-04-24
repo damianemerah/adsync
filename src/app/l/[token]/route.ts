@@ -90,5 +90,17 @@ export async function GET(
     });
 
   // 4. Redirect immediately — user doesn't wait for analytics
-  return NextResponse.redirect(link.destination_url, { status: 302 });
+  // For website links, append ?_ta={link.id} so the org-level pixel can resolve
+  // which campaign drove this visit without needing per-campaign pixel tokens.
+  let destination = link.destination_url;
+  if (link.destination_type === "website") {
+    try {
+      const destUrl = new URL(destination);
+      destUrl.searchParams.set("_ta", link.id);
+      destination = destUrl.toString();
+    } catch {
+      // Malformed URL — redirect as-is
+    }
+  }
+  return NextResponse.redirect(destination, { status: 302 });
 }

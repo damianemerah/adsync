@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ACTIVE_ORG_COOKIE } from "@/lib/active-org";
+import { nanoid } from "nanoid";
 import {
   TIER_CONFIG,
   TierId,
@@ -50,6 +51,14 @@ export async function setActiveOrganization(orgId: string): Promise<void> {
   revalidatePath("/", "page");
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function parseBool(v: string | null | undefined): boolean | null {
+  if (v === "true") return true;
+  if (v === "false") return false;
+  return null;
+}
+
 // ─── Shared: insert org row + owner member + trial credits ────────────────────
 
 async function _insertOrgWithMember(
@@ -62,6 +71,11 @@ async function _insertOrgWithMember(
     sellingMethod?: string | null;
     priceTier?: string | null;
     customerGender?: string | null;
+    hasPhysicalLocation?: boolean | null;
+    getsLeadsViaWebsite?: boolean | null;
+    sellsOnline?: boolean | null;
+    booksAppointments?: boolean | null;
+    wantsContactAds?: boolean | null;
     subscriptionTier: string;
     subscriptionStatus: string;
     subscriptionExpiresAt: string | null;
@@ -77,6 +91,11 @@ async function _insertOrgWithMember(
     sellingMethod,
     priceTier,
     customerGender,
+    hasPhysicalLocation,
+    getsLeadsViaWebsite,
+    sellsOnline,
+    booksAppointments,
+    wantsContactAds,
     subscriptionTier,
     subscriptionStatus,
     subscriptionExpiresAt,
@@ -94,6 +113,11 @@ async function _insertOrgWithMember(
       selling_method: sellingMethod || null,
       price_tier: priceTier || null,
       customer_gender: customerGender || null,
+      has_physical_location: hasPhysicalLocation ?? null,
+      gets_leads_via_website: getsLeadsViaWebsite ?? null,
+      sells_online: sellsOnline ?? null,
+      books_appointments: booksAppointments ?? null,
+      wants_contact_ads: wantsContactAds ?? null,
       subscription_tier: subscriptionTier,
       subscription_status: subscriptionStatus,
       subscription_expires_at: subscriptionExpiresAt,
@@ -165,6 +189,12 @@ export async function createOrganization(
   const businessDescription = formData.get("businessDescription") as string;
   const userRole = formData.get("userRole") as string;
 
+  const hasPhysicalLocation = parseBool(formData.get("hasPhysicalLocation") as string);
+  const getsLeadsViaWebsite = parseBool(formData.get("getsLeadsViaWebsite") as string);
+  const sellsOnline = parseBool(formData.get("sellsOnline") as string);
+  const booksAppointments = parseBool(formData.get("booksAppointments") as string);
+  const wantsContactAds = parseBool(formData.get("wantsContactAds") as string);
+
   // ── ONBOARDING PATH ─────────────────────────────────────────────────────────
   if (isOnboarding) {
     // Check if user already owns an org (re-run case)
@@ -190,6 +220,11 @@ export async function createOrganization(
           selling_method: sellingMethod || null,
           price_tier: priceTier || null,
           customer_gender: customerGender || null,
+          has_physical_location: hasPhysicalLocation,
+          gets_leads_via_website: getsLeadsViaWebsite,
+          sells_online: sellsOnline,
+          books_appointments: booksAppointments,
+          wants_contact_ads: wantsContactAds,
         })
         .eq("id", existingOrgId);
 
@@ -225,6 +260,11 @@ export async function createOrganization(
         sellingMethod,
         priceTier,
         customerGender,
+        hasPhysicalLocation,
+        getsLeadsViaWebsite,
+        sellsOnline,
+        booksAppointments,
+        wantsContactAds,
         subscriptionTier: PLAN_IDS.GROWTH, // ← Trial always on Growth
         subscriptionStatus: SUBSCRIPTION_STATUS.TRIALING,
         subscriptionExpiresAt: trialExpiresAt,
@@ -354,6 +394,11 @@ export async function createOrganization(
       sellingMethod,
       priceTier,
       customerGender,
+      hasPhysicalLocation,
+      getsLeadsViaWebsite,
+      sellsOnline,
+      booksAppointments,
+      wantsContactAds,
       subscriptionTier: highestTier, // ← Inherit highest tier
       subscriptionStatus: inheritedStatus,
       subscriptionExpiresAt: inheritedExpiresAt,
@@ -375,6 +420,54 @@ export async function createOrganization(
   revalidatePath("/", "layout");
   revalidatePath("/dashboard", "page");
   return { success: true };
+}
+
+// ─── Provision Org Pixel Token ────────────────────────────────────────────────
+
+/**
+ * Returns the org's global pixel token, generating one if it doesn't exist yet.
+ * Idempotent — safe to call on every settings page load.
+ */
+export async function provisionOrgPixelToken(
+  orgId: string,
+): Promise<{ token: string | null; error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { token: null, error: "Not authenticated" };
+
+  // Verify the caller belongs to this org
+  const { data: membership } = await supabase
+    .from("organization_members")
+    .select("organization_id")
+    .eq("user_id", user.id)
+    .eq("organization_id", orgId)
+    .maybeSingle();
+
+  if (!membership) return { token: null, error: "Access denied" };
+
+  // Return existing token if already provisioned
+  const { data: org } = await supabase
+    .from("organizations")
+    .select("pixel_token")
+    .eq("id", orgId)
+    .single();
+
+  if (org?.pixel_token) return { token: org.pixel_token };
+
+  // Generate and save a new 12-char token
+  const token = nanoid(12);
+  const { error } = await supabase
+    .from("organizations")
+    .update({ pixel_token: token })
+    .eq("id", orgId);
+
+  if (error) return { token: null, error: error.message };
+
+  revalidatePath("/settings");
+  return { token };
 }
 
 // ─── Delete Organization ──────────────────────────────────────────────────────

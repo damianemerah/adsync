@@ -98,10 +98,10 @@ export function CreativeSelectorDialog({
                       }
                     }}
                     className={cn(
-                      "group relative aspect-square rounded-md border bg-muted/30 overflow-hidden focus:outline-hidden transition-all",
+                      "group relative aspect-square rounded-md bg-muted/30 overflow-hidden focus:outline-hidden transition-all",
                       isSelected
-                        ? "ring-2 ring-primary border-primary"
-                        : "border-border hover:ring-2 hover:ring-primary/20",
+                        ? "border-2 border-primary"
+                        : "border border-border hover:border-primary/50",
                     )}
                   >
                     {creative.original_url && (

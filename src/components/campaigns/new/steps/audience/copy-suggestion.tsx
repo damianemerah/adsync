@@ -172,10 +172,10 @@ export function CopySuggestion({
       </div>
       <div
         className={cn(
-          "p-4 rounded-lg bg-card shadow-sm border border-border space-y-3 transition-all",
+          "p-4 rounded-lg bg-card space-y-3 transition-all",
           isSelected
-            ? "border-primary ring-2 ring-primary/20"
-            : "border-border",
+            ? "border-2 border-primary bg-primary/5"
+            : "border border-border",
         )}
       >
         <EditableField

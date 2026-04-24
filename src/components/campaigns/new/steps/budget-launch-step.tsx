@@ -64,7 +64,7 @@ const OUTCOME_TIERS: OutcomeTier[] = [
     sublabel: "Try it out",
     amount: 2500,
     color: "border-border",
-    activeColor: "border-primary ring-primary/20",
+    activeColor: "border-2 border-primary bg-primary/5",
   },
   {
     key: "grow",
@@ -72,7 +72,7 @@ const OUTCOME_TIERS: OutcomeTier[] = [
     sublabel: "Recommended",
     amount: 7000,
     color: "border-border",
-    activeColor: "border-primary ring-primary/20",
+    activeColor: "border-2 border-primary bg-primary/5",
     popular: true,
   },
   {
@@ -81,7 +81,7 @@ const OUTCOME_TIERS: OutcomeTier[] = [
     sublabel: "Maximum reach",
     amount: 15000,
     color: "border-border",
-    activeColor: "border-primary ring-primary/20",
+    activeColor: "border-2 border-primary bg-primary/5",
   },
 ];
 
@@ -439,10 +439,10 @@ export function BudgetLaunchStep({
                     key={tier.key}
                     onClick={() => handleTierSelect(tier)}
                     className={cn(
-                      "p-4 rounded-lg border-2 text-left transition-all relative group",
+                      "p-4 rounded-lg text-left transition-all relative group",
                       active
-                        ? `ring-1 bg-primary/5 ${tier.activeColor}`
-                        : `${tier.color} bg-card/50 hover:border-primary/50 hover:bg-card`,
+                        ? tier.activeColor
+                        : `border ${tier.color} bg-card/50 hover:border-primary/50 hover:bg-card`,
                     )}
                   >
                     {tier.popular && (

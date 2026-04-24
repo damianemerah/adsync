@@ -347,20 +347,6 @@ export async function getCampaignById(supabase: SupabaseClient, id: string) {
     }
   }
 
-  // Fetch pixel token for website attribution links (if any)
-  let pixelToken: string | null = null;
-  const { data: websiteLink } = await supabase
-    .from("attribution_links")
-    .select("pixel_token")
-    .eq("campaign_id", id)
-    .eq("destination_type", "website")
-    .not("pixel_token", "is", null)
-    .limit(1)
-    .maybeSingle();
-  if (websiteLink?.pixel_token) {
-    pixelToken = websiteLink.pixel_token;
-  }
-
   return {
     id: data.id,
     name: data.name,
@@ -394,8 +380,6 @@ export async function getCampaignById(supabase: SupabaseClient, id: string) {
     // ... existing fields
     performance: performanceData,
     summary,
-    // Attribution
-    pixelToken,
     salesCount: data.sales_count || 0,
     revenueNgn: data.revenue_ngn || 0,
     whatsappClicks: data.whatsapp_clicks || 0,

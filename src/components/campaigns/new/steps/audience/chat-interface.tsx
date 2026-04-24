@@ -96,27 +96,9 @@ export function ChatInterface({
   );
 
   return (
-    <div className="flex flex-col bg-background rounded-lg shadow-sm border border-border overflow-hidden relative">
-      {/* Header */}
-      <div className="p-4 border-b border-border bg-muted/30 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-            <Sparks className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h2 className="font-bold text-foreground">Tenzu AI</h2>
-            <p className="text-xs text-subtle-foreground">
-              Tell me what you sell — I'll build the ad
-            </p>
-          </div>
-        </div>
-        <Badge variant="secondary" className="bg-primary/5 text-primary">
-          Beta
-        </Badge>
-      </div>
-
+    <>
       {/* Messages */}
-      <ScrollArea className="flex-1 p-4 sm:p-6 bg-muted/10 min-h-[60vh] overflow-auto no-scrollbar max-h-[1000px]">
+      <ScrollArea className="flex-1 p-4 sm:p-6 bg-muted/10 overflow-auto no-scrollbar">
         <div className="space-y-6 pb-4 flex flex-col items-start w-full">
           {messages.map((msg, idx) => {
             const isConsecutive =
@@ -187,7 +169,7 @@ export function ChatInterface({
             size="icon"
             onClick={() => handleSend()}
             disabled={!inputValue.trim() || isTyping}
-            className="absolute right-2 h-10 w-10 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm border border-border"
+            className="absolute right-2 h-10 w-10 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground border border-border"
           >
             <Send className="h-4 w-4" />
           </Button>
@@ -198,6 +180,6 @@ export function ChatInterface({
           </p>
         )}
       </div>
-    </div>
+    </>
   );
 }

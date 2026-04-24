@@ -10,14 +10,6 @@ export function generateAttributionToken(length = 8): string {
 }
 
 /**
- * Generates a longer pixel token for website owners.
- * Length: 12 chars — used in the pixel snippet, not the redirect URL.
- */
-export function generatePixelToken(): string {
-  return nanoid(12);
-}
-
-/**
  * Builds the full Tenzu redirect URL for an attribution token.
  * Example: "https://Tenzu.app/l/xK9mZ2pR"
  */

@@ -11,21 +11,15 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Check,
   SystemRestart,
-  Flash,
-  MediaImage,
-  MediaVideo,
-  Sparks,
   Gift,
 } from "iconoir-react";
 import {
   PLAN_IDS,
   PLAN_PRICES,
   PLAN_CREDITS,
-  CREDIT_COSTS,
   CREDIT_PACKS,
   TIER_CONFIG,
 } from "@/lib/constants";
@@ -92,74 +86,13 @@ const PLANS = [
   },
 ];
 
-// Credit cost breakdown — text is free
-const CREDIT_BREAKDOWN = [
-  {
-    icon: MediaImage,
-    label: "Image Generate",
-    credits: CREDIT_COSTS.IMAGE_GEN_PRO,
-    isFree: false,
-    note: "AI-powered",
-  },
-  {
-    icon: Sparks,
-    label: "Image Edit",
-    credits: CREDIT_COSTS.IMAGE_EDIT_PRO,
-    isFree: false,
-    note: "AI-powered",
-  },
-  {
-    icon: Flash,
-    label: "AI Ad Copy",
-    credits: 0,
-    isFree: true,
-    note: "Always Free",
-  },
-  {
-    icon: MediaVideo,
-    label: "Video - 5s",
-    credits: CREDIT_COSTS.VIDEO_KLING_5S,
-    isFree: false,
-    note: "Coming Soon",
-  },
-];
-
 export function BillingContent() {
   const { data: subscription, isLoading, refetch } = useSubscription();
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
   const verifiedRef = useRef(false);
-
-  const [activeTab, setActiveTab] = useState<string>("plans");
-
-  // Sync tab state with URL hash
-  useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash.replace("#", "");
-
-      if (["plans", "credits"].includes(hash)) {
-        setActiveTab(hash);
-      }
-    };
-
-    // Initial check on mount
-    handleHashChange();
-
-    if (!["plans", "credits"].includes(window.location.hash.replace("#", ""))) {
-      // Default to plans, update hash without refreshing
-      window.history.replaceState(null, "", "#plans");
-    }
-
-    // Listen to changes so clicking a hash link on the same page updates the tab
-    window.addEventListener("hashchange", handleHashChange);
-    return () => window.removeEventListener("hashchange", handleHashChange);
-  }, []);
-
-  const handleTabChange = (val: string) => {
-    setActiveTab(val);
-    window.location.hash = val;
-  };
+  const [showPlans, setShowPlans] = useState(false);
 
   // ── Callback verification: handle redirect from Paystack ────────────────
   useEffect(() => {
@@ -171,12 +104,6 @@ export function BillingContent() {
 
     if (reference && (isSuccess || isPackSuccess)) {
       verifiedRef.current = true;
-      
-      if (isPackSuccess) {
-         handleTabChange("credits");
-      } else if (isSuccess) {
-         handleTabChange("plans");
-      }
 
       verifyAndActivate(reference)
         .then((result) => {
@@ -197,8 +124,7 @@ export function BillingContent() {
         })
         .finally(() => {
            // Clean up URL
-           const hash = isPackSuccess ? "#credits" : "#plans";
-           router.replace(`/settings/subscription${hash}`, { scroll: false });
+           router.replace(`/settings/subscription`, { scroll: false });
         });
     }
   }, [searchParams, refetch, router]);
@@ -262,94 +188,168 @@ export function BillingContent() {
     creditQuota > 0 ? Math.round((creditsUsed / creditQuota) * 100) : 0;
 
   return (
-    <div className="space-y-6">
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        {/* Tabs Navigation */}
-        <div className="border-b border-border mb-8">
-          <TabsList className="bg-transparent h-12 p-0 w-full justify-start gap-8">
-            <TabsTrigger 
-              value="plans" 
-              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none h-12 px-2 text-subtle-foreground font-medium transition-none"
-            >
-              Plans &amp; Usage
-            </TabsTrigger>
-            <TabsTrigger
-              value="credits"
-              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none h-12 px-2 text-subtle-foreground font-medium transition-none"
-            >
-              AI Credits
-            </TabsTrigger>
-          </TabsList>
+    <div className="space-y-12 w-full pb-8">
+      {/* Current Subscription */}
+      <section>
+        <div className="mb-6">
+          <h2 className="text-xl font-heading font-semibold text-foreground">
+            Current Subscription
+          </h2>
         </div>
+        <Card className="bg-card border-border shadow-sm">
+          <CardContent className="p-6 flex flex-col md:flex-row items-start justify-between gap-6">
+            <div className="flex-1 space-y-4">
+              <div className="flex items-center gap-3">
+                <h3 className="text-xl font-bold capitalize">
+                  {currentTier} Plan
+                </h3>
+                <Badge
+                  variant={orgStatus === "active" ? "default" : "secondary"}
+                  className="capitalize"
+                >
+                  {orgStatus}
+                </Badge>
+              </div>
+              <p className="text-subtle-foreground text-sm">
+                {orgStatus === "active"
+                  ? `Renews ${formatDate(subscription?.org?.expiresAt?.toISOString() ?? null)}`
+                  : `Expired ${formatDate(subscription?.org?.expiresAt?.toISOString() ?? null)}`}
+              </p>
 
-        {/* ───────────────────────────────────────────────────────────────── */}
-        {/* Tab 1: Plans & Usage */}
-        <TabsContent value="plans" className="space-y-12 focus-visible:outline-none focus-visible:ring-0">
-          
-          {/* Current Subscription */}
-          <section>
-            <h2 className="text-lg font-heading mb-4">
-              Current Subscription
-            </h2>
-            <Card className="bg-card border-border shadow-sm">
-              <CardContent className="p-6 flex flex-col md:flex-row items-start justify-between gap-6">
-                <div className="flex-1 space-y-4">
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-xl font-bold capitalize">
-                      {currentTier} Plan
-                    </h3>
-                    <Badge
-                      variant={orgStatus === "active" ? "default" : "secondary"}
-                      className="capitalize"
-                    >
-                      {orgStatus}
-                    </Badge>
+              {/* Credit meter */}
+              {creditQuota > 0 && (
+                <div className="space-y-1 flex-1 max-w-sm">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-subtle-foreground font-medium">
+                      AI Credits used
+                    </span>
+                    <span className="font-bold">
+                      {creditsUsed} <span className="text-subtle-foreground font-normal">/ {creditQuota}</span>
+                    </span>
                   </div>
-                  <p className="text-subtle-foreground text-sm">
-                    {orgStatus === "active"
-                      ? `Renews ${formatDate(subscription?.org?.expiresAt?.toISOString() ?? null)}`
-                      : `Expired ${formatDate(subscription?.org?.expiresAt?.toISOString() ?? null)}`}
+                  <Progress value={creditsPercent} className="h-2" />
+                  <p className="text-xs text-subtle-foreground">
+                    {creditsBalance} credits remaining - resets on renewal
                   </p>
+                </div>
+              )}
+            </div>
 
-                  {/* Credit meter */}
-                  {creditQuota > 0 && (
-                    <div className="space-y-1 flex-1 max-w-sm">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-subtle-foreground font-medium">
-                          AI Credits used
-                        </span>
-                        <span className="font-bold">
-                          {creditsUsed} <span className="text-subtle-foreground font-normal">/ {creditQuota}</span>
-                        </span>
+            {orgStatus !== "active" && (
+              <Button
+                onClick={() => handleUpgrade(currentTier)}
+                disabled={isProcessing !== null}
+                size="lg"
+              >
+                {isProcessing === currentTier ? (
+                  <SystemRestart className="w-5 h-5 animate-spin" />
+                ) : (
+                  "Renew Subscription"
+                )}
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* Credit Pack Top-Ups */}
+      <section>
+        <div className="mb-6">
+          <h2 className="text-xl font-heading font-semibold text-foreground">
+            Need More Credits?
+          </h2>
+          <p className="text-subtle-foreground text-sm mt-1">
+            One-off top-ups that stack on your plan. Credits never expire mid-cycle.
+          </p>
+        </div>
+        
+        <Card className="bg-card border-border shadow-sm overflow-hidden">
+          <div className="divide-y divide-border">
+            {CREDIT_PACKS.map((pack) => {
+              const processingKey = `pack_${pack.id}`;
+              const isProcessingThis = isProcessing === processingKey;
+              const pricePerCredit = Math.round(pack.price / pack.credits);
+              
+              return (
+                <div
+                  key={pack.id}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-6 hover:bg-muted/30 transition-colors gap-4"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="h-10 w-10 shrink-0 rounded-md bg-ai/10 flex items-center justify-center text-ai">
+                      <Gift className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <p className="text-base font-bold text-foreground">{pack.name}</p>
+                        <Badge variant="secondary" className="text-xs bg-ai/10 text-ai border-none hover:bg-ai/10 font-bold">
+                          {pack.credits} credits
+                        </Badge>
                       </div>
-                      <Progress value={creditsPercent} className="h-2" />
-                      <p className="text-xs text-subtle-foreground">
-                        {creditsBalance} credits remaining - resets on renewal
+                      <p className="text-sm font-medium text-subtle-foreground">
+                        {formatCurrency(pack.price)} <span className="text-xs font-normal">({"₦"}{pricePerCredit}/credit)</span>
                       </p>
                     </div>
-                  )}
-                </div>
-
-                {orgStatus !== "active" && (
+                  </div>
                   <Button
-                    onClick={() => handleUpgrade(currentTier)}
-                    disabled={isProcessing !== null}
-                    size="lg"
+                    variant="outline"
+                    className="w-full sm:w-auto font-bold border-border hover:bg-ai hover:text-ai-foreground hover:border-ai shrink-0"
+                    onClick={() => handleBuyPack(pack.id)}
+                    disabled={isProcessingThis || orgStatus !== "active"}
                   >
-                    {isProcessing === currentTier ? (
-                      <SystemRestart className="w-5 h-5 animate-spin" />
+                    {isProcessingThis ? (
+                      <SystemRestart className="w-4 h-4 animate-spin" />
                     ) : (
-                      "Renew Subscription"
+                      `Buy Pack`
                     )}
                   </Button>
-                )}
-              </CardContent>
-            </Card>
-          </section>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+        {orgStatus !== "active" && (
+          <div className="mt-4 p-4 rounded-md bg-muted/40 border border-border text-sm text-subtle-foreground">
+            You need an active subscription to purchase credit packs.
+          </div>
+        )}
+      </section>
 
-          {/* Plan Cards */}
-          <section>
-            <h2 className="text-lg font-heading mb-4">Available Plans</h2>
+      {/* Plan Cards */}
+      <section className="pt-4 border-t border-border mt-4">
+        {!showPlans ? (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-muted/30 rounded-lg p-6 border border-border">
+            <div>
+              <h2 className="text-lg font-bold text-foreground">
+                Looking to change your plan?
+              </h2>
+              <p className="text-sm text-subtle-foreground mt-1">
+                Upgrade or downgrade your subscription to better fit your business needs.
+              </p>
+            </div>
+            <Button 
+              variant="outline" 
+              className="mt-4 sm:mt-0 font-bold border-border bg-background"
+              onClick={() => setShowPlans(true)}
+            >
+              View Available Plans
+            </Button>
+          </div>
+        ) : (
+          <div className="animate-in fade-in slide-in-from-top-4 duration-300">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-heading font-semibold text-foreground">
+                Available Plans
+              </h2>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => setShowPlans(false)}
+                className="text-subtle-foreground hover:text-foreground font-medium"
+              >
+                Hide Plans
+              </Button>
+            </div>
             <div className="grid md:grid-cols-3 gap-6">
               {PLANS.map((plan) => {
                 const isCurrent = currentTier === plan.id;
@@ -360,13 +360,13 @@ export function BillingContent() {
                     key={plan.id}
                     className={`relative flex flex-col ${
                       plan.highlight
-                        ? "border-primary ring-1 ring-primary/20"
+                        ? "border-accent ring-1 ring-accent/20"
                         : "border-border shadow-sm"
                     } ${isCurrent ? "opacity-90 bg-muted/20" : "bg-card"}`}
                   >
                     {plan.highlight && (
                       <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                        <Badge className="bg-primary hover:bg-primary text-primary-foreground px-3 py-0.5 text-xs font-bold shadow-none">
+                        <Badge className="bg-accent hover:bg-accent text-accent-foreground px-3 py-0.5 text-xs font-bold shadow-none">
                           Most Popular
                         </Badge>
                       </div>
@@ -424,87 +424,9 @@ export function BillingContent() {
                 );
               })}
             </div>
-          </section>
-
-        </TabsContent>
-
-        {/* ───────────────────────────────────────────────────────────────── */}
-        {/* Tab 2: AI Credits */}
-        <TabsContent value="credits" className="space-y-10 focus-visible:outline-none focus-visible:ring-0">
-          
-          {/* Credit Pack Top-Ups */}
-          <section>
-            <div className="mb-6">
-              <h2 className="text-xl font-heading text-foreground">
-                Need More Credits?
-              </h2>
-              <p className="text-subtle-foreground text-sm mt-1">
-                One-off top-ups that stack on your plan. Credits never expire mid-cycle.
-              </p>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {CREDIT_PACKS.map((pack) => {
-                const processingKey = `pack_${pack.id}`;
-                const isProcessingThis = isProcessing === processingKey;
-                const pricePerCredit = Math.round(pack.price / pack.credits);
-                
-                return (
-                  <div
-                    key={pack.id}
-                    className="flex flex-col rounded-md border border-border bg-card shadow-sm p-6 gap-6 transition-all hover:border-ai/30"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <Gift className="w-5 h-5 text-ai" />
-                          <p className="text-sm font-bold text-ai">{pack.name}</p>
-                        </div>
-                        <p className="text-3xl font-black">
-                          {pack.credits}{" "}
-                          <span className="text-sm font-medium text-subtle-foreground">
-                            credits
-                          </span>
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xl font-bold">
-                          {formatCurrency(pack.price)}
-                        </p>
-                        <p className="text-xs font-medium text-subtle-foreground mt-0.5">
-                          {"\u20a6"}
-                          {pricePerCredit}/credit
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      className="w-full font-bold border-border hover:bg-ai hover:text-ai-foreground hover:border-ai"
-                      onClick={() => handleBuyPack(pack.id)}
-                      disabled={isProcessingThis || orgStatus !== "active"}
-                    >
-                      {isProcessingThis ? (
-                        <SystemRestart className="w-4 h-4 animate-spin" />
-                      ) : (
-                        `Buy ${pack.name}`
-                      )}
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
-            {orgStatus !== "active" && (
-              <div className="mt-4 p-4 rounded-md bg-muted/40 border border-border text-sm text-subtle-foreground">
-                You need an active subscription to purchase credit packs.
-              </div>
-            )}
-          </section>
-
-        </TabsContent>
-
-        {/* ───────────────────────────────────────────────────────────────── */}
-        {/* Tab 3: Ad Budget Wallet */}
-      </Tabs>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

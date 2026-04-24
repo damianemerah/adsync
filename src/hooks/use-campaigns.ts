@@ -14,12 +14,14 @@ import { useActiveOrgContext } from "@/components/providers/active-org-provider"
 
 export function useCampaignsList() {
   const supabase = createClient();
+  const queryClient = useQueryClient();
   const { activeOrgId } = useActiveOrgContext();
 
   return useQuery({
     queryKey: ["campaigns", activeOrgId],
     queryFn: async () => {
-      let q = supabase
+      // Read campaigns + account freshness in parallel.
+      let campaignsQ = supabase
         .from("campaigns")
         .select(
           `
@@ -28,16 +30,55 @@ export function useCampaignsList() {
         `,
         )
         .order("created_at", { ascending: false });
+      if (activeOrgId) campaignsQ = campaignsQ.eq("organization_id", activeOrgId);
 
-      if (activeOrgId) {
-        q = q.eq("organization_id", activeOrgId);
+      let accountsQ = supabase
+        .from("ad_accounts")
+        .select("id, last_synced_at")
+        .eq("health_status", "healthy")
+        .is("disconnected_at", null);
+      if (activeOrgId) accountsQ = accountsQ.eq("organization_id", activeOrgId);
+
+      const [campaignsRes, accountsRes] = await Promise.all([
+        campaignsQ,
+        accountsQ,
+      ]);
+
+      if (campaignsRes.error) throw campaignsRes.error;
+      const data = campaignsRes.data ?? [];
+      const accounts = accountsRes.data ?? [];
+
+      // Cache-on-read: if any healthy account hasn't been synced in the last
+      // 5 minutes, kick off a background sync. Once it finishes, invalidate
+      // so the query reruns and returns the freshly written rows. The sync
+      // endpoint updates ad_accounts.last_synced_at, so the next queryFn
+      // call sees fresh accounts and won't re-trigger — natural loop break.
+      const STALE_MS = 5 * 60 * 1000;
+      const now = Date.now();
+      const staleAccounts = accounts.filter(
+        (a) =>
+          !a.last_synced_at ||
+          now - new Date(a.last_synced_at).getTime() > STALE_MS,
+      );
+
+      if (staleAccounts.length > 0) {
+        Promise.all(
+          staleAccounts.map((a) =>
+            fetch("/api/campaigns/sync", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ accountId: a.id }),
+            })
+              .then((r) => r.json())
+              .catch(() => null),
+          ),
+        ).then(() => {
+          queryClient.invalidateQueries({
+            queryKey: ["campaigns", activeOrgId],
+          });
+        });
       }
 
-      const { data, error } = await q;
-
-      if (error) throw error;
-
-      // Map DB fields to UI-friendly format
       return data.map((c: any) => ({
         id: c.id,
         name: c.name,
@@ -69,6 +110,12 @@ export function useCampaignsList() {
           : null,
       }));
     },
+    staleTime: 30_000,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    refetchInterval: (q) =>
+      q.state.data?.some((c) => c.status === "active") ? 60_000 : false,
+    refetchIntervalInBackground: false,
   });
 }
 

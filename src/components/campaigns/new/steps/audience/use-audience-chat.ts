@@ -61,8 +61,6 @@ export interface UseAudienceChatReturn {
   chatPhase: "initial" | "refining";
   upgradeDialogOpen: boolean;
   setUpgradeDialogOpen: (open: boolean) => void;
-  trialExpired: boolean;
-  subscriptionInactive: boolean;
   summaryOpen: boolean;
   setSummaryOpen: (open: boolean) => void;
   inputValue: string;
@@ -145,8 +143,6 @@ export function useAudienceChat({
   const [isRefiningCopy, setIsRefiningCopy] = useState(false);
   const [isReadingUrl, setIsReadingUrl] = useState(false);
   const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
-  const [trialExpired, setTrialExpired] = useState(false);
-  const [subscriptionInactive, setSubscriptionInactive] = useState(false);
   const [copyReady, setCopyReady] = useState(false);
   const [chatPhase, setChatPhase] = useState<"initial" | "refining">(
     "initial",
@@ -187,6 +183,36 @@ export function useAudienceChat({
     }, 4000);
     return () => clearInterval(interval);
   }, [inputValue, chatPhase]);
+
+  // Seed locations + interests from org defaults on fresh campaigns
+  useEffect(() => {
+    if (!currentOrg) return;
+    const state = useCampaignStore.getState();
+    // Only seed on a fresh campaign — never overwrite an in-progress one
+    if (state.aiPrompt) return;
+
+    const updates: Partial<Parameters<typeof updateDraft>[0]> = {};
+
+    if (state.locations.length === 0 && currentOrg.default_target_locations?.length) {
+      updates.locations = (currentOrg.default_target_locations as Array<{ id: string; name: string; type: string; country_code: string }>).map((l) => ({
+        id: l.id,
+        name: l.name,
+        type: l.type,
+        country: l.country_code,
+      }));
+    }
+
+    if (state.targetInterests.length === 0 && currentOrg.default_target_interests?.length) {
+      updates.targetInterests = (currentOrg.default_target_interests as Array<{ id: string; name: string }>).map((i) => ({
+        id: i.id,
+        name: i.name,
+        resolved: true,
+      }));
+    }
+
+    if (Object.keys(updates).length > 0) updateDraft(updates);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- run once when org loads
+  }, [currentOrg?.id]);
 
   // Init-chat greeting (runs once on mount)
   useEffect(() => {
@@ -689,9 +715,21 @@ export function useAudienceChat({
           userMsg,
         ]);
         if (msg.toLowerCase().includes("trial")) {
-          setTrialExpired(true);
+          toast.error("Your free trial has ended. Subscribe to keep using AI.", {
+            duration: 7000,
+            action: {
+              label: "Subscribe",
+              onClick: () => router.push("/settings/subscription"),
+            },
+          });
         } else {
-          setSubscriptionInactive(true);
+          toast.error("Subscription inactive. Renew to unlock all features.", {
+            duration: 7000,
+            action: {
+              label: "Renew",
+              onClick: () => router.push("/settings/subscription"),
+            },
+          });
         }
         return;
       }
@@ -921,8 +959,6 @@ export function useAudienceChat({
     chatPhase,
     upgradeDialogOpen,
     setUpgradeDialogOpen,
-    trialExpired,
-    subscriptionInactive,
     summaryOpen,
     setSummaryOpen,
     inputValue,

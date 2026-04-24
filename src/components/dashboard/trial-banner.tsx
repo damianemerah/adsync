@@ -40,15 +40,15 @@ export function TrialBanner() {
 
   if (daysLeft <= 0) return null;
 
-  const tierLabel =
-    tier.charAt(0).toUpperCase() + tier.slice(1);
-
+  const tierLabel = tier.charAt(0).toUpperCase() + tier.slice(1);
   const urgency = daysLeft <= 3 ? "high" : daysLeft <= 7 ? "medium" : "low";
 
   return (
     <div
+      role="alert"
+      aria-live="polite"
       className={cn(
-        "border-b px-4 py-2.5",
+        "border-b px-4 py-3",
         urgency === "high"
           ? "bg-status-danger-soft border-status-danger/15"
           : urgency === "medium"
@@ -57,10 +57,11 @@ export function TrialBanner() {
       )}
     >
       <div className="max-w-screen-xl mx-auto flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
+        {/* Left — icon + message */}
+        <div className="flex items-center gap-3 min-w-0">
           <div
             className={cn(
-              "h-7 w-7 rounded-full flex items-center justify-center shrink-0",
+              "h-8 w-8 rounded-full flex items-center justify-center shrink-0",
               urgency === "high"
                 ? "bg-status-danger/15"
                 : urgency === "medium"
@@ -70,7 +71,7 @@ export function TrialBanner() {
           >
             <Flash
               className={cn(
-                "h-3.5 w-3.5 fill-current",
+                "h-4 w-4 fill-current",
                 urgency === "high"
                   ? "text-status-danger"
                   : urgency === "medium"
@@ -81,7 +82,7 @@ export function TrialBanner() {
           </div>
           <p
             className={cn(
-              "text-sm font-medium",
+              "text-sm font-medium leading-snug",
               urgency === "high"
                 ? "text-status-danger"
                 : urgency === "medium"
@@ -99,20 +100,21 @@ export function TrialBanner() {
           </p>
         </div>
 
+        {/* Right — CTA row */}
         <div className="flex items-center gap-2 shrink-0">
           <Button
             size="sm"
             variant={urgency === "high" ? "destructive" : "default"}
             onClick={() => router.push("/settings/subscription")}
-            className="h-8 text-xs font-bold gap-1"
+            className="min-h-11 flex-1 sm:flex-none px-4 text-xs font-bold gap-1.5"
           >
             Upgrade Now
-            <ArrowRight className="h-3 w-3" />
+            <ArrowRight className="h-3.5 w-3.5" />
           </Button>
           <button
             onClick={handleDismiss}
-            className="h-8 w-8 rounded-lg flex items-center justify-center text-subtle-foreground hover:text-foreground hover:bg-muted transition-colors"
-            aria-label="Dismiss"
+            className="min-h-11 w-11 rounded-lg flex items-center justify-center shrink-0 text-subtle-foreground hover:text-foreground hover:bg-muted transition-colors"
+            aria-label="Dismiss trial banner"
           >
             <Xmark className="h-4 w-4" />
           </button>

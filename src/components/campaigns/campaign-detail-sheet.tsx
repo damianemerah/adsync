@@ -1,7 +1,6 @@
 "use client";
 
 import { Suspense } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import {
   Sheet,
@@ -11,7 +10,7 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { CampaignDetailView } from "@/components/campaigns/campaign-detail-view";
-import { fetchCampaignById } from "@/actions/campaigns";
+import { useCampaignDetail } from "@/hooks/use-campaign-detail";
 import { SystemRestart } from "iconoir-react";
 
 function CampaignDetailSheetInner() {
@@ -21,15 +20,8 @@ function CampaignDetailSheetInner() {
 
   const campaignId = searchParams.get("campaign");
 
-  const { data: selectedCampaign, isLoading } = useQuery({
-    queryKey: ["campaign", campaignId],
-    queryFn: async () => {
-      if (!campaignId) return null;
-      return await fetchCampaignById(campaignId);
-    },
-    enabled: !!campaignId,
-    staleTime: 0,
-  });
+  const { campaign: selectedCampaign, isLoading } =
+    useCampaignDetail(campaignId);
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {
@@ -41,7 +33,7 @@ function CampaignDetailSheetInner() {
     <Sheet open={!!campaignId} onOpenChange={handleOpenChange}>
       <SheetContent
         side="bottom"
-        className="h-[85vh] w-full rounded-t-[20px] p-0 gap-0 shadow-2xl overflow-auto no-scrollbar"
+        className="h-[85vh] w-full rounded-t-xl sm:rounded-t-2xl p-0 gap-0 shadow-none border-t border-border overflow-auto no-scrollbar"
       >
         <SheetHeader className="sr-only">
           <SheetTitle>Campaign Details</SheetTitle>
@@ -51,15 +43,15 @@ function CampaignDetailSheetInner() {
         </SheetHeader>
 
         {isLoading && (
-          <div className="h-full flex items-center justify-center bg-white">
-            <SystemRestart className="w-8 h-8 animate-spin text-blue-600" />
+          <div className="h-full flex items-center justify-center bg-card">
+            <SystemRestart className="w-8 h-8 animate-spin text-primary" />
           </div>
         )}
 
         {!isLoading && campaignId && !selectedCampaign && (
           <div className="p-8 text-center h-full flex items-center justify-center flex-col gap-2">
-            <p className="font-semibold text-slate-900">Campaign not found</p>
-            <p className="text-slate-500 text-sm">
+            <p className="font-semibold text-foreground">Campaign not found</p>
+            <p className="text-subtle-foreground text-sm">
               It may have been deleted or you don&apos;t have permission to view
               it.
             </p>

@@ -22,33 +22,33 @@ import { EmptyState } from "@/components/ui/empty-state";
 export const METRIC_CONFIG = {
   spend: {
     label: "Spend",
-    color: "hsl(var(--primary))",
+    color: "var(--primary)",
     icon: Dollar,
     theme: "blue",
   },
   impressions: {
     label: "People Reached",
-    color: "hsl(var(--ai))", // Use AI purple from design system
+    color: "var(--ai)", // Use AI purple from design system
     icon: Eye,
     theme: "purple",
   },
   clicks: {
-    label: "Clicks",
+    label: "Link Clicks",
     color: "#2563EB", // Blue
     icon: CursorPointer,
     theme: "green",
   },
-  ctr: { label: "CTR", color: "#EA580C", icon: Magnet, theme: "orange" },
+  ctr: { label: "Click Rate", color: "#EA580C", icon: Magnet, theme: "orange" },
   revenue: {
     label: "Revenue",
     color: "#10b981", // Emerald
     icon: Dollar,
     theme: "green",
   },
-  sales: {
-    label: "Sales",
+  cpc: {
+    label: "Cost / Click",
     color: "#6366f1", // Indigo
-    icon: GraphUp,
+    icon: Dollar,
     theme: "indigo",
   },
 } as const;
@@ -101,13 +101,19 @@ export function PerformanceChart({
         />
         <Tooltip
           contentStyle={{
-            backgroundColor: "hsl(var(--popover))",
-            border: "1px solid hsl(var(--border))",
-            borderRadius: "12px",
-            boxShadow: "var(--shadow-sm border border-border)",
-            color: "hsl(var(--popover-foreground))",
+            backgroundColor: "var(--popover)",
+            border: "1px solid var(--border)",
+            borderRadius: "8px",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+            color: "var(--popover-foreground)",
+            fontSize: "13px",
+            fontWeight: 500,
+            zIndex: 50,
           }}
-          labelStyle={{ color: "hsl(var(--subtle-foreground))" }}
+          labelStyle={{ 
+            color: "var(--subtle-foreground)",
+            fontSize: "12px",
+          }}
         />
         <Legend />
         {activeMetrics.map((key) => (

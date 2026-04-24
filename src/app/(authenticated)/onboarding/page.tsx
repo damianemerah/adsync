@@ -39,6 +39,12 @@ import {
   Star,
   Shield,
   Sparks,
+  MapPin,
+  Internet,
+  UserScan,
+  Cart,
+  Calendar,
+  ChatLines,
 } from "iconoir-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -151,6 +157,13 @@ const LEFT_PANEL_CONTENT = [
     author: "Amaka, Abuja",
   },
   {
+    title: "Your business goals",
+    body: "A few quick questions so we can suggest the right campaign types and targeting for you.",
+    quote:
+      "Tenzu automatically picked the perfect objective for my service business.",
+    author: "Nkechi, Ibadan",
+  },
+  {
     title: "Tell us about you",
     body: "We'll tailor your dashboard and AI recommendations based on your role.",
     quote: "I manage 12 clients and Tenzu cuts my campaign setup time in half.",
@@ -172,6 +185,76 @@ const LEFT_PANEL_CONTENT = [
   },
 ];
 
+const BUSINESS_GOAL_QUESTIONS = [
+  {
+    key: "hasPhysicalLocation",
+    question: "Do you want people to come to your business location?",
+    icon: MapPin,
+    iconBg: "bg-emerald-50",
+    iconColor: "text-emerald-500",
+    options: [
+      { label: "Yes", value: true },
+      { label: "No", value: false },
+      { label: "This doesn't apply to me", value: null },
+    ],
+  },
+  {
+    key: "hasWebsite",
+    question: "Do you have a website?",
+    icon: Internet,
+    iconBg: "bg-blue-50",
+    iconColor: "text-blue-500",
+    options: [
+      { label: "Yes", value: true },
+      { label: "No", value: false },
+    ],
+  },
+  {
+    key: "getsLeadsViaWebsite",
+    question: "Do you get leads through your website?",
+    icon: UserScan,
+    iconBg: "bg-violet-50",
+    iconColor: "text-violet-500",
+    options: [
+      { label: "Yes", value: true },
+      { label: "No", value: false },
+    ],
+  },
+  {
+    key: "sellsOnline",
+    question: "Do people buy products on your website?",
+    icon: Cart,
+    iconBg: "bg-orange-50",
+    iconColor: "text-orange-500",
+    options: [
+      { label: "Yes", value: true },
+      { label: "No", value: false },
+    ],
+  },
+  {
+    key: "booksAppointments",
+    question: "Do people book appointments on your website?",
+    icon: Calendar,
+    iconBg: "bg-sky-50",
+    iconColor: "text-sky-500",
+    options: [
+      { label: "Yes", value: true },
+      { label: "No", value: false },
+    ],
+  },
+  {
+    key: "wantsContactAds",
+    question: "Do you want people to contact you?",
+    icon: ChatLines,
+    iconBg: "bg-teal-50",
+    iconColor: "text-teal-500",
+    options: [
+      { label: "Yes", value: true },
+      { label: "No", value: false },
+    ],
+  },
+] as const;
+
 export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
@@ -189,6 +272,16 @@ export default function OnboardingPage() {
   const [selectedPlan, setSelectedPlan] = useState<string>(PLAN_IDS.GROWTH);
   const [isLoaded, setIsLoaded] = useState(false);
 
+  // Business Goals state (step 3 sub-questions).
+  // undefined = not yet answered; null = "doesn't apply"; boolean = explicit answer.
+  const [businessGoalSubQ, setBusinessGoalSubQ] = useState(0);
+  const [hasPhysicalLocation, setHasPhysicalLocation] = useState<boolean | null | undefined>(undefined);
+  const [hasWebsite, setHasWebsite] = useState<boolean | null | undefined>(undefined);
+  const [getsLeadsViaWebsite, setGetsLeadsViaWebsite] = useState<boolean | null | undefined>(undefined);
+  const [sellsOnline, setSellsOnline] = useState<boolean | null | undefined>(undefined);
+  const [booksAppointments, setBooksAppointments] = useState<boolean | null | undefined>(undefined);
+  const [wantsContactAds, setWantsContactAds] = useState<boolean | null | undefined>(undefined);
+
   useEffect(() => {
     const saved = localStorage.getItem("onboarding_state");
     if (saved) {
@@ -204,6 +297,13 @@ export default function OnboardingPage() {
         if (parsed.customerGender) setCustomerGender(parsed.customerGender);
         if (parsed.userRole) setUserRole(parsed.userRole);
         if (parsed.selectedPlan) setSelectedPlan(parsed.selectedPlan);
+        if (parsed.businessGoalSubQ != null) setBusinessGoalSubQ(parsed.businessGoalSubQ);
+        if (parsed.hasPhysicalLocation != null) setHasPhysicalLocation(parsed.hasPhysicalLocation);
+        if (parsed.hasWebsite != null) setHasWebsite(parsed.hasWebsite);
+        if (parsed.getsLeadsViaWebsite != null) setGetsLeadsViaWebsite(parsed.getsLeadsViaWebsite);
+        if (parsed.sellsOnline != null) setSellsOnline(parsed.sellsOnline);
+        if (parsed.booksAppointments != null) setBooksAppointments(parsed.booksAppointments);
+        if (parsed.wantsContactAds != null) setWantsContactAds(parsed.wantsContactAds);
       } catch (e) {
         console.error("Error parsing onboarding state", e);
       }
@@ -223,6 +323,13 @@ export default function OnboardingPage() {
         customerGender,
         userRole,
         selectedPlan,
+        businessGoalSubQ,
+        hasPhysicalLocation,
+        hasWebsite,
+        getsLeadsViaWebsite,
+        sellsOnline,
+        booksAppointments,
+        wantsContactAds,
       };
       localStorage.setItem("onboarding_state", JSON.stringify(state));
     }
@@ -237,11 +344,70 @@ export default function OnboardingPage() {
     customerGender,
     userRole,
     selectedPlan,
+    businessGoalSubQ,
+    hasPhysicalLocation,
+    hasWebsite,
+    getsLeadsViaWebsite,
+    sellsOnline,
+    booksAppointments,
+    wantsContactAds,
   ]);
 
-  const progress = (step / 5) * 100;
+  const TOTAL_STEPS = 6;
+  const progress = (step / TOTAL_STEPS) * 100;
   const panelContent = LEFT_PANEL_CONTENT[step - 1];
   const activePlan = PLANS.find((p) => p.id === selectedPlan) ?? PLANS[1];
+
+  // Compute the active sub-questions for step 3 (skip website sub-questions if no website)
+  const visibleSubQuestions = BUSINESS_GOAL_QUESTIONS.filter((q) => {
+    if (
+      q.key !== "hasPhysicalLocation" &&
+      q.key !== "hasWebsite" &&
+      q.key !== "wantsContactAds" &&
+      hasWebsite === false
+    ) {
+      return false;
+    }
+    return true;
+  });
+  const currentSubQ = visibleSubQuestions[businessGoalSubQ];
+  const isLastSubQ = businessGoalSubQ >= visibleSubQuestions.length - 1;
+
+  const getGoalValue = (key: string): boolean | null | undefined => {
+    switch (key) {
+      case "hasPhysicalLocation": return hasPhysicalLocation;
+      case "hasWebsite": return hasWebsite;
+      case "getsLeadsViaWebsite": return getsLeadsViaWebsite;
+      case "sellsOnline": return sellsOnline;
+      case "booksAppointments": return booksAppointments;
+      case "wantsContactAds": return wantsContactAds;
+      default: return null;
+    }
+  };
+
+  const setGoalValue = (key: string, value: boolean | null | undefined) => {
+    switch (key) {
+      case "hasPhysicalLocation": setHasPhysicalLocation(value); break;
+      case "hasWebsite":
+        setHasWebsite(value);
+        if (value === false) {
+          // No website → set website sub-fields to false automatically
+          setGetsLeadsViaWebsite(false);
+          setSellsOnline(false);
+          setBooksAppointments(false);
+        } else if (value === true) {
+          // Reset website sub-fields so user can answer them fresh
+          setGetsLeadsViaWebsite(undefined);
+          setSellsOnline(undefined);
+          setBooksAppointments(undefined);
+        }
+        break;
+      case "getsLeadsViaWebsite": setGetsLeadsViaWebsite(value); break;
+      case "sellsOnline": setSellsOnline(value); break;
+      case "booksAppointments": setBooksAppointments(value); break;
+      case "wantsContactAds": setWantsContactAds(value); break;
+    }
+  };
 
   const buildFormData = () => {
     const formData = new FormData();
@@ -252,17 +418,44 @@ export default function OnboardingPage() {
     formData.append("customerGender", customerGender);
     formData.append("userRole", userRole);
     formData.append("businessDescription", businessDescription);
+    // Only send answered fields (undefined = skipped/unanswered, null = "doesn't apply")
+    if (hasPhysicalLocation !== undefined) formData.append("hasPhysicalLocation", hasPhysicalLocation === null ? "" : String(hasPhysicalLocation));
+    if (getsLeadsViaWebsite !== undefined) formData.append("getsLeadsViaWebsite", String(getsLeadsViaWebsite));
+    if (sellsOnline !== undefined) formData.append("sellsOnline", String(sellsOnline));
+    if (booksAppointments !== undefined) formData.append("booksAppointments", String(booksAppointments));
+    if (wantsContactAds !== undefined) formData.append("wantsContactAds", String(wantsContactAds));
     // Note: plan is NOT sent here — trial is always Growth (locked server-side).
-    // selectedPlan is only used client-side for the "subscribe now" payment path.
     return formData;
   };
 
   const handleNext = () => {
-    if (step < 5) setStep(step + 1);
+    if (step === 3) {
+      if (!isLastSubQ) {
+        setBusinessGoalSubQ((q) => q + 1);
+      } else {
+        setStep(4);
+        setBusinessGoalSubQ(0);
+      }
+      return;
+    }
+    if (step < TOTAL_STEPS) setStep(step + 1);
   };
 
   const handleBack = () => {
+    if (step === 3) {
+      if (businessGoalSubQ > 0) {
+        setBusinessGoalSubQ((q) => q - 1);
+      } else {
+        setStep(2);
+      }
+      return;
+    }
     if (step > 1) setStep(step - 1);
+  };
+
+  const handleSkipGoals = () => {
+    setStep(4);
+    setBusinessGoalSubQ(0);
   };
 
   const handleConnect = async (url: string) => {
@@ -328,9 +521,9 @@ export default function OnboardingPage() {
   const isNextDisabled =
     (step === 1 && (!orgName || !industry)) ||
     (step === 2 && (!sellingMethod || !priceTier || !customerGender)) ||
-    (step === 3 && !userRole);
+    (step === 4 && !userRole);
 
-  const stepIcons = [Building, Bag, User, Flash, Group];
+  const stepIcons = [Building, Bag, MapPin, User, Flash, Group];
   const StepIcon = stepIcons[step - 1];
 
   return (
@@ -349,7 +542,7 @@ export default function OnboardingPage() {
         {/* Progress Header */}
         <div className="mb-5 px-1">
           <div className="flex justify-between text-xs font-medium text-subtle-foreground mb-2">
-            <span>Step {step} of 5</span>
+            <span>Step {step} of {TOTAL_STEPS}</span>
             <span>{Math.round(progress)}% complete</span>
           </div>
           <Progress value={progress} className="h-1.5 bg-slate-200" />
@@ -377,7 +570,7 @@ export default function OnboardingPage() {
 
               {/* Step indicators */}
               <div className="relative z-10 flex gap-1.5 my-6">
-                {[1, 2, 3, 4, 5].map((s) => (
+                {[1, 2, 3, 4, 5, 6].map((s) => (
                   <div
                     key={s}
                     className={cn(
@@ -595,8 +788,101 @@ export default function OnboardingPage() {
                 </div>
               )}
 
-              {/* ── STEP 3: ROLE ── */}
-              {step === 3 && (
+              {/* ── STEP 3: BUSINESS GOALS ── */}
+              {step === 3 && currentSubQ && (
+                <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
+                  {/* Sub-step progress dots */}
+                  <div className="flex gap-1 mb-6">
+                    {visibleSubQuestions.map((_, i) => (
+                      <div
+                        key={i}
+                        className={cn(
+                          "h-1 flex-1 rounded-full transition-all duration-300",
+                          i < businessGoalSubQ
+                            ? "bg-primary/40"
+                            : i === businessGoalSubQ
+                              ? "bg-primary"
+                              : "bg-slate-200",
+                        )}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Illustration card */}
+                  {(() => {
+                    const Icon = currentSubQ.icon;
+                    return (
+                      <div
+                        className={cn(
+                          "rounded-xl p-10 flex items-center justify-center mb-6",
+                          currentSubQ.iconBg,
+                        )}
+                      >
+                        <Icon
+                          className={cn("h-16 w-16", currentSubQ.iconColor)}
+                          strokeWidth={1.2}
+                        />
+                      </div>
+                    );
+                  })()}
+
+                  {/* Question + options */}
+                  <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                    <div className="px-5 py-4 border-b border-slate-100">
+                      <p className="font-semibold text-foreground text-base">
+                        {currentSubQ.question}
+                      </p>
+                    </div>
+                    <div className="divide-y divide-slate-100">
+                      {currentSubQ.options.map((opt) => {
+                        const currentVal = getGoalValue(currentSubQ.key);
+                        const isSelected =
+                          currentVal !== undefined && currentVal === opt.value;
+                        return (
+                          <button
+                            key={String(opt.value)}
+                            onClick={() => {
+                              setGoalValue(currentSubQ.key, opt.value);
+                              // Auto-advance after selection
+                              setTimeout(() => {
+                                if (!isLastSubQ) {
+                                  setBusinessGoalSubQ((q) => q + 1);
+                                } else {
+                                  setStep(4);
+                                  setBusinessGoalSubQ(0);
+                                }
+                              }, 180);
+                            }}
+                            className={cn(
+                              "w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors",
+                              isSelected
+                                ? "bg-primary/5 text-primary font-semibold"
+                                : "hover:bg-slate-50 text-foreground",
+                            )}
+                          >
+                            <span className="text-sm">{opt.label}</span>
+                            <div
+                              className={cn(
+                                "h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
+                                isSelected
+                                  ? "border-primary bg-primary"
+                                  : "border-slate-300",
+                              )}
+                            >
+                              {isSelected && (
+                                <div className="h-2 w-2 rounded-full bg-white" />
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── STEP 4: ROLE ── */}
+              {step === 4 && (
                 <div className="flex-1 flex flex-col justify-center space-y-5 max-w-md mx-auto w-full">
                   <div>
                     <h3 className="text-xl font-bold text-foreground mb-1">
@@ -680,8 +966,8 @@ export default function OnboardingPage() {
                 </div>
               )}
 
-              {/* ── STEP 4: FREE TRIAL ── */}
-              {step === 4 &&
+              {/* ── STEP 5: FREE TRIAL ── */}
+              {step === 5 &&
                 (() => {
                   const growthPlan = PLANS.find(
                     (p) => p.id === PLAN_IDS.GROWTH,
@@ -807,8 +1093,8 @@ export default function OnboardingPage() {
                   );
                 })()}
 
-              {/* ── STEP 5: CONNECT ACCOUNTS ── */}
-              {step === 5 && (
+              {/* ── STEP 6: CONNECT ACCOUNTS ── */}
+              {step === 6 && (
                 <div className="flex-1 flex flex-col justify-center space-y-5 max-w-md mx-auto w-full">
                   <div>
                     <h3 className="text-xl font-bold text-foreground mb-1">
@@ -890,7 +1176,17 @@ export default function OnboardingPage() {
                 </Button>
 
                 <div className="flex gap-3 items-center">
-                  {step === 5 && (
+                  {step === 3 && (
+                    <Button
+                      variant="ghost"
+                      onClick={handleSkipGoals}
+                      disabled={isLoading}
+                      className="text-muted-foreground hover:text-foreground text-sm"
+                    >
+                      Skip
+                    </Button>
+                  )}
+                  {step === 6 && (
                     <Button
                       variant="ghost"
                       onClick={handleFinish}
@@ -900,33 +1196,35 @@ export default function OnboardingPage() {
                       Skip for now
                     </Button>
                   )}
-                  <Button
-                    onClick={step === 5 ? handleFinish : handleNext}
-                    disabled={isNextDisabled || isLoading || isPaymentLoading}
-                    className="bg-slate-900 hover:bg-slate-800 text-white min-w-[150px] h-11 rounded-md font-bold shadow-sm border border-border shadow-slate-900/15 gap-2"
-                  >
-                    {isLoading ? (
-                      <>
-                        <SystemRestart className="w-4 h-4 animate-spin" />
-                        Setting up...
-                      </>
-                    ) : step === 5 ? (
-                      <>
-                        Finish Setup
-                        <ArrowRight className="w-4 h-4" />
-                      </>
-                    ) : step === 4 ? (
-                      <>
-                        Start Free Trial
-                        <ArrowRight className="w-4 h-4" />
-                      </>
-                    ) : (
-                      <>
-                        Continue
-                        <ArrowRight className="w-4 h-4" />
-                      </>
-                    )}
-                  </Button>
+                  {step !== 3 && (
+                    <Button
+                      onClick={step === 6 ? handleFinish : handleNext}
+                      disabled={isNextDisabled || isLoading || isPaymentLoading}
+                      className="bg-slate-900 hover:bg-slate-800 text-white min-w-[150px] h-11 rounded-md font-bold shadow-sm border border-border shadow-slate-900/15 gap-2"
+                    >
+                      {isLoading ? (
+                        <>
+                          <SystemRestart className="w-4 h-4 animate-spin" />
+                          Setting up...
+                        </>
+                      ) : step === 6 ? (
+                        <>
+                          Finish Setup
+                          <ArrowRight className="w-4 h-4" />
+                        </>
+                      ) : step === 5 ? (
+                        <>
+                          Start Free Trial
+                          <ArrowRight className="w-4 h-4" />
+                        </>
+                      ) : (
+                        <>
+                          Continue
+                          <ArrowRight className="w-4 h-4" />
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>

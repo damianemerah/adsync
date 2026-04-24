@@ -232,7 +232,7 @@ export function OutcomePreviewCard({
       <Button
         onClick={onConfirmAudience}
         disabled={currentInterests.length === 0 || !copyReady}
-        className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-lg shadow-sm border border-border text-sm"
+        className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-lg border border-border text-sm"
       >
         {copyReady ? (
           <>

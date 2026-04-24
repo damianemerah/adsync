@@ -15,7 +15,7 @@ interface PerformanceTrendsCardProps {
   isLoading: boolean;
 }
 
-const CHARTABLE_METRICS: MetricKey[] = ["spend", "impressions", "clicks", "ctr"];
+const CHARTABLE_METRICS: MetricKey[] = ["spend", "impressions", "clicks", "ctr", "revenue", "cpc"];
 
 /**
  * Self-contained card that renders the Performance Trends chart with its own
@@ -37,9 +37,10 @@ export function PerformanceTrendsCard({
 
   return (
     <Card className="border border-border">
-      <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-3">
+      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <CardTitle>Performance Trends</CardTitle>
-        <div className="flex flex-wrap gap-2">
+        {/* Horizontal scroll on mobile — no wrapping that breaks layout */}
+        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 no-scrollbar sm:overflow-visible sm:flex-wrap sm:justify-end">
           {CHARTABLE_METRICS.map((key) => {
             const cfg = METRIC_CONFIG[key];
             const active = activeMetrics.includes(key);
@@ -47,7 +48,7 @@ export function PerformanceTrendsCard({
               <button
                 key={key}
                 onClick={() => toggleMetric(key)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold border transition-all ${
                   active
                     ? "border-transparent text-white"
                     : "border-border text-subtle-foreground bg-card hover:border-primary/40"
@@ -70,11 +71,16 @@ export function PerformanceTrendsCard({
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <Skeleton className="w-full aspect-video lg:h-[400px] lg:aspect-auto rounded-md" />
+          <Skeleton className="w-full h-[280px] sm:aspect-video lg:h-[400px] lg:aspect-auto rounded-md" />
         ) : (
-          <div className="w-full aspect-video lg:h-[400px] lg:aspect-auto">
+          <div className="w-full h-[280px] sm:aspect-video lg:h-[400px] lg:aspect-auto">
             <PerformanceChart
-              data={performance}
+              data={performance.map((d) => ({
+                ...d,
+                cpc: d.clicks && Number(d.clicks) > 0
+                  ? Number(d.spend) / Number(d.clicks)
+                  : 0,
+              }))}
               activeMetrics={activeMetrics.length > 0 ? activeMetrics : CHARTABLE_METRICS}
             />
           </div>

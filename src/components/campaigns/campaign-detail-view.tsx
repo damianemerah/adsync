@@ -1,17 +1,13 @@
 "use client";
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { syncCampaignInsights, syncCampaignAds } from "@/actions/campaigns";
-import { toast } from "sonner";
 import { useCampaignDetail } from "@/hooks/use-campaign-detail";
 import { ROIMetricsCard } from "@/components/campaigns/roi-metrics-card";
 import { MarkAsSoldButton } from "@/components/campaigns/mark-as-sold-button";
-import { PixelSnippetCard } from "@/components/campaigns/pixel-snippet-card";
 import { SubPlacementROICard } from "@/components/campaigns/sub-placement-roi-card";
 import { PostLaunchRuleAlert } from "@/components/campaigns/post-launch-rule-alert";
 import { DemographicsCard } from "@/components/campaigns/demographics-card";
 import { LeadsList } from "@/components/campaigns/leads-list";
-import { PixelUpgradeBanner } from "@/components/campaigns/pixel-upgrade-banner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -36,8 +32,8 @@ import {
   SystemRestart,
   Edit,
   ArrowRight,
+  NavArrowDown,
   GraphUp,
-  Refresh,
   Mail,
   Copy,
 } from "iconoir-react";
@@ -54,25 +50,28 @@ import {
   MetricKey,
 } from "@/components/dashboard/performance-chart";
 import { useState, useMemo } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { useDashboardStore } from "@/store/dashboard-store";
 
 interface CampaignDetailViewProps {
   campaign: Campaign;
 }
 
-export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
+export function CampaignDetailView({
+  campaign: initialCampaign,
+}: CampaignDetailViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
-  const queryClient = useQueryClient();
   const { updateStatus, isUpdating, duplicateCampaign, isDuplicating } = useCampaignMutations();
   const [activeMetrics, setActiveMetrics] = useState<MetricKey[]>([
     "revenue",
     "spend",
   ]);
   const { dateRange } = useDashboardStore();
-  const { syncAll, isSyncingAll: isSyncing } = useCampaignDetail(campaign.id);
+  const { campaign: liveCampaign } = useCampaignDetail(initialCampaign.id, {
+    initialData: initialCampaign,
+  });
+  const campaign = liveCampaign ?? initialCampaign;
 
   // Tab management: read from URL query param
   const activeTab = searchParams.get("tab") || "overview";
@@ -89,12 +88,6 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
 
   // Determine if this is a lead gen campaign
   const isLeadGenCampaign = campaign.objective === "leads";
-
-  // Manual refresh handler
-  const handleRefresh = async () => {
-    if (campaign.status === "draft") return;
-    syncAll();
-  };
 
   // Calculate CTR for chart data since API might return it or we compute it
   const chartData = useMemo(() => {
@@ -138,11 +131,11 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
 
   if (campaign.status === "draft") {
     return (
-      <div className="flex flex-col h-full bg-muted/30">
+      <div className="flex flex-col h-full bg-muted/50">
         {/* Header */}
-        <div className="p-6 bg-card border-b border-border flex justify-between items-center">
+        <div className="p-4 sm:p-6 bg-card border-b border-border flex justify-between items-center">
           <div>
-            <h2 className="text-xl font-heading text-foreground">
+            <h2 className="text-lg sm:text-xl font-heading font-bold text-foreground">
               {campaign.name || "Untitled Draft"}
             </h2>
             <Badge variant="warning-soft" className="mt-1">
@@ -151,7 +144,7 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
           </div>
           <Button
             onClick={() => router.push(`/campaigns/new?draftId=${campaign.id}`)}
-            className="bg-primary hover:bg-primary/90 font-bold shadow-sm border border-border"
+            className="bg-primary hover:bg-primary/90 font-bold shadow-sm border border-border min-h-11"
           >
             Resume Editing <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
@@ -175,25 +168,25 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/50">
+    <div className="flex flex-col h-full bg-muted">
       {/* Header Section */}
-      <div className="p-6 bg-white border-b border-slate-200">
-        <div className="flex items-start justify-between mb-4">
+      <div className="p-4 sm:p-6 bg-card border-b border-border">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 sm:gap-0 mb-4">
           <div className="flex items-center gap-3">
             {campaign.platform === "meta" ? (
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-blue-100 text-blue-600">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-meta/10 text-brand-meta shrink-0">
                 <Facebook className="h-6 w-6" />
               </div>
             ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-black text-white">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-tiktok text-brand-tiktok-foreground shrink-0">
                 <span className="font-bold">Tk</span>
               </div>
             )}
             <div>
-              <h2 className="text-xl font-bold text-slate-900">
+              <h2 className="text-lg sm:text-xl font-heading font-bold text-foreground">
                 {campaign.name}
               </h2>
-              <div className="flex items-center gap-2 text-sm text-slate-500 mt-0.5">
+              <div className="flex items-center gap-2 text-xs sm:text-sm text-subtle-foreground mt-0.5">
                 <span>
                   ID: {campaign.platformCampaignId || campaign.id.slice(0, 8)}
                 </span>
@@ -204,23 +197,11 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <Button
               variant="outline"
               size="sm"
-              className="h-9"
-              onClick={handleRefresh}
-              disabled={isSyncing}
-            >
-              <Refresh
-                className={`h-4 w-4 mr-2 ${isSyncing ? "animate-spin" : ""}`}
-              />
-              Refresh
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9"
+              className="min-h-11 flex-1 sm:flex-none"
               onClick={() => {
                 if (
                   campaign.platform === "meta" &&
@@ -244,21 +225,21 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
               <OpenNewWindow className="h-4 w-4 mr-2" />
               View Ad
             </Button>
-            <Button variant="ghost" size="icon" className="h-9 w-9">
+            <Button variant="ghost" size="icon" className="min-h-11 w-11 shrink-0">
               <MoreHoriz className="h-4 w-4" />
             </Button>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 mt-4 sm:mt-0">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Badge
                 variant="secondary"
-                className={`text-sm px-3 py-1 rounded-full cursor-pointer hover:opacity-80 transition-opacity ${
+                className={`text-sm px-4 py-2 min-h-11 flex items-center justify-center rounded-lg cursor-pointer hover:opacity-80 transition-opacity ${
                   campaign.status === "active"
-                    ? "bg-emerald-100 text-emerald-700"
-                    : "bg-slate-100 text-slate-600"
+                    ? "bg-status-success-soft text-status-success"
+                    : "bg-muted text-subtle-foreground border border-border"
                 }`}
               >
                 {isUpdating ? (
@@ -266,8 +247,8 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
                 ) : campaign.status === "active" ? (
                   <span className="flex items-center gap-1.5">
                     <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-status-success opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-status-success"></span>
                     </span>
                     Active - Delivering
                   </span>
@@ -277,27 +258,29 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
                     Paused
                   </span>
                 )}
+                <NavArrowDown className="h-4 w-4 ml-2 opacity-50" />
               </Badge>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
-              <DropdownMenuItem onClick={() => handleStatusChange("ACTIVE")}>
-                <Play className="h-4 w-4 mr-2 text-emerald-500" />
+              <DropdownMenuItem onClick={() => handleStatusChange("ACTIVE")} className="min-h-11">
+                <Play className="h-4 w-4 mr-2 text-status-success" />
                 Set as Active
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleStatusChange("PAUSED")}>
-                <Pause className="h-4 w-4 mr-2 text-slate-500" />
+              <DropdownMenuItem onClick={() => handleStatusChange("PAUSED")} className="min-h-11">
+                <Pause className="h-4 w-4 mr-2 text-subtle-foreground" />
                 Pause Campaign
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => duplicateCampaign({ id: campaign.id })}
                 disabled={isDuplicating}
+                className="min-h-11"
               >
-                <Copy className="h-4 w-4 mr-2 text-slate-500" />
+                <Copy className="h-4 w-4 mr-2 text-subtle-foreground" />
                 Duplicate Campaign
               </DropdownMenuItem>
               <Separator className="my-1" />
               <DropdownMenuItem
-                className="text-red-600"
+                className="text-status-danger min-h-11"
                 onClick={() => handleStatusChange("ARCHIVED")}
               >
                 Archive Campaign
@@ -305,48 +288,31 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <div className="h-4 w-px bg-slate-200 mx-2" />
-          <div className="flex items-center text-sm text-slate-600">
-            <Calendar className="h-4 w-4 mr-1.5 text-slate-400" />
+          <div className="hidden sm:block h-4 w-px bg-border mx-2" />
+          <div className="flex items-center text-xs sm:text-sm text-subtle-foreground w-full sm:w-auto mt-2 sm:mt-0">
+            <Calendar className="h-4 w-4 mr-1.5 text-muted-foreground" />
             {new Date(campaign.createdAt).toLocaleDateString()}
           </div>
-          <div className="h-4 w-px bg-slate-200 mx-2" />
-          <div className="flex items-center text-sm text-slate-600">
-            <CreditCard className="h-4 w-4 mr-1.5 text-slate-400" />
+          <div className="hidden sm:block h-4 w-px bg-border mx-2" />
+          <div className="flex items-center text-xs sm:text-sm text-subtle-foreground w-full sm:w-auto mt-1 sm:mt-0">
+            <CreditCard className="h-4 w-4 mr-1.5 text-muted-foreground" />
             Budget: {formatMoney(campaign.dailyBudgetCents / 100)}/day
           </div>
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-4 gap-px bg-slate-200 border-b border-slate-200">
-        <StatBox
-          label="Revenue"
-          value={formatMoney(campaign.revenueNgn || 0)}
-        />
-        <StatBox
-          label="ROAS"
-          value={`${CampaignMetrics.calculateROAS(campaign.revenueNgn || 0, campaign.summary.spend).toFixed(2)}x`}
-        />
-        <StatBox label="Sales" value={formatNumber(campaign.salesCount || 0)} />
-        <StatBox
-          label="Spend"
-          value={formatMoney(campaign.summary.spend)}
-          isLast
-        />
-      </div>
-
+      
       {/* Tabs */}
       <Tabs
         value={activeTab}
         onValueChange={handleTabChange}
         className="flex-1 flex flex-col"
       >
-        <div className="border-b border-slate-200 bg-white px-6">
-          <TabsList className="bg-transparent h-12 p-0 gap-6">
+        <div className="px-4 sm:px-6 bg-card border-b border-border">
+          <TabsList className="bg-transparent h-12 p-0 gap-4 sm:gap-6 w-full justify-start overflow-x-auto no-scrollbar shrink-0">
             <TabsTrigger
               value="overview"
-              className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none bg-transparent px-0 pb-3 pt-3 h-full font-semibold"
+              className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none bg-transparent px-0 pb-3 pt-3 h-full font-semibold min-h-11 shrink-0"
             >
               <ViewGrid className="h-4 w-4 mr-2" />
               Overview
@@ -354,7 +320,7 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
             {isLeadGenCampaign && (
               <TabsTrigger
                 value="leads"
-                className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none bg-transparent px-0 pb-3 pt-3 h-full font-semibold"
+                className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none bg-transparent px-0 pb-3 pt-3 h-full font-semibold min-h-11 shrink-0"
               >
                 <Mail className="h-4 w-4 mr-2" />
                 Leads
@@ -362,7 +328,7 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
             )}
             <TabsTrigger
               value="analytics"
-              className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none bg-transparent px-0 pb-3 pt-3 h-full font-semibold"
+              className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none bg-transparent px-0 pb-3 pt-3 h-full font-semibold min-h-11 shrink-0"
             >
               <GraphUp className="h-4 w-4 mr-2" />
               Analytics
@@ -373,78 +339,36 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
         {/* Overview Tab */}
         <TabsContent
           value="overview"
-          className="flex-1 overflow-y-auto p-6 space-y-6 m-0 no-scrollbar"
+          className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 m-0 no-scrollbar"
         >
           {/* Post-launch intelligence alert — surfaces highest-severity triggered rule */}
           <PostLaunchRuleAlert campaign={campaign} />
 
-          {/* Pixel Optimization Upgrade Banner */}
-          {campaign.objective === "traffic" &&
-            !campaign.usesPixelOptimization &&
-            campaign.adAccount?.metaPixelId &&
-            campaign.adAccount?.capiAccessToken && (
-              <PixelUpgradeBanner
-                campaignId={campaign.id}
-                campaignName={campaign.name}
-              />
-            )}
-
           {/* Attribution & ROI Section */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
+              <h3 className="text-sm font-heading font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
                 <StatsReport className="h-4 w-4" /> Attribution & ROI
               </h3>
               <MarkAsSoldButton campaignId={campaign.id} />
             </div>
             <ROIMetricsCard campaignId={campaign.id} />
-            {campaign.pixelToken &&
-              (campaign.objective === "traffic" ||
-                campaign.objective === "sales") && (
-                <PixelSnippetCard pixelToken={campaign.pixelToken} />
-              )}
             <SubPlacementROICard campaignId={campaign.id} />
           </div>
 
-          {/* Ad Set / Targeting Summary */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-              <Settings className="h-4 w-4" /> Configuration
-            </h3>
-            <Card className="border-slate-200 shadow-sm">
-              <CardContent className="p-0">
-                <div className="grid grid-cols-2 divide-x divide-slate-100">
-                  <div className="p-4 space-y-1">
-                    <span className="text-xs font-semibold text-slate-500 uppercase">
-                      Optimization Goal
-                    </span>
-                    <p className="font-medium text-slate-900 capitalize">
-                      {campaign.objective.replace(/_/g, " ")}
-                    </p>
-                  </div>
-                  <div className="p-4 space-y-1">
-                    <span className="text-xs font-semibold text-slate-500 uppercase">
-                      Bid Strategy
-                    </span>
-                    <p className="font-medium text-slate-900">Highest Volume</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
+          
           {/* Ads Table */}
           <AdsTable ads={campaign.ads || []} formatMoney={formatMoney} />
 
           {/* Performance Graph */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+              <h3 className="text-sm font-heading font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
                 <GraphUp className="h-4 w-4" /> Performance
               </h3>
 
               {/* Metric Toggles */}
-              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
+              <div className="flex flex-wrap sm:flex-nowrap items-center gap-1 bg-muted p-1 rounded-lg">
                 {(Object.keys(METRIC_CONFIG) as MetricKey[]).map((key) => {
                   const isActive = activeMetrics.includes(key);
                   const config = METRIC_CONFIG[key];
@@ -462,11 +386,11 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
                         );
                       }}
                       className={`
-                      flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all
+                      flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all min-h-[36px]
                       ${
                         isActive
-                          ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200"
-                          : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                          ? "bg-card text-foreground shadow-sm ring-1 ring-border"
+                          : "text-subtle-foreground hover:text-foreground hover:bg-muted/80"
                       }
                     `}
                     >
@@ -478,7 +402,7 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
               </div>
             </div>
 
-            <div className="h-[300px] w-full bg-white border border-slate-200 rounded-md p-4 shadow-sm">
+            <div className="h-[300px] w-full bg-card border border-border rounded-lg p-4 shadow-none">
               <PerformanceChart
                 data={chartData}
                 activeMetrics={activeMetrics}
@@ -489,7 +413,7 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
 
         {/* Leads Tab */}
         {isLeadGenCampaign && (
-          <TabsContent value="leads" className="flex-1 overflow-y-auto p-6 m-0 no-scrollbar">
+          <TabsContent value="leads" className="flex-1 overflow-y-auto p-4 sm:p-6 m-0 no-scrollbar">
             <LeadsList campaignId={campaign.id} />
           </TabsContent>
         )}
@@ -497,12 +421,12 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
         {/* Analytics Tab */}
         <TabsContent
           value="analytics"
-          className="flex-1 overflow-y-auto p-6 space-y-6 m-0 no-scrollbar"
+          className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 m-0 no-scrollbar"
         >
           {/* Demographics Visualization */}
           {campaign.demographics && (
             <div className="space-y-3">
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+              <h3 className="text-sm font-heading font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
                 <StatsReport className="h-4 w-4" /> Demographics
               </h3>
               <DemographicsCard demographics={campaign.demographics} />
@@ -511,7 +435,7 @@ export function CampaignDetailView({ campaign }: CampaignDetailViewProps) {
 
           {/* Sub-Placement ROI */}
           <div className="space-y-3">
-            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+            <h3 className="text-sm font-heading font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
               <ViewGrid className="h-4 w-4" /> Placement Performance
             </h3>
             <SubPlacementROICard campaignId={campaign.id} />
@@ -539,7 +463,7 @@ function AdsTable({
       render: (ad) => (
         <div className="flex items-center gap-3">
           {ad.image ? (
-            <div className="h-10 w-10 rounded-lg overflow-hidden shrink-0 border border-slate-100 bg-slate-100">
+            <div className="h-10 w-10 rounded-lg overflow-hidden shrink-0 border border-border bg-muted">
               <img
                 src={ad.image}
                 alt={ad.name}
@@ -547,11 +471,11 @@ function AdsTable({
               />
             </div>
           ) : (
-            <div className="h-10 w-10 rounded-lg shrink-0 bg-slate-100 flex items-center justify-center">
-              <ViewGrid className="h-4 w-4 text-slate-400" />
+            <div className="h-10 w-10 rounded-lg shrink-0 bg-muted flex items-center justify-center">
+              <ViewGrid className="h-4 w-4 text-muted-foreground" />
             </div>
           )}
-          <span className="font-semibold text-slate-900 truncate max-w-[200px]">
+          <span className="font-semibold text-foreground truncate max-w-[150px] sm:max-w-[200px]">
             {ad.name}
           </span>
         </div>
@@ -563,10 +487,10 @@ function AdsTable({
       render: (ad) => (
         <Badge
           variant="outline"
-          className={`text-xs font-semibold capitalize ${
+          className={`text-xs font-semibold capitalize min-h-8 flex items-center px-2 py-0.5 ${
             ad.status === "ACTIVE"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-              : "border-slate-200 bg-slate-50 text-slate-600"
+              ? "border-status-success-soft bg-status-success-soft text-status-success"
+              : "border-border bg-muted text-subtle-foreground"
           }`}
         >
           {ad.status?.toLowerCase() ?? "—"}
@@ -576,25 +500,25 @@ function AdsTable({
     {
       key: "impressions",
       title: "Impressions",
-      className: "font-mono text-slate-700",
+      className: "font-mono text-foreground",
       render: (ad) => (ad.impressions ?? 0).toLocaleString(),
     },
     {
       key: "clicks",
       title: "Clicks",
-      className: "font-mono text-slate-700",
+      className: "font-mono text-foreground",
       render: (ad) => (ad.clicks ?? 0).toLocaleString(),
     },
     {
       key: "ctr",
       title: "CTR",
-      className: "font-mono text-slate-700",
+      className: "font-mono text-foreground",
       render: (ad) => `${Number(ad.ctr ?? 0).toFixed(2)}%`,
     },
     {
       key: "spend",
       title: "Spend",
-      className: "font-mono text-slate-700 pr-4",
+      className: "font-mono text-foreground pr-4",
       headerClassName: "pr-4",
       render: (ad) => formatMoney(Number(ad.spend ?? 0)),
     },
@@ -602,7 +526,7 @@ function AdsTable({
 
   return (
     <div className="space-y-3">
-      <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+      <h3 className="text-sm font-heading font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
         <ViewGrid className="h-4 w-4" /> Ads ({ads.length})
       </h3>
       <DataTable
@@ -623,19 +547,4 @@ function AdsTable({
   );
 }
 
-function StatBox({
-  label,
-  value,
-  isLast = false,
-}: {
-  label: string;
-  value: string;
-  isLast?: boolean;
-}) {
-  return (
-    <div className={`bg-white p-4 ${isLast ? "" : ""}`}>
-      <p className="text-xs font-bold text-slate-500 uppercase">{label}</p>
-      <p className="text-lg font-bold text-slate-900 mt-1">{value}</p>
-    </div>
-  );
-}
+

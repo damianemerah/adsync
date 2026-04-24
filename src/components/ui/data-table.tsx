@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useState } from "react";
-import { ViewGrid, List, Search } from "iconoir-react";
+import { ViewGrid, List, Search, NavArrowUp, NavArrowDown, Sort } from "iconoir-react";
 import {
   Table,
   TableBody,
@@ -23,6 +23,7 @@ export interface Column<T> {
   className?: string;
   headerClassName?: string;
   render?: (row: T) => React.ReactNode;
+  sortable?: boolean;
 }
 
 interface DataTableProps<T> {
@@ -40,6 +41,11 @@ interface DataTableProps<T> {
   striped?: boolean;
   /** Number of rows per page. Omit (or 0) to disable pagination. */
   pageSize?: number;
+  sortKey?: string | null;
+  sortDir?: "asc" | "desc";
+  onSort?: (key: string) => void;
+  /** Remove the table's own border/shadow wrapper (use when parent provides the container) */
+  borderless?: boolean;
 }
 
 export function DataTable<T extends { id?: string | number }>({
@@ -56,6 +62,10 @@ export function DataTable<T extends { id?: string | number }>({
   onSearch,
   striped = true,
   pageSize,
+  sortKey,
+  sortDir,
+  onSort,
+  borderless = false,
 }: DataTableProps<T>) {
   const [viewMode, setViewMode] = useState<"table" | "grid">(defaultView);
   const [page, setPage] = useState(1);
@@ -205,19 +215,36 @@ export function DataTable<T extends { id?: string | number }>({
       {/* TABLE VIEW */}
       {viewMode === "table" && (
         <>
-          <div className="rounded-lg border border-border bg-card shadow-sm border border-border overflow-hidden">
+          <div className={cn(!borderless && "rounded-lg border border-border bg-card shadow-sm overflow-hidden")}>
             <Table>
               <TableHeader className="bg-muted/50">
                 <TableRow className="hover:bg-transparent border-border">
                   {columns.map((column) => (
                     <TableHead
                       key={column.key}
+                      onClick={column.sortable && onSort ? () => onSort(column.key) : undefined}
                       className={cn(
                         "h-14 font-bold text-xs uppercase tracking-wider bg-primary-foreground text-subtle-foreground border-x border-border first:border-l-0 last:border-r-0",
+                        column.sortable && onSort && "cursor-pointer select-none hover:text-foreground transition-colors",
                         column.headerClassName,
                       )}
                     >
-                      {column.title}
+                      {column.sortable ? (
+                        <span className="inline-flex items-center gap-1">
+                          {column.title}
+                          {sortKey === column.key ? (
+                            sortDir === "asc" ? (
+                              <NavArrowUp className="h-3 w-3 text-primary" />
+                            ) : (
+                              <NavArrowDown className="h-3 w-3 text-primary" />
+                            )
+                          ) : (
+                            <Sort className="h-3 w-3 opacity-30" />
+                          )}
+                        </span>
+                      ) : (
+                        column.title
+                      )}
                     </TableHead>
                   ))}
                 </TableRow>

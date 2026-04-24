@@ -90,22 +90,35 @@ export default function NotificationsSettingsPage() {
           {!settings?.verified ? (
             <div className="space-y-4 max-w-sm">
               <div className="flex gap-2">
-                <Input
-                  value={whatsappNumber}
-                  onChange={(e) => setWhatsappNumber(e.target.value)}
-                  disabled={otpSent || startVerification.isPending}
-                  className="bg-background"
-                  placeholder="+234..."
-                />
+                <div className="flex flex-1">
+                  <div className="flex items-center gap-1.5 rounded-l-md border border-r-0 border-input bg-muted/30 px-3 text-sm text-muted-foreground">
+                    <span className="text-base leading-0">🇳🇬</span>
+                    <span className="font-medium">+234</span>
+                  </div>
+                  <Input
+                    type="tel"
+                    value={whatsappNumber.replace(/^\+234/, "")}
+                    onChange={(e) => {
+                      const cleaned = e.target.value.replace(/\D/g, "");
+                      setWhatsappNumber("+234" + cleaned);
+                    }}
+                    disabled={otpSent || startVerification.isPending}
+                    className="rounded-l-none bg-background focus-visible:z-10"
+                    placeholder="801 234 5678"
+                  />
+                </div>
                 {!otpSent ? (
                   <Button
                     onClick={handleSendOtp}
-                    disabled={startVerification.isPending || !whatsappNumber}
+                    disabled={
+                      startVerification.isPending ||
+                      whatsappNumber.replace(/^\+234/, "").length < 10
+                    }
                   >
                     {startVerification.isPending ? (
                       <SystemRestart className="animate-spin" />
                     ) : (
-                      "Verify"
+                      "Send Code"
                     )}
                   </Button>
                 ) : (
@@ -114,7 +127,7 @@ export default function NotificationsSettingsPage() {
                     onClick={() => setOtpSent(false)}
                     disabled={confirmVerification.isPending}
                   >
-                    Edit
+                    Edit Number
                   </Button>
                 )}
               </div>
@@ -165,17 +178,17 @@ export default function NotificationsSettingsPage() {
       </Card>
 
       {/* Email Preferences */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Email Preferences</CardTitle>
-          <CardDescription>
+      <div className="pt-4">
+        <div className="mb-6 space-y-1">
+          <h3 className="font-heading text-lg font-semibold">Email Preferences</h3>
+          <p className="text-sm text-subtle-foreground">
             Manage your email delivery settings.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
+          </p>
+        </div>
+        <div className="space-y-6">
           <PreferenceRow
             label="Payment Failed"
-            description="When Meta/TikTok fails to charge your card."
+            description="When Meta fails to charge your card."
             checked={settings?.alert_payment_failed ?? false}
             onCheckedChange={(checked) =>
               updateSettings({ alert_payment_failed: checked })
@@ -199,8 +212,8 @@ export default function NotificationsSettingsPage() {
               updateSettings({ alert_weekly_report: checked })
             }
           />
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

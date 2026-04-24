@@ -47,11 +47,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { WorkspaceSwitcher } from "@/components/layout/workspace-switcher";
+import { useOrganization } from "@/hooks/use-organization";
 
 export function Sidebar({ activeOrgId }: { activeOrgId?: string | null }) {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
   const { data: subscription } = useSubscription();
+  const { organization } = useOrganization(activeOrgId);
   const { isOpen, toggle, mobileOpen, closeMobile } = useSidebar(); // Use context
   const { unreadCount } = useNotifications();
   const [openSections, setOpenSections] = useState<string[]>([
@@ -154,8 +156,12 @@ export function Sidebar({ activeOrgId }: { activeOrgId?: string | null }) {
 
         {/* Collapsed Logo View */}
         {!isOpen && (
-          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary font-bold text-xl mb-2 border border-border">
-            {(subscription?.org?.name?.[0] || "A").toUpperCase()}
+          <div className="flex h-10 w-10 overflow-hidden items-center justify-center rounded-md bg-primary/10 text-primary font-bold text-xl mb-2 border border-border">
+            {organization?.logo_url ? (
+              <img src={organization.logo_url} alt="Logo" className="w-full h-full object-cover" />
+            ) : (
+              (organization?.name?.[0] || subscription?.org?.name?.[0] || "A").toUpperCase()
+            )}
           </div>
         )}
 

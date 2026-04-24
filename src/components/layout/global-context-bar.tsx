@@ -19,6 +19,8 @@ import {
   Facebook,
   Download,
   Filter,
+  Building,
+  Megaphone,
 } from "iconoir-react";
 import {
   Sheet,
@@ -368,40 +370,40 @@ export function GlobalContextBar({
       </div>
 
       {/* Desktop + tablet: inline filter row */}
-      <div className="mx-auto hidden px-4 lg:px-8 py-4 sm:flex flex-col lg:flex-row gap-6 items-end justify-between">
+      <div className="mx-auto hidden px-4 lg:px-8 py-3 sm:flex flex-col lg:flex-row gap-4 items-end justify-between">
         {/* Left Side: Filters */}
-        <div className="flex items-end gap-3 flex-1 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0 no-scrollbar">
+        <div className="flex items-center gap-2 flex-1 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0 no-scrollbar">
           {/* 1. Ad Platform */}
-          <div className="flex-1 min-w-[180px] max-w-[220px] space-y-1.5">
+          <div className="shrink-0">
             <DropdownMenu open={openPlatform} onOpenChange={setOpenPlatform}>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
                   role="combobox"
                   aria-expanded={openPlatform}
-                  className="w-full h-14 justify-between rounded-md bg-card hover:border-primary/50 transition-all px-4 py-2 items-center border border-border group"
+                  className="h-10 justify-between rounded-md bg-card hover:border-primary/50 transition-all px-3 py-0 items-center border border-border gap-2 group"
                 >
                   <div className="flex flex-col items-start gap-0.5 overflow-hidden text-left">
-                    <span className="text-xs font-bold text-subtle-foreground uppercase tracking-wider leading-none group-hover:text-primary transition-colors">
+                    <span className="text-[10px] font-bold text-subtle-foreground uppercase tracking-wider leading-tight group-hover:text-primary transition-colors">
                       Ad Platform
                     </span>
-                    <div className="flex items-center gap-2 truncate w-full">
+                    <div className="flex items-center gap-1.5 truncate w-full">
                       {selectedPlatform === "meta" && (
-                        <Facebook className="h-3.5 w-3.5 text-chart-1 shrink-0" />
+                        <Facebook className="h-3 w-3 text-chart-1 shrink-0" />
                       )}
                       {selectedPlatform === "tiktok" && (
-                        <div className="h-3.5 w-3.5 rounded-full bg-brand-tiktok text-brand-tiktok-foreground flex items-center justify-center text-[0.5rem] font-bold shrink-0">
+                        <div className="h-3 w-3 rounded-full bg-brand-tiktok text-brand-tiktok-foreground flex items-center justify-center text-[0.45rem] font-bold shrink-0">
                           T
                         </div>
                       )}
-                      <span className="truncate font-bold text-foreground text-sm leading-tight">
+                      <span className="truncate font-semibold text-foreground text-xs leading-tight">
                         {selectedPlatform === "meta"
                           ? "Meta Ads"
                           : "TikTok Ads"}
                       </span>
                     </div>
                   </div>
-                  <NavArrowDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
+                  <NavArrowDown className="h-3 w-3 shrink-0 text-muted-foreground" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
@@ -448,26 +450,29 @@ export function GlobalContextBar({
           </div>
 
           {/* 2. Ad Account */}
-          <div className="flex-1 min-w-[180px] max-w-[220px] space-y-1.5">
+          <div className="shrink-0">
             <Popover open={openAccount} onOpenChange={setOpenAccount}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
                   role="combobox"
                   aria-expanded={openAccount}
-                  className="w-full h-14 justify-between rounded-md bg-card hover:border-primary/50 transition-all px-4 py-2 items-center border border-border group"
+                  className="h-10 justify-between rounded-md bg-card hover:border-primary/50 transition-all px-3 py-0 items-center border border-border gap-2 group"
                 >
                   <div className="flex flex-col items-start gap-0.5 overflow-hidden text-left">
-                    <span className="text-xs font-bold text-subtle-foreground uppercase tracking-wider leading-none group-hover:text-primary transition-colors">
+                    <span className="text-[10px] font-bold text-subtle-foreground uppercase tracking-wider leading-tight group-hover:text-primary transition-colors">
                       Ad Account
                     </span>
-                    <span className="truncate font-bold text-foreground text-sm leading-tight w-full">
-                      {selectedAccountId && accounts
-                        ? accounts.find((a) => a.id === selectedAccountId)?.name
-                        : "Select Account"}
-                    </span>
+                    <div className="flex items-center gap-1.5 truncate w-full">
+                      <Building className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <span className="truncate font-semibold text-foreground text-xs leading-tight max-w-[140px]">
+                        {selectedAccountId && accounts
+                          ? accounts.find((a) => a.id === selectedAccountId)?.name
+                          : "Select Account"}
+                      </span>
+                    </div>
                   </div>
-                  <NavArrowDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
+                  <NavArrowDown className="h-3 w-3 shrink-0 text-muted-foreground" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent
@@ -516,26 +521,32 @@ export function GlobalContextBar({
           </div>
 
           {/* 4. Campaigns */}
-          <div className="flex-1 min-w-[180px] max-w-[220px] space-y-1.5">
+          <div className="shrink-0">
             <Popover open={openCampaign} onOpenChange={setOpenCampaign}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
                   role="combobox"
                   aria-expanded={openCampaign}
-                  className="w-full h-14 justify-between rounded-md bg-card hover:border-primary/50 transition-all px-4 py-2 items-center border border-border group"
+                  className="h-10 justify-between rounded-md bg-card hover:border-primary/50 transition-all px-3 py-0 items-center border border-border gap-2 group"
                 >
                   <div className="flex flex-col items-start gap-0.5 overflow-hidden text-left">
-                    <span className="text-xs font-bold text-subtle-foreground uppercase tracking-wider leading-none group-hover:text-primary transition-colors">
-                      Ads
+                    <span className="text-[10px] font-bold text-subtle-foreground uppercase tracking-wider leading-tight group-hover:text-primary transition-colors">
+                      Campaigns
+                      {!selectedCampaignIds.includes("all") && (
+                        <span className="ml-1 text-primary">({selectedCampaignIds.length})</span>
+                      )}
                     </span>
-                    <span className="truncate font-bold text-foreground text-sm leading-tight w-full">
-                      {selectedCampaignIds.includes("all")
-                        ? "All Selected"
-                        : `${selectedCampaignIds.length} Selected`}
-                    </span>
+                    <div className="flex items-center gap-1.5 truncate w-full">
+                      <Megaphone className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <span className="truncate font-semibold text-foreground text-xs leading-tight max-w-[120px]">
+                        {selectedCampaignIds.includes("all")
+                          ? "All Selected"
+                          : `${selectedCampaignIds.length} Selected`}
+                      </span>
+                    </div>
                   </div>
-                  <NavArrowDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
+                  <NavArrowDown className="h-3 w-3 shrink-0 text-muted-foreground" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent
@@ -612,7 +623,7 @@ export function GlobalContextBar({
         </div>
 
         {/* Right Side: Filters & Date */}
-        <div className="flex items-center gap-3 w-full lg:w-auto mt-4 lg:mt-0">
+        <div className="flex items-center gap-2 w-full lg:w-auto">
           {/* Account Health Button */}
           <Button
             variant="ghost"
@@ -620,7 +631,7 @@ export function GlobalContextBar({
             onClick={onHealthCheckClick}
             title="Account Health Check"
             className={cn(
-              "relative h-11 w-11 rounded-md transition-colors border border-border bg-card",
+              "relative h-10 w-10 rounded-md transition-colors border border-border bg-card",
               hasProblems
                 ? "text-status-warning hover:bg-status-warning-soft hover:border-status-warning/40"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
@@ -659,19 +670,19 @@ export function GlobalContextBar({
 
           <NotificationBell />
 
-          <div className="space-y-1.5 flex-1 lg:flex-none">
+          <div className="flex-1 lg:flex-none">
             <Popover>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
-                  className="w-full lg:w-[220px] h-11 justify-start text-left font-semibold border-border rounded-md bg-card hover:bg-muted/50 transition-colors"
+                  className="w-full lg:w-auto h-10 justify-start text-left border-border rounded-md bg-card hover:bg-muted/50 transition-colors px-3 gap-2"
                 >
-                  <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
-                  <span className="text-foreground">
+                  <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span className="text-foreground text-xs font-semibold">
                     {dateRange?.from ? (
                       dateRange.to ? (
                         <>
-                          {format(dateRange.from, "MMM dd")} -{" "}
+                          {format(dateRange.from, "MMM dd")} –{" "}
                           {format(dateRange.to, "MMM dd")}
                         </>
                       ) : (
@@ -681,7 +692,7 @@ export function GlobalContextBar({
                       <span>Last 30 Days</span>
                     )}
                   </span>
-                  <NavArrowDown className="ml-auto h-4 w-4 text-muted-foreground opacity-50" />
+                  <NavArrowDown className="ml-1 h-3 w-3 text-muted-foreground opacity-50 shrink-0" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent
@@ -703,9 +714,9 @@ export function GlobalContextBar({
             variant="outline"
             onClick={handleExport}
             disabled={isExporting || !insightsForExport?.performance?.length}
-            className="h-11 px-5 gap-2 border-border rounded-md bg-card font-bold text-subtle-foreground hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all disabled:opacity-50"
+            className="h-10 px-3 gap-1.5 border-border rounded-md bg-card font-semibold text-xs text-subtle-foreground hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all disabled:opacity-50"
           >
-            <Download className="h-4 w-4" />
+            <Download className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">
               {isExporting ? "Exporting..." : "Export"}
             </span>

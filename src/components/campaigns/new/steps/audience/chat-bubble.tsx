@@ -74,7 +74,7 @@ export function ChatBubble({
         {!(isAI && message.type === "outcome_preview") && (
           <div
             className={cn(
-              "p-4 rounded-lg text-sm leading-relaxed shadow-sm whitespace-pre-wrap",
+              "p-4 rounded-lg text-sm leading-relaxed whitespace-pre-wrap",
               isAI
                 ? "bg-card border border-border text-foreground rounded-tl-none"
                 : "bg-primary text-primary-foreground rounded-tr-none font-medium",
@@ -199,7 +199,7 @@ export function ChatBubble({
         {message.type === "suggestion" &&
           message.data &&
           !message.data.outcomeLabel && (
-            <div className="bg-card border border-border rounded-md p-4 shadow-sm space-y-4 animate-in fade-in slide-in-from-top-2">
+            <div className="bg-card border border-border rounded-md p-4 space-y-4 animate-in fade-in slide-in-from-top-2">
               <div className="flex flex-wrap gap-2">
                 {message.data.interests
                   ?.filter((int: any) => {

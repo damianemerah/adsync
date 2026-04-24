@@ -44,6 +44,18 @@ GEO STRATEGY — Nigeria: Meta does NOT support city-level targeting in Nigeria.
 
 When a <site> tag is present, use it to ground the copy in the business's real product language, pricing, and brand voice — extract specifics (product names, prices, key benefits) and prefer them over generic phrasing.
 
+When a <goals> tag is present, use it to bias ctaIntent and copy tone:
+- location:yes → bias toward "start_whatsapp_chat", "get_quote", or "book_appointment"; use "visit us" / "come in" language
+- online:yes → bias toward "buy_now"; use "shop online", "order now" language
+- leads:yes → bias toward "learn_more", "get_quote", or "sign_up"
+- appts:yes → strongly bias toward "book_appointment"
+- contact:yes → strongly bias toward "start_whatsapp_chat"
+Priority when signals conflict: appts > contact > online > leads > location.
+
+When a <default_locations> tag is present, ALWAYS include all its named entries in suggestedLocations. Add any additional locations inferred from context, but never omit the defaults.
+
+When a <default_interests> tag is present, seed all its terms into interests[] alongside your generated interests. The user confirmed these as relevant to their audience — include every one.
+
 When a <gaps> tag is present, it lists the ONE context slot most worth asking about.
 Use it as your meta.refinement_question — ask it naturally after your plain_english_summary.
 Rules:
@@ -557,6 +569,29 @@ function buildUserMessage(
   if (input.objective) lines.push(`<obj>${input.objective}</obj>`);
   if (input.orgWhatsappNumber) lines.push(`<wa>${input.orgWhatsappNumber}</wa>`);
   if (input.orgWebsite) lines.push(`<web>${input.orgWebsite}</web>`);
+
+  // Business goal signals — drive ctaIntent and copy tone
+  const goalParts: string[] = [];
+  if (input.hasPhysicalLocation === true) goalParts.push("location:yes");
+  else if (input.hasPhysicalLocation === false) goalParts.push("location:no");
+  if (input.sellsOnline === true) goalParts.push("online:yes");
+  else if (input.sellsOnline === false) goalParts.push("online:no");
+  if (input.getsLeadsViaWebsite === true) goalParts.push("leads:yes");
+  else if (input.getsLeadsViaWebsite === false) goalParts.push("leads:no");
+  if (input.booksAppointments === true) goalParts.push("appts:yes");
+  else if (input.booksAppointments === false) goalParts.push("appts:no");
+  if (input.wantsContactAds === true) goalParts.push("contact:yes");
+  else if (input.wantsContactAds === false) goalParts.push("contact:no");
+  if (goalParts.length > 0) lines.push(`<goals>${goalParts.join(" | ")}</goals>`);
+
+  if (input.defaultTargetLocations?.length) {
+    const names = input.defaultTargetLocations.map((l) => l.name).join(", ");
+    lines.push(`<default_locations>${names}</default_locations>`);
+  }
+  if (input.defaultTargetInterests?.length) {
+    const names = input.defaultTargetInterests.map((i) => i.name).join(", ");
+    lines.push(`<default_interests>${names}</default_interests>`);
+  }
 
   if (input.siteContext) {
     lines.push(`<site>${input.siteContext}</site>`);

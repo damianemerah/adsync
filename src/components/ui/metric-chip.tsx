@@ -48,6 +48,14 @@ export function MetricChip({
 }: MetricChipProps) {
   const t = toneClasses[tone];
 
+  // Build accessible trend label for screen readers
+  const trendLabel =
+    trend === "up"
+      ? "up"
+      : trend === "down"
+        ? "down"
+        : "unchanged";
+
   return (
     <div
       className={cn(
@@ -55,11 +63,12 @@ export function MetricChip({
         className,
       )}
     >
+      {/* Label row */}
       <div className="flex items-center gap-2">
         {icon && (
           <span
             className={cn(
-              "flex h-7 w-7 items-center justify-center rounded-md",
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-md",
               t.bg,
               t.icon,
             )}
@@ -67,22 +76,23 @@ export function MetricChip({
             {icon}
           </span>
         )}
-        <p className="text-xs font-semibold uppercase tracking-wider text-subtle-foreground">
+        <p className="text-xs font-semibold uppercase tracking-wide text-subtle-foreground leading-tight">
           {label}
         </p>
       </div>
 
+      {/* Value + trend badge */}
       <div className="flex items-end justify-between gap-2">
-        <span className="font-heading text-xl font-bold text-foreground">
+        <span className="font-heading text-xl font-bold text-foreground leading-none">
           {value}
         </span>
 
         {change && (
           <span
+            aria-label={`${change} ${trendLabel}`}
             className={cn(
-              "inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-semibold",
-              trend === "up" &&
-                "bg-status-success-soft text-status-success",
+              "inline-flex shrink-0 items-center gap-0.5 rounded-md px-1.5 py-0.5 text-xs font-semibold leading-none",
+              trend === "up" && "bg-status-success-soft text-status-success",
               trend === "down" && "bg-status-danger-soft text-status-danger",
               trend === "neutral" && "bg-muted text-subtle-foreground",
             )}

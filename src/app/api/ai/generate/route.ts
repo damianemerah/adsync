@@ -58,7 +58,14 @@ export async function POST(request: Request) {
       business_phone,
       business_website,
       whatsapp_number,
-      country_code
+      country_code,
+      default_target_locations,
+      default_target_interests,
+      has_physical_location,
+      gets_leads_via_website,
+      sells_online,
+      books_appointments,
+      wants_contact_ads
     `,
     )
     .eq("id", activeOrgId)
@@ -253,6 +260,13 @@ export async function POST(request: Request) {
           currentCopy,
           orgCountryCode: org?.country_code ?? "NG",
           siteContext,
+          defaultTargetLocations: (org?.default_target_locations as any) ?? null,
+          defaultTargetInterests: (org?.default_target_interests as any) ?? null,
+          hasPhysicalLocation: org?.has_physical_location ?? null,
+          getsLeadsViaWebsite: org?.gets_leads_via_website ?? null,
+          sellsOnline: org?.sells_online ?? null,
+          booksAppointments: org?.books_appointments ?? null,
+          wantsContactAds: org?.wants_contact_ads ?? null,
         },
         actualInstruction,
       );
@@ -306,6 +320,13 @@ export async function POST(request: Request) {
         orgCountryCode: org?.country_code ?? "NG",
         siteContext,
         detectedUrl: siteContext ? null : (detectedUrl ?? null),
+        defaultTargetLocations: (org?.default_target_locations as any) ?? null,
+        defaultTargetInterests: (org?.default_target_interests as any) ?? null,
+        hasPhysicalLocation: org?.has_physical_location ?? null,
+        getsLeadsViaWebsite: org?.gets_leads_via_website ?? null,
+        sellsOnline: org?.sells_online ?? null,
+        booksAppointments: org?.books_appointments ?? null,
+        wantsContactAds: org?.wants_contact_ads ?? null,
       },
       conversationHistory ?? [],
       activeOrgId,
@@ -366,6 +387,13 @@ export async function POST(request: Request) {
             currentCopy,
             orgCountryCode: org?.country_code ?? "NG",
             siteContext,
+            defaultTargetLocations: (org?.default_target_locations as any) ?? null,
+            defaultTargetInterests: (org?.default_target_interests as any) ?? null,
+            hasPhysicalLocation: org?.has_physical_location ?? null,
+            getsLeadsViaWebsite: org?.gets_leads_via_website ?? null,
+            sellsOnline: org?.sells_online ?? null,
+            booksAppointments: org?.books_appointments ?? null,
+            wantsContactAds: org?.wants_contact_ads ?? null,
           },
           description, // The user's raw refinement instruction becomes the refinement prompt
         );

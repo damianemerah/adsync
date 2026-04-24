@@ -996,7 +996,7 @@ export type Database = {
           {
             foreignKeyName: "job_dlq_job_id_fkey"
             columns: ["job_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "job_queue"
             referencedColumns: ["id"]
           },
@@ -1474,6 +1474,7 @@ export type Database = {
         Row: {
           billing_cycle_day: number | null
           billing_provider: string
+          books_appointments: boolean | null
           business_description: string | null
           business_phone: string | null
           business_website: string | null
@@ -1482,18 +1483,25 @@ export type Database = {
           created_at: string | null
           currency_default: string
           customer_gender: string | null
+          default_target_interests: Json | null
+          default_target_locations: Json | null
           deleted_at: string | null
+          gets_leads_via_website: boolean | null
+          has_physical_location: boolean | null
           id: string
           industry: string | null
           last_billing_update_at: string | null
+          logo_url: string | null
           max_ad_accounts: number | null
           max_team_members: number | null
           name: string
           paystack_customer_code: string | null
           paystack_sub_code: string | null
+          pixel_token: string | null
           plan_interval: string | null
           price_tier: string | null
           selling_method: string | null
+          sells_online: boolean | null
           slug: string
           state: string | null
           stripe_customer_id: string | null
@@ -1502,11 +1510,13 @@ export type Database = {
           subscription_tier: string | null
           timezone: string
           updated_at: string | null
+          wants_contact_ads: boolean | null
           whatsapp_number: string | null
         }
         Insert: {
           billing_cycle_day?: number | null
           billing_provider?: string
+          books_appointments?: boolean | null
           business_description?: string | null
           business_phone?: string | null
           business_website?: string | null
@@ -1515,18 +1525,25 @@ export type Database = {
           created_at?: string | null
           currency_default?: string
           customer_gender?: string | null
+          default_target_interests?: Json | null
+          default_target_locations?: Json | null
           deleted_at?: string | null
+          gets_leads_via_website?: boolean | null
+          has_physical_location?: boolean | null
           id?: string
           industry?: string | null
           last_billing_update_at?: string | null
+          logo_url?: string | null
           max_ad_accounts?: number | null
           max_team_members?: number | null
           name: string
           paystack_customer_code?: string | null
           paystack_sub_code?: string | null
+          pixel_token?: string | null
           plan_interval?: string | null
           price_tier?: string | null
           selling_method?: string | null
+          sells_online?: boolean | null
           slug: string
           state?: string | null
           stripe_customer_id?: string | null
@@ -1535,11 +1552,13 @@ export type Database = {
           subscription_tier?: string | null
           timezone?: string
           updated_at?: string | null
+          wants_contact_ads?: boolean | null
           whatsapp_number?: string | null
         }
         Update: {
           billing_cycle_day?: number | null
           billing_provider?: string
+          books_appointments?: boolean | null
           business_description?: string | null
           business_phone?: string | null
           business_website?: string | null
@@ -1548,18 +1567,25 @@ export type Database = {
           created_at?: string | null
           currency_default?: string
           customer_gender?: string | null
+          default_target_interests?: Json | null
+          default_target_locations?: Json | null
           deleted_at?: string | null
+          gets_leads_via_website?: boolean | null
+          has_physical_location?: boolean | null
           id?: string
           industry?: string | null
           last_billing_update_at?: string | null
+          logo_url?: string | null
           max_ad_accounts?: number | null
           max_team_members?: number | null
           name?: string
           paystack_customer_code?: string | null
           paystack_sub_code?: string | null
+          pixel_token?: string | null
           plan_interval?: string | null
           price_tier?: string | null
           selling_method?: string | null
+          sells_online?: boolean | null
           slug?: string
           state?: string | null
           stripe_customer_id?: string | null
@@ -1568,6 +1594,7 @@ export type Database = {
           subscription_tier?: string | null
           timezone?: string
           updated_at?: string | null
+          wants_contact_ads?: boolean | null
           whatsapp_number?: string | null
         }
         Relationships: []
@@ -2034,6 +2061,30 @@ export type Database = {
         Returns: Json
       }
       can_manage_org_members: { Args: { org_id: string }; Returns: boolean }
+      claim_next_job: {
+        Args: { p_type: string }
+        Returns: {
+          attempts: number | null
+          completed_at: string | null
+          created_at: string | null
+          id: string
+          last_error: string | null
+          max_attempts: number | null
+          organization_id: string | null
+          payload: Json
+          started_at: string | null
+          status: string | null
+          type: string
+          updated_at: string | null
+          user_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "job_queue"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       cleanup_old_jobs: { Args: { older_than_days?: number }; Returns: number }
       deduct_credits: {
         Args: {
@@ -2045,6 +2096,15 @@ export type Database = {
           p_user_id: string
         }
         Returns: Json
+      }
+      fail_job_to_dlq: {
+        Args: {
+          p_attempts: number
+          p_error_msg: string
+          p_error_stack: string
+          p_job_id: string
+        }
+        Returns: undefined
       }
       get_campaign_context: { Args: { p_campaign_id: string }; Returns: Json }
       get_campaign_lead_count: {

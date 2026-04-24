@@ -81,7 +81,7 @@ export function AsyncTagInput({
     <div ref={containerRef} className="relative w-full">
       <Command
         shouldFilter={false}
-        className="h-auto overflow-visible border border-border rounded-lg bg-muted/30 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/50 transition-all **:[[cmdk-input-wrapper]]:border-0 **:[[cmdk-input-wrapper]]:px-2"
+        className="h-auto overflow-visible border border-border rounded-lg bg-muted/30 focus-within:border-primary transition-all **:[[cmdk-input-wrapper]]:border-0 **:[[cmdk-input-wrapper]]:px-2"
       >
         <CommandInput
           placeholder={placeholder}
@@ -95,11 +95,11 @@ export function AsyncTagInput({
         {open && (
           <div className="absolute top-full left-0 right-0 z-50 mt-1">
             {loading ? (
-              <div className="bg-popover text-xs p-2 border border-border rounded-lg shadow-sm text-center text-subtle-foreground">
+              <div className="bg-popover text-xs p-2 border border-border rounded-lg text-center text-subtle-foreground">
                 Searching...
               </div>
             ) : results.length > 0 ? (
-              <CommandList className="bg-popover text-popover-foreground rounded-lg shadow-sm border border-border overflow-hidden p-1 max-h-[200px]">
+              <CommandList className="bg-popover text-popover-foreground rounded-lg border border-border overflow-hidden p-1 max-h-[200px]">
                 <CommandGroup heading="Results">
                   {results.map((item) => (
                     <CommandItem

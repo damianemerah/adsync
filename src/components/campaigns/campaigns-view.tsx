@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   Facebook,
   MoreVert,
-  GraphUp,
   SystemRestart,
   Edit,
   Eye,
@@ -16,6 +15,10 @@ import {
   Trash,
   Archive,
   EditPencil,
+  Pause,
+  Play,
+  Download,
+  Filter,
 } from "iconoir-react";
 import { DataTable, Column } from "@/components/ui/data-table";
 import {
@@ -32,6 +35,8 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
@@ -51,13 +56,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Sparkline } from "@/components/dashboard/sparkline";
 import Link from "next/link";
@@ -65,6 +63,7 @@ import Link from "next/link";
 import { CampaignMetrics } from "@/lib/utils/campaign-metrics";
 import { CampaignIssuesBadge } from "@/components/campaigns/campaign-issues-badge";
 import { AdvantagePlusBadge } from "@/components/campaigns/advantage-plus-badge";
+import { cn } from "@/lib/utils";
 
 interface CampaignsViewProps {
   campaigns: any[];
@@ -73,6 +72,7 @@ interface CampaignsViewProps {
   onDelete?: (id: string) => void;
   onArchive?: (id: string) => void;
   onRename?: (id: string, name: string) => void;
+  onToggleStatus?: (id: string, action: "PAUSED" | "ACTIVE") => void;
   isLoading?: boolean;
   /** Rows per page. Defaults to 10. Pass 0 to disable pagination. */
   pageSize?: number;
@@ -91,6 +91,18 @@ interface CampaignsViewProps {
   controlledSearch?: string;
 }
 
+const ALL_COLUMN_KEYS = [
+  "name",
+  "status",
+  "amountSpent",
+  "revenue",
+  "roas",
+  "sales",
+  "impressions",
+  "ctr",
+  "clicks",
+] as const;
+
 export function CampaignsView({
   campaigns,
   onRowClick,
@@ -98,6 +110,7 @@ export function CampaignsView({
   onDelete,
   onArchive,
   onRename,
+  onToggleStatus,
   isLoading,
   pageSize = 10,
   showFilters = true,
@@ -107,6 +120,15 @@ export function CampaignsView({
 }: CampaignsViewProps) {
   const [internalSearchTerm, setInternalSearchTerm] = useState("");
   const [internalStatusFilter, setInternalStatusFilter] = useState<string>("all");
+
+  // Column visibility — all on by default
+  const [visibleColumns, setVisibleColumns] = useState<Set<string>>(
+    new Set(ALL_COLUMN_KEYS),
+  );
+
+  // Sort state
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   // Dialog state
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
@@ -121,6 +143,27 @@ export function CampaignsView({
   const isControlled = controlledStatus !== undefined || controlledSearch !== undefined;
   const searchTerm = controlledSearch ?? internalSearchTerm;
   const statusFilter = controlledStatus ?? internalStatusFilter;
+
+  function handleSort(key: string) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("desc");
+    }
+  }
+
+  function toggleColumn(key: string) {
+    setVisibleColumns((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }
 
   /** Relative time helper */
   function getRelativeTime(date: Date | string): string {
@@ -163,8 +206,6 @@ export function CampaignsView({
       const clicksVal = campaign.clicks || 0;
       const ctrVal = campaign.ctr || 0;
 
-      // Build a mini sparkline from campaign-level metrics if available,
-      // otherwise leave empty (chart handles empty gracefully)
       const trendData: number[] = campaign.metricsHistory
         ? campaign.metricsHistory.map((m: any) => m.clicks || 0)
         : [];
@@ -174,7 +215,6 @@ export function CampaignsView({
           ? "var(--primary)"
           : "var(--muted-foreground)";
 
-      // Resolve created_at timestamp for sorting
       const createdAtMs = campaign.createdAt
         ? new Date(campaign.createdAt).getTime()
         : campaign.created_at
@@ -198,7 +238,6 @@ export function CampaignsView({
         ctrDisplay: `${Number(ctrVal).toFixed(2)}%`,
         trendData,
         trendColor,
-        // Revenue formatting
         revenueVal: campaign.revenueNgn || 0,
         revenueFormatted: `₦${(campaign.revenueNgn || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         roasVal: CampaignMetrics.calculateROAS(
@@ -212,21 +251,23 @@ export function CampaignsView({
           clicksVal,
         ),
         conversionRateFormatted: `${CampaignMetrics.calculateConversionRate(campaign.salesCount || 0, clicksVal).toFixed(2)}%`,
+        spendVal,
+        impressionsVal,
+        clicksVal,
+        ctrVal,
       };
     });
 
-    // Sort according to defaultSort prop
     if (defaultSort === "active-first") {
       return normalised.sort((a, b) => {
         const rankDiff =
           (STATUS_RANK[a.status] ?? 99) - (STATUS_RANK[b.status] ?? 99);
         if (rankDiff !== 0) return rankDiff;
-        return b.createdAtMs - a.createdAtMs; // Newest within same status
+        return b.createdAtMs - a.createdAtMs;
       });
     } else if (defaultSort === "recent") {
       return normalised.sort((a, b) => b.createdAtMs - a.createdAtMs);
     }
-    // Default: revenue desc
     return normalised.sort((a, b) => b.revenueVal - a.revenueVal);
   }, [campaigns, defaultSort]);
 
@@ -240,40 +281,151 @@ export function CampaignsView({
     });
   }, [displayCampaigns, searchTerm, statusFilter]);
 
-  // Import at top if not present, or use inline
-  // We need to add columns for Revenue, ROAS, Sales
-  const columns: Column<any>[] = [
+  /** Column sort applied after filter */
+  const sortedCampaigns = useMemo(() => {
+    if (!sortKey) return filteredCampaigns;
+    const sorted = [...filteredCampaigns].sort((a, b) => {
+      let aVal: any;
+      let bVal: any;
+      switch (sortKey) {
+        case "name":
+          aVal = (a.name ?? "").toLowerCase();
+          bVal = (b.name ?? "").toLowerCase();
+          return sortDir === "asc"
+            ? aVal.localeCompare(bVal)
+            : bVal.localeCompare(aVal);
+        case "status":
+          aVal = STATUS_RANK[a.status] ?? 99;
+          bVal = STATUS_RANK[b.status] ?? 99;
+          break;
+        case "amountSpent":
+          aVal = a.spendVal;
+          bVal = b.spendVal;
+          break;
+        case "revenue":
+          aVal = a.revenueVal;
+          bVal = b.revenueVal;
+          break;
+        case "roas":
+          aVal = a.roasVal;
+          bVal = b.roasVal;
+          break;
+        case "sales":
+          aVal = a.salesVal;
+          bVal = b.salesVal;
+          break;
+        case "impressions":
+          aVal = a.impressionsVal;
+          bVal = b.impressionsVal;
+          break;
+        case "ctr":
+          aVal = a.ctrVal;
+          bVal = b.ctrVal;
+          break;
+        case "clicks":
+          aVal = a.clicksVal;
+          bVal = b.clicksVal;
+          break;
+        default:
+          return 0;
+      }
+      return sortDir === "asc" ? aVal - bVal : bVal - aVal;
+    });
+    return sorted;
+  }, [filteredCampaigns, sortKey, sortDir]);
+
+  function exportCSV() {
+    const headers = ["Name", "Status", "Spend", "Revenue", "ROAS", "Clicks", "Impressions"];
+    const rows = sortedCampaigns.map((c) => [
+      `"${(c.name ?? "").replace(/"/g, '""')}"`,
+      c.status ?? "",
+      c.spendFormatted ?? "",
+      c.revenueFormatted ?? "",
+      c.roasFormatted ?? "",
+      c.clicksDisplay ?? "",
+      c.impressionsDisplay ?? "",
+    ]);
+    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `campaigns-${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  const allColumns: Column<any>[] = [
     {
-      key: "name",
-      title: "Name",
-      className: "font-semibold text-foreground pl-6",
-      headerClassName: "pl-6",
-      render: (campaign) => (
-        <div className="flex items-center gap-3">
+      key: "toggle",
+      title: "",
+      className: "w-10 pl-4 pr-1",
+      headerClassName: "w-10 pl-4 pr-1",
+      render: (campaign) => {
+        if (onToggleStatus && (campaign.status === "active" || campaign.status === "paused")) {
+          return (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleStatus(
+                  campaign.id,
+                  campaign.status === "active" ? "PAUSED" : "ACTIVE",
+                );
+              }}
+              className={cn(
+                "flex h-6 w-6 items-center justify-center rounded-full transition-colors",
+                campaign.status === "active"
+                  ? "text-primary hover:bg-primary/10"
+                  : "text-muted-foreground hover:bg-muted",
+              )}
+              title={campaign.status === "active" ? "Pause campaign" : "Resume campaign"}
+            >
+              {campaign.status === "active" ? (
+                <Pause className="h-3.5 w-3.5" />
+              ) : (
+                <Play className="h-3.5 w-3.5" />
+              )}
+            </button>
+          );
+        }
+        return (
           <div
-            className={`h-2.5 w-2.5 rounded-full shrink-0 ${
+            className={`h-2 w-2 rounded-full ${
               campaign.status === "active"
                 ? "bg-primary animate-pulse"
                 : "bg-muted-foreground/40"
             }`}
           />
+        );
+      },
+    },
+    {
+      key: "name",
+      title: "Name",
+      className: "font-semibold text-foreground",
+      sortable: true,
+      render: (campaign) => (
+        <div className="flex items-center gap-2">
           {campaign.platform === "meta" && (
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-chart-1-soft text-chart-1 border border-chart-1/15">
-              <Facebook className="h-4 w-4" />
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-chart-1-soft text-chart-1 border border-chart-1/15 shrink-0">
+              <Facebook className="h-3.5 w-3.5" />
             </div>
           )}
           {campaign.platform === "tiktok" && (
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-tiktok text-brand-tiktok-foreground">
-              <span className="font-bold text-xs">Tk</span>
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-tiktok text-brand-tiktok-foreground shrink-0">
+              <span className="font-bold text-[10px]">Tk</span>
             </div>
           )}
-          <span>{campaign.name}</span>
+          <span className="truncate max-w-[200px]">{campaign.name}</span>
         </div>
       ),
     },
     {
       key: "status",
       title: "Status",
+      sortable: true,
       render: (campaign) => {
         const statusVariant: Record<
           string,
@@ -289,11 +441,10 @@ export function CampaignsView({
           <div className="flex items-center gap-2">
             <Badge
               variant={statusVariant[campaign.status] ?? "secondary"}
-              className="rounded-sm px-3 py-1 font-semibold capitalize"
+              className="rounded-sm px-2.5 py-0.5 font-semibold capitalize text-xs"
             >
               {campaign.status}
             </Badge>
-            {/* v25.0: Show campaign issues and Advantage+ badges */}
             <CampaignIssuesBadge issues={campaign.meta_issues} compact />
             <AdvantagePlusBadge
               config={campaign.advantage_plus_config}
@@ -307,21 +458,24 @@ export function CampaignsView({
       key: "amountSpent",
       title: "Spend",
       className: "font-mono font-medium text-foreground",
+      sortable: true,
       render: (campaign) => campaign.spendFormatted,
     },
     {
       key: "revenue",
       title: "Revenue",
       className: "font-mono font-bold text-status-success",
+      sortable: true,
       render: (campaign) => campaign.revenueFormatted,
     },
     {
       key: "roas",
       title: "ROAS",
       className: "font-mono font-medium",
+      sortable: true,
       render: (campaign) => (
         <span
-          className={`px-2 py-1 rounded-md text-xs font-bold ${
+          className={`px-2 py-0.5 rounded-md text-xs font-bold ${
             campaign.roasVal >= 1.5
               ? "bg-status-success-soft text-status-success"
               : campaign.roasVal >= 1.0
@@ -337,18 +491,21 @@ export function CampaignsView({
       key: "sales",
       title: "Sales",
       className: "font-mono font-medium text-foreground",
+      sortable: true,
       render: (campaign) => campaign.salesVal,
     },
     {
       key: "impressions",
       title: "Impressions",
       className: "font-mono font-medium text-foreground",
+      sortable: true,
       render: (campaign) => campaign.impressionsDisplay,
     },
     {
       key: "ctr",
       title: "CTR",
       className: "w-[160px]",
+      sortable: true,
       render: (campaign) => (
         <div className="flex items-center gap-2">
           <span className="font-mono font-medium text-foreground">
@@ -369,12 +526,13 @@ export function CampaignsView({
       key: "clicks",
       title: "Clicks",
       className: "font-mono font-medium text-foreground",
+      sortable: true,
       render: (campaign) => campaign.clicksDisplay,
     },
     {
       key: "action",
       title: "",
-      className: "pr-6 w-12",
+      className: "pr-4 w-12",
       render: (campaign) => (
         <div onClick={(e) => e.stopPropagation()}>
           <DropdownMenu>
@@ -408,7 +566,6 @@ export function CampaignsView({
                   <Copy className="h-4 w-4 mr-2" /> Duplicate
                 </DropdownMenuItem>
               )}
-              {/* ── Rename ── */}
               {onRename && (
                 <DropdownMenuItem
                   onClick={() => {
@@ -421,9 +578,7 @@ export function CampaignsView({
                   <EditPencil className="h-4 w-4 mr-2" /> Rename
                 </DropdownMenuItem>
               )}
-              {/* ── Separator before destructive actions ── */}
               {(onArchive || onDelete) && <DropdownMenuSeparator />}
-              {/* ── Archive ── */}
               {onArchive && (
                 <DropdownMenuItem
                   onClick={() => {
@@ -435,7 +590,6 @@ export function CampaignsView({
                   <Archive className="h-4 w-4 mr-2" /> Archive
                 </DropdownMenuItem>
               )}
-              {/* ── Delete ── */}
               {onDelete && (
                 <DropdownMenuItem
                   onClick={() => {
@@ -454,6 +608,24 @@ export function CampaignsView({
     },
   ];
 
+  // toggle and action columns are always shown; others respect visibility toggle
+  const columns = allColumns.filter(
+    (c) => c.key === "action" || c.key === "toggle" || visibleColumns.has(c.key),
+  );
+
+  // Column label map for the visibility toggle UI
+  const COLUMN_LABELS: Record<string, string> = {
+    name: "Name",
+    status: "Status",
+    amountSpent: "Spend",
+    revenue: "Revenue",
+    roas: "ROAS",
+    sales: "Sales",
+    impressions: "Impressions",
+    ctr: "CTR",
+    clicks: "Clicks",
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -462,46 +634,104 @@ export function CampaignsView({
     );
   }
 
+  const tableHeader = showFilters ? (
+    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 px-4 py-3 border-b border-border">
+      {/* Title */}
+      <h3 className="font-bold text-base text-foreground font-heading shrink-0">
+        Campaigns
+      </h3>
+
+      {/* Search */}
+      <div className="relative flex-1 max-w-xs">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <input
+          type="text"
+          placeholder="Search campaign..."
+          value={isControlled ? (controlledSearch ?? "") : internalSearchTerm}
+          onChange={(e) => {
+            if (!isControlled) setInternalSearchTerm(e.target.value);
+          }}
+          readOnly={isControlled}
+          className="w-full h-8 pl-8 pr-3 rounded-md border border-border bg-muted/40 text-sm outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring transition-all placeholder:text-muted-foreground"
+        />
+      </div>
+
+      {/* Right-side controls */}
+      <div className="flex items-center gap-2 ml-auto">
+        {/* Status filter — hidden in controlled mode */}
+        {!isControlled && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs font-semibold border-border">
+                <Filter className="h-3.5 w-3.5" />
+                {internalStatusFilter === "all" ? "Filter" : <span className="capitalize">{internalStatusFilter}</span>}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuLabel className="text-xs text-muted-foreground">Status</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {["all", "active", "paused", "draft", "completed", "failed"].map((s) => (
+                <DropdownMenuCheckboxItem
+                  key={s}
+                  checked={internalStatusFilter === s}
+                  onCheckedChange={() => setInternalStatusFilter(s)}
+                  className="capitalize cursor-pointer text-sm"
+                >
+                  {s === "all" ? "All Statuses" : s}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
+        {/* Column visibility */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs font-semibold border-border">
+              <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <rect x="1" y="1" width="4" height="4" rx="0.5" />
+                <rect x="6" y="1" width="4" height="4" rx="0.5" />
+                <rect x="11" y="1" width="4" height="4" rx="0.5" />
+                <rect x="1" y="6" width="4" height="4" rx="0.5" />
+                <rect x="6" y="6" width="4" height="4" rx="0.5" />
+                <rect x="11" y="6" width="4" height="4" rx="0.5" />
+              </svg>
+              Columns
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuLabel className="text-xs text-muted-foreground">Toggle Columns</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {ALL_COLUMN_KEYS.map((key) => (
+              <DropdownMenuCheckboxItem
+                key={key}
+                checked={visibleColumns.has(key)}
+                onCheckedChange={() => toggleColumn(key)}
+                className="cursor-pointer text-sm"
+              >
+                {COLUMN_LABELS[key]}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Export CSV */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={exportCSV}
+          disabled={sortedCampaigns.length === 0}
+          className="h-8 gap-1.5 text-xs font-semibold border-border"
+        >
+          <Download className="h-3.5 w-3.5" />
+          Export CSV
+        </Button>
+      </div>
+    </div>
+  ) : null;
+
   return (
     <div className="space-y-4">
-      {/* Search + Status Filter Bar — hidden when parent controls filters or showFilters=false */}
-      {showFilters && !isControlled && (
-        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-          {/* Search */}
-          <div className="relative flex-1 max-w-sm">
-            <input
-              type="text"
-              placeholder="Search campaigns..."
-              value={internalSearchTerm}
-              onChange={(e) => setInternalSearchTerm(e.target.value)}
-              className="w-full h-10 pl-10 pr-4 rounded-md border border-border bg-background text-sm font-medium outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring transition-all placeholder:text-muted-foreground"
-            />
-            <GraphUp className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          </div>
-
-          {/* Status Dropdown */}
-          <Select value={internalStatusFilter} onValueChange={setInternalStatusFilter}>
-            <SelectTrigger className="w-[160px] h-10 border-border bg-card rounded-md font-medium text-foreground shadow-sm hover:border-primary/50 transition-colors">
-              <SelectValue placeholder="All Statuses" />
-            </SelectTrigger>
-            <SelectContent className="rounded-md shadow-sm border border-border">
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="paused">Paused</SelectItem>
-              <SelectItem value="draft">Draft</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="failed">Failed</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {/* Row count */}
-          <span className="text-xs text-subtle-foreground ml-auto hidden sm:block">
-            {filteredCampaigns.length} of {displayCampaigns.length} campaign
-            {displayCampaigns.length !== 1 ? "s" : ""}
-          </span>
-        </div>
-      )}
-
       {/* Row count when controlled (no inner filter bar) */}
       {isControlled && filteredCampaigns.length !== displayCampaigns.length && (
         <p className="text-xs text-subtle-foreground">
@@ -610,6 +840,30 @@ export function CampaignsView({
                   >
                     {campaign.status}
                   </Badge>
+                  {/* Mobile pause/play */}
+                  {onToggleStatus && (campaign.status === "active" || campaign.status === "paused") && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleStatus(
+                          campaign.id,
+                          campaign.status === "active" ? "PAUSED" : "ACTIVE",
+                        );
+                      }}
+                      className={cn(
+                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors",
+                        campaign.status === "active"
+                          ? "text-primary hover:bg-primary/10"
+                          : "text-muted-foreground hover:bg-muted",
+                      )}
+                    >
+                      {campaign.status === "active" ? (
+                        <Pause className="h-4 w-4" />
+                      ) : (
+                        <Play className="h-4 w-4" />
+                      )}
+                    </button>
+                  )}
                   <div onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -753,51 +1007,56 @@ export function CampaignsView({
       </motion.div>
 
       {/* Desktop: data table (md+) */}
-      <div className="hidden md:block">
-      <DataTable
-        columns={columns}
-        data={filteredCampaigns}
-        onRowClick={(row) => onRowClick?.(row.id)}
-        pageSize={pageSize}
-        emptyState={
-          searchTerm || statusFilter !== "all" ? (
-            <Empty className="py-12 border-none">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <Search className="h-6 w-6" />
-                </EmptyMedia>
-                <EmptyTitle>No matching campaigns</EmptyTitle>
-                <EmptyDescription>
-                  Adjust your search filters to see more results.
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          ) : (
-            <Empty className="py-12 border-none">
-              <EmptyHeader>
-                <EmptyMedia
-                  variant="icon"
-                  className="bg-primary/10 text-primary"
-                >
-                  <Rocket className="h-6 w-6" />
-                </EmptyMedia>
-                <EmptyTitle>No campaigns yet</EmptyTitle>
-                <EmptyDescription>
-                  Create your first AI-optimized campaign to start generating
-                  sales.
-                </EmptyDescription>
-              </EmptyHeader>
-              <EmptyContent>
-                <Link href="/campaigns/new">
-                  <Button className="rounded-md bg-primary text-primary-foreground font-semibold">
-                    Create your first ad
-                  </Button>
-                </Link>
-              </EmptyContent>
-            </Empty>
-          )
-        }
-      />
+      <div className="hidden md:block rounded-lg border border-border bg-card shadow-sm overflow-hidden">
+        {tableHeader}
+        <DataTable
+          columns={columns}
+          data={sortedCampaigns}
+          onRowClick={(row) => onRowClick?.(row.id)}
+          pageSize={pageSize}
+          sortKey={sortKey}
+          sortDir={sortDir}
+          onSort={handleSort}
+          borderless
+          emptyState={
+            searchTerm || statusFilter !== "all" ? (
+              <Empty className="py-12 border-none">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <Search className="h-6 w-6" />
+                  </EmptyMedia>
+                  <EmptyTitle>No matching campaigns</EmptyTitle>
+                  <EmptyDescription>
+                    Adjust your search filters to see more results.
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            ) : (
+              <Empty className="py-12 border-none">
+                <EmptyHeader>
+                  <EmptyMedia
+                    variant="icon"
+                    className="bg-primary/10 text-primary"
+                  >
+                    <Rocket className="h-6 w-6" />
+                  </EmptyMedia>
+                  <EmptyTitle>No campaigns yet</EmptyTitle>
+                  <EmptyDescription>
+                    Create your first AI-optimized campaign to start generating
+                    sales.
+                  </EmptyDescription>
+                </EmptyHeader>
+                <EmptyContent>
+                  <Link href="/campaigns/new">
+                    <Button className="rounded-md bg-primary text-primary-foreground font-semibold">
+                      Create your first ad
+                    </Button>
+                  </Link>
+                </EmptyContent>
+              </Empty>
+            )
+          }
+        />
       </div>
 
       {/* ── Rename Dialog ── */}

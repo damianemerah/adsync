@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -32,10 +32,16 @@ import {
   CheckCircle,
   NavArrowDown,
   NavArrowUp,
+  Xmark,
+  Search,
+  Camera,
 } from "iconoir-react";
-import { updateOrganization } from "@/actions/settings";
-import { deleteOrganization } from "@/actions/organization";
+import { cn } from "@/lib/utils";
+import { updateOrganization, updateOrganizationLogo } from "@/actions/settings";
+import { createClient } from "@/lib/supabase/client";
+import { deleteOrganization, provisionOrgPixelToken } from "@/actions/organization";
 import { updateAdAccountCapi } from "@/actions/ad-accounts";
+import { PixelSnippetCard } from "@/components/campaigns/pixel-snippet-card";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useAdAccountsList, useAdAccountMutations } from "@/hooks/use-ad-account";
@@ -53,6 +59,80 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
+type TargetLocation = { id: string; name: string; type: string; country_code: string };
+type TargetInterest = { id: string; name: string };
+
+function BusinessAvatarUpload({ organization }: { organization: any }) {
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const supabase = createClient();
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${organization.id}-${Math.random()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("avatars").getPublicUrl(filePath);
+
+      const res = await updateOrganizationLogo(organization.id, publicUrl);
+      if (res.error) throw new Error(res.error);
+
+      toast.success("Logo updated successfully");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to update logo");
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  return (
+    <div
+      className={cn(
+        "relative group h-20 w-20 shrink-0 rounded-xl bg-primary/10 flex items-center justify-center text-3xl font-bold text-primary shadow-sm border border-primary/20 overflow-hidden cursor-pointer",
+        isUploading && "opacity-50 pointer-events-none"
+      )}
+      onClick={() => fileInputRef.current?.click()}
+    >
+      {organization.logo_url ? (
+        <img
+          src={organization.logo_url}
+          alt={organization.name}
+          className="w-full h-full object-cover group-hover:opacity-50 transition-opacity"
+        />
+      ) : (
+        <span className="group-hover:opacity-50 transition-opacity">
+          {organization.name?.[0]?.toUpperCase() || "B"}
+        </span>
+      )}
+      <div className="absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 text-white">
+        <Camera className="h-6 w-6" />
+      </div>
+      <input
+        type="file"
+        ref={fileInputRef}
+        className="hidden"
+        accept="image/*"
+        onChange={handleFileChange}
+      />
+    </div>
+  );
+}
+
 const INDUSTRIES = [
   "E-commerce (Fashion/Beauty)",
   "E-commerce (Electronics)",
@@ -62,6 +142,62 @@ const INDUSTRIES = [
   "Tech / SaaS",
   "Other",
 ];
+
+// Global org pixel token section
+function OrgPixelSection({ orgId, pixelToken }: { orgId: string; pixelToken?: string | null }) {
+  const [token, setToken] = useState<string | null>(pixelToken ?? null);
+  const [isPending, startTransition] = useTransition();
+
+  const handleGenerate = () => {
+    startTransition(async () => {
+      const result = await provisionOrgPixelToken(orgId);
+      if (result.error) {
+        toast.error("Failed to generate pixel token", { description: result.error });
+      } else if (result.token) {
+        setToken(result.token);
+        toast.success("Tenzu Pixel token generated!");
+      }
+    });
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Tenzu Pixel</CardTitle>
+        <CardDescription>
+          Paste this snippet once in your website&apos;s{" "}
+          <code className="px-1 py-0.5 bg-muted rounded text-xs">&lt;head&gt;</code>.
+          It tracks page views and automatically attributes purchases to whichever Tenzu campaign drove the click — no changes needed when you launch new campaigns.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {token ? (
+          <PixelSnippetCard orgPixelToken={token} />
+        ) : (
+          <div className="flex flex-col items-start gap-3">
+            <p className="text-sm text-subtle-foreground">
+              Generate your pixel token to get the snippet code.
+            </p>
+            <Button
+              onClick={handleGenerate}
+              disabled={isPending}
+              variant="outline"
+            >
+              {isPending ? (
+                <>
+                  <SystemRestart className="h-4 w-4 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                "Generate Pixel Token"
+              )}
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 // Per-account CAPI configuration panel
 function CapiConfigPanel({ account }: { account: any }) {
@@ -204,6 +340,333 @@ function CapiConfigPanel({ account }: { account: any }) {
         </div>
       )}
     </div>
+  );
+}
+
+// ─── Audience Defaults Card ───────────────────────────────────────────────────
+
+const GOAL_QUESTIONS: {
+  key: keyof AudienceGoals;
+  label: string;
+}[] = [
+  { key: "has_physical_location", label: "Do people visit your location?" },
+  { key: "gets_leads_via_website", label: "Do you get leads from your website?" },
+  { key: "sells_online", label: "Do people buy on your website?" },
+  { key: "books_appointments", label: "Do people book appointments?" },
+  { key: "wants_contact_ads", label: "Do you want contact-focused ads?" },
+];
+
+type AudienceGoals = {
+  has_physical_location: boolean | null;
+  gets_leads_via_website: boolean | null;
+  sells_online: boolean | null;
+  books_appointments: boolean | null;
+  wants_contact_ads: boolean | null;
+};
+
+function TriToggle({
+  value,
+  onChange,
+}: {
+  value: boolean | null;
+  onChange: (v: boolean | null) => void;
+}) {
+  return (
+    <div className="flex gap-1">
+      {([true, false, null] as const).map((v) => (
+        <button
+          key={String(v)}
+          type="button"
+          onClick={() => onChange(v)}
+          className={cn(
+            "px-2.5 py-1 rounded text-xs font-semibold border transition-all",
+            value === v
+              ? v === true
+                ? "bg-primary/10 border-primary/30 text-primary"
+                : v === false
+                  ? "bg-destructive/10 border-destructive/30 text-destructive"
+                  : "bg-muted border-border text-foreground"
+              : "border-border text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+          )}
+        >
+          {v === true ? "Yes" : v === false ? "No" : "—"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function MetaSearchCombobox({
+  type,
+  selected,
+  onAdd,
+  adAccountId,
+  placeholder,
+}: {
+  type: "location" | "interest";
+  selected: Array<{ id: string; name: string }>;
+  onAdd: (item: { id: string; name: string; [key: string]: string }) => void;
+  adAccountId: string | null;
+  placeholder: string;
+}) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<Array<{ id: string; name: string; [key: string]: string }>>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const search = useCallback(
+    async (q: string) => {
+      if (!q.trim() || !adAccountId) { setResults([]); return; }
+      setIsSearching(true);
+      try {
+        const endpoint =
+          type === "location"
+            ? `/api/meta/search-location?query=${encodeURIComponent(q)}&type=adgeolocation`
+            : `/api/meta/search-interest?query=${encodeURIComponent(q)}`;
+        const res = await fetch(endpoint);
+        if (res.ok) {
+          const data = await res.json();
+          setResults((data.data ?? data).slice(0, 8));
+        }
+      } finally {
+        setIsSearching(false);
+      }
+    },
+    [type, adAccountId],
+  );
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const q = e.target.value;
+    setQuery(q);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => search(q), 350);
+  };
+
+  const alreadySelected = (id: string) => selected.some((s) => s.id === id);
+
+  if (!adAccountId) {
+    return (
+      <p className="text-xs text-subtle-foreground italic">
+        Connect a Meta ad account in Settings to search {type === "location" ? "locations" : "interests"}.
+      </p>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <Input
+          value={query}
+          onChange={handleChange}
+          placeholder={placeholder}
+          className="pl-8 h-9 text-sm bg-background border-border"
+        />
+      </div>
+      {(results.length > 0 || isSearching) && (
+        <div className="absolute z-10 top-full mt-1 w-full bg-card border border-border rounded-md shadow-sm max-h-52 overflow-y-auto">
+          {isSearching && (
+            <div className="px-3 py-2 text-xs text-subtle-foreground">Searching…</div>
+          )}
+          {results.map((r) => (
+            <button
+              key={r.key ?? r.id}
+              type="button"
+              disabled={alreadySelected(r.key ?? r.id)}
+              onClick={() => {
+                onAdd({ ...r, id: r.key ?? r.id });
+                setQuery("");
+                setResults([]);
+              }}
+              className="w-full text-left px-3 py-2 text-sm hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-between text-foreground"
+            >
+              <span>{r.name}</span>
+              {r.country_code && <span className="text-xs text-subtle-foreground">{r.country_code}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AudienceDefaultsCard({
+  organization,
+  metaAdAccountId,
+}: {
+  organization: any;
+  metaAdAccountId: string | null;
+}) {
+  const [isPending, startTransition] = useTransition();
+
+  const [goals, setGoals] = useState<AudienceGoals>({
+    has_physical_location: organization.has_physical_location ?? null,
+    gets_leads_via_website: organization.gets_leads_via_website ?? null,
+    sells_online: organization.sells_online ?? null,
+    books_appointments: organization.books_appointments ?? null,
+    wants_contact_ads: organization.wants_contact_ads ?? null,
+  });
+
+  const [locations, setLocations] = useState<TargetLocation[]>(
+    (organization.default_target_locations as TargetLocation[]) ?? [],
+  );
+  const [interests, setInterests] = useState<TargetInterest[]>(
+    (organization.default_target_interests as TargetInterest[]) ?? [],
+  );
+
+  const handleSave = () => {
+    startTransition(async () => {
+      const fd = new FormData();
+      // Pass through required base fields so the action doesn't null them out
+      fd.append("orgName", organization.name ?? "");
+      fd.append("industry", organization.industry ?? "");
+      fd.append("sellingMethod", organization.selling_method ?? "");
+      fd.append("priceTier", organization.price_tier ?? "");
+      fd.append("customerGender", organization.customer_gender ?? "");
+      fd.append("businessDescription", organization.business_description ?? "");
+
+      if (goals.has_physical_location !== null) fd.append("hasPhysicalLocation", String(goals.has_physical_location));
+      if (goals.gets_leads_via_website !== null) fd.append("getsLeadsViaWebsite", String(goals.gets_leads_via_website));
+      if (goals.sells_online !== null) fd.append("sellsOnline", String(goals.sells_online));
+      if (goals.books_appointments !== null) fd.append("booksAppointments", String(goals.books_appointments));
+      if (goals.wants_contact_ads !== null) fd.append("wantsContactAds", String(goals.wants_contact_ads));
+
+      fd.append("defaultTargetLocations", JSON.stringify(locations));
+      fd.append("defaultTargetInterests", JSON.stringify(interests));
+
+      const result = await updateOrganization(organization.id, fd);
+      if (result?.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("Audience defaults saved!");
+      }
+    });
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Audience Defaults</CardTitle>
+        <CardDescription>
+          These answers help the AI pick the right campaign objectives and pre-fill audience targeting when you create new campaigns.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Business goal toggles */}
+        <div>
+          <p className="text-xs font-semibold text-subtle-foreground uppercase tracking-wider mb-3">
+            Business Goals
+          </p>
+          <div className="space-y-3">
+            {GOAL_QUESTIONS.map(({ key, label }) => (
+              <div key={key} className="flex items-center justify-between gap-4">
+                <span className="text-sm text-foreground">{label}</span>
+                <TriToggle
+                  value={goals[key]}
+                  onChange={(v) => setGoals((prev) => ({ ...prev, [key]: v }))}
+                />
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-subtle-foreground mt-2">
+            — means not answered. All fields are optional.
+          </p>
+        </div>
+
+        <div className="border-t border-border" />
+
+        {/* Default locations */}
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-subtle-foreground uppercase tracking-wider">
+            Default Audience Locations
+          </p>
+          <p className="text-xs text-subtle-foreground">
+            These locations will be pre-filled on new campaigns so you don't have to re-enter them each time.
+          </p>
+          {locations.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {locations.map((loc) => (
+                <Badge key={loc.id} variant="secondary" className="gap-1 pr-1.5">
+                  {loc.name}
+                  <button
+                    type="button"
+                    onClick={() => setLocations((prev) => prev.filter((l) => l.id !== loc.id))}
+                    className="ml-0.5 hover:text-destructive transition-colors"
+                  >
+                    <Xmark className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          )}
+          <MetaSearchCombobox
+            type="location"
+            selected={locations}
+            adAccountId={metaAdAccountId}
+            placeholder="Search locations (e.g. Lagos, Abuja…)"
+            onAdd={(item) => {
+              if (!locations.some((l) => l.id === item.id)) {
+                setLocations((prev) => [
+                  ...prev,
+                  { id: item.id, name: item.name, type: item.type ?? "region", country_code: item.country_code ?? "" },
+                ]);
+              }
+            }}
+          />
+        </div>
+
+        <div className="border-t border-border" />
+
+        {/* Default interests */}
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-subtle-foreground uppercase tracking-wider">
+            Default Audience Interests
+          </p>
+          <p className="text-xs text-subtle-foreground">
+            Topics your audience typically cares about. Used to seed AI-generated targeting.
+          </p>
+          {interests.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {interests.map((int) => (
+                <Badge key={int.id} variant="secondary" className="gap-1 pr-1.5">
+                  {int.name}
+                  <button
+                    type="button"
+                    onClick={() => setInterests((prev) => prev.filter((i) => i.id !== int.id))}
+                    className="ml-0.5 hover:text-destructive transition-colors"
+                  >
+                    <Xmark className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          )}
+          <MetaSearchCombobox
+            type="interest"
+            selected={interests}
+            adAccountId={metaAdAccountId}
+            placeholder="Search interests (e.g. Fashion, Cooking…)"
+            onAdd={(item) => {
+              if (!interests.some((i) => i.id === item.id)) {
+                setInterests((prev) => [...prev, { id: item.id, name: item.name }]);
+              }
+            }}
+          />
+        </div>
+      </CardContent>
+      <CardFooter className="bg-muted/20 border-t border-border px-6 py-4 flex justify-end">
+        <Button onClick={handleSave} disabled={isPending} className="min-w-[120px]">
+          {isPending ? (
+            <>
+              <SystemRestart className="w-4 h-4 mr-2 animate-spin" />
+              Saving…
+            </>
+          ) : (
+            "Save Defaults"
+          )}
+        </Button>
+      </CardFooter>
+    </Card>
   );
 }
 
@@ -365,29 +828,32 @@ export function BusinessTab({
 
           <CardContent className="space-y-6">
             {/* Business Header */}
-            <div className="flex items-center gap-6">
-              <div className="h-16 w-16 rounded-lg bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary border-2 border-primary/20">
-                {organization.name?.[0]?.toUpperCase() || "B"}
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-foreground">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-6 pb-6 border-b border-border">
+              <BusinessAvatarUpload organization={organization} />
+              <div className="space-y-1.5">
+                <h3 className="text-2xl font-bold text-foreground tracking-tight">
                   {organization.name}
                 </h3>
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge variant="outline" className="text-xs capitalize">
-                    {organization.subscription_tier || "starter"}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline" className="capitalize font-medium">
+                    {organization.subscription_tier || "starter"} plan
                   </Badge>
                   {organization.industry && (
-                    <Badge variant="secondary" className="text-xs">
+                    <Badge variant="secondary" className="font-medium text-secondary-foreground">
                       {organization.industry}
                     </Badge>
+                  )}
+                  {(organization.city || organization.state) && (
+                    <span className="text-sm text-subtle-foreground ml-1">
+                      {[organization.city, organization.state].filter(Boolean).join(", ")}
+                    </span>
                   )}
                 </div>
               </div>
             </div>
 
             {isEditing ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-muted/30 p-6 rounded-md border border-border">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                 <div className="space-y-2">
                   <Label htmlFor="orgName">Company Name</Label>
                   <Input
@@ -545,102 +1011,51 @@ export function BusinessTab({
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-muted/30 p-6 rounded-md border border-border">
-                <div>
-                  <p className="text-xs font-semibold text-subtle-foreground uppercase tracking-wider mb-1">
-                    Company Name
-                  </p>
-                  <p className="font-medium text-foreground">
-                    {organization.name}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-subtle-foreground uppercase tracking-wider mb-1">
-                    Industry
-                  </p>
-                  <p className="font-medium text-foreground">
-                    {organization.industry || (
-                      <span className="text-subtle-foreground italic">
-                        Not set
-                      </span>
-                    )}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-subtle-foreground uppercase tracking-wider mb-1">
-                    Selling Method
-                  </p>
-                  <p className="font-medium text-foreground capitalize">
+              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-8 pt-2">
+                <div className="flex flex-col gap-1.5">
+                  <dt className="text-sm font-medium text-subtle-foreground">Selling Method</dt>
+                  <dd className="text-base text-foreground capitalize">
                     {organization.selling_method || (
-                      <span className="text-subtle-foreground italic">
-                        Not set
-                      </span>
+                      <span className="text-subtle-foreground italic">Not set</span>
                     )}
-                  </p>
+                  </dd>
                 </div>
-                <div>
-                  <p className="text-xs font-semibold text-subtle-foreground uppercase tracking-wider mb-1">
-                    Target Audience / Price Tier
-                  </p>
-                  <p className="font-medium text-foreground capitalize">
+                <div className="flex flex-col gap-1.5">
+                  <dt className="text-sm font-medium text-subtle-foreground">Target Audience & Price Tier</dt>
+                  <dd className="text-base text-foreground capitalize">
                     {organization.customer_gender || "Both"} •{" "}
                     {organization.price_tier || "Mid"}
-                  </p>
+                  </dd>
                 </div>
-                <div className="md:col-span-2">
-                  <p className="text-xs font-semibold text-subtle-foreground uppercase tracking-wider mb-1">
-                    Business Description
-                  </p>
-                  <p className="font-medium text-foreground">
+                <div className="flex flex-col gap-1.5 md:col-span-2">
+                  <dt className="text-sm font-medium text-subtle-foreground">Business Description</dt>
+                  <dd className="text-base text-foreground leading-relaxed max-w-3xl">
                     {organization.business_description || (
                       <span className="text-subtle-foreground italic">
                         No description provided yet. Editing this helps the AI
                         generate more relevant ads.
                       </span>
                     )}
-                  </p>
+                  </dd>
                 </div>
-                <div>
-                  <p className="text-xs font-semibold text-subtle-foreground uppercase tracking-wider mb-1">
-                    Location
-                  </p>
-                  <p className="font-medium text-foreground">
-                    {organization.city || organization.state
-                      ? [organization.city, organization.state].filter(Boolean).join(", ")
-                      : <span className="text-subtle-foreground italic">Not set</span>}
-                  </p>
+                <div className="flex flex-col gap-1.5 md:col-span-2 mt-2">
+                  <dt className="text-sm font-medium text-subtle-foreground pb-2 border-b border-border/50">Contact & Web</dt>
+                  <dd className="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-2">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs text-subtle-foreground uppercase tracking-wider font-semibold">Website</span>
+                      <span className="text-sm text-foreground break-all">{organization.business_website || <span className="italic text-subtle-foreground">Not set</span>}</span>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs text-subtle-foreground uppercase tracking-wider font-semibold">Phone</span>
+                      <span className="text-sm text-foreground">{organization.business_phone || <span className="italic text-subtle-foreground">Not set</span>}</span>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs text-subtle-foreground uppercase tracking-wider font-semibold">WhatsApp</span>
+                      <span className="text-sm text-foreground">{organization.whatsapp_number || <span className="italic text-subtle-foreground">Not set</span>}</span>
+                    </div>
+                  </dd>
                 </div>
-                <div>
-                  <p className="text-xs font-semibold text-subtle-foreground uppercase tracking-wider mb-1">
-                    Business Website
-                  </p>
-                  <p className="font-medium text-foreground break-all">
-                    {organization.business_website || (
-                      <span className="text-subtle-foreground italic">Not set</span>
-                    )}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-subtle-foreground uppercase tracking-wider mb-1">
-                    Business Phone
-                  </p>
-                  <p className="font-medium text-foreground">
-                    {organization.business_phone || (
-                      <span className="text-subtle-foreground italic">Not set</span>
-                    )}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-subtle-foreground uppercase tracking-wider mb-1">
-                    WhatsApp Number
-                  </p>
-                  <p className="font-medium text-foreground">
-                    {organization.whatsapp_number || (
-                      <span className="text-subtle-foreground italic">Not set</span>
-                    )}
-                  </p>
-                </div>
-              </div>
+              </dl>
             )}
           </CardContent>
 
@@ -673,46 +1088,50 @@ export function BusinessTab({
         </form>
       </Card>
 
-      {/* Connected Accounts & Members Tabs (inspired by Wask reference) */}
+      {/* Audience Defaults */}
+      {(() => {
+        const metaAccount = accounts?.find(
+          (a: any) => a.platform === "meta" && a.status !== "disconnected",
+        );
+        return (
+          <AudienceDefaultsCard
+            organization={organization}
+            metaAdAccountId={metaAccount?.accountId ?? null}
+          />
+        );
+      })()}
+
+      {/* Tenzu Pixel */}
+      <OrgPixelSection orgId={organization.id} pixelToken={organization.pixel_token} />
+
+      {/* Connected Accounts */}
       <Card>
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <CardHeader className="pb-0">
-            <TabsList className="w-full justify-start h-auto p-0 bg-transparent rounded-none">
-              <TabsTrigger
-                value="accounts"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground px-4 py-2.5 text-subtle-foreground"
-              >
-                Connected Accounts
-              </TabsTrigger>
-            </TabsList>
-          </CardHeader>
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-border pb-4 gap-4">
+          <div className="space-y-1">
+            <CardTitle>Connected Accounts</CardTitle>
+            <CardDescription>
+              {currentCount} Account{currentCount !== 1 ? "s" : ""} Connected
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-3">
+            {!canConnect && (
+              <p className="text-xs text-subtle-foreground hidden sm:block">
+                {maxAccounts}/{maxAccounts} limit reached
+              </p>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleConnectClick}
+              className={!canConnect ? "opacity-60" : ""}
+            >
+              <Plus className="w-4 h-4 mr-1" /> Add Ad Account
+            </Button>
+          </div>
+        </CardHeader>
 
-          <TabsContent value="accounts">
-            <CardContent className="pt-4 space-y-4">
-              {/* Header row */}
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-foreground">
-                  {currentCount} Account{currentCount !== 1 ? "s" : ""}{" "}
-                  Connected
-                </p>
-                <div className="flex items-center gap-3">
-                  {!canConnect && (
-                    <p className="text-xs text-subtle-foreground">
-                      {maxAccounts}/{maxAccounts} limit reached
-                    </p>
-                  )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleConnectClick}
-                    className={!canConnect ? "opacity-60" : ""}
-                  >
-                    <Plus className="w-4 h-4 mr-1" /> Add Ad Account
-                  </Button>
-                </div>
-              </div>
-
-              {/* Tier limit warning */}
+        <CardContent className="pt-6 space-y-4">
+          {/* Tier limit warning */}
               {!canConnect && (
                 <div className="flex items-center gap-2 p-3 rounded-md bg-destructive/5 border border-destructive/20 text-sm text-destructive">
                   <WarningTriangle className="h-4 w-4 shrink-0" />
@@ -782,9 +1201,7 @@ export function BusinessTab({
                   ))}
                 </div>
               )}
-            </CardContent>
-          </TabsContent>
-        </Tabs>
+        </CardContent>
       </Card>
 
       {/* Danger Zone */}

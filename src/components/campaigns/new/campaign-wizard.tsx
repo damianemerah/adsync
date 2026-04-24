@@ -128,6 +128,8 @@ export function CampaignWizard({ draftId, isResume }: CampaignWizardProps) {
   const canGoToCreativeAdjusted = hasExtraStep ? canGoToAudience : canGoToCreative;
   const canGoToLaunchAdjusted = hasExtraStep ? canGoToCreative : canGoToLaunch;
 
+  const isAudienceStep = step === (hasExtraStep ? 3 : 2);
+
   return (
     <div className="min-h-screen bg-muted font-sans">
       {/* HEADER */}
@@ -220,22 +222,29 @@ export function CampaignWizard({ draftId, isResume }: CampaignWizardProps) {
       </PageHeader>
 
       {/* MAIN CONTENT */}
-      <main className="mx-auto max-w-7xl px-4 md:px-6 py-8">
+      <main
+        className={cn(
+          "mx-auto",
+          isAudienceStep ? "w-full h-[calc(100vh-64px)] flex flex-col" : "max-w-7xl px-4 md:px-6 py-8"
+        )}
+      >
         <Tabs
           value={step.toString()}
           onValueChange={handleTabChange}
-          className="w-full"
+          className={cn("w-full", isAudienceStep && "h-full flex flex-col")}
         >
-          <WizardTabNav
-            hasExtraStep={hasExtraStep}
-            extraStepLabel={extraStepLabel}
-            canGoTo={{
-              extraStep: canGoToExtraStep,
-              audience: canGoToAudienceAdjusted,
-              creative: canGoToCreativeAdjusted,
-              launch: canGoToLaunchAdjusted,
-            }}
-          />
+          {!isAudienceStep && (
+            <WizardTabNav
+              hasExtraStep={hasExtraStep}
+              extraStepLabel={extraStepLabel}
+              canGoTo={{
+                extraStep: canGoToExtraStep,
+                audience: canGoToAudienceAdjusted,
+                creative: canGoToCreativeAdjusted,
+                launch: canGoToLaunchAdjusted,
+              }}
+            />
+          )}
 
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
@@ -244,7 +253,7 @@ export function CampaignWizard({ draftId, isResume }: CampaignWizardProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -12 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
-              className="mt-0"
+              className={cn("mt-0", isAudienceStep && "flex-1 min-h-0 flex flex-col")}
             >
               {step === 1 && <GoalPlatformStep />}
               {hasExtraStep &&

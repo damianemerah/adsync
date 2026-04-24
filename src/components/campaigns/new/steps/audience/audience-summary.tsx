@@ -4,7 +4,7 @@ import { useCampaignStore } from "@/stores/campaign-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Sparks, MapPin, Xmark, WarningTriangle, Suitcase } from "iconoir-react";
+import { ArrowRight, Sparks, MapPin, Xmark, WarningTriangle, Suitcase, NavArrowDown } from "iconoir-react";
 import { cn } from "@/lib/utils";
 import { AsyncTagInput } from "./async-tag-input";
 import { CITY_TARGETING_UNSUPPORTED } from "@/lib/constants/geo-targeting";
@@ -52,6 +52,14 @@ export function AudienceSummaryPanel() {
   const [suggestions, setSuggestions] = useState<Array<{ id: string; name: string }>>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [locationSearchType, setLocationSearchType] = useState<"country" | "region" | "city">("region");
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+
+  // Count of AI-managed advanced targeting items
+  const advancedCount =
+    (targetBehaviors?.length ?? 0) +
+    (targetWorkPositions?.length ?? 0) +
+    (targetIndustries?.length ?? 0) +
+    (targetLifeEvents?.length ?? 0);
 
   // Fetch interest suggestions when 2+ interests are selected
   useEffect(() => {
@@ -325,7 +333,7 @@ export function AudienceSummaryPanel() {
               l.country &&
               l.country in CITY_TARGETING_UNSUPPORTED,
           ) && (
-            <p className="w-full text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-0.5">
+            <p className="w-full text-xs text-status-warning flex items-center gap-1 mt-0.5">
               <WarningTriangle className="w-3 h-3 shrink-0" />
               City targeting isn't available in Nigeria — your ad will reach all of Nigeria. Use State/Region and search "Lagos State" or "Anambra State" instead.
             </p>
@@ -333,227 +341,240 @@ export function AudienceSummaryPanel() {
         </div>
       </div>
 
-      {/* Behaviors */}
-      <div className="space-y-3">
-        <label className="text-xs font-bold text-subtle-foreground uppercase tracking-wider">
+      {/* Advanced Targeting — collapsed by default, AI-managed */}
+      <div className="border border-border rounded-lg overflow-hidden">
+        {/* Accordion trigger */}
+        <button
+          type="button"
+          onClick={() => setAdvancedOpen((v) => !v)}
+          className="w-full flex items-center justify-between px-4 py-3 bg-muted/40 hover:bg-muted/70 transition-colors text-left"
+          aria-expanded={advancedOpen}
+        >
           <span className="flex items-center gap-2">
-            <Sparks className="h-3.5 w-3.5 text-purple-500" /> Behaviors
+            <Sparks className="h-3.5 w-3.5 text-ai shrink-0" />
+            <span className="text-xs font-bold text-foreground uppercase tracking-wider">
+              AI Targeting
+            </span>
+            {advancedCount > 0 ? (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-ai/10 text-ai">
+                {advancedCount} selected
+              </span>
+            ) : (
+              <span className="text-xs text-subtle-foreground font-normal normal-case tracking-normal">
+                Behaviours, roles &amp; life stages
+              </span>
+            )}
           </span>
-        </label>
-        <div className="flex flex-wrap gap-2">
-          <div className="w-full pt-1">
-            <AsyncTagInput
-              placeholder="Add behavior..."
-              searchType="behavior"
-              onAdd={(val) => {
-                if (!targetBehaviors?.some((b: any) => b.id === val.id)) {
-                  updateDraft({
-                    targetBehaviors: [...(targetBehaviors || []), val],
-                  });
-                }
-              }}
-            />
-          </div>
-          {isResolvingTargeting ? (
-            <TargetingSkeleton />
-          ) : targetBehaviors?.length > 0 ? (
-            targetBehaviors.map((beh: any) => (
-                <Badge
-                  key={beh.id}
-                  variant="secondary"
-                  className={cn(
-                    "py-1 px-3 rounded-full cursor-pointer border transition-colors",
-                    isResolvedId(beh.id)
-                      ? "bg-ai/10 text-ai border-ai/20 hover:bg-ai/20"
-                      : "bg-status-warning-soft text-status-warning border border-status-warning/30 hover:bg-status-warning-soft/80",
+          <NavArrowDown
+            className={cn(
+              "h-4 w-4 text-subtle-foreground transition-transform duration-200 shrink-0",
+              advancedOpen && "rotate-180",
+            )}
+          />
+        </button>
+
+        {/* Accordion body — grid trick for smooth animation */}
+        <div
+          className="grid transition-all duration-200 ease-out"
+          style={{ gridTemplateRows: advancedOpen ? "1fr" : "0fr" }}
+        >
+          <div className="overflow-hidden">
+            <div className="px-4 pb-4 pt-3 space-y-5 border-t border-border">
+
+              <div className="space-y-2">
+                <div className="space-y-0.5">
+                  <p className="text-xs font-bold text-subtle-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Sparks className="h-3 w-3 text-ai" /> Behaviours
+                  </p>
+                  <p className="text-xs text-subtle-foreground font-normal">
+                    Shopping habits Meta detects from user activity — e.g. frequent online buyers
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <div className="w-full">
+                    <AsyncTagInput
+                      placeholder="Add behaviour..."
+                      searchType="behavior"
+                      onAdd={(val) => {
+                        if (!targetBehaviors?.some((b: any) => b.id === val.id)) {
+                          updateDraft({ targetBehaviors: [...(targetBehaviors || []), val] });
+                        }
+                      }}
+                    />
+                  </div>
+                  {isResolvingTargeting ? (
+                    <TargetingSkeleton />
+                  ) : targetBehaviors?.length > 0 ? (
+                    targetBehaviors.map((beh: any) => (
+                      <Badge
+                        key={beh.id}
+                        variant="secondary"
+                        className={cn(
+                          "py-1 px-3 rounded-full cursor-pointer border transition-colors",
+                          isResolvedId(beh.id)
+                            ? "bg-ai/10 text-ai border-ai/20 hover:bg-ai/20"
+                            : "bg-status-warning-soft text-status-warning border-status-warning/30 hover:bg-status-warning-soft/80",
+                        )}
+                        onClick={() => updateDraft({ targetBehaviors: targetBehaviors.filter((b: any) => b.id !== beh.id) })}
+                      >
+                        {!isResolvedId(beh.id) && <WarningTriangle className="h-3 w-3 mr-1 opacity-70" />}
+                        {beh.name} <Xmark className="h-3 w-3 ml-1 opacity-50" />
+                      </Badge>
+                    ))
+                  ) : targetingResolutionError ? (
+                    <p className="text-xs text-status-warning italic">Couldn't load — add manually</p>
+                  ) : (
+                    <p className="text-xs text-subtle-foreground italic">None yet — AI will suggest</p>
                   )}
-                  onClick={() =>
-                    updateDraft({
-                      targetBehaviors: targetBehaviors.filter(
-                        (b: any) => b.id !== beh.id,
-                      ),
-                    })
-                  }
-                >
-                  {!isResolvedId(beh.id) && <WarningTriangle className="h-3 w-3 mr-1 opacity-70" />}
-                  {beh.name} <Xmark className="h-3 w-3 ml-1 opacity-50" />
-                </Badge>
-              ))
-          ) : targetingResolutionError ? (
-            <p className="text-xs text-amber-600 italic">Couldn't load — add manually</p>
-          ) : (
-            <p className="text-sm text-subtle-foreground italic">
-              No behaviors yet
-            </p>
-          )}
-        </div>
-      </div>
+                </div>
+              </div>
 
-      {/* Work Positions */}
-      <div className="space-y-3">
-        <label className="text-xs font-bold text-subtle-foreground uppercase tracking-wider">
-          <span className="flex items-center gap-2">
-            <Suitcase className="h-3.5 w-3.5 text-blue-500" /> Work Positions
-          </span>
-        </label>
-        <div className="flex flex-wrap gap-2">
-          <div className="w-full pt-1">
-            <AsyncTagInput
-              placeholder="Add job title..."
-              searchType="work-position"
-              onAdd={(val) => {
-                if (!targetWorkPositions?.some((p: any) => p.id === val.id)) {
-                  updateDraft({
-                    targetWorkPositions: [...(targetWorkPositions || []), val],
-                  });
-                }
-              }}
-            />
-          </div>
-          {isResolvingTargeting ? (
-            <TargetingSkeleton />
-          ) : targetWorkPositions?.length > 0 ? (
-            targetWorkPositions.map((pos: any) => (
-              <Badge
-                key={pos.id}
-                variant="secondary"
-                className={cn(
-                  "py-1 px-3 rounded-full cursor-pointer border transition-colors",
-                  isResolvedId(pos.id)
-                    ? "bg-status-info-soft text-status-info border-status-info/30 hover:bg-status-info-soft/80"
-                    : "bg-status-warning-soft text-status-warning border border-status-warning/30 hover:bg-status-warning-soft/80",
-                )}
-                onClick={() =>
-                  updateDraft({
-                    targetWorkPositions: targetWorkPositions.filter(
-                      (p: any) => p.id !== pos.id,
-                    ),
-                  })
-                }
-              >
-                {!isResolvedId(pos.id) && <WarningTriangle className="h-3 w-3 mr-1 opacity-70" />}
-                {pos.name} <Xmark className="h-3 w-3 ml-1 opacity-50" />
-              </Badge>
-            ))
-          ) : targetingResolutionError ? (
-            <p className="text-xs text-amber-600 italic">Couldn't load — add manually</p>
-          ) : (
-            <p className="text-sm text-subtle-foreground italic">
-              No work positions yet
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* Industries */}
-      <div className="space-y-3">
-        <label className="text-xs font-bold text-subtle-foreground uppercase tracking-wider">
-          <span className="flex items-center gap-2">
-            <Suitcase className="h-3.5 w-3.5 text-violet-500" /> Industries
-          </span>
-        </label>
-        <div className="flex flex-wrap gap-2">
-          <div className="w-full pt-1">
-            <AsyncTagInput
-              placeholder="Add industry sector..."
-              searchType="industry"
-              onAdd={(val) => {
-                if (!targetIndustries?.some((i: any) => i.id === val.id)) {
-                  updateDraft({
-                    targetIndustries: [...(targetIndustries || []), val],
-                  });
-                }
-              }}
-            />
-          </div>
-          {isResolvingTargeting ? (
-            <TargetingSkeleton />
-          ) : targetIndustries?.length > 0 ? (
-            targetIndustries.map((industry: any) => (
-              <Badge
-                key={industry.id}
-                variant="secondary"
-                className={cn(
-                  "py-1 px-3 rounded-full cursor-pointer border transition-colors",
-                  isResolvedId(industry.id)
-                    ? "bg-ai/10 text-ai border-ai/20 hover:bg-ai/20"
-                    : "bg-status-warning-soft text-status-warning border border-status-warning/30 hover:bg-status-warning-soft/80",
-                )}
-                onClick={() =>
-                  updateDraft({
-                    targetIndustries: targetIndustries.filter(
-                      (i: any) => i.id !== industry.id,
-                    ),
-                  })
-                }
-              >
-                {!isResolvedId(industry.id) && <WarningTriangle className="h-3 w-3 mr-1 opacity-70" />}
-                {industry.name} <Xmark className="h-3 w-3 ml-1 opacity-50" />
-              </Badge>
-            ))
-          ) : targetingResolutionError ? (
-            <p className="text-xs text-amber-600 italic">Couldn't load — add manually</p>
-          ) : (
-            <p className="text-sm text-subtle-foreground italic">
-              No industries yet
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* Life Events */}
-      <div className="space-y-3">
-        <label className="text-xs font-bold text-subtle-foreground uppercase tracking-wider">
-          <span className="flex items-center gap-2">
-            <Sparks className="h-3.5 w-3.5 text-pink-500" /> Life Events
-          </span>
-        </label>
-        <div className="flex flex-wrap gap-2">
-          <div className="w-full pt-1">
-            <AsyncTagInput
-              placeholder="Add life event..."
-              searchType="life-events"
-              onAdd={(val) => {
-                if (!targetLifeEvents?.some((e: any) => e.id === val.id)) {
-                  updateDraft({
-                    targetLifeEvents: [...(targetLifeEvents || []), val],
-                  });
-                }
-              }}
-            />
-          </div>
-          {isResolvingTargeting ? (
-            <TargetingSkeleton />
-          ) : targetLifeEvents?.length > 0 ? (
-            targetLifeEvents.map((event: any) => (
-                <Badge
-                  key={event.id}
-                  variant="secondary"
-                  className={cn(
-                    "py-1 px-3 rounded-full cursor-pointer border transition-colors",
-                    isResolvedId(event.id)
-                      ? "bg-status-info-soft text-status-info border-status-info/30 hover:bg-status-info-soft/80"
-                      : "bg-status-warning-soft text-status-warning border border-status-warning/30 hover:bg-status-warning-soft/80",
+              <div className="space-y-2">
+                <div className="space-y-0.5">
+                  <p className="text-xs font-bold text-subtle-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Suitcase className="h-3 w-3 text-ai" /> Job Titles
+                  </p>
+                  <p className="text-xs text-subtle-foreground font-normal">
+                    Reach people by what they do for work — e.g. salon owners, boutique sellers
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <div className="w-full">
+                    <AsyncTagInput
+                      placeholder="Add job title..."
+                      searchType="work-position"
+                      onAdd={(val) => {
+                        if (!targetWorkPositions?.some((p: any) => p.id === val.id)) {
+                          updateDraft({ targetWorkPositions: [...(targetWorkPositions || []), val] });
+                        }
+                      }}
+                    />
+                  </div>
+                  {isResolvingTargeting ? (
+                    <TargetingSkeleton />
+                  ) : targetWorkPositions?.length > 0 ? (
+                    targetWorkPositions.map((pos: any) => (
+                      <Badge
+                        key={pos.id}
+                        variant="secondary"
+                        className={cn(
+                          "py-1 px-3 rounded-full cursor-pointer border transition-colors",
+                          isResolvedId(pos.id)
+                            ? "bg-ai/10 text-ai border-ai/20 hover:bg-ai/20"
+                            : "bg-status-warning-soft text-status-warning border-status-warning/30 hover:bg-status-warning-soft/80",
+                        )}
+                        onClick={() => updateDraft({ targetWorkPositions: targetWorkPositions.filter((p: any) => p.id !== pos.id) })}
+                      >
+                        {!isResolvedId(pos.id) && <WarningTriangle className="h-3 w-3 mr-1 opacity-70" />}
+                        {pos.name} <Xmark className="h-3 w-3 ml-1 opacity-50" />
+                      </Badge>
+                    ))
+                  ) : targetingResolutionError ? (
+                    <p className="text-xs text-status-warning italic">Couldn't load — add manually</p>
+                  ) : (
+                    <p className="text-xs text-subtle-foreground italic">None yet — AI will suggest</p>
                   )}
-                  onClick={() =>
-                    updateDraft({
-                      targetLifeEvents: targetLifeEvents.filter(
-                        (e: any) => e.id !== event.id,
-                      ),
-                    })
-                  }
-                >
-                  {!isResolvedId(event.id) && <WarningTriangle className="h-3 w-3 mr-1 opacity-70" />}
-                  {event.name} <Xmark className="h-3 w-3 ml-1 opacity-50" />
-                </Badge>
-              ))
-          ) : targetingResolutionError ? (
-            <p className="text-xs text-amber-600 italic">Couldn't load — add manually</p>
-          ) : (
-            <p className="text-sm text-subtle-foreground italic">
-              No life events yet
-            </p>
-          )}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="space-y-0.5">
+                  <p className="text-xs font-bold text-subtle-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Suitcase className="h-3 w-3 text-ai" /> Industries
+                  </p>
+                  <p className="text-xs text-subtle-foreground font-normal">
+                    Target by business sector — e.g. fashion retail, beauty, food &amp; beverage
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <div className="w-full">
+                    <AsyncTagInput
+                      placeholder="Add industry sector..."
+                      searchType="industry"
+                      onAdd={(val) => {
+                        if (!targetIndustries?.some((i: any) => i.id === val.id)) {
+                          updateDraft({ targetIndustries: [...(targetIndustries || []), val] });
+                        }
+                      }}
+                    />
+                  </div>
+                  {isResolvingTargeting ? (
+                    <TargetingSkeleton />
+                  ) : targetIndustries?.length > 0 ? (
+                    targetIndustries.map((industry: any) => (
+                      <Badge
+                        key={industry.id}
+                        variant="secondary"
+                        className={cn(
+                          "py-1 px-3 rounded-full cursor-pointer border transition-colors",
+                          isResolvedId(industry.id)
+                            ? "bg-ai/10 text-ai border-ai/20 hover:bg-ai/20"
+                            : "bg-status-warning-soft text-status-warning border-status-warning/30 hover:bg-status-warning-soft/80",
+                        )}
+                        onClick={() => updateDraft({ targetIndustries: targetIndustries.filter((i: any) => i.id !== industry.id) })}
+                      >
+                        {!isResolvedId(industry.id) && <WarningTriangle className="h-3 w-3 mr-1 opacity-70" />}
+                        {industry.name} <Xmark className="h-3 w-3 ml-1 opacity-50" />
+                      </Badge>
+                    ))
+                  ) : targetingResolutionError ? (
+                    <p className="text-xs text-status-warning italic">Couldn't load — add manually</p>
+                  ) : (
+                    <p className="text-xs text-subtle-foreground italic">None yet — AI will suggest</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="space-y-0.5">
+                  <p className="text-xs font-bold text-subtle-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Sparks className="h-3 w-3 text-ai" /> Life Events
+                  </p>
+                  <p className="text-xs text-subtle-foreground font-normal">
+                    Reach people at key moments — new baby, just moved, newly engaged
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <div className="w-full">
+                    <AsyncTagInput
+                      placeholder="Add life event..."
+                      searchType="life-events"
+                      onAdd={(val) => {
+                        if (!targetLifeEvents?.some((e: any) => e.id === val.id)) {
+                          updateDraft({ targetLifeEvents: [...(targetLifeEvents || []), val] });
+                        }
+                      }}
+                    />
+                  </div>
+                  {isResolvingTargeting ? (
+                    <TargetingSkeleton />
+                  ) : targetLifeEvents?.length > 0 ? (
+                    targetLifeEvents.map((event: any) => (
+                      <Badge
+                        key={event.id}
+                        variant="secondary"
+                        className={cn(
+                          "py-1 px-3 rounded-full cursor-pointer border transition-colors",
+                          isResolvedId(event.id)
+                            ? "bg-ai/10 text-ai border-ai/20 hover:bg-ai/20"
+                            : "bg-status-warning-soft text-status-warning border-status-warning/30 hover:bg-status-warning-soft/80",
+                        )}
+                        onClick={() => updateDraft({ targetLifeEvents: targetLifeEvents.filter((e: any) => e.id !== event.id) })}
+                      >
+                        {!isResolvedId(event.id) && <WarningTriangle className="h-3 w-3 mr-1 opacity-70" />}
+                        {event.name} <Xmark className="h-3 w-3 ml-1 opacity-50" />
+                      </Badge>
+                    ))
+                  ) : targetingResolutionError ? (
+                    <p className="text-xs text-status-warning italic">Couldn't load — add manually</p>
+                  ) : (
+                    <p className="text-xs text-subtle-foreground italic">None yet — AI will suggest</p>
+                  )}
+                </div>
+              </div>
+
+            </div>
+          </div>
         </div>
       </div>
 
@@ -591,7 +612,7 @@ export function AudienceSummaryPanel() {
                 </Badge>
               ))
           ) : targetingResolutionError ? (
-            <p className="text-xs text-amber-600 italic">Couldn't load — add interests manually above</p>
+            <p className="text-xs text-status-warning italic">Couldn't load — add interests manually above</p>
           ) : (
             <p className="text-sm text-subtle-foreground italic">
               No interests yet
@@ -628,7 +649,7 @@ export function AudienceSummaryPanel() {
         <Button
           onClick={() => setStep(3)}
           disabled={targetInterests.length === 0 || isResolvingTargeting}
-          className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-lg shadow-sm border border-border"
+          className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-lg border border-border"
         >
           {isResolvingTargeting ? "Finding best audience..." : "Confirm Audience"}
           {!isResolvingTargeting && <ArrowRight className="ml-2 h-5 w-5" />}

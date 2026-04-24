@@ -60,7 +60,7 @@ export function Pagination({
   const isLast = page === totalPages;
 
   return (
-    <div className={cn("flex items-center justify-between gap-2 pt-4", className)}>
+    <div className={cn("flex items-center justify-between gap-2 p-2", className)}>
       {/* Left: item count summary */}
       <p className="text-xs text-subtle-foreground hidden sm:block shrink-0">
         {Math.min((page - 1) * pageSize + 1, total)}–{Math.min(page * pageSize, total)} of {total}

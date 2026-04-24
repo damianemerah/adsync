@@ -23,19 +23,25 @@ interface WorkspaceSwitcherProps {
 
 function OrgAvatar({
   name,
+  logoUrl,
   size = "md",
 }: {
   name: string;
+  logoUrl?: string | null;
   size?: "sm" | "md";
 }) {
   return (
     <div
       className={cn(
-        "flex items-center justify-center rounded-lg bg-primary/20 text-primary font-bold shrink-0",
+        "flex items-center justify-center rounded-lg bg-primary/20 text-primary font-bold shrink-0 overflow-hidden",
         size === "sm" ? "h-5 w-5 text-xs" : "h-7 w-7 text-sm",
       )}
     >
-      {name?.[0]?.toUpperCase() || "B"}
+      {logoUrl ? (
+        <img src={logoUrl} alt={name} className="w-full h-full object-cover" />
+      ) : (
+        name?.[0]?.toUpperCase() || "B"
+      )}
     </div>
   );
 }
@@ -72,10 +78,10 @@ export function WorkspaceSwitcher({ activeOrgId }: WorkspaceSwitcherProps) {
       <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
         <DropdownMenuTrigger asChild>
           <button
-            className="flex items-center gap-2 p-2 rounded-md hover:bg-muted hover:text-foreground transition-colors text-left group flex-1 border border-border shadow-sm border border-border bg-background disabled:opacity-60 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 p-2 rounded-md hover:bg-muted hover:text-foreground transition-colors text-left group flex-1 border shadow-sm border-border bg-background disabled:opacity-60 disabled:cursor-not-allowed"
             disabled={isSwitching}
           >
-            <OrgAvatar name={organization?.name || "B"} size="sm" />
+            <OrgAvatar name={organization?.name || "B"} logoUrl={organization?.logo_url} size="sm" />
             <span className="text-sm font-medium truncate flex-1 text-foreground">
               {isSwitching && switchingToId
                 ? `Switching to ${organizations.find((o) => o.id === switchingToId)?.name || "workspace"}...`
@@ -109,7 +115,7 @@ export function WorkspaceSwitcher({ activeOrgId }: WorkspaceSwitcherProps) {
                   onClick={() => handleSwitch(org)}
                   disabled={isSwitching}
                 >
-                  <OrgAvatar name={org.name} size="sm" />
+                  <OrgAvatar name={org.name} logoUrl={org.logo_url} size="sm" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{org.name}</p>
                     <p className="text-xs text-subtle-foreground capitalize">

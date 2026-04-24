@@ -328,8 +328,8 @@ export function ReferenceImageManager({
   return (
     <div
       className={cn(
-        "relative rounded-lg bg-card shadow-sm border border-border transition-all focus-within:ring-2 focus-within:ring-primary/20",
-        isDragOver && "ring-2 ring-primary border-primary bg-primary/5",
+        "relative rounded-lg bg-card shadow-sm border border-border transition-all focus-within:border-primary",
+        isDragOver && "border-2 border-primary bg-primary/5",
         className,
       )}
       {...dragProps}

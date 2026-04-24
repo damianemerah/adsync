@@ -34,7 +34,7 @@ export default async function DashboardPage() {
       <div className="flex min-h-screen bg-muted/30 font-sans">
         <div className="flex flex-1 flex-col min-w-0">
           <PageHeader title="Overview" className="static" />
-          <main className="flex-1 p-8 overflow-y-auto">
+          <main className="flex-1 p-4 md:p-8 overflow-y-auto">
             <DashboardEmptyState
               userName={onboarding.userName}
               hasAdAccount={onboarding.hasAdAccount}

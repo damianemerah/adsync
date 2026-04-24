@@ -127,38 +127,14 @@ export function MetricCards({ summary }: MetricCardsProps) {
         ? "orange"
         : "pink";
 
-  const metrics: MetricCardProps[] = [
+  const heroMetrics: MetricCardProps[] = [
     {
-      label: "People Messaged",
-      value: formatInt(whatsappClicks),
-      change: whatsappChange?.text ?? null,
-      trend: whatsappChange?.trend ?? "neutral",
-      tone: "primary",
-      icon: <ChatBubble className="h-4 w-4" />,
-    },
-    {
-      label: "Total Revenue",
-      value: formatMoney(revenue),
-      change: revenueChange?.text ?? null,
-      trend: revenueChange?.trend ?? "neutral",
-      tone: "teal",
-      icon: <Coins className="h-4 w-4" />,
-    },
-    {
-      label: "ROAS",
-      value: `${roas.toFixed(2)}x`,
-      change: roasChange?.text ?? null,
-      trend: roasChange?.trend ?? "neutral",
-      tone: roasTone,
-      icon: <StatUp className="h-4 w-4" />,
-    },
-    {
-      label: "Total Sales",
-      value: formatInt(sales),
-      change: salesChange?.text ?? null,
-      trend: salesChange?.trend ?? "neutral",
-      tone: "purple",
-      icon: <Shop className="h-4 w-4" />,
+      label: "Profit / Loss",
+      value: formatMoney(profit),
+      change: profitChange?.text ?? null,
+      trend: profitChange?.trend ?? "neutral",
+      tone: profit >= 0 ? "teal" : "pink",
+      icon: <Percentage className="h-4 w-4" />,
     },
     {
       label: "Total Spend",
@@ -169,45 +145,106 @@ export function MetricCards({ summary }: MetricCardsProps) {
       icon: <Wallet className="h-4 w-4" />,
     },
     {
-      label: "Profit / Loss",
-      value: formatMoney(profit),
-      change: profitChange?.text ?? null,
-      trend: profitChange?.trend ?? "neutral",
-      tone: profit >= 0 ? "teal" : "pink",
-      icon: <Percentage className="h-4 w-4" />,
+      label: "People Messaged",
+      value: formatInt(whatsappClicks),
+      change: whatsappChange?.text ?? null,
+      trend: whatsappChange?.trend ?? "neutral",
+      tone: "primary",
+      icon: <ChatBubble className="h-4 w-4" />,
+    },
+  ];
+
+  const secondaryMetrics: MetricCardProps[] = [
+    {
+      label: "Total Revenue",
+      value: formatMoney(revenue),
+      change: revenueChange?.text ?? null,
+      trend: revenueChange?.trend ?? "neutral",
+      tone: "teal",
+      icon: <Coins className="h-4 w-4" />,
+    },
+    {
+      label: "Total Sales",
+      value: formatInt(sales),
+      change: salesChange?.text ?? null,
+      trend: salesChange?.trend ?? "neutral",
+      tone: "purple",
+      icon: <Shop className="h-4 w-4" />,
+    },
+    {
+      label: "Return on Spend",
+      value: `${roas.toFixed(2)}x`,
+      change: roasChange?.text ?? null,
+      trend: roasChange?.trend ?? "neutral",
+      tone: roasTone,
+      icon: <StatUp className="h-4 w-4" />,
     },
   ];
 
   return (
-    <motion.div
-      initial="hidden"
-      animate="show"
-      variants={{
-        hidden: {},
-        show: { transition: { staggerChildren: 0.04 } },
-      }}
-      className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 no-scrollbar sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-4 sm:overflow-visible sm:px-0 md:grid-cols-3 lg:grid-cols-6"
-    >
-      {metrics.map((m) => (
-        <motion.div
-          key={m.label}
-          variants={{
-            hidden: { opacity: 0, y: 8 },
-            show: { opacity: 1, y: 0, transition: { duration: 0.2 } },
-          }}
-          className="min-w-[180px] shrink-0 sm:min-w-0"
-        >
-          <MetricChip
-            label={m.label}
-            value={m.value}
-            tone={m.tone}
-            icon={m.icon}
-            change={m.change}
-            trend={m.trend}
-            className="h-full"
-          />
-        </motion.div>
-      ))}
-    </motion.div>
+    <div className="space-y-4">
+      {/* Hero Metrics */}
+      <motion.div
+        initial="hidden"
+        animate="show"
+        variants={{
+          hidden: {},
+          show: { transition: { staggerChildren: 0.04 } },
+        }}
+        className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-3"
+      >
+        {heroMetrics.map((m) => (
+          <motion.div
+            key={m.label}
+            variants={{
+              hidden: { opacity: 0, y: 8 },
+              show: { opacity: 1, y: 0, transition: { duration: 0.2 } },
+            }}
+          >
+            <MetricChip
+              label={m.label}
+              value={m.value}
+              tone={m.tone}
+              icon={m.icon}
+              change={m.change}
+              trend={m.trend}
+              className="h-full border-border"
+            />
+          </motion.div>
+        ))}
+      </motion.div>
+
+      {/* Secondary Metrics */}
+      <motion.div
+        initial="hidden"
+        animate="show"
+        variants={{
+          hidden: {},
+          show: { transition: { staggerChildren: 0.04, delayChildren: 0.1 } },
+        }}
+        className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 no-scrollbar sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible sm:px-0"
+      >
+        {secondaryMetrics.map((m) => (
+          <motion.div
+            key={m.label}
+            variants={{
+              hidden: { opacity: 0, y: 8 },
+              show: { opacity: 1, y: 0, transition: { duration: 0.2 } },
+            }}
+            className="min-w-40 shrink-0 sm:min-w-0"
+          >
+            <MetricChip
+              label={m.label}
+              value={m.value}
+              tone={m.tone}
+              icon={m.icon}
+              change={m.change}
+              trend={m.trend}
+              className="h-full bg-muted/30 border-transparent sm:bg-card sm:border-border"
+            />
+          </motion.div>
+        ))}
+      </motion.div>
+    </div>
   );
 }

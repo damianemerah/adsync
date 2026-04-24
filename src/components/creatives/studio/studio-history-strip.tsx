@@ -43,7 +43,7 @@ export function StudioHistoryStrip({
             className={cn(
               "relative h-16 w-16 shrink-0 rounded-md overflow-hidden border-2 transition-all hover:scale-105",
               currentImage === img
-                ? "border-primary ring-2 ring-primary/20 ring-offset-2"
+                ? "border-primary"
                 : "border-border hover:border-muted-foreground/30 opacity-70 hover:opacity-100",
             )}
             title={`Version ${idx + 1}`}

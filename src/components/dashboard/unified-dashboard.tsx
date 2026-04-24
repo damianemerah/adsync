@@ -5,19 +5,17 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useActiveOrgContext } from "@/components/providers/active-org-provider";
 import { GlobalContextBar } from "@/components/layout/global-context-bar";
-import { MetricCards } from "@/components/dashboard/metric-cards";
 import { PerformanceTrendsCard } from "@/components/dashboard/performance-trends-card";
 import { DemographicsCharts } from "@/components/dashboard/demographics-charts";
 import { CampaignsView } from "@/components/campaigns/campaigns-view";
 import { CampaignDetailSheet } from "@/components/campaigns/campaign-detail-sheet";
 import { RevenueChannelBreakdown } from "@/components/dashboard/revenue-channel-breakdown";
-import { Skeleton } from "@/components/ui/skeleton";
 import { AccountHealthDialog } from "@/components/dashboard/account-health-dialog";
 import { Button } from "@/components/ui/button";
 import { getAccountHealth } from "@/actions/account-health";
 import { useDashboardStore } from "@/store/dashboard-store";
 import { useInsights } from "@/hooks/use-insights";
-import { useCampaignsList } from "@/hooks/use-campaigns";
+import { useCampaignsList, useCampaignMutations } from "@/hooks/use-campaigns";
 import { useMetaConnectionRefresh } from "@/hooks/use-meta-connection-refresh";
 import { calculateChannelBreakdown, CampaignForBreakdown } from "@/lib/utils/campaign-metrics";
 import { useState } from "react";
@@ -76,6 +74,7 @@ export function UnifiedDashboard({
 
   // Live-fetch campaigns from DB; fall back to server-rendered initial list
   const { data: liveCampaigns } = useCampaignsList();
+  const { updateStatus } = useCampaignMutations();
   const allCampaigns = liveCampaigns ?? campaigns;
 
   // Apply all GlobalContextBar filters to the campaign list
@@ -134,19 +133,8 @@ export function UnifiedDashboard({
       />
 
       {/* Main Content */}
-      <main className="flex-1 p-2 md:p-4 lg:p-6 overflow-y-auto no-scrollbar">
-        <div className="mx-auto max-w-7xl space-y-8">
-          {/* Metrics Grid */}
-          {isLoadingInsights && !liveData ? (
-            <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
-              {[...Array(6)].map((_, i) => (
-                <Skeleton key={i} className="h-24 w-full rounded-lg" />
-              ))}
-            </div>
-          ) : (
-            <MetricCards summary={dashboardData?.summary ?? initialData.summary} />
-          )}
-
+      <main className="flex-1 p-4 md:p-6 overflow-y-auto no-scrollbar">
+        <div className="mx-auto max-w-7xl space-y-6">
           {/* Performance Chart — owns its own metric-toggle state */}
           <PerformanceTrendsCard
             performance={dashboardData?.performance ?? []}
@@ -154,48 +142,36 @@ export function UnifiedDashboard({
           />
 
           {/* Recent Campaigns */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-bold text-lg text-foreground">
-                Recent Campaigns
-              </h2>
-              <Link href="/campaigns">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-sm text-subtle-foreground hover:text-primary"
-                >
-                  View All
-                </Button>
-              </Link>
-            </div>
             <CampaignsView
               campaigns={displayCampaigns}
               pageSize={5}
-              showFilters={false}
               defaultSort="active-first"
               onRowClick={(id) => router.push(`/dashboard?campaign=${id}`)}
+              onToggleStatus={(id, action) => updateStatus({ id, action })}
             />
-          </div>
 
-          {/* Analytics Grid: Revenue + Demographics */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Analytics: Revenue + Demographics */}
+          {/* Mobile: Revenue stacks, Demographics carousels horizontally */}
+          {/* md+: `md:contents` dissolves the scroll wrapper into a 3-col grid */}
+          <div className="space-y-4 md:space-y-0 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-6">
             <RevenueChannelBreakdown
               whatsappRevenue={revenueBreakdown.whatsappRevenue}
               websiteRevenue={revenueBreakdown.websiteRevenue}
               whatsappSales={revenueBreakdown.whatsappSales}
               websiteSales={revenueBreakdown.websiteSales}
             />
-  
-            <DemographicsCharts
-              demographics={
-                dashboardData?.demographics ?? {
-                  age: [],
-                  gender: [],
-                  region: [],
+            {/* scroll container on mobile, transparent in grid on md+ */}
+            <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 no-scrollbar md:mx-0 md:overflow-visible md:px-0 md:pb-0 md:contents">
+              <DemographicsCharts
+                demographics={
+                  dashboardData?.demographics ?? {
+                    age: [],
+                    gender: [],
+                    region: [],
+                  }
                 }
-              }
-            />
+              />
+            </div>
           </div>
         </div>
       </main>

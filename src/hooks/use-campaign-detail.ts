@@ -7,7 +7,12 @@ import {
   syncCampaignInsights,
   syncCampaignAds,
 } from "@/actions/campaigns";
+import type { Campaign } from "@/lib/api/campaigns";
 import { useActiveOrgContext } from "@/components/providers/active-org-provider";
+
+interface UseCampaignDetailOptions {
+  initialData?: Campaign;
+}
 
 /**
  * Custom hook for managing campaign detail data with TanStack Query.
@@ -20,7 +25,10 @@ import { useActiveOrgContext } from "@/components/providers/active-org-provider"
  * - Loading/error states
  * - Optimistic updates
  */
-export function useCampaignDetail(campaignId: string | null) {
+export function useCampaignDetail(
+  campaignId: string | null,
+  options: UseCampaignDetailOptions = {},
+) {
   const queryClient = useQueryClient();
   const { activeOrgId } = useActiveOrgContext();
 
@@ -34,9 +42,14 @@ export function useCampaignDetail(campaignId: string | null) {
       return data;
     },
     enabled: !!campaignId && !!activeOrgId,
-    staleTime: 5 * 60 * 1000, // 5 minutes - aligns with getCampaignById cache
-    refetchOnWindowFocus: true, // Refresh when user returns to tab
-    retry: 1, // Retry once on failure
+    initialData: options.initialData,
+    staleTime: 5 * 60 * 1000, // aligns with getCampaignById server-side cache
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    refetchInterval: (q) =>
+      q.state.data?.status === "active" ? 60_000 : false,
+    refetchIntervalInBackground: false,
+    retry: 1,
   });
 
   // Mutation for syncing insights from Meta API
@@ -149,5 +162,9 @@ export function useCampaignDetail(campaignId: string | null) {
 
     // Utility
     refetch: query.refetch,
+    // syncInsights / syncAds / syncAll still exist on useCampaignDetail in case a future admin/diagnostic
+    // surface needs them, but nothing in the main UI depends on them now. 
+    
+    // Users just open a campaign and data keeps itself fresh.
   };
 }

@@ -8,18 +8,20 @@ import type { Database } from "@/types/supabase";
 /**
  * Pixel endpoint — 1×1 transparent GIF for website owner event tracking.
  *
- * Usage (pasted once in site <head>):
- *   <img src="https://Tenzu.app/api/pixel?t=PIXEL_TOKEN&e=view" />
+ * Usage (pasted once in site <head> via Settings → Business → Tenzu Pixel):
+ *   snippet auto-fires on page load and listens for Tenzu_purchase events
  *
  * Query params:
- *   t  = pixel_token (from attribution_links, NOT the redirect token)
- *   e  = event type: 'view' | 'lead' | 'purchase'  (default: 'view')
- *   v  = sale value in whole Naira (only for 'purchase' events)
+ *   t   = org pixel_token (from organizations.pixel_token — one per org)
+ *   _ta = attribution link ID (appended to destination URL at redirect time)
+ *   e   = event type: 'view' | 'lead' | 'purchase'  (default: 'view')
+ *   v   = sale value in whole Naira (only for 'purchase' events)
  *
  * Rules (from SKILL.md):
  *   - Always return the GIF immediately — analytics is a side-effect
  *   - Purchase events auto-credit revenue via update_campaign_sales_summary RPC
  *   - Purchase events also fire a Meta CAPI website Purchase event if CAPI is configured
+ *   - If _ta is missing, event is recorded at org level with no campaign attribution
  */
 
 const PIXEL_GIF = Buffer.from(
@@ -72,7 +74,8 @@ function createAnonClient() {
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const token = searchParams.get("t"); // pixel_token
+  const token = searchParams.get("t"); // org pixel_token (organizations.pixel_token)
+  const ta = searchParams.get("_ta"); // attribution link ID (optional, for campaign resolution)
   const event = searchParams.get("e") || "view"; // 'view' | 'lead' | 'purchase'
   const value = parseInt(searchParams.get("v") || "0"); // NGN sale value
 
@@ -96,47 +99,66 @@ export async function GET(request: NextRequest) {
   if (token) {
     const supabase = createAnonClient();
 
-    // Note: We don't use !inner join here because attribution_links already has organization_id
-    // The query is correctly scoped - pixel_token is unique and linked to one org
-    const { data: link } = await supabase
-      .from("attribution_links")
-      .select("id, campaign_id, organization_id")
+    // 1. Look up org by its global pixel token
+    const { data: org } = await supabase
+      .from("organizations")
+      .select("id")
       .eq("pixel_token", token)
       .single();
 
-    if (link) {
-      // Fire-and-forget: record the event
-      supabase
-        .from("link_clicks")
-        .insert({
-          link_id: link.id,
-          campaign_id: link.campaign_id,
-          organization_id: link.organization_id,
-          destination_type: "website",
-          event_type: event,
-          event_value_ngn: event === "purchase" ? value : null,
-        })
-        .then(() => {
-          if (event === "purchase" && value > 0 && link.campaign_id) {
-            // Auto-credit revenue — same effect as "Mark as Sold"
-            supabase.rpc("update_campaign_sales_summary", {
-              p_campaign_id: link.campaign_id,
-              p_amount_ngn: value,
-            });
+    if (org) {
+      // 2. If an attribution link ID was provided, resolve campaign from it.
+      //    Security: enforce org boundary so one org can't claim another's link.
+      let linkId: string | null = null;
+      let campaignId: string | null = null;
 
-            // Also fire Meta CAPI website Purchase event if the ad account has
-            // CAPI configured. Uses event_source_url from the Referer header for
-            // better match quality. Silently skips if credentials aren't set up.
-            const referer = request.headers.get("referer") || undefined;
-            fireCAPIWebsitePurchase({
-              campaignId: link.campaign_id,
-              valueNgn: value,
-              eventSourceUrl: referer,
-            }).catch((err) =>
-              console.warn("⚠️ [CAPI] Pixel fire failed (non-critical):", err),
-            );
-          }
-        });
+      if (ta) {
+        const { data: link } = await supabase
+          .from("attribution_links")
+          .select("id, campaign_id")
+          .eq("id", ta)
+          .eq("organization_id", org.id)
+          .maybeSingle();
+
+        if (link) {
+          linkId = link.id;
+          campaignId = link.campaign_id;
+        }
+      }
+
+      // 3. Fire-and-forget: only record if we resolved a link (link_id is NOT NULL in schema)
+      if (linkId && campaignId) {
+        supabase
+          .from("link_clicks")
+          .insert({
+            link_id: linkId,
+            campaign_id: campaignId,
+            organization_id: org.id,
+            destination_type: "website",
+            event_type: event,
+            event_value_ngn: event === "purchase" ? value : null,
+          })
+          .then(() => {
+            if (event === "purchase" && value > 0) {
+              // Auto-credit revenue — same effect as "Mark as Sold"
+              supabase.rpc("update_campaign_sales_summary", {
+                p_campaign_id: campaignId!,
+                p_amount_ngn: value,
+              });
+
+              // Also fire Meta CAPI website Purchase event if the ad account has
+              // CAPI configured. Silently skips if credentials aren't set up.
+              const referer = request.headers.get("referer") || undefined;
+              fireCAPIWebsitePurchase({
+                campaignId: campaignId!,
+                valueNgn: value,
+                eventSourceUrl: referer,
+              }).catch((err) =>
+                console.warn("⚠️ [CAPI] Pixel fire failed (non-critical):", err),
+              );
+            }
+          });
+      }
     }
   }
 

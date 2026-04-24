@@ -119,14 +119,14 @@ export function DemographicsCharts({ demographics }: { demographics: Record<stri
   return (
     <>
       {/* Age Distribution */}
-      <Card className="border border-border shadow-sm flex flex-col">
+      <Card className="min-w-[280px] shrink-0 md:min-w-0 border border-border flex flex-col">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-heading font-semibold text-foreground">
             Age Distribution
           </CardTitle>
         </CardHeader>
         <CardContent className="flex-1 min-h-0">
-          <div className="h-[280px] w-full overflow-visible">
+          <div className="h-[200px] sm:h-[260px] w-full overflow-visible">
             {age.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
@@ -140,14 +140,14 @@ export function DemographicsCharts({ demographics }: { demographics: Record<stri
                   />
                   <XAxis
                     dataKey="age"
-                    fontSize={11}
+                    fontSize={12}
                     fontWeight={500}
                     tickLine={false}
                     axisLine={false}
                     stroke="var(--subtle-foreground)"
                   />
                   <YAxis
-                    fontSize={11}
+                    fontSize={12}
                     fontWeight={500}
                     tickLine={false}
                     axisLine={false}
@@ -184,14 +184,14 @@ export function DemographicsCharts({ demographics }: { demographics: Record<stri
       </Card>
 
       {/* Gender Distribution */}
-      <Card className="border border-border shadow-sm flex flex-col">
+      <Card className="min-w-[280px] shrink-0 md:min-w-0 border border-border flex flex-col">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-heading font-semibold text-foreground">
             Gender Distribution
           </CardTitle>
         </CardHeader>
         <CardContent className="flex-1 min-h-0">
-          <div className="h-[280px] w-full overflow-visible">
+          <div className="h-[200px] sm:h-[260px] w-full overflow-visible">
             {gender.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -247,14 +247,14 @@ export function DemographicsCharts({ demographics }: { demographics: Record<stri
       </Card>
 
       {/* Top Regions */}
-      <Card className="border border-border shadow-sm flex flex-col">
+      <Card className="min-w-[280px] shrink-0 md:min-w-0 border border-border flex flex-col">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-heading font-semibold text-foreground">
             Top Regions
           </CardTitle>
         </CardHeader>
         <CardContent className="flex-1 min-h-0">
-          <div className="h-[280px] w-full overflow-visible">
+          <div className="h-[200px] sm:h-[260px] w-full overflow-visible">
             {region.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
@@ -269,7 +269,7 @@ export function DemographicsCharts({ demographics }: { demographics: Record<stri
                   />
                   <XAxis
                     type="number"
-                    fontSize={11}
+                    fontSize={12}
                     fontWeight={500}
                     tickLine={false}
                     axisLine={false}
@@ -281,8 +281,8 @@ export function DemographicsCharts({ demographics }: { demographics: Record<stri
                   <YAxis
                     dataKey="region"
                     type="category"
-                    width={100}
-                    fontSize={11}
+                    width={80}
+                    fontSize={12}
                     fontWeight={500}
                     tickLine={false}
                     axisLine={false}

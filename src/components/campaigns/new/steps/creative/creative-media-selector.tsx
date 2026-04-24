@@ -95,8 +95,8 @@ export function CreativeMediaSelector({
               className={cn(
                 "aspect-square rounded-lg overflow-hidden border-2 cursor-pointer relative transition-all",
                 selectedCreatives.includes(item.original_url)
-                  ? "border-primary ring-2 ring-primary/20 ring-offset-1"
-                  : "border-transparent ring-1 ring-border hover:ring-primary/50"
+                  ? "border-primary"
+                  : "border-transparent ring-1 ring-border hover:border-primary/50",
               )}
             >
               <img

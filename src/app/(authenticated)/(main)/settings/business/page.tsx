@@ -24,7 +24,7 @@ export default async function BusinessSettingsPage({
         .select(
           `id, name, slug, industry, selling_method, price_tier,
            customer_gender, business_description, subscription_status,
-           subscription_tier, created_at`,
+           subscription_tier, created_at, pixel_token, logo_url`,
         )
         .eq("id", activeOrgId)
         .single()
