@@ -15,7 +15,6 @@ import { useOrganization } from "@/hooks/use-organization";
 import {
   ArrowRight,
   CheckCircle,
-  Facebook,
   Instagram,
   Phone,
   Flash,
@@ -27,6 +26,7 @@ import {
   Download,
   Cart,
 } from "iconoir-react";
+import { MetaIcon } from "@/components/ui/meta-icon";
 
 const getIcon = (name: string) => {
   switch (name) {
@@ -230,11 +230,11 @@ export function GoalPlatformStep() {
                 className={cn(
                   "h-8 w-8 rounded flex items-center justify-center shrink-0",
                   platform === "meta"
-                    ? "bg-facebook text-white"
+                    ? "bg-[#EEF2FF]"
                     : "bg-muted text-subtle-foreground",
                 )}
               >
-                <Facebook className="h-4 w-4" />
+                <MetaIcon className="h-5 w-5" />
               </div>
               <div className="flex-1 font-bold text-foreground text-sm">
                 Meta (FB & IG)
@@ -271,7 +271,7 @@ export function GoalPlatformStep() {
                 const iconMap: Record<string, React.ReactNode> = {
                   automatic: <Globe className="h-4 w-4" />,
                   instagram: <Instagram className="h-4 w-4" />,
-                  facebook: <Facebook className="h-4 w-4" />,
+                  facebook: <MetaIcon className="h-4 w-4" />,
                 };
                 
                 return (

@@ -1,10 +1,13 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useInsights } from "@/hooks/use-insights";
 import { useAdAccountsList } from "@/hooks/use-ad-account";
 import { useCampaignsList } from "@/hooks/use-campaigns";
 import { useDashboardStore } from "@/store/dashboard-store";
+import { getAccountHealth } from "@/actions/account-health";
+import { AccountHealthDialog } from "@/components/dashboard/account-health-dialog";
 
 import {
   Popover,
@@ -15,20 +18,11 @@ import { Button } from "@/components/ui/button";
 import {
   Check,
   NavArrowDown,
-  Calendar as CalendarIcon,
-  Facebook,
   Download,
-  Filter,
   Building,
   Megaphone,
 } from "iconoir-react";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { MetaIcon } from "@/components/ui/meta-icon";
 import { cn } from "@/lib/utils";
 import {
   Command,
@@ -44,19 +38,72 @@ import {
   DropdownMenuTrigger,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
-import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { NotificationBell } from "@/components/layout/notification-bell";
+import { HelpCenterSheet } from "@/components/layout/help-center-sheet";
 
-interface GlobalContextBarProps {
-  onHealthCheckClick?: () => void;
-  hasProblems?: boolean;
+function HealthCheckButton({
+  hasProblems,
+  onClick,
+  className,
+}: {
+  hasProblems: boolean;
+  onClick?: () => void;
+  className?: string;
+}) {
+  return (
+    <Button
+      variant="outline"
+      size="icon"
+      onClick={onClick}
+      title="Account Health Check"
+      className={cn(
+        "relative h-10 w-10 rounded-md transition-colors bg-card hover:bg-muted/50",
+        hasProblems
+          ? "text-status-warning hover:text-status-warning border-status-warning/40 hover:border-status-warning/60"
+          : "text-muted-foreground hover:text-foreground border-border",
+        className
+      )}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        className="h-5 w-5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      >
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" strokeLinejoin="round" />
+        {hasProblems ? (
+          <>
+            <line x1="12" y1="8" x2="12" y2="12" strokeLinecap="round" />
+            <circle cx="12" cy="15" r="0.5" fill="currentColor" />
+          </>
+        ) : (
+          <polyline points="9 12 11 14 15 10" strokeLinecap="round" strokeLinejoin="round" />
+        )}
+      </svg>
+      {hasProblems && (
+        <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-status-warning ring-2 ring-background" />
+      )}
+    </Button>
+  );
 }
 
-export function GlobalContextBar({
-  onHealthCheckClick,
-  hasProblems = false,
-}: GlobalContextBarProps = {}) {
+export function GlobalContextBar() {
+  // Self-managed account health — works on every page that renders this bar
+  const { data: healthData } = useQuery({
+    queryKey: ["account-health"],
+    queryFn: getAccountHealth,
+    staleTime: 5 * 60 * 1000,
+  });
+  const hasProblems = (healthData?.totalProblems ?? 0) > 0;
+
+  // Dialog state — self-contained, no parent wiring needed
+  const [healthDialogOpen, setHealthDialogOpen] = useState(false);
+
+  const handleHealthCheckClick = useCallback(() => {
+    setHealthDialogOpen(true);
+  }, []);
   const { data: accounts } = useAdAccountsList();
   const { data: campaigns } = useCampaignsList();
 
@@ -177,233 +224,68 @@ export function GlobalContextBar({
     return accountName ? `${platformLabel} · ${accountName}` : platformLabel;
   })();
 
+  const handlePlatformChange = useCallback((platform: "meta" | "tiktok") => {
+    const currentAccount = accounts?.find((a) => a.id === selectedAccountId);
+    if (currentAccount && currentAccount.platform !== platform) {
+      setSelectedAccountId("");
+    }
+    setSelectedPlatform(platform);
+  }, [accounts, selectedAccountId, setSelectedAccountId, setSelectedPlatform]);
+
+  const toggleCampaign = useCallback((campId: string) => {
+    const isAll = selectedCampaignIds.includes("all");
+    let newIds = [...selectedCampaignIds];
+
+    if (isAll) {
+      newIds = [campId];
+    } else {
+      if (newIds.includes(campId)) {
+        newIds = newIds.filter((id) => id !== campId);
+      } else {
+        newIds.push(campId);
+      }
+    }
+
+    if (newIds.length === 0) newIds = ["all"];
+    setSelectedCampaignIds(newIds);
+  }, [selectedCampaignIds, setSelectedCampaignIds]);
+
   return (
-    <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border">
-      {/* Mobile: compact filter row */}
-      <div className="flex items-center gap-2 px-4 py-3 sm:hidden">
-        <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
-          <SheetTrigger asChild>
-            <Button
-              variant="outline"
-              className="h-10 flex-1 justify-start gap-2 rounded-md bg-card px-3 font-semibold"
-            >
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <span className="truncate text-sm text-foreground">
-                {activeFilterSummary}
-              </span>
-              <NavArrowDown className="ml-auto h-4 w-4 text-muted-foreground" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="bottom" className="h-[88vh] gap-0 p-0">
-            <SheetHeader className="border-b border-border px-4 py-3">
-              <SheetTitle className="font-heading text-base">
-                Filters
-              </SheetTitle>
-            </SheetHeader>
-            <div className="flex flex-col gap-4 overflow-y-auto px-4 py-4">
-              {/* Reuses inline controls below via portal approach would be ideal;
-                  simpler: embed a compact version */}
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                  Ad Platform
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    variant={
-                      selectedPlatform === "meta" ? "default" : "outline"
-                    }
-                    onClick={() => setSelectedPlatform("meta")}
-                    className="h-11 justify-start gap-2"
-                  >
-                    <Facebook className="h-4 w-4" />
-                    Meta Ads
-                  </Button>
-                  <Button
-                    variant={
-                      selectedPlatform === "tiktok" ? "default" : "outline"
-                    }
-                    onClick={() => setSelectedPlatform("tiktok")}
-                    className="h-11 justify-start gap-2"
-                  >
-                    <span className="h-4 w-4 rounded-full bg-brand-tiktok text-brand-tiktok-foreground flex items-center justify-center text-[0.5rem] font-bold">
-                      T
-                    </span>
-                    TikTok Ads
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                  Ad Account
-                </label>
-                <div className="flex flex-col gap-1.5">
-                  {filteredAccounts?.map((account) => (
-                    <Button
-                      key={account.id}
-                      variant={
-                        selectedAccountId === account.id ? "default" : "outline"
-                      }
-                      onClick={() => setSelectedAccountId(account.id)}
-                      className="h-11 justify-start"
-                    >
-                      {account.name}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                  Campaigns
-                </label>
-                <div className="flex flex-col gap-1.5">
-                  <Button
-                    variant={
-                      selectedCampaignIds.includes("all")
-                        ? "default"
-                        : "outline"
-                    }
-                    onClick={() => setSelectedCampaignIds(["all"])}
-                    className="h-11 justify-start"
-                  >
-                    All Ads
-                  </Button>
-                  {filteredCampaigns?.map((camp) => {
-                    const selected = selectedCampaignIds.includes(camp.id);
-                    return (
-                      <Button
-                        key={camp.id}
-                        variant={selected ? "default" : "outline"}
-                        onClick={() => {
-                          const isAll = selectedCampaignIds.includes("all");
-                          let newIds = isAll ? [] : [...selectedCampaignIds];
-                          if (selected) {
-                            newIds = newIds.filter((id) => id !== camp.id);
-                          } else {
-                            newIds.push(camp.id);
-                          }
-                          if (newIds.length === 0) newIds = ["all"];
-                          setSelectedCampaignIds(newIds);
-                        }}
-                        className="h-11 justify-start"
-                      >
-                        {camp.name}
-                      </Button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-            <div className="border-t border-border px-4 py-3">
-              <Button
-                onClick={() => setMobileFiltersOpen(false)}
-                className="h-11 w-full"
-              >
-                Apply Filters
-              </Button>
-            </div>
-          </SheetContent>
-        </Sheet>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-10 w-10 shrink-0 rounded-md bg-card"
-              title="Date range"
-            >
-              <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent
-            className="w-auto p-0 rounded-md border border-border"
-            align="end"
-          >
-            <Calendar
-              mode="range"
-              defaultMonth={dateRange?.from}
-              selected={dateRange as any}
-              onSelect={(val: any) => setDateRange(val)}
-              numberOfMonths={1}
-            />
-          </PopoverContent>
-        </Popover>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onHealthCheckClick}
-          title="Account Health Check"
-          className={cn(
-            "relative h-10 w-10 shrink-0 rounded-md border border-border bg-card",
-            hasProblems ? "text-status-warning" : "text-muted-foreground",
-          )}
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            className="h-5 w-5"
-            stroke="currentColor"
-            strokeWidth="1.8"
-          >
-            <path
-              d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
-              strokeLinejoin="round"
-            />
-            {hasProblems ? (
-              <>
-                <line x1="12" y1="8" x2="12" y2="12" strokeLinecap="round" />
-                <circle cx="12" cy="15" r="0.5" fill="currentColor" />
-              </>
-            ) : (
-              <polyline
-                points="9 12 11 14 15 10"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            )}
-          </svg>
-          {hasProblems && (
-            <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-status-warning ring-2 ring-background" />
-          )}
-        </Button>
-      </div>
-
-      {/* Desktop + tablet: inline filter row */}
-      <div className="mx-auto hidden px-4 lg:px-8 py-3 sm:flex flex-col lg:flex-row gap-4 items-end justify-between">
+    <div className="sticky top-0 z-40 backdrop-blur-md border-b border-border">
+      <div className="mx-auto px-4 lg:px-8 py-2.5 flex flex-col lg:flex-row gap-3 items-center justify-between w-full">
         {/* Left Side: Filters */}
-        <div className="flex items-center gap-2 flex-1 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0 no-scrollbar">
+        <div className="flex items-center flex-row gap-2 flex-1 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0 no-scrollbar snap-x">
           {/* 1. Ad Platform */}
-          <div className="shrink-0">
+          <div className="shrink-0 snap-start">
             <DropdownMenu open={openPlatform} onOpenChange={setOpenPlatform}>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
                   role="combobox"
                   aria-expanded={openPlatform}
-                  className="h-10 justify-between rounded-md bg-card hover:border-primary/50 transition-all px-3 py-0 items-center border border-border gap-2 group"
+                  className="h-auto py-1.5 flex justify-between w-auto rounded-md bg-card hover:bg-muted/50 transition-colors px-3 items-center border border-border gap-3 group"
                 >
-                  <div className="flex flex-col items-start gap-0.5 overflow-hidden text-left">
-                    <span className="text-[10px] font-bold text-subtle-foreground uppercase tracking-wider leading-tight group-hover:text-primary transition-colors">
-                      Ad Platform
+                  <div className="flex flex-col items-start gap-0.5 text-left">
+                    <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider leading-none">
+                      Platform
                     </span>
-                    <div className="flex items-center gap-1.5 truncate w-full">
+                    <div className="flex items-center gap-1.5">
                       {selectedPlatform === "meta" && (
-                        <Facebook className="h-3 w-3 text-chart-1 shrink-0" />
+                        <MetaIcon className="h-3.5 w-3.5 shrink-0" />
                       )}
                       {selectedPlatform === "tiktok" && (
                         <div className="h-3 w-3 rounded-full bg-brand-tiktok text-brand-tiktok-foreground flex items-center justify-center text-[0.45rem] font-bold shrink-0">
                           T
                         </div>
                       )}
-                      <span className="truncate font-semibold text-foreground text-xs leading-tight">
+                      <span className="font-semibold text-foreground text-xs leading-none">
                         {selectedPlatform === "meta"
                           ? "Meta Ads"
                           : "TikTok Ads"}
                       </span>
                     </div>
                   </div>
-                  <NavArrowDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+                  <NavArrowDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
@@ -413,35 +295,20 @@ export function GlobalContextBar({
                 <DropdownMenuCheckboxItem
                   checked={selectedPlatform === "meta"}
                   onCheckedChange={() => {
-                    const currentAccount = accounts?.find(
-                      (a) => a.id === selectedAccountId,
-                    );
-                    if (currentAccount && currentAccount.platform !== "meta") {
-                      setSelectedAccountId("");
-                    }
-                    setSelectedPlatform("meta");
+                    handlePlatformChange("meta");
                     setOpenPlatform(false);
                   }}
-                  className="py-2.5 font-medium cursor-pointer rounded-md"
+                  className="py-2.5 font-medium cursor-pointer rounded-md text-sm"
                 >
                   Meta Ads
                 </DropdownMenuCheckboxItem>
                 <DropdownMenuCheckboxItem
                   checked={selectedPlatform === "tiktok"}
                   onCheckedChange={() => {
-                    const currentAccount = accounts?.find(
-                      (a) => a.id === selectedAccountId,
-                    );
-                    if (
-                      currentAccount &&
-                      currentAccount.platform !== "tiktok"
-                    ) {
-                      setSelectedAccountId("");
-                    }
-                    setSelectedPlatform("tiktok");
+                    handlePlatformChange("tiktok");
                     setOpenPlatform(false);
                   }}
-                  className="py-2.5 font-medium cursor-pointer rounded-md"
+                  className="py-2.5 font-medium cursor-pointer rounded-md text-sm"
                 >
                   TikTok Ads
                 </DropdownMenuCheckboxItem>
@@ -450,29 +317,29 @@ export function GlobalContextBar({
           </div>
 
           {/* 2. Ad Account */}
-          <div className="shrink-0">
+          <div className="shrink-0 snap-start">
             <Popover open={openAccount} onOpenChange={setOpenAccount}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
                   role="combobox"
                   aria-expanded={openAccount}
-                  className="h-10 justify-between rounded-md bg-card hover:border-primary/50 transition-all px-3 py-0 items-center border border-border gap-2 group"
+                  className="h-auto py-1.5 flex justify-between w-auto rounded-md bg-card hover:bg-muted/50 transition-colors px-3 items-center border border-border gap-3 group"
                 >
-                  <div className="flex flex-col items-start gap-0.5 overflow-hidden text-left">
-                    <span className="text-[10px] font-bold text-subtle-foreground uppercase tracking-wider leading-tight group-hover:text-primary transition-colors">
+                  <div className="flex flex-col items-start gap-0.5 text-left">
+                    <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider leading-none">
                       Ad Account
                     </span>
-                    <div className="flex items-center gap-1.5 truncate w-full">
-                      <Building className="h-3 w-3 text-muted-foreground shrink-0" />
-                      <span className="truncate font-semibold text-foreground text-xs leading-tight max-w-[140px]">
+                    <div className="flex items-center gap-1.5">
+                      <Building className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <span className="font-semibold text-foreground text-xs leading-none max-w-[140px] truncate">
                         {selectedAccountId && accounts
                           ? accounts.find((a) => a.id === selectedAccountId)?.name
                           : "Select Account"}
                       </span>
                     </div>
                   </div>
-                  <NavArrowDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+                  <NavArrowDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent
@@ -480,7 +347,6 @@ export function GlobalContextBar({
                 align="start"
               >
                 <Command>
-                  {/* ... content remains same ... */}
                   <CommandInput
                     placeholder="Search account..."
                     className="h-11 border-b-border"
@@ -500,7 +366,7 @@ export function GlobalContextBar({
                             );
                             setOpenAccount(false);
                           }}
-                          className="py-3 font-medium cursor-pointer"
+                          className="py-2.5 font-medium cursor-pointer text-sm"
                         >
                           <Check
                             className={cn(
@@ -520,33 +386,33 @@ export function GlobalContextBar({
             </Popover>
           </div>
 
-          {/* 4. Campaigns */}
-          <div className="shrink-0">
+          {/* 3. Campaigns */}
+          <div className="shrink-0 snap-start">
             <Popover open={openCampaign} onOpenChange={setOpenCampaign}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
                   role="combobox"
                   aria-expanded={openCampaign}
-                  className="h-10 justify-between rounded-md bg-card hover:border-primary/50 transition-all px-3 py-0 items-center border border-border gap-2 group"
+                  className="h-auto py-1.5 flex justify-between w-auto rounded-md bg-card hover:bg-muted/50 transition-colors px-3 items-center border border-border gap-3 group"
                 >
-                  <div className="flex flex-col items-start gap-0.5 overflow-hidden text-left">
-                    <span className="text-[10px] font-bold text-subtle-foreground uppercase tracking-wider leading-tight group-hover:text-primary transition-colors">
+                  <div className="flex flex-col items-start gap-0.5 text-left">
+                    <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider leading-none">
                       Campaigns
                       {!selectedCampaignIds.includes("all") && (
                         <span className="ml-1 text-primary">({selectedCampaignIds.length})</span>
                       )}
                     </span>
-                    <div className="flex items-center gap-1.5 truncate w-full">
-                      <Megaphone className="h-3 w-3 text-muted-foreground shrink-0" />
-                      <span className="truncate font-semibold text-foreground text-xs leading-tight max-w-[120px]">
+                    <div className="flex items-center gap-1.5">
+                      <Megaphone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <span className="font-semibold text-foreground text-xs leading-none max-w-[120px] truncate">
                         {selectedCampaignIds.includes("all")
                           ? "All Selected"
                           : `${selectedCampaignIds.length} Selected`}
                       </span>
                     </div>
                   </div>
-                  <NavArrowDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+                  <NavArrowDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent
@@ -554,7 +420,6 @@ export function GlobalContextBar({
                 align="start"
               >
                 <Command>
-                  {/* ... content remains same ... */}
                   <CommandInput
                     placeholder="Search campaigns..."
                     className="h-11 border-b-border"
@@ -568,7 +433,7 @@ export function GlobalContextBar({
                           setSelectedCampaignIds(["all"]);
                           setOpenCampaign(false);
                         }}
-                        className="py-3 font-medium cursor-pointer"
+                        className="py-2.5 font-medium cursor-pointer text-sm"
                       >
                         <Check
                           className={cn(
@@ -585,23 +450,9 @@ export function GlobalContextBar({
                           key={camp.id}
                           value={camp.name}
                           onSelect={() => {
-                            const isAll = selectedCampaignIds.includes("all");
-                            let newIds = [...selectedCampaignIds];
-
-                            if (isAll) {
-                              newIds = [camp.id];
-                            } else {
-                              if (newIds.includes(camp.id)) {
-                                newIds = newIds.filter((id) => id !== camp.id);
-                              } else {
-                                newIds.push(camp.id);
-                              }
-                            }
-
-                            if (newIds.length === 0) newIds = ["all"];
-                            setSelectedCampaignIds(newIds);
+                            toggleCampaign(camp.id);
                           }}
-                          className="py-3 font-medium cursor-pointer"
+                          className="py-2.5 font-medium cursor-pointer text-sm"
                         >
                           <Check
                             className={cn(
@@ -623,106 +474,51 @@ export function GlobalContextBar({
         </div>
 
         {/* Right Side: Filters & Date */}
-        <div className="flex items-center gap-2 w-full lg:w-auto">
+        <div className="flex items-center flex-row gap-2 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0 no-scrollbar snap-x shrink-0">
           {/* Account Health Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onHealthCheckClick}
-            title="Account Health Check"
-            className={cn(
-              "relative h-10 w-10 rounded-md transition-colors border border-border bg-card",
-              hasProblems
-                ? "text-status-warning hover:bg-status-warning-soft hover:border-status-warning/40"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
-            )}
-          >
-            {/* Shield / warning icon from iconoir */}
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              className="h-5 w-5"
-              stroke="currentColor"
-              strokeWidth="1.8"
-            >
-              <path
-                d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
-                strokeLinejoin="round"
-              />
-              {hasProblems && (
-                <>
-                  <line x1="12" y1="8" x2="12" y2="12" strokeLinecap="round" />
-                  <circle cx="12" cy="15" r="0.5" fill="currentColor" />
-                </>
-              )}
-              {!hasProblems && (
-                <polyline
-                  points="9 12 11 14 15 10"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              )}
-            </svg>
-            {hasProblems && (
-              <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-status-warning ring-2 ring-background" />
-            )}
-          </Button>
-
-          <NotificationBell />
-
-          <div className="flex-1 lg:flex-none">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full lg:w-auto h-10 justify-start text-left border-border rounded-md bg-card hover:bg-muted/50 transition-colors px-3 gap-2"
-                >
-                  <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  <span className="text-foreground text-xs font-semibold">
-                    {dateRange?.from ? (
-                      dateRange.to ? (
-                        <>
-                          {format(dateRange.from, "MMM dd")} –{" "}
-                          {format(dateRange.to, "MMM dd")}
-                        </>
-                      ) : (
-                        format(dateRange.from, "MMM dd, y")
-                      )
-                    ) : (
-                      <span>Last 30 Days</span>
-                    )}
-                  </span>
-                  <NavArrowDown className="ml-1 h-3 w-3 text-muted-foreground opacity-50 shrink-0" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                className="w-auto p-0 rounded-md border border-border"
-                align="end"
-              >
-                <Calendar
-                  mode="range"
-                  defaultMonth={dateRange?.from}
-                  selected={dateRange as any}
-                  onSelect={(val: any) => setDateRange(val)}
-                  numberOfMonths={2}
-                />
-              </PopoverContent>
-            </Popover>
+          <div className="shrink-0 snap-start">
+            <HealthCheckButton
+              hasProblems={hasProblems}
+              onClick={handleHealthCheckClick}
+            />
           </div>
 
-          <Button
-            variant="outline"
-            onClick={handleExport}
-            disabled={isExporting || !insightsForExport?.performance?.length}
-            className="h-10 px-3 gap-1.5 border-border rounded-md bg-card font-semibold text-xs text-subtle-foreground hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all disabled:opacity-50"
-          >
-            <Download className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">
-              {isExporting ? "Exporting..." : "Export"}
-            </span>
-          </Button>
+          <div className="shrink-0 snap-start">
+            <NotificationBell />
+          </div>
+
+          <div className="shrink-0 snap-start">
+            <DateRangePicker
+              value={dateRange}
+              onChange={(val) => setDateRange(val)}
+            />
+          </div>
+          
+          <div className="hidden lg:block shrink-0">
+            <HelpCenterSheet />
+          </div>
+
+          <div className="shrink-0 snap-start">
+            <Button
+              variant="outline"
+              onClick={handleExport}
+              disabled={isExporting || !insightsForExport?.performance?.length}
+              className="h-10 px-3 gap-1.5 rounded-md bg-card font-medium text-sm text-foreground hover:bg-muted/50 transition-colors disabled:opacity-50"
+            >
+              <Download className="h-4 w-4 text-subtle-foreground" />
+              <span className="hidden sm:inline">
+                {isExporting ? "Exporting..." : "Export"}
+              </span>
+            </Button>
+          </div>
         </div>
       </div>
+
+      {/* Account Health Dialog — rendered here so it works on every page */}
+      <AccountHealthDialog
+        open={healthDialogOpen}
+        onOpenChange={setHealthDialogOpen}
+      />
     </div>
   );
 }

@@ -40,40 +40,37 @@ export async function POST(request: Request) {
   }
 
   // 3. Subscription guard — strategy generation is FREE but requires active account
-  const { data: org } = await supabase
-    .from("organizations")
-    .select(
-      `
-      id,
-      subscription_status,
-      subscription_expires_at,
-      subscription_tier,
-      industry,
-      selling_method,
-      price_tier,
-      customer_gender,
-      business_description,
-      city,
-      state,
-      business_phone,
-      business_website,
-      whatsapp_number,
-      country_code,
-      default_target_locations,
-      default_target_interests,
-      has_physical_location,
-      gets_leads_via_website,
-      sells_online,
-      books_appointments,
-      wants_contact_ads
-    `,
-    )
-    .eq("id", activeOrgId)
-    .single();
+  const [{ data: org }, { data: userSub }] = await Promise.all([
+    supabase
+      .from("organizations")
+      .select(
+        `
+        id,
+        industry,
+        selling_method,
+        price_tier,
+        customer_gender,
+        business_description,
+        city,
+        state,
+        business_phone,
+        business_website,
+        whatsapp_number,
+        country_code
+      `,
+      )
+      .eq("id", activeOrgId)
+      .single(),
+    supabase
+      .from("user_subscriptions")
+      .select("subscription_status, subscription_expires_at, subscription_tier")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+  ]);
 
   if (!org) return new Response("No organization found", { status: 403 });
-  const status = org?.subscription_status as string | undefined;
-  const expiresAt = org?.subscription_expires_at as string | undefined;
+  const status = userSub?.subscription_status as string | undefined;
+  const expiresAt = userSub?.subscription_expires_at as string | undefined;
 
   const allowedStatuses = ["active", "trialing"];
   if (status && !allowedStatuses.includes(status)) {
@@ -93,7 +90,7 @@ export async function POST(request: Request) {
   }
 
   // 4. Monthly chat limit check — free within quota, 1 credit per message after
-  const tier = (org?.subscription_tier as TierId) || "starter";
+  const tier = (userSub?.subscription_tier as TierId) || "starter";
   const maxMonthlyChats = TIER_CONFIG[tier]?.limits?.maxMonthlyChats ?? 50;
 
   if (maxMonthlyChats < 999999) {
@@ -260,13 +257,6 @@ export async function POST(request: Request) {
           currentCopy,
           orgCountryCode: org?.country_code ?? "NG",
           siteContext,
-          defaultTargetLocations: (org?.default_target_locations as any) ?? null,
-          defaultTargetInterests: (org?.default_target_interests as any) ?? null,
-          hasPhysicalLocation: org?.has_physical_location ?? null,
-          getsLeadsViaWebsite: org?.gets_leads_via_website ?? null,
-          sellsOnline: org?.sells_online ?? null,
-          booksAppointments: org?.books_appointments ?? null,
-          wantsContactAds: org?.wants_contact_ads ?? null,
         },
         actualInstruction,
       );
@@ -320,13 +310,6 @@ export async function POST(request: Request) {
         orgCountryCode: org?.country_code ?? "NG",
         siteContext,
         detectedUrl: siteContext ? null : (detectedUrl ?? null),
-        defaultTargetLocations: (org?.default_target_locations as any) ?? null,
-        defaultTargetInterests: (org?.default_target_interests as any) ?? null,
-        hasPhysicalLocation: org?.has_physical_location ?? null,
-        getsLeadsViaWebsite: org?.gets_leads_via_website ?? null,
-        sellsOnline: org?.sells_online ?? null,
-        booksAppointments: org?.books_appointments ?? null,
-        wantsContactAds: org?.wants_contact_ads ?? null,
       },
       conversationHistory ?? [],
       activeOrgId,
@@ -387,13 +370,6 @@ export async function POST(request: Request) {
             currentCopy,
             orgCountryCode: org?.country_code ?? "NG",
             siteContext,
-            defaultTargetLocations: (org?.default_target_locations as any) ?? null,
-            defaultTargetInterests: (org?.default_target_interests as any) ?? null,
-            hasPhysicalLocation: org?.has_physical_location ?? null,
-            getsLeadsViaWebsite: org?.gets_leads_via_website ?? null,
-            sellsOnline: org?.sells_online ?? null,
-            booksAppointments: org?.books_appointments ?? null,
-            wantsContactAds: org?.wants_contact_ads ?? null,
           },
           description, // The user's raw refinement instruction becomes the refinement prompt
         );

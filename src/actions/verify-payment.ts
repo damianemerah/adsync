@@ -2,13 +2,9 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { Database } from "@/types/supabase";
+import { PLAN_CREDITS, TIER_CONFIG, TierId } from "@/lib/constants";
+import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 
-// Credit quotas that mirror plan_definitions — used as fallback if webhook missed
-const PLAN_CREDITS: Record<string, number> = {
-  starter: 150,
-  growth: 400,
-  agency: 1200,
-};
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 /**
@@ -40,6 +36,14 @@ export async function verifyAndActivate(reference: string): Promise<{
     process.env.SUPABASE_SERVICE_ROLE_KEY,
   );
 
+  // 0. Verify the caller is authenticated
+  const supabaseAuthClient = await createSupabaseServerClient();
+  const { data: { user } } = await supabaseAuthClient.auth.getUser();
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
   // 1. Confirm with Paystack
   const res = await fetch(
     `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
@@ -53,7 +57,7 @@ export async function verifyAndActivate(reference: string): Promise<{
 
   const txData = paystackData.data;
   const orgId: string | undefined = txData.metadata?.org_id;
-  const planId: string = txData.metadata?.plan_id || "starter";
+  const txType: string = txData.metadata?.tx_type ?? "subscription";
 
   if (!orgId) {
     // Can't activate without org_id — webhook should handle it when it fires
@@ -73,50 +77,158 @@ export async function verifyAndActivate(reference: string): Promise<{
 
   if (existing?.status === "success") {
     // Webhook beat us to it — nothing more to do
+    const planId: string = txData.metadata?.plan_id ?? "starter";
     return { success: true, alreadyProcessed: true, planId };
   }
 
-  // 3. Webhook hasn't fired yet — run full activation as fallback
-  const creditsToGrant = PLAN_CREDITS[planId] ?? 150;
-  const expiresAt = new Date(Date.now() + THIRTY_DAYS_MS).toISOString();
-  const planInterval: string = txData.metadata?.plan_interval || "monthly";
-
-  // Resolve the org owner (credits are user-scoped)
+  // 3. Resolve the org owner (needed for both credit pack and subscription paths)
   const { data: ownerMember } = await supabase
     .from("organization_members")
     .select("user_id")
     .eq("organization_id", orgId)
     .eq("role", "owner")
     .single();
-  const ownerId: string | undefined = ownerMember?.user_id ?? undefined;
+  const ownerId = ownerMember?.user_id;
 
-  // Activate subscription
-  await supabase
-    .from("organizations")
-    .update({
-      subscription_status: "active",
-      subscription_tier: planId as "starter" | "growth" | "agency",
-      subscription_expires_at: expiresAt,
-      plan_interval: planInterval,
-      paystack_customer_code: txData.customer?.customer_code ?? null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", orgId);
+  if (!ownerId) {
+    console.warn("[VerifyPayment] Could not resolve owner for org:", orgId);
+    return { success: false, alreadyProcessed: false };
+  }
 
-  // Upsert transaction record
-  await supabase.from("transactions").upsert(
-    {
+  // 4. Verify caller owns the organization being paid for
+  if (ownerId !== user.id) {
+    throw new Error("Unauthorized: You do not own the organization for this payment.");
+  }
+
+  // ── Credit Pack fallback ──────────────────────────────────────────────────
+  // Must branch BEFORE subscription logic to avoid misprocessing pack payments
+  // as subscriptions (wrong type, wrong credits, potential subscription overwrite).
+  if (txType === "credit_pack") {
+    const packCredits: number = txData.metadata?.credits ?? 0;
+    const packName: string = txData.metadata?.pack_name ?? "Credit Pack";
+
+    const { error: txError } = await supabase.from("transactions").insert({
       organization_id: orgId,
       amount_cents: txData.amount,
-      currency: txData.currency ?? "NGN",
-      type: "subscription_payment",
-      description: `${planId} plan – ${planInterval} (callback fallback)`,
+      currency: (txData.currency ?? "NGN") as "NGN" | "USD",
+      type: "credit_pack_purchase",
+      description: `${packName} - ${packCredits} credits (callback fallback)`,
       payment_provider: "paystack",
       provider_reference: reference,
       status: "success",
-    },
-    { onConflict: "provider_reference" },
-  );
+    });
+
+    if (txError?.code === "23505") {
+      console.log(`[verifyAndActivate] Transaction ${reference} already inserted`);
+      return { success: true, alreadyProcessed: true };
+    } else if (txError) {
+      console.error("Failed to insert transaction:", txError);
+    }
+
+    const { error: creditError } = await supabase.rpc("add_credits", {
+      p_user_id: ownerId,
+      p_credits: packCredits,
+      p_reason: `credit_pack:${packName.toLowerCase().replace(/ /g, "_")}:callback_fallback`,
+      p_org_id: orgId,
+    });
+
+    if (creditError) {
+      console.error("[verifyAndActivate] Failed to grant pack credits:", creditError);
+    }
+
+    console.log(`[verifyAndActivate] ✅ Credit pack fallback: +${packCredits} credits for org ${orgId}`);
+    return { success: true, alreadyProcessed: false };
+  }
+
+  // ── Subscription fallback (default) ──────────────────────────────────────
+  const planId: string = txData.metadata?.plan_id ?? "starter";
+  const creditsToGrant = PLAN_CREDITS[planId] ?? PLAN_CREDITS.starter;
+  const expiresAt = new Date(Date.now() + THIRTY_DAYS_MS).toISOString();
+  const planInterval: string = txData.metadata?.plan_interval ?? "monthly";
+
+  // Activate subscription on user_subscriptions (source of truth)
+  await supabase
+    .from("user_subscriptions")
+    .upsert(
+      {
+        user_id: ownerId,
+        subscription_status: "active",
+        subscription_tier: planId as "starter" | "growth" | "agency",
+        subscription_expires_at: expiresAt,
+        subscription_grace_ends_at: null,
+        plan_interval: planInterval,
+        paystack_customer_code: txData.customer?.customer_code ?? null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" },
+    );
+
+  // Propagate mirrors to all orgs this user owns
+  const { data: ownedOrgs } = await supabase
+    .from("organization_members")
+    .select("organization_id")
+    .eq("user_id", ownerId)
+    .eq("role", "owner");
+
+  if (ownedOrgs && ownedOrgs.length > 0) {
+    const allOrgIds = ownedOrgs.map((m) => m.organization_id).filter((id): id is string => id !== null);
+    const { data: orgsData } = await supabase
+      .from("organizations")
+      .select("id, created_at")
+      .in("id", allOrgIds)
+      .order("created_at", { ascending: true });
+
+    if (orgsData && orgsData.length > 0) {
+      const sortedOrgIds = orgsData.map(o => o.id);
+      const maxOrgs = TIER_CONFIG[planId as TierId]?.limits?.maxOrganizations ?? 1;
+
+      const allowedOrgIds = sortedOrgIds.slice(0, maxOrgs);
+      const overageOrgIds = sortedOrgIds.slice(maxOrgs);
+
+      if (allowedOrgIds.length > 0) {
+        await supabase
+          .from("organizations")
+          .update({
+            subscription_status: "active",
+            subscription_tier: planId as "starter" | "growth" | "agency",
+            subscription_expires_at: expiresAt,
+            plan_interval: planInterval,
+            updated_at: new Date().toISOString(),
+          })
+          .in("id", allowedOrgIds);
+      }
+
+      if (overageOrgIds.length > 0) {
+        await supabase
+          .from("organizations")
+          .update({
+            subscription_status: "canceled",
+            subscription_tier: planId as "starter" | "growth" | "agency",
+            updated_at: new Date().toISOString(),
+          })
+          .in("id", overageOrgIds);
+      }
+    }
+  }
+
+  // Upsert transaction record
+  const { error: subTxError } = await supabase.from("transactions").insert({
+    organization_id: orgId,
+    amount_cents: txData.amount,
+    currency: txData.currency ?? "NGN",
+    type: "subscription_payment",
+    description: `${planId} plan – ${planInterval} (callback fallback)`,
+    payment_provider: "paystack",
+    provider_reference: reference,
+    status: "success",
+  });
+
+  if (subTxError?.code === "23505") {
+    console.log(`[verifyAndActivate] Transaction ${reference} already inserted`);
+    return { success: true, alreadyProcessed: true, planId };
+  } else if (subTxError) {
+    console.error("Failed to insert transaction:", subTxError);
+  }
 
   // Grant credits (atomic RPC) — credits are user-scoped
   if (ownerId) {

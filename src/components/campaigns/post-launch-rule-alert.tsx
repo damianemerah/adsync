@@ -29,7 +29,7 @@ const SUGGESTION_LABELS: Record<string, string> = {
 };
 
 const SUGGESTION_PATHS: Record<string, string> = {
-  creative_refresh: "/creations/studio",
+  creative_refresh: "/ai-creative/studio",
   audience_expand: "", // links back to campaign
   budget_scale_up: "", // links back to campaign
   pause_review: "", // links back to campaign

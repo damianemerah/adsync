@@ -40,42 +40,28 @@ export async function requireCredits(
   const activeOrgId = await getActiveOrgId();
   if (!activeOrgId) throw new Error("No organization found");
 
-  // 2. Resolve org subscription state
-  const { data: member, error: memberError } = await supabase
-    .from("organization_members")
-    .select(
-      `organization_id,
-       organizations (
-         id,
-         subscription_status,
-         subscription_expires_at
-       )`,
-    )
+  // 2. Resolve subscription state from user_subscriptions (authoritative source)
+  const { data: userSub } = await supabase
+    .from("user_subscriptions")
+    .select("subscription_status, subscription_expires_at")
     .eq("user_id", user.id)
-    .eq("organization_id", activeOrgId)
-    .single();
+    .maybeSingle();
 
-  if (memberError || !member) throw new Error("No organization found");
-
-  // @ts-ignore — nested join typing
-  const org = member.organizations as {
-    id: string;
-    subscription_status: string;
-    subscription_expires_at: string | null;
-  };
+  const status = userSub?.subscription_status ?? "incomplete";
+  const expiresAt = userSub?.subscription_expires_at ?? null;
 
   // 3. Subscription gate — block if not active or trialing
   const allowedStatuses = ["active", "trialing"];
-  if (!allowedStatuses.includes(org.subscription_status)) {
+  if (!allowedStatuses.includes(status)) {
     throw new Error(
       "Your subscription is inactive. Please renew to continue generating.",
     );
   }
 
   if (
-    org.subscription_status === "trialing" &&
-    org.subscription_expires_at &&
-    new Date(org.subscription_expires_at).getTime() < Date.now()
+    status === "trialing" &&
+    expiresAt &&
+    new Date(expiresAt).getTime() < Date.now()
   ) {
     throw new Error(
       "Your free trial has expired. Please upgrade to continue generating.",
@@ -98,7 +84,7 @@ export async function requireCredits(
     }
   }
 
-  return { orgId: org.id, userId: user.id };
+  return { orgId: activeOrgId, userId: user.id };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

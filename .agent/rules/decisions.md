@@ -71,27 +71,34 @@ Pixel token is embedded in a JS snippet on the SME's website and stays active in
 
 ## Payments
 
+### [May 2026] Subscription & Credits Are Per-User, Not Per-Org
+
+Decision: A user has ONE active subscription and ONE credit balance shared across all their organizations. There is no per-org billing, per-org credit pool, or per-org subscription tier.
+Reason: Tenzu bills the person, not the business entity. A Nigerian SME owner running two brands should not pay twice or manage separate credit pools.
+Implementation impact:
+- `subscription_status`, `subscription_tier`, and credit balance are stored/checked at the user level, never per org.
+- Gate checks (e.g. `subscription_status === 'active'`, credit deduction) must look up the user's subscription — not the org record.
+- The `organizations` table does NOT have `subscription_status` or `subscription_tier` columns; do not select or reference them.
+- When displaying the plan badge or credit count, source from the user's subscription record (via `useSubscription()`), not from org fields.
+
+### [May 2026] Ad Spend Model
+
+Decision: Direct payment to Meta only — Tenzu does not manage ad spend funds.
+Reason: SMEs use Meta's native Naira payment options (Card, Bank Transfer).
+Eliminates the complexity and risk of managing virtual cards or Naira wallets.
+SMEs pay for Tenzu's platform access via Paystack subscription.
+
 ### [Feb 2026] Paystack usage
 
-Decision: Paystack for all Naira collection — subscriptions AND ad budget top-ups
-Reason: Already integrated, SMEs trust it, works natively in Nigeria
+Decision: Paystack for all Naira collection for Tenzu platform subscriptions.
+Reason: Already integrated, SMEs trust it, works natively in Nigeria.
 
-### [Feb 2026] Virtual card provider
+### [Feb 2026] Ad budget wallet (DEPRECATED)
 
-Decision: Grey or Geegpay for virtual USD card provisioning per org
-Reason: Both have API card issuance. Confirm programmatic card-per-user limits before Phase 2A.
+Decision: The proposed Naira wallet and virtual USD card system (Phase 2A) has been dropped.
+Reason: Meta now supports multiple native payment methods for Nigerian advertisers.
+Direct payment is more reliable and reduces Tenzu's financial overhead.
 
-### [Feb 2026] Ad budget model
-
-Decision: Prepaid only — no credit, no post-billing
-Reason: Eliminates refund risk and dispute risk entirely.
-SME pays Tenzu first → card is loaded → Meta charges the card.
-
-### [Feb 2026] Meta card isolation
-
-Decision: Each org gets their OWN virtual card attached to their OWN Meta ad account
-Reason: Isolates ban risk. One org's policy violation cannot affect other orgs.
-Tenzu's infrastructure is never the payment method Meta sees.
 
 ## Database
 
@@ -162,13 +169,14 @@ currency — it is NOT NGN-converted kobo. For NGN accounts the correct formula 
 NOT applied to spend today because all accounts are NGN, which is 1:1 by definition.
 
 Reason: A prior implementation incorrectly multiplied `spend_cents` by `FX_RATE` (1600),
-which produced wildly inflated ROI figures. The env var is retained for USD/NGN display
-elsewhere (e.g., wallet USD equivalent). Phase 2A Naira billing makes the FX calculation
-irrelevant for spend, but the env var stays for display purposes.
+which produced wildly inflated ROI figures. The env var is retained for future 
+multi-currency support. Direct native payment makes the manual FX calculation 
+irrelevant for current ad spend reporting, but the env var stays for estimation purposes.
 
 **Multi-currency expansion path (when non-NGN ad accounts are added):**
+
 1. Add `currency` to the `ad_accounts` join in `use-campaign-roi`.
 2. Replace the `FX_RATE` constant with a `FX_RATES: Record<string, number>` map
    (USD → 1600, GHS → 110, KES → 12, ZAR → 85, etc.).
 3. Apply: `spendNgn = currency === "NGN" ? spend_cents / 100 : (spend_cents / 100) * getFxRate(currency, "NGN")`.
-Do NOT apply any FX multiplier to NGN accounts.
+   Do NOT apply any FX multiplier to NGN accounts.

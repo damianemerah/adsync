@@ -18,19 +18,19 @@ description: Governs all Meta Ads audience targeting upgrades for Tenzu — the 
 
 ## Phase Status
 
-| Phase | Feature | Status |
-|-------|---------|--------|
-| **1A** | Language targeting (`locales` field) | ✅ Done |
-| **1B** | Income proxy behaviors in AI prompt | ✅ Done |
-| **1C** | Exclusions activation (stub exists, needs store + UI) | ✅ Done |
-| **1D** | Life Events targeting (`life_events` field) | ✅ Done — UI pending |
-| **1E** | Work Positions targeting (`work_positions` field + AI generation) | ✅ Done |
-| **1F** | Industries targeting (`industries` field + AI generation) | ✅ Done |
-| **2A** | Custom audiences — DB table + store + API payload | ⬜ Planned |
-| **2B** | Meta audience fetcher + UI selector | ⬜ Planned |
-| **2C** | Retargeting toggle in wizard | ⬜ Planned |
-| **3A** | Lookalike audiences — store + API payload | ⬜ Planned |
-| **3B** | Lookalike tier gate (Growth/Agency only) | ⬜ Planned |
+| Phase  | Feature                                                           | Status               |
+| ------ | ----------------------------------------------------------------- | -------------------- |
+| **1A** | Language targeting (`locales` field)                              | ✅ Done              |
+| **1B** | Income proxy behaviors in AI prompt                               | ✅ Done              |
+| **1C** | Exclusions activation (stub exists, needs store + UI)             | ✅ Done              |
+| **1D** | Life Events targeting (`life_events` field)                       | ✅ Done — UI pending |
+| **1E** | Work Positions targeting (`work_positions` field + AI generation) | ✅ Done              |
+| **1F** | Industries targeting (`industries` field + AI generation)         | ✅ Done              |
+| **2A** | Custom audiences — DB table + store + API payload                 | ⬜ Planned           |
+| **2B** | Meta audience fetcher + UI selector                               | ⬜ Planned           |
+| **2C** | Retargeting toggle in wizard                                      | ⬜ Planned           |
+| **3A** | Lookalike audiences — store + API payload                         | ⬜ Planned           |
+| **3B** | Lookalike tier gate (Growth/Agency only)                          | ⬜ Planned           |
 
 ---
 
@@ -53,11 +53,11 @@ From reading `src/stores/campaign-store.ts` and `src/lib/api/meta.ts`:
 
 ## Reference Files
 
-| File | When to Read |
-|------|-------------|
-| `references/phase1-cold-traffic.md` | Implementing language targeting, income proxies, or activating exclusions |
-| `references/phase2-custom-audiences.md` | Implementing custom audience DB table, store fields, API payload, or UI |
-| `references/phase3-lookalikes.md` | Implementing lookalike audiences, tier gating, or the Pro scaler logic |
+| File                                    | When to Read                                                              |
+| --------------------------------------- | ------------------------------------------------------------------------- |
+| `references/phase1-cold-traffic.md`     | Implementing language targeting, income proxies, or activating exclusions |
+| `references/phase2-custom-audiences.md` | Implementing custom audience DB table, store fields, API payload, or UI   |
+| `references/phase3-lookalikes.md`       | Implementing lookalike audiences, tier gating, or the Pro scaler logic    |
 
 ---
 

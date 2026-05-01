@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion } from "motion/react";
 import { Badge } from "@/components/ui/badge";
 import {
-  Facebook,
   MoreVert,
   SystemRestart,
   Edit,
@@ -20,6 +19,7 @@ import {
   Download,
   Filter,
 } from "iconoir-react";
+import { MetaIcon } from "@/components/ui/meta-icon";
 import { DataTable, Column } from "@/components/ui/data-table";
 import {
   Empty,
@@ -89,6 +89,8 @@ interface CampaignsViewProps {
   controlledStatus?: string;
   /** When provided, bypasses internal search state and filters by this value */
   controlledSearch?: string;
+  /** When false, shows a connect-account empty state instead of the generic one */
+  hasConnectedAccount?: boolean;
 }
 
 const ALL_COLUMN_KEYS = [
@@ -117,6 +119,7 @@ export function CampaignsView({
   defaultSort = "revenue",
   controlledStatus,
   controlledSearch,
+  hasConnectedAccount = true,
 }: CampaignsViewProps) {
   const [internalSearchTerm, setInternalSearchTerm] = useState("");
   const [internalStatusFilter, setInternalStatusFilter] = useState<string>("all");
@@ -139,10 +142,18 @@ export function CampaignsView({
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const [archiveTarget, setArchiveTarget] = useState<{ id: string; name: string } | null>(null);
 
+  // Mobile card pagination
+  const [currentMobilePage, setCurrentMobilePage] = useState(1);
+
   // When controlled props are provided, use them; otherwise use internal state
   const isControlled = controlledStatus !== undefined || controlledSearch !== undefined;
   const searchTerm = controlledSearch ?? internalSearchTerm;
   const statusFilter = controlledStatus ?? internalStatusFilter;
+
+  // Reset mobile page to 1 whenever filters change
+  useEffect(() => {
+    setCurrentMobilePage(1);
+  }, [searchTerm, statusFilter]);
 
   function handleSort(key: string) {
     if (sortKey === key) {
@@ -334,6 +345,14 @@ export function CampaignsView({
     return sorted;
   }, [filteredCampaigns, sortKey, sortDir]);
 
+  // Mobile: slice filtered campaigns to the current page window
+  const visibleMobileCampaigns =
+    pageSize > 0
+      ? filteredCampaigns.slice(0, currentMobilePage * pageSize)
+      : filteredCampaigns;
+  const hasMoreMobile =
+    pageSize > 0 && visibleMobileCampaigns.length < filteredCampaigns.length;
+
   function exportCSV() {
     const headers = ["Name", "Status", "Spend", "Revenue", "ROAS", "Clicks", "Impressions"];
     const rows = sortedCampaigns.map((c) => [
@@ -409,8 +428,8 @@ export function CampaignsView({
       render: (campaign) => (
         <div className="flex items-center gap-2">
           {campaign.platform === "meta" && (
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-chart-1-soft text-chart-1 border border-chart-1/15 shrink-0">
-              <Facebook className="h-3.5 w-3.5" />
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-chart-1-soft border border-chart-1/15 shrink-0">
+              <MetaIcon className="h-4 w-4" />
             </div>
           )}
           {campaign.platform === "tiktok" && (
@@ -657,7 +676,7 @@ export function CampaignsView({
       </div>
 
       {/* Right-side controls */}
-      <div className="flex items-center gap-2 ml-auto">
+      <div className="flex items-center gap-2 lg:ml-auto">
         {/* Status filter — hidden in controlled mode */}
         {!isControlled && (
           <DropdownMenu>
@@ -740,274 +759,10 @@ export function CampaignsView({
         </p>
       )}
 
-      {/* Mobile: card list (below md) */}
-      <motion.div
-        className="md:hidden space-y-3"
-        initial="hidden"
-        animate="show"
-        variants={{
-          hidden: {},
-          show: { transition: { staggerChildren: 0.04 } },
-        }}
-      >
-        {filteredCampaigns.length === 0 ? (
-          searchTerm || statusFilter !== "all" ? (
-            <Empty className="py-10 border border-dashed border-border rounded-lg">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <Search className="h-6 w-6" />
-                </EmptyMedia>
-                <EmptyTitle>No matching campaigns</EmptyTitle>
-                <EmptyDescription>
-                  Adjust your search filters to see more results.
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          ) : (
-            <Empty className="py-10 border border-dashed border-border rounded-lg">
-              <EmptyHeader>
-                <EmptyMedia
-                  variant="icon"
-                  className="bg-primary/10 text-primary"
-                >
-                  <Rocket className="h-6 w-6" />
-                </EmptyMedia>
-                <EmptyTitle>No campaigns yet</EmptyTitle>
-                <EmptyDescription>
-                  Create your first AI-optimized campaign to start generating
-                  sales.
-                </EmptyDescription>
-              </EmptyHeader>
-              <EmptyContent>
-                <Link href="/campaigns/new">
-                  <Button className="rounded-md bg-primary text-primary-foreground font-semibold">
-                    Create your first ad
-                  </Button>
-                </Link>
-              </EmptyContent>
-            </Empty>
-          )
-        ) : (
-          filteredCampaigns.map((campaign) => {
-            const statusVariant: Record<
-              string,
-              | "success-soft"
-              | "warning-soft"
-              | "danger-soft"
-              | "info-soft"
-              | "secondary"
-            > = {
-              active: "success-soft",
-              paused: "warning-soft",
-              draft: "secondary",
-              completed: "info-soft",
-              failed: "danger-soft",
-            };
-            return (
-              <motion.button
-                key={campaign.id}
-                type="button"
-                onClick={() => onRowClick?.(campaign.id)}
-                variants={{
-                  hidden: { opacity: 0, y: 8 },
-                  show: { opacity: 1, y: 0, transition: { duration: 0.2 } },
-                }}
-                whileTap={{ scale: 0.98 }}
-                className="w-full text-left rounded-lg border border-border bg-card p-4 flex flex-col gap-3 hover:border-primary/40 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  {campaign.platform === "meta" && (
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-chart-1-soft text-chart-1 border border-chart-1/15">
-                      <Facebook className="h-4 w-4" />
-                    </div>
-                  )}
-                  {campaign.platform === "tiktok" && (
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-tiktok text-brand-tiktok-foreground">
-                      <span className="font-bold text-xs">Tk</span>
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-foreground truncate">
-                      {campaign.name}
-                    </p>
-                    <p className="text-xs text-subtle-foreground">
-                      {campaign.createdAtStr}
-                    </p>
-                  </div>
-                  <Badge
-                    variant={statusVariant[campaign.status] ?? "secondary"}
-                    className="rounded-sm px-2 py-0.5 font-semibold capitalize shrink-0"
-                  >
-                    {campaign.status}
-                  </Badge>
-                  {/* Mobile pause/play */}
-                  {onToggleStatus && (campaign.status === "active" || campaign.status === "paused") && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onToggleStatus(
-                          campaign.id,
-                          campaign.status === "active" ? "PAUSED" : "ACTIVE",
-                        );
-                      }}
-                      className={cn(
-                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors",
-                        campaign.status === "active"
-                          ? "text-primary hover:bg-primary/10"
-                          : "text-muted-foreground hover:bg-muted",
-                      )}
-                    >
-                      {campaign.status === "active" ? (
-                        <Pause className="h-4 w-4" />
-                      ) : (
-                        <Play className="h-4 w-4" />
-                      )}
-                    </button>
-                  )}
-                  <div onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button className="p-1 rounded-full hover:bg-muted text-subtle-foreground hover:text-foreground transition-colors">
-                          <MoreVert className="h-5 w-5" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-52">
-                        {campaign.status === "draft" ? (
-                          <DropdownMenuItem
-                            onClick={() =>
-                              (window.location.href = `/campaigns/new?draftId=${campaign.id}`)
-                            }
-                            className="cursor-pointer font-medium"
-                          >
-                            <Edit className="h-4 w-4 mr-2" /> Resume Draft
-                          </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuItem asChild className="cursor-pointer">
-                            <Link href={`/campaigns/${campaign.id}`}>
-                              <Eye className="h-4 w-4 mr-2" /> View Details
-                            </Link>
-                          </DropdownMenuItem>
-                        )}
-                        {onDuplicate && (
-                          <DropdownMenuItem
-                            onClick={() => onDuplicate(campaign.id)}
-                            className="cursor-pointer"
-                          >
-                            <Copy className="h-4 w-4 mr-2" /> Duplicate
-                          </DropdownMenuItem>
-                        )}
-                        {onRename && (
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setRenameTarget({
-                                id: campaign.id,
-                                name: campaign.name,
-                              });
-                              setRenameValue(campaign.name);
-                              setRenameDialogOpen(true);
-                            }}
-                            className="cursor-pointer"
-                          >
-                            <EditPencil className="h-4 w-4 mr-2" /> Rename
-                          </DropdownMenuItem>
-                        )}
-                        {(onArchive || onDelete) && <DropdownMenuSeparator />}
-                        {onArchive && (
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setArchiveTarget({
-                                id: campaign.id,
-                                name: campaign.name,
-                              });
-                              setArchiveDialogOpen(true);
-                            }}
-                            className="cursor-pointer text-status-warning focus:text-status-warning"
-                          >
-                            <Archive className="h-4 w-4 mr-2" /> Archive
-                          </DropdownMenuItem>
-                        )}
-                        {onDelete && (
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setDeleteTarget({
-                                id: campaign.id,
-                                name: campaign.name,
-                              });
-                              setDeleteDialogOpen(true);
-                            }}
-                            className="cursor-pointer text-destructive focus:text-destructive"
-                          >
-                            <Trash className="h-4 w-4 mr-2" /> Delete
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3 text-sm">
-                  <div>
-                    <p className="text-xs uppercase tracking-wider font-semibold text-subtle-foreground">
-                      Spend
-                    </p>
-                    <p className="font-mono font-semibold text-foreground">
-                      {campaign.spendFormatted}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-wider font-semibold text-subtle-foreground">
-                      Revenue
-                    </p>
-                    <p className="font-mono font-bold text-status-success">
-                      {campaign.revenueFormatted}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-wider font-semibold text-subtle-foreground">
-                      ROAS
-                    </p>
-                    <span
-                      className={`inline-block px-2 py-0.5 rounded-md text-xs font-bold ${
-                        campaign.roasVal >= 1.5
-                          ? "bg-status-success-soft text-status-success"
-                          : campaign.roasVal >= 1.0
-                            ? "bg-status-warning-soft text-status-warning"
-                            : "bg-status-danger-soft text-status-danger"
-                      }`}
-                    >
-                      {campaign.roasFormatted}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between text-xs text-subtle-foreground border-t border-border pt-3">
-                  <span>
-                    CTR{" "}
-                    <span className="font-mono font-semibold text-foreground">
-                      {campaign.ctrDisplay}
-                    </span>
-                  </span>
-                  <span>
-                    Clicks{" "}
-                    <span className="font-mono font-semibold text-foreground">
-                      {campaign.clicksDisplay}
-                    </span>
-                  </span>
-                  <span>
-                    Sales{" "}
-                    <span className="font-mono font-semibold text-foreground">
-                      {campaign.salesVal}
-                    </span>
-                  </span>
-                </div>
-              </motion.button>
-            );
-          })
-        )}
-      </motion.div>
+     
 
       {/* Desktop: data table (md+) */}
-      <div className="hidden md:block rounded-lg border border-border bg-card shadow-sm overflow-hidden">
+      <div className="rounded-lg border border-border bg-card overflow-hidden">
         {tableHeader}
         <DataTable
           columns={columns}
@@ -1030,6 +785,25 @@ export function CampaignsView({
                     Adjust your search filters to see more results.
                   </EmptyDescription>
                 </EmptyHeader>
+              </Empty>
+            ) : !hasConnectedAccount ? (
+              <Empty className="py-12 border-none">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon" className="bg-muted text-muted-foreground">
+                    <MetaIcon className="h-6 w-6" />
+                  </EmptyMedia>
+                  <EmptyTitle>No ad account connected</EmptyTitle>
+                  <EmptyDescription>
+                    Connect your Meta ad account to start running and managing campaigns.
+                  </EmptyDescription>
+                </EmptyHeader>
+                <EmptyContent>
+                  <Link href="/settings/business">
+                    <Button className="rounded-md bg-primary text-primary-foreground font-semibold">
+                      Connect ad account
+                    </Button>
+                  </Link>
+                </EmptyContent>
               </Empty>
             ) : (
               <Empty className="py-12 border-none">

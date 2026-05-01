@@ -2,6 +2,8 @@ import { SupabaseClient } from "@supabase/supabase-js";
 import { decrypt } from "@/lib/crypto";
 import { MetaService } from "@/lib/api/meta";
 import { getActiveOrgId } from "@/lib/active-org";
+import { createAdminClient } from "@/lib/supabase/server";
+import { cacheTag, cacheLife } from "next/cache";
 
 /**
  * Server-side fetcher for a single campaign by ID with real-time Meta insights
@@ -395,12 +397,13 @@ export async function getCampaignById(supabase: SupabaseClient, id: string) {
  * Used in the campaigns list page
  * Note: Relies on RLS policies to filter campaigns by organization/user
  */
-export async function getCampaigns(supabase: SupabaseClient) {
-  // 1. Get active org ID from cookie
-  const activeOrgId = await getActiveOrgId();
-  if (!activeOrgId) return [];
+export async function getCampaigns(orgId: string) {
+  "use cache";
+  cacheTag(`campaigns-${orgId}`);
+  cacheLife("minutes");
 
-  // 2. Fetch Campaigns for that Organization
+  const supabase = createAdminClient();
+
   const { data, error } = await supabase
     .from("campaigns")
     .select(
@@ -413,7 +416,7 @@ export async function getCampaigns(supabase: SupabaseClient) {
       )
     `,
     )
-    .eq("organization_id", activeOrgId) // 👈 Explicit Filter by active org
+    .eq("organization_id", orgId)
     .order("created_at", { ascending: false });
 
   if (error) throw error;

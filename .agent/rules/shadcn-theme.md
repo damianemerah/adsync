@@ -22,18 +22,19 @@ globs: "**/*.{ts,tsx}"
 
 ## Quick Violation Reference
 
-| Violation | Fix |
-|---|---|
-| `text-gray-600` | `text-subtle-foreground` |
-| `shadow-lg` on card | `border border-border` |
+| Violation                          | Fix                                 |
+| ---------------------------------- | ----------------------------------- |
+| `text-gray-600`                    | `text-subtle-foreground`            |
+| `shadow-lg` on card                | `border border-border`              |
 | `import { X } from 'lucide-react'` | `import { X } from 'iconoir-react'` |
-| `rounded-3xl` on container | `rounded-lg` |
-| `text-purple-500` for AI | `text-ai` |
-| `bg-[#12E193]` | `bg-primary` |
+| `rounded-3xl` on container         | `rounded-lg`                        |
+| `text-purple-500` for AI           | `text-ai`                           |
+| `bg-[#12E193]`                     | `bg-primary`                        |
 
 ## Full Rules
 
 See `.impeccable.md` at the project root for:
+
 - Complete token reference table
 - Text color decision tree
 - Component patterns (card, form, AI block, sidebar item)

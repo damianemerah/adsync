@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Facebook } from "iconoir-react";
+import { MetaIcon } from "@/components/ui/meta-icon";
 
 interface ConnectAccountDialogProps {
   open: boolean;
@@ -37,7 +37,7 @@ export function ConnectAccountDialog({
             className="h-24 flex flex-col gap-2 hover:border-facebook hover:bg-facebook/5"
             onClick={handleConnectMeta}
           >
-            <Facebook className="h-8 w-8 text-facebook" />
+            <MetaIcon className="h-10 w-10" />
             <span className="font-bold text-foreground">Meta Ads</span>
           </Button>
 

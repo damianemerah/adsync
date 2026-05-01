@@ -5,6 +5,7 @@ Proven email templates and automation sequences for Tenzu marketing.
 ## General Email Guidelines
 
 ### Subject Line Rules
+
 - **Length:** 40-50 characters (mobile preview)
 - **Personalization:** Use first name when possible
 - **Clarity over cleverness:** Direct benefit statements
@@ -12,6 +13,7 @@ Proven email templates and automation sequences for Tenzu marketing.
 - **Questions engage:** "Still paying in dollars?"
 
 ### Body Structure
+
 - **Greeting:** Personal but professional
 - **Hook:** First sentence must grab (pain or benefit)
 - **Body:** 2-3 short paragraphs max
@@ -19,6 +21,7 @@ Proven email templates and automation sequences for Tenzu marketing.
 - **Signature:** Name + role + support contact
 
 ### Tone
+
 - Conversational but professional
 - Second person ("you", not "we")
 - Active voice
@@ -31,6 +34,7 @@ Proven email templates and automation sequences for Tenzu marketing.
 **Subject:** Welcome to Tenzu, [Name]! Your first campaign in 2 minutes
 
 **Body:**
+
 ```
 Hi [Name],
 
@@ -51,7 +55,7 @@ Ready to start?
 
 Questions? Reply to this email or WhatsApp us: +234 XXX XXX XXXX
 
-— 
+—
 Chisom
 Head of Growth, Tenzu
 ```
@@ -61,6 +65,7 @@ Head of Growth, Tenzu
 **Subject:** The #1 mistake new ad managers make (and how to avoid it)
 
 **Body:**
+
 ```
 Hi [Name],
 
@@ -84,7 +89,7 @@ Try it now with any photo—even an old one from your phone:
 
 P.S. - Unlike Wask's templates, our AI actually redesigns your photo. Big difference.
 
-— 
+—
 Chisom
 ```
 
@@ -93,6 +98,7 @@ Chisom
 **Subject:** "I got 2,300 WhatsApp messages in 48 hours" - Emeka, Abuja
 
 **Body:**
+
 ```
 Hi [Name],
 
@@ -116,7 +122,7 @@ Want similar results?
 
 Real user, real results. See more case studies here: [link]
 
-— 
+—
 Chisom
 ```
 
@@ -125,6 +131,7 @@ Chisom
 **Subject:** "Is Tenzu actually different from Wask?"
 
 **Body:**
+
 ```
 Hi [Name],
 
@@ -146,7 +153,7 @@ Still unsure? Reply with your biggest concern and I'll address it personally.
 
 [CTA Button]: Start My Free Trial →
 
-— 
+—
 Chisom
 ```
 
@@ -157,6 +164,7 @@ Chisom
 **Subject:** [Name], we noticed you haven't launched yet
 
 **Body:**
+
 ```
 Hi [Name],
 
@@ -175,7 +183,7 @@ Or just start with a simple test campaign:
 
 [CTA Button]: Build Campaign in 2 Minutes →
 
-— 
+—
 Chisom
 ```
 
@@ -184,6 +192,7 @@ Chisom
 **Subject:** Card declined? Here's why Tenzu is different
 
 **Body:**
+
 ```
 Hi [Name],
 
@@ -203,7 +212,7 @@ Don't believe me? Try adding your payment method right now:
 
 If it fails (it won't), email me directly and I'll refund any test charge immediately.
 
-— 
+—
 Chisom
 ```
 
@@ -212,6 +221,7 @@ Chisom
 **Subject:** Wask vs. Tenzu: An honest comparison
 
 **Body:**
+
 ```
 Hi [Name],
 
@@ -237,7 +247,7 @@ Try Tenzu free for 7 days. If Wask is better for you, keep using Wask. No hard f
 
 [CTA Button]: Start Free Trial →
 
-— 
+—
 Chisom
 
 P.S. - Our cancellation process is literally one click. No retention calls. No dark patterns.
@@ -250,6 +260,7 @@ P.S. - Our cancellation process is literally one click. No retention calls. No d
 **Subject:** Oops - Payment failed. Let's fix this together
 
 **Body:**
+
 ```
 Hi [Name],
 
@@ -272,7 +283,7 @@ Two quick fixes:
 
 Need help? WhatsApp me directly: +234 XXX XXX XXXX
 
-— 
+—
 Chisom
 ```
 
@@ -281,6 +292,7 @@ Chisom
 **Subject:** We'll miss you, [Name]. One quick question?
 
 **Body:**
+
 ```
 Hi [Name],
 
@@ -298,7 +310,7 @@ Just reply with a quick note. Your feedback genuinely helps us improve.
 
 P.S. - If you cancelled because of a specific issue, let me know. I might be able to fix it immediately and get you back on track.
 
-— 
+—
 Chisom
 ```
 
@@ -309,6 +321,7 @@ Chisom
 **Subject:** 🎉 Your campaign is live! Here's what to watch
 
 **Body:**
+
 ```
 Hi [Name],
 
@@ -337,7 +350,7 @@ Track performance in real-time:
 
 Questions? I'm here: [email/WhatsApp]
 
-— 
+—
 Chisom
 
 P.S. - Most campaigns hit their stride after 24 hours. Give it time.
@@ -348,6 +361,7 @@ P.S. - Most campaigns hit their stride after 24 hours. Give it time.
 **Subject:** Your campaign results + 3 quick optimization tips
 
 **Body:**
+
 ```
 Hi [Name],
 
@@ -371,7 +385,7 @@ Want help optimizing? Reply with your campaign link and I'll analyze it.
 
 [CTA Button]: Edit My Campaign →
 
-— 
+—
 Chisom
 ```
 
@@ -382,6 +396,7 @@ Chisom
 **Subject:** February Tenzu Insider: 3 campaign strategies that worked this month
 
 **Body:**
+
 ```
 Hi [Name],
 
@@ -406,7 +421,7 @@ Want to try any of these? Hit reply and I'll walk you through setup.
 
 [CTA Button]: Try a New Strategy →
 
-— 
+—
 Chisom
 
 P.S. - New AI Studio feature dropping next week. Stay tuned.
@@ -419,6 +434,7 @@ P.S. - New AI Studio feature dropping next week. Stay tuned.
 **Subject:** I noticed your campaign paused—everything okay?
 
 **Body:**
+
 ```
 Hi [Name],
 
@@ -433,7 +449,7 @@ Whatever it is, I'm here to help. Reply with what happened and I'll sort it out.
 
 [CTA Button]: Reactivate Campaign →
 
-— 
+—
 Chisom
 ```
 
@@ -442,6 +458,7 @@ Chisom
 **Subject:** New: AI Studio now generates lifestyle scenes
 
 **Body:**
+
 ```
 Hi [Name],
 
@@ -463,13 +480,14 @@ Try it free:
 
 [CTA Button]: Generate Lifestyle Scene →
 
-— 
+—
 Chisom
 ```
 
 ## Email Template Checklist
 
 Before sending any email, verify:
+
 - [ ] Subject line is clear and benefit-focused
 - [ ] First sentence hooks (pain or benefit)
 - [ ] Body is scannable (short paragraphs, bullet points)

@@ -127,18 +127,4 @@ export interface AIInput {
   siteContext?: string | null;
   /** URL detected in the user's message when site scraping returned null — signals triage that a URL was provided but couldn't be fetched */
   detectedUrl?: string | null;
-  /** Org-level default audience locations saved in settings — seeds <default_locations> context */
-  defaultTargetLocations?: Array<{ id: string; name: string; type: string; country_code: string }> | null;
-  /** Org-level default audience interests saved in settings — seeds <default_interests> context */
-  defaultTargetInterests?: Array<{ id: string; name: string }> | null;
-  /** Whether customers visit a physical business location */
-  hasPhysicalLocation?: boolean | null;
-  /** Whether the business gets leads via its website */
-  getsLeadsViaWebsite?: boolean | null;
-  /** Whether customers buy products on the website */
-  sellsOnline?: boolean | null;
-  /** Whether customers book appointments */
-  booksAppointments?: boolean | null;
-  /** Whether the business wants contact-focused ads (WhatsApp/DM) */
-  wantsContactAds?: boolean | null;
 }

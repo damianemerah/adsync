@@ -31,19 +31,19 @@ export function PageHeader({
     >
       <div 
         className={cn(
-          "container max-w-7xl mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8", 
+          "container max-w-7xl mx-auto flex min-h-16 items-center justify-between px-4 sm:px-6 lg:px-8 gap-4", 
           containerClassName
         )}
       >
-        <div className="flex items-center gap-4">
+        <div className="flex flex-1 items-center gap-4 min-w-0">
           {title && (
-            <h1 className="text-xl font-heading text-foreground tracking-tight">
+            <h1 className="font-heading text-foreground truncate font-medium">
               {title}
             </h1>
           )}
           {leftContent}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {children}
           {showCredits && <CreditsDisplay />}
           {showHelpCenter && <HelpCenterSheet />}

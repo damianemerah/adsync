@@ -16,6 +16,7 @@ The Tenzu AI campaign generation pipeline is a **multi-phase, cost-optimized sys
 4. **Refinement (gpt-5-mini, optional)** → Edit copy without regenerating strategy
 
 The system **never passes AI generation directly to the Meta API**. Instead:
+
 - AI generates targeting names as strings
 - Local catalog lookup resolves ~95% of names instantly
 - Remaining 5% fall back to Meta API search
@@ -55,15 +56,15 @@ The system **never passes AI generation directly to the Meta API**. Instead:
 
 The triage system classifies inputs into 7 types:
 
-| Type | Trigger | Action | Cost Saved |
-|------|---------|--------|-----------|
-| **TYPE_A** | "Fashion boutique in Lagos" | Full generation with Skills | $0 (required) |
-| **TYPE_B** | Single bare word "shoes" | Return clarification question | ~3.5k tokens |
-| **TYPE_C** | "How do I target women?" | Answer question directly | ~3.5k tokens |
-| **TYPE_D** | "Make it shorter" (refinement) | Route to gpt-5-mini refiner | ~2.5k tokens |
-| **TYPE_E** | "That's great!" (confirmation) | Return friendly response | ~3.5k tokens |
-| **TYPE_F** | "How to make pasta?" (off-topic) | Politely decline | ~3.5k tokens |
-| **TYPE_G** | Bare request + org profile available | Propose plan for confirmation | ~3k tokens |
+| Type       | Trigger                              | Action                        | Cost Saved    |
+| ---------- | ------------------------------------ | ----------------------------- | ------------- |
+| **TYPE_A** | "Fashion boutique in Lagos"          | Full generation with Skills   | $0 (required) |
+| **TYPE_B** | Single bare word "shoes"             | Return clarification question | ~3.5k tokens  |
+| **TYPE_C** | "How do I target women?"             | Answer question directly      | ~3.5k tokens  |
+| **TYPE_D** | "Make it shorter" (refinement)       | Route to gpt-5-mini refiner   | ~2.5k tokens  |
+| **TYPE_E** | "That's great!" (confirmation)       | Return friendly response      | ~3.5k tokens  |
+| **TYPE_F** | "How to make pasta?" (off-topic)     | Politely decline              | ~3.5k tokens  |
+| **TYPE_G** | Bare request + org profile available | Propose plan for confirmation | ~3k tokens    |
 
 ### Slot Extraction
 
@@ -73,13 +74,20 @@ Triage extracts 4 slots even for non-TYPE_A inputs:
 extracted: {
   gender: "male" | "female" | "all";
   priceTier: "low" | "mid" | "high" | "unknown";
-  businessType: "fashion" | "beauty" | "food" | "electronics"
-               | "events" | "b2b" | "general" | "unknown";
-  lifeSignals: "wedding,job" | "none" | "";  // comma-separated
+  businessType: "fashion" |
+    "beauty" |
+    "food" |
+    "electronics" |
+    "events" |
+    "b2b" |
+    "general" |
+    "unknown";
+  lifeSignals: "wedding,job" | "none" | ""; // comma-separated
 }
 ```
 
 **Rules:**
+
 - Use **full conversation history** (not just latest message) to extract slots
 - Map Nigerian slang to standard terms
   - "I dey sell" → "I sell"
@@ -146,8 +154,8 @@ The system instruction is dynamic and category-aware:
 ```typescript
 function buildBaseInstruction(
   orgCountryCode?: string,
-  businessContext?: { category?: string },
-): string
+  businessContext?: { category?: string }
+): string;
 ```
 
 **Content Structure:**
@@ -183,23 +191,24 @@ ${buildScopedLifeEventCatalogPrompt(category)}
 
 ```typescript
 // From meta-interests.ts:1752
-export function buildScopedInterestCatalogPrompt(
-  category?: string,
-  max = 30,
-): string {
-  if (!category) return buildInterestCatalogPrompt();  // All ~200 interests
+export function buildScopedInterestCatalogPrompt(category?: string, max = 30): string {
+  if (!category) return buildInterestCatalogPrompt(); // All ~200 interests
 
   const relevant = suggestInterestsForCategory(category);
   if (relevant.length >= max) {
-    return relevant.slice(0, max).map(i => i.name).join(" | ");
+    return relevant
+      .slice(0, max)
+      .map((i) => i.name)
+      .join(" | ");
   }
 
   // Pad with universal interests sorted by universality
-  const rest = META_INTEREST_SEEDS.filter(e => !relevant.includes(e))
-    .sort((a, b) => b.relevantFor.length - a.relevantFor.length);
+  const rest = META_INTEREST_SEEDS.filter((e) => !relevant.includes(e)).sort(
+    (a, b) => b.relevantFor.length - a.relevantFor.length
+  );
 
   const combined = [...relevant, ...rest].slice(0, max);
-  return combined.map(i => i.name).join(" | ");
+  return combined.map((i) => i.name).join(" | ");
 }
 ```
 
@@ -217,10 +226,7 @@ Final (30 max): ["Fashion", "Clothing", "Shopping", ..., "Online shopping", "Ret
 
 ```typescript
 // From meta-behaviors.ts:4391
-export function buildScopedBehaviorCatalogPrompt(
-  category?: string,
-  max = 20,
-): string {
+export function buildScopedBehaviorCatalogPrompt(category?: string, max = 20): string {
   // Same pattern as interests
   // Prioritize: Engaged Shoppers (universal), then category-specific
 }
@@ -241,10 +247,7 @@ Final: 15 relevant + 5 universal = 20 items
 
 ```typescript
 // From meta-life-events.ts:688
-export function buildScopedLifeEventCatalogPrompt(
-  category?: string,
-  max = 15,
-): string
+export function buildScopedLifeEventCatalogPrompt(category?: string, max = 15): string;
 ```
 
 **Example: Weddings**
@@ -262,10 +265,7 @@ Final: 10 wedding events + 5 universal = 15 items
 
 ```typescript
 // From service.ts:279
-function buildUserMessage(
-  input: AIInput,
-  extracted?: TriageResult["extracted"],
-): string
+function buildUserMessage(input: AIInput, extracted?: TriageResult["extracted"]): string;
 ```
 
 **Format:**
@@ -300,38 +300,38 @@ tools: [
       type: "container_auto",
       skills: [
         { type: "skill_reference", skill_id: "core-strategy-ng" },
-        { type: "skill_reference", skill_id: "copy-verticals-ng" },  // or copy-electronics-ng, copy-events-ng
-        { type: "skill_reference", skill_id: "policy-guard-ng" },    // Only if regulated category
-        { type: "skill_reference", skill_id: "life-events-ng" },     // Only if life_signals detected
-      ]
-    }
-  }
-]
+        { type: "skill_reference", skill_id: "copy-verticals-ng" }, // or copy-electronics-ng, copy-events-ng
+        { type: "skill_reference", skill_id: "policy-guard-ng" }, // Only if regulated category
+        { type: "skill_reference", skill_id: "life-events-ng" }, // Only if life_signals detected
+      ],
+    },
+  },
+];
 ```
 
 **Skill Routing:**
 
-| Business Type | Skills Loaded |
-|---------------|---------------|
-| Fashion, Beauty, Food, B2B, General | `core-strategy-ng` + `copy-verticals-ng` |
-| Electronics | `core-strategy-ng` + `copy-electronics-ng` |
-| Events, Weddings | `core-strategy-ng` + `copy-events-ng` |
-| Finance, Health, Crypto, Betting | + `policy-guard-ng` (compliance check) |
-| Any + Life signals detected | + `life-events-ng` |
+| Business Type                       | Skills Loaded                              |
+| ----------------------------------- | ------------------------------------------ |
+| Fashion, Beauty, Food, B2B, General | `core-strategy-ng` + `copy-verticals-ng`   |
+| Electronics                         | `core-strategy-ng` + `copy-electronics-ng` |
+| Events, Weddings                    | `core-strategy-ng` + `copy-events-ng`      |
+| Finance, Health, Crypto, Betting    | + `policy-guard-ng` (compliance check)     |
+| Any + Life signals detected         | + `life-events-ng`                         |
 
 ### AI Response: AIStrategyResult
 
 ```typescript
 interface AIStrategyResult {
   // Generated by AI (names only, not IDs):
-  interests: string[];           // ["Fashion", "Shopping", "Online shopping", ...]
-  behaviors: string[];           // ["Engaged Shoppers", "Online buyers", ...]
-  lifeEvents: string[];          // ["New relationship", "Newly engaged"] or []
+  interests: string[]; // ["Fashion", "Shopping", "Online shopping", ...]
+  behaviors: string[]; // ["Engaged Shoppers", "Online buyers", ...]
+  lifeEvents: string[]; // ["New relationship", "Newly engaged"] or []
 
   // Copy variants:
-  copy: string[];                // 3 ad body copy variations
-  headline: string[];            // 3 headline variations
-  whatsappMessage: string | null;  // e.g., "Hi! I saw your ad about wigs in Lagos..."
+  copy: string[]; // 3 ad body copy variations
+  headline: string[]; // 3 headline variations
+  whatsappMessage: string | null; // e.g., "Hi! I saw your ad about wigs in Lagos..."
 
   // Targeting details:
   demographics: {
@@ -339,22 +339,28 @@ interface AIStrategyResult {
     age_max: number;
     gender: "all" | "male" | "female";
   };
-  suggestedLocations: string[];  // ["Lagos", "Abuja"]
+  suggestedLocations: string[]; // ["Lagos", "Abuja"]
   geo_strategy: {
     type: "broad" | "cities";
   } | null;
   estimatedReach: number;
 
   // CTA & forms:
-  ctaIntent: "start_whatsapp_chat" | "buy_now" | "learn_more"
-             | "book_appointment" | "get_quote" | "sign_up" | "download";
+  ctaIntent:
+    | "start_whatsapp_chat"
+    | "buy_now"
+    | "learn_more"
+    | "book_appointment"
+    | "get_quote"
+    | "sign_up"
+    | "download";
   suggestedLeadForm?: {
-    fields: Array<{ type, label, choices }>;
+    fields: Array<{ type; label; choices }>;
     thankYouMessage: string;
   } | null;
 
   // Plain language:
-  plain_english_summary: string;  // "Targeting women 18–35 in Lagos..."
+  plain_english_summary: string; // "Targeting women 18–35 in Lagos..."
   reasoning?: string;
 
   // Metadata:
@@ -381,7 +387,7 @@ const { error } = await supabase
     business_description: input.businessDescription,
     product_category: "General",
     ai_reasoning: aiResult.reasoning,
-    validated_interests: aiResult.interests,  // Still strings, not Meta IDs
+    validated_interests: aiResult.interests, // Still strings, not Meta IDs
     created_by: user.id,
   })
   .select("id")
@@ -408,14 +414,12 @@ export function resolveLocalInterest(aiName: string): MetaInterestSeed | null {
   const normalized = aiName.toLowerCase().trim();
 
   // Exact match
-  const exact = META_INTEREST_SEEDS.find(
-    i => i.name.toLowerCase() === normalized,
-  );
+  const exact = META_INTEREST_SEEDS.find((i) => i.name.toLowerCase() === normalized);
   if (exact) return exact;
 
   // Alias match (fuzzy)
-  const alias = META_INTEREST_SEEDS.find(e =>
-    e.aliases.some(a => a === normalized || normalized.includes(a) || a.includes(normalized)),
+  const alias = META_INTEREST_SEEDS.find((e) =>
+    e.aliases.some((a) => a === normalized || normalized.includes(a) || a.includes(normalized))
   );
   return alias ?? null;
 }
@@ -441,11 +445,11 @@ Return: { id: "6003362473156", name: "Hair care", resolved: true }
 
 ```typescript
 export interface MetaInterestSeed {
-  name: string;           // "Hair care"
-  metaId?: string;        // "6003362473156" (from validate-meta-interests.ts)
+  name: string; // "Hair care"
+  metaId?: string; // "6003362473156" (from validate-meta-interests.ts)
   path: string;
-  aliases: string[];      // ["hair", "hair styling", "treatment"]
-  relevantFor: string[];  // ["beauty", "hair", "skincare"]
+  aliases: string[]; // ["hair", "hair styling", "treatment"]
+  relevantFor: string[]; // ["beauty", "hair", "skincare"]
 }
 ```
 
@@ -455,20 +459,20 @@ export interface MetaInterestSeed {
 // From targeting-resolver.ts:80
 export async function resolveInterest(
   name: string,
-  searchFn: (query: string) => Promise<any[]>,
+  searchFn: (query: string) => Promise<any[]>
 ): Promise<ResolvedTarget> {
   const local = resolveLocalInterest(name);
 
   if (local?.metaId) {
-    return { id: local.metaId, name: local.name, resolved: true };  // ← Tier 1
+    return { id: local.metaId, name: local.name, resolved: true }; // ← Tier 1
   }
 
   // Tier 2: Meta API search
   const correctedName = local?.name ?? name;
-  const keyword = extractSearchKeyword(correctedName);  // "Hair care" → "Hair care"
+  const keyword = extractSearchKeyword(correctedName); // "Hair care" → "Hair care"
 
   try {
-    const results = await searchFn(keyword);  // Call Meta API
+    const results = await searchFn(keyword); // Call Meta API
 
     if (results.length > 0) {
       const top = results[0];
@@ -495,11 +499,12 @@ function hasWordOverlap(resultName: string, intended: string): boolean {
   const resultWords = new Set(resultName.toLowerCase().split(/\s+/));
   const intendedWords = intended.toLowerCase().split(/\s+/);
 
-  return intendedWords.some(w => w.length > 2 && resultWords.has(w));
+  return intendedWords.some((w) => w.length > 2 && resultWords.has(w));
 }
 ```
 
 **Example:** If AI generates "Natural oils" but Meta API returns "Oil painting", reject because:
+
 - "oils" is in both
 - But "natural" ≠ "painting"
 - Word overlap check fails → fallback to name-only
@@ -516,6 +521,7 @@ ResolvedTarget {
 ```
 
 **Behavior at Campaign Launch:**
+
 - Names with `resolved: false` are **displayed in UI**
 - When user tries to **publish to Meta**, API rejects invalid IDs
 - UI prompts user to correct the targeting
@@ -738,11 +744,11 @@ Decision: needs_full_generation?
 
 ### Per-Request Token Breakdown
 
-| Phase | Model | Tokens | Notes |
-|-------|-------|--------|-------|
-| Triage | gpt-5-mini | ~300 | Always runs |
-| Full Gen | gpt-5.2 | ~2,500–4,000 | Only TYPE_A (30% of requests) |
-| Refinement | gpt-5-mini | ~200 | Optional (5% of requests) |
+| Phase      | Model      | Tokens       | Notes                         |
+| ---------- | ---------- | ------------ | ----------------------------- |
+| Triage     | gpt-5-mini | ~300         | Always runs                   |
+| Full Gen   | gpt-5.2    | ~2,500–4,000 | Only TYPE_A (30% of requests) |
+| Refinement | gpt-5-mini | ~200         | Optional (5% of requests)     |
 
 **Average request:** 300 (triage) + (0.3 × 3,250) + (0.05 × 200) ≈ **1,375 tokens**
 
@@ -826,10 +832,10 @@ Removes duplicate or obsolete catalog entries.
 
 ### Why Three Models?
 
-| Model | Why | Cost |
-|-------|-----|------|
+| Model               | Why                                      | Cost            |
+| ------------------- | ---------------------------------------- | --------------- |
 | gpt-5-mini (triage) | Fast classification, doesn't need Skills | $0.30/1M tokens |
-| gpt-5.2 + Skills | Full reasoning for complex strategy | $15/1M tokens |
+| gpt-5.2 + Skills    | Full reasoning for complex strategy      | $15/1M tokens   |
 | gpt-5-mini (refine) | Simple copy editing, no reasoning needed | $0.30/1M tokens |
 
 Routing cheap requests through gpt-5-mini avoids wasting gpt-5.2's expensive reasoning tokens.
@@ -837,10 +843,12 @@ Routing cheap requests through gpt-5-mini avoids wasting gpt-5.2's expensive rea
 ### Why Lazy Resolution?
 
 **Issue:** If we resolved all AI names to Meta IDs immediately after generation:
+
 - Every request would need Meta API calls (~200ms each × 3 catalogs = 600ms latency)
 - Failed resolutions would block campaign creation
 
 **Solution:** Resolve only at campaign launch:
+
 - User experience: instant feedback on strategy
 - Errors: caught during campaign creation, not generation
 - Flexibility: catalog updates don't invalidate old strategies
@@ -882,14 +890,14 @@ Example: Fashion AI shouldn't see "Car enthusiasts" or "Gaming" interests.
 
 ## Related Files
 
-| File | Purpose |
-|------|---------|
-| [src/lib/ai/service.ts](src/lib/ai/service.ts) | Core pipeline (triage, full gen, refinement) |
-| [src/app/api/ai/generate/route.ts](src/app/api/ai/generate/route.ts) | API endpoint & request handling |
-| [src/lib/utils/targeting-resolver.ts](src/lib/utils/targeting-resolver.ts) | Name → ID resolution |
-| [src/lib/constants/meta-interests.ts](src/lib/constants/meta-interests.ts) | Interest catalog & scoping |
-| [src/lib/constants/meta-behaviors.ts](src/lib/constants/meta-behaviors.ts) | Behavior catalog & scoping |
-| [src/lib/constants/meta-life-events.ts](src/lib/constants/meta-life-events.ts) | Life event catalog & scoping |
-| [src/scripts/validate-meta-interests.ts](src/scripts/validate-meta-interests.ts) | Validation script |
-| [src/scripts/validate-meta-behaviors.ts](src/scripts/validate-meta-behaviors.ts) | Validation script |
-| [src/scripts/validate-meta-life-events.ts](src/scripts/validate-meta-life-events.ts) | Validation script |
+| File                                                                                 | Purpose                                      |
+| ------------------------------------------------------------------------------------ | -------------------------------------------- |
+| [src/lib/ai/service.ts](src/lib/ai/service.ts)                                       | Core pipeline (triage, full gen, refinement) |
+| [src/app/api/ai/generate/route.ts](src/app/api/ai/generate/route.ts)                 | API endpoint & request handling              |
+| [src/lib/utils/targeting-resolver.ts](src/lib/utils/targeting-resolver.ts)           | Name → ID resolution                         |
+| [src/lib/constants/meta-interests.ts](src/lib/constants/meta-interests.ts)           | Interest catalog & scoping                   |
+| [src/lib/constants/meta-behaviors.ts](src/lib/constants/meta-behaviors.ts)           | Behavior catalog & scoping                   |
+| [src/lib/constants/meta-life-events.ts](src/lib/constants/meta-life-events.ts)       | Life event catalog & scoping                 |
+| [src/scripts/validate-meta-interests.ts](src/scripts/validate-meta-interests.ts)     | Validation script                            |
+| [src/scripts/validate-meta-behaviors.ts](src/scripts/validate-meta-behaviors.ts)     | Validation script                            |
+| [src/scripts/validate-meta-life-events.ts](src/scripts/validate-meta-life-events.ts) | Validation script                            |

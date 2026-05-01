@@ -1,14 +1,67 @@
+import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getDashboardData } from "@/lib/api/insights";
 import { getCampaigns } from "@/lib/api/campaigns";
 import { UnifiedDashboard } from "@/components/dashboard/unified-dashboard";
-import { DashboardEmptyState } from "@/components/dashboard/empty-state";
-import { PageHeader } from "@/components/layout/page-header";
 import { getActiveOrgId } from "@/lib/active-org";
-import { getOnboardingStatus } from "@/lib/onboarding/onboarding-status";
+import { HydrationBoundary, dehydrate, QueryClient } from "@tanstack/react-query";
+
+import { Suspense } from "react";
+import DashboardLoading from "./loading";
+
+async function DashboardDataLoader({ userId, activeOrgId }: { userId: string; activeOrgId: string }) {
+  const supabase = await createClient();
+  const queryClient = new QueryClient();
+
+  const [{ data: connectedAccounts }, dashboardData, campaigns] =
+    await Promise.all([
+      supabase
+        .from("ad_accounts")
+        .select("id")
+        .eq("organization_id", activeOrgId)
+        .is("disconnected_at", null)
+        .limit(1),
+      getDashboardData(userId, activeOrgId, { campaignId: "all" }),
+      getCampaigns(activeOrgId),
+    ]);
+
+  // Seed the campaigns query key so useCampaignsList doesn't double-fetch on mount
+  queryClient.setQueryData(["campaigns", activeOrgId, null, null], campaigns);
+
+  const hasConnectedAccount = (connectedAccounts?.length ?? 0) > 0;
+
+  const safeData = dashboardData ?? {
+    summary: {
+      spend: "0",
+      impressions: "0",
+      clicks: "0",
+      cpc: "0",
+      ctr: "0",
+      reach: "0",
+    },
+    performance: [],
+    demographics: { age: [], gender: [], region: [] },
+  };
+
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <div className="flex min-h-screen font-sans w-full">
+        <div className="flex flex-1 flex-col min-w-0 w-full">
+          <UnifiedDashboard
+            initialData={safeData}
+            campaigns={campaigns}
+            userId={userId}
+            hasConnectedAccount={hasConnectedAccount}
+          />
+        </div>
+      </div>
+    </HydrationBoundary>
+  );
+}
 
 export default async function DashboardPage() {
+  await connection();
   // 1. Auth check
   const supabase = await createClient();
   const {
@@ -25,58 +78,10 @@ export default async function DashboardPage() {
     redirect("/onboarding");
   }
 
-  // 3. Check onboarding progress
-  const onboarding = await getOnboardingStatus(supabase, user);
-
-  // 4. Show empty/onboarding state if no ad account is connected
-  if (!onboarding.hasAdAccount) {
-    return (
-      <div className="flex min-h-screen bg-muted/30 font-sans">
-        <div className="flex flex-1 flex-col min-w-0">
-          <PageHeader title="Overview" className="static" />
-          <main className="flex-1 p-4 md:p-8 overflow-y-auto">
-            <DashboardEmptyState
-              userName={onboarding.userName}
-              hasAdAccount={onboarding.hasAdAccount}
-              hasVerifiedWhatsApp={onboarding.hasVerifiedWhatsApp}
-              hasFirstCampaign={onboarding.hasFirstCampaign}
-            />
-          </main>
-        </div>
-      </div>
-    );
-  }
-
-  // 5. Fetch dashboard data + campaigns in parallel
-  const [dashboardData, campaigns] = await Promise.all([
-    getDashboardData(supabase, user.id, { campaignId: "all" }),
-    getCampaigns(supabase),
-  ]);
-
-  const safeData = dashboardData ?? {
-    summary: {
-      spend: "0",
-      impressions: "0",
-      clicks: "0",
-      cpc: "0",
-      ctr: "0",
-      reach: "0",
-    },
-    performance: [],
-    demographics: { age: [], gender: [], region: [] },
-  };
-
-  // 6. Render full dashboard
+  // 3. Render with Suspense wrapper to stream the loading state immediately
   return (
-    <div className="flex min-h-screen bg-muted/30 font-sans">
-      <div className="flex flex-1 flex-col min-w-0 w-full">
-        <PageHeader title="Performance" className="static" />
-        <UnifiedDashboard
-          initialData={safeData}
-          campaigns={campaigns}
-          userId={user.id}
-        />
-      </div>
-    </div>
+    <Suspense fallback={<DashboardLoading />}>
+      <DashboardDataLoader userId={user.id} activeOrgId={activeOrgId} />
+    </Suspense>
   );
 }

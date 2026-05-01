@@ -97,7 +97,7 @@ export function WorkspaceSwitcher({ activeOrgId }: WorkspaceSwitcherProps) {
 
         <DropdownMenuContent
           align="start"
-          className="bg-popover rounded-md shadow-sm border border-border border-border w-60 p-2"
+          className="bg-popover rounded-md shadow-sm border border-border w-60 p-2"
         >
           {/* List of all orgs */}
           <div className="space-y-0.5">
@@ -119,7 +119,7 @@ export function WorkspaceSwitcher({ activeOrgId }: WorkspaceSwitcherProps) {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{org.name}</p>
                     <p className="text-xs text-subtle-foreground capitalize">
-                      {org.subscription_tier || "starter"}
+                      {currentTier}
                     </p>
                   </div>
                   {isActive && !isSwitchingToThis && (

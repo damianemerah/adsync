@@ -11,7 +11,7 @@
 
 | #   | Issue                                                               | File                    | Severity    |
 | --- | ------------------------------------------------------------------- | ----------------------- | ----------- |
-| 1   | Product called "Tenzu" in hero sub-headline + image alt            | `hero-section.tsx`      | 🔴 Critical |
+| 1   | Product called "Tenzu" in hero sub-headline + image alt             | `hero-section.tsx`      | 🔴 Critical |
 | 2   | "optimize your campaigns" — banned jargon                           | `hero-section.tsx`      | 🔴 Critical |
 | 3   | Hero headline is generic, no WhatsApp or Naira sales promise        | `hero-section.tsx`      | 🔴 Critical |
 | 4   | "Watch Demo" links to `#video-demo` which doesn't exist             | `hero-section.tsx`      | 🔴 Critical |
@@ -234,10 +234,10 @@ After:  "Made For You If..."
 
 **Replace all 3 persona cards:**
 
-| OLD                                 | NEW                                                                                                       |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Small Business Owners (generic)     | **WhatsApp Sellers** — "You sell daily on WhatsApp and want more people finding you"                      |
-| E-commerce Managers (wrong persona) | **Fashion & Beauty Vendors** — "Your products are visual. AI turns your photos into ads that sell."       |
+| OLD                                 | NEW                                                                                                      |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Small Business Owners (generic)     | **WhatsApp Sellers** — "You sell daily on WhatsApp and want more people finding you"                     |
+| E-commerce Managers (wrong persona) | **Fashion & Beauty Vendors** — "Your products are visual. AI turns your photos into ads that sell."      |
 | Digital Agencies (wrong persona)    | **First-Time Advertisers** — "You've never run an ad. Tenzu's AI sets everything up — you just approve." |
 
 _Remove: all Shopify/WooCommerce/cart references. Remove: "Agency" persona._
@@ -265,11 +265,11 @@ After:  "Join 2,000+ Nigerian businesses already selling more with Tenzu."
 | Person    | Role                  | New Quote                                                                                                                                          |
 | --------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Chisom O. | Fashion Vendor, Lagos | "I took a photo of my ankara bags, uploaded it, and the AI turned it into a proper ad. People were messaging me asking for prices within an hour." |
-| Ahmed I.  | Dropshipper, Abuja    | "I tried paying for Wask — card declined twice. Tenzu I paid with my Opay card. No stress. The ad was live the same day."                         |
+| Ahmed I.  | Dropshipper, Abuja    | "I tried paying for Wask — card declined twice. Tenzu I paid with my Opay card. No stress. The ad was live the same day."                          |
 | Grace U.  | Skincare Vendor       | "I used to spend on ads and never know if they sold anything. Now I see exactly who messaged me from the ad and record my sales right there."      |
 | Tunde A.  | Electronics Reseller  | "The Naira payment is the main thing for me. I don't want to be thinking about exchange rates when I just want to sell my phones."                 |
 | Sarah O.  | Food Vendor, PH       | "I don't understand targeting at all. I just typed what I sell and who buys from me. The AI figured out the rest."                                 |
-| Emeka N.  | Clothing Store, Kano  | "My old ads were running for 3 days spending money with no messages. Tenzu paused it and told me why. That alone saved me ₦18,000."               |
+| Emeka N.  | Clothing Store, Kano  | "My old ads were running for 3 days spending money with no messages. Tenzu paused it and told me why. That alone saved me ₦18,000."                |
 
 **Fix avatar strategy:** Remove DiceBear API avatars (they break offline/look fake). Use static initials avatars (`AvatarFallback`) with styled colored backgrounds instead — e.g. `bg-primary/10 text-primary`.
 

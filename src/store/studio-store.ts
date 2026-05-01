@@ -12,6 +12,12 @@ interface GenerationEntry {
   id: string;
 }
 
+interface ExtractedBrand {
+  brandName: string;
+  businessDescription: string;
+  imageOptions: string[];
+}
+
 interface StudioState {
   // Current session
   prompt: string;
@@ -19,6 +25,12 @@ interface StudioState {
   creativeFormat: CreativeFormat;
   isEnhanced: boolean;
   creationMode: "prompt" | "url";
+
+  // URL mode
+  urlInput: string;
+  extractedBrand: ExtractedBrand | null;
+  isExtracting: boolean;
+  selectedImageUrl: string | null;
 
   // Generation result
   generatedImage: string | null;
@@ -39,6 +51,10 @@ interface StudioState {
   setCreativeFormat: (format: CreativeFormat) => void;
   setIsEnhanced: (enhanced: boolean) => void;
   setCreationMode: (mode: "prompt" | "url") => void;
+  setUrlInput: (url: string) => void;
+  setExtractedBrand: (brand: ExtractedBrand | null) => void;
+  setIsExtracting: (val: boolean) => void;
+  setSelectedImageUrl: (url: string | null) => void;
   setGeneratedImage: (url: string | null) => void;
   setImageUrls: (urls: string[]) => void;
   appendGenerationHistory: (entry: GenerationEntry) => void;
@@ -59,6 +75,10 @@ const SESSION_DEFAULTS = {
   creativeFormat: "auto" as CreativeFormat,
   isEnhanced: true,
   creationMode: "prompt" as const,
+  urlInput: "",
+  extractedBrand: null,
+  isExtracting: false,
+  selectedImageUrl: null,
   generatedImage: null,
   imageUrls: [],
   generationHistory: [],
@@ -82,6 +102,10 @@ export const useStudioStore = create<StudioState>()(
       setCreativeFormat: (creativeFormat) => set({ creativeFormat }),
       setIsEnhanced: (isEnhanced) => set({ isEnhanced }),
       setCreationMode: (creationMode) => set({ creationMode }),
+      setUrlInput: (urlInput) => set({ urlInput }),
+      setExtractedBrand: (extractedBrand) => set({ extractedBrand }),
+      setIsExtracting: (isExtracting) => set({ isExtracting }),
+      setSelectedImageUrl: (selectedImageUrl) => set({ selectedImageUrl }),
       setGeneratedImage: (generatedImage) => set({ generatedImage }),
       setImageUrls: (imageUrls) => set({ imageUrls }),
       appendGenerationHistory: (entry) =>
@@ -105,6 +129,7 @@ export const useStudioStore = create<StudioState>()(
         creativeFormat: state.creativeFormat,
         isEnhanced: state.isEnhanced,
         creationMode: state.creationMode,
+        urlInput: state.urlInput,
         lastUsedFullPrompt: state.lastUsedFullPrompt,
         seed: state.seed,
         activeCreativeId: state.activeCreativeId,

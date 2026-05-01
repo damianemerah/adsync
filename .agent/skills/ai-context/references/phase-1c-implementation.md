@@ -1,4 +1,5 @@
 # Org-Level AI Context — Full Implementation Reference
+
 ## Phase 1C
 
 Read this entire file before modifying any AI-related files.
@@ -7,6 +8,7 @@ The existing files MUST be extended, not replaced.
 ---
 
 # PHASE 1C — Org-Level AI Context
+
 ## "The AI that already knows your business"
 
 **Target: Months 2–4 (Hours with AI) (parallel with Phase 1B)**
@@ -17,16 +19,16 @@ The existing files MUST be extended, not replaced.
 
 Before writing anything, read these existing files:
 
-| File | What it has |
-|---|---|
-| `src/lib/ai/context-compiler.ts` | `CampaignContext` interface, `compileContextPrompt()`, `hasValidContext()`, `analyzePrompt()` — EXTEND, never replace |
-| `src/lib/ai/service.ts` | `generateAndSaveStrategy()`, `saveCampaignContext()` — EXTEND |
-| `src/lib/ai/types.ts` | `AIStrategyResult`, `AIInput` |
-| `targeting_profiles` table | `business_description`, `product_category` — Layer 2, already exists |
-| `campaigns.ai_context` | Per-campaign JSON — Layer 3, already exists |
-| `ai_requests` table | `context_source`, `used_context` — already measures context quality |
-| `src/app/(authenticated)/onboarding/page.tsx` | Captures `orgName` + `industry` in Step 1. The `INDUSTRIES` array is already defined here. |
-| `src/actions/onboarding.ts` | `createOrganization()` — extend to save org profile fields |
+| File                                          | What it has                                                                                                           |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `src/lib/ai/context-compiler.ts`              | `CampaignContext` interface, `compileContextPrompt()`, `hasValidContext()`, `analyzePrompt()` — EXTEND, never replace |
+| `src/lib/ai/service.ts`                       | `generateAndSaveStrategy()`, `saveCampaignContext()` — EXTEND                                                         |
+| `src/lib/ai/types.ts`                         | `AIStrategyResult`, `AIInput`                                                                                         |
+| `targeting_profiles` table                    | `business_description`, `product_category` — Layer 2, already exists                                                  |
+| `campaigns.ai_context`                        | Per-campaign JSON — Layer 3, already exists                                                                           |
+| `ai_requests` table                           | `context_source`, `used_context` — already measures context quality                                                   |
+| `src/app/(authenticated)/onboarding/page.tsx` | Captures `orgName` + `industry` in Step 1. The `INDUSTRIES` array is already defined here.                            |
+| `src/actions/onboarding.ts`                   | `createOrganization()` — extend to save org profile fields                                                            |
 
 ---
 
@@ -93,13 +95,13 @@ export interface OrgProfile {
   name: string;
   businessDescription?: string;
   businessCategory?: string;
-  businessLocation?: string;   // e.g. "Lagos, Nigeria"
-  targetAudience?: string;     // plain text, AI parses it
+  businessLocation?: string; // e.g. "Lagos, Nigeria"
+  targetAudience?: string; // plain text, AI parses it
 }
 
 // MODIFY existing CampaignContext — add org as optional Layer 1
 export interface CampaignContext {
-  org?: OrgProfile;            // ← ADD — Layer 1 context (new)
+  org?: OrgProfile; // ← ADD — Layer 1 context (new)
   businessDescription: string; // ← KEEP — Layer 3 campaign-specific (existing)
   targeting: {
     interests: string[];
@@ -153,8 +155,7 @@ In SECTION 4 (Location + Cultural Context), use `orgLocation` as fallback:
 
 ```typescript
 // SECTION 4 — modify to use orgLocation as fallback:
-const locationSource =
-  (locations && locations.length > 0) ? locations[0] : orgLocation;
+const locationSource = locations && locations.length > 0 ? locations[0] : orgLocation;
 
 if (locationSource) {
   prompt += `. Location: ${locationSource}`;
@@ -174,6 +175,7 @@ if (locationSource) {
 ### 1C.4 Industry → Category Mapping
 
 The onboarding page already has this `INDUSTRIES` array:
+
 ```typescript
 const INDUSTRIES = [
   "E-commerce (Fashion/Beauty)",
@@ -192,12 +194,12 @@ Add this mapping helper in `src/actions/onboarding.ts`:
 function mapIndustryToCategory(industry: string): string {
   const map: Record<string, string> = {
     "E-commerce (Fashion/Beauty)": "fashion_beauty",
-    "E-commerce (Electronics)":    "electronics",
-    "Service Business":            "services",
-    "Real Estate":                 "real_estate",
-    "Food & Beverage":             "food_beverage",
-    "Tech / SaaS":                 "tech_saas",
-    "Other":                       "other",
+    "E-commerce (Electronics)": "electronics",
+    "Service Business": "services",
+    "Real Estate": "real_estate",
+    "Food & Beverage": "food_beverage",
+    "Tech / SaaS": "tech_saas",
+    Other: "other",
   };
   return map[industry] || "other";
 }
@@ -276,7 +278,9 @@ Add the new `updateOrgProfile` action at the bottom of the same file:
 ```typescript
 export async function updateOrgProfile(formData: FormData) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
   const { data: member } = await supabase
@@ -289,12 +293,12 @@ export async function updateOrgProfile(formData: FormData) {
   const { error } = await supabase
     .from("organizations")
     .update({
-      business_description: formData.get("businessDescription") as string || null,
-      business_category:    formData.get("businessCategory") as string || null,
-      business_location:    formData.get("businessLocation") as string || null,
-      target_audience:      formData.get("targetAudience") as string || null,
-      whatsapp_number:      formData.get("whatsappNumber") as string || null,
-      updated_at:           new Date().toISOString(),
+      business_description: (formData.get("businessDescription") as string) || null,
+      business_category: (formData.get("businessCategory") as string) || null,
+      business_location: (formData.get("businessLocation") as string) || null,
+      target_audience: (formData.get("targetAudience") as string) || null,
+      whatsapp_number: (formData.get("whatsappNumber") as string) || null,
+      updated_at: new Date().toISOString(),
     })
     .eq("id", member.organization_id);
 
@@ -329,7 +333,9 @@ export function useOrgContext() {
       const supabase = createClient();
       const { data } = await supabase
         .from("organizations")
-        .select("name, business_description, business_category, business_location, target_audience, whatsapp_number")
+        .select(
+          "name, business_description, business_category, business_location, target_audience, whatsapp_number"
+        )
         .single();
       if (!data) return null;
       return {
@@ -360,10 +366,7 @@ const { data: orgContext } = useOrgContext();
 
 // When calling generateAndSaveStrategy or building AI input:
 const aiInput = {
-  businessDescription:
-    orgContext?.businessDescription ||
-    campaignStore.businessDescription ||
-    "",
+  businessDescription: orgContext?.businessDescription || campaignStore.businessDescription || "",
   location: orgContext?.businessLocation || "Nigeria",
   targetAudience: orgContext?.targetAudience || undefined,
 };
@@ -421,6 +424,7 @@ Add these fields to the existing business settings form, using `updateOrgProfile
 ### Phase 1C Deliverable Check
 
 After this phase:
+
 - `organizations` table has `business_description`, `business_category`, `business_location`, `target_audience`, `whatsapp_number`
 - Onboarding Step 1 captures description + audience (optional, no friction)
 - `CampaignContext` has `org?: OrgProfile` as Layer 1 — backward compatible

@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -26,39 +24,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Group, Mail, SystemRestart, Trash, Clock } from "iconoir-react";
-import { toast } from "sonner";
-import {
-  inviteTeamMember,
-  revokeInvitation,
-  removeMember,
-} from "@/actions/team";
 import { useActiveOrgContext } from "@/components/providers/active-org-provider";
-
-// ─── Fetcher ──────────────────────────────────────────────────────────────────
-
-async function fetchTeamData(orgId: string) {
-  const supabase = createClient();
-  const [{ data: membersData }, { data: invitesData }] = await Promise.all([
-    supabase
-      .from("organization_members")
-      .select("id, role, user_id, joined_at, users(email, full_name, avatar_url)")
-      .eq("organization_id", orgId),
-    supabase
-      .from("invitations")
-      .select("*")
-      .eq("organization_id", orgId),
-  ]);
-  return {
-    members: membersData ?? [],
-    invites: invitesData ?? [],
-  };
-}
+import { useTeamList, useTeamMutations } from "@/hooks/use-team";
 
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function TeamSettingsPage() {
   const { activeOrgId } = useActiveOrgContext();
-  const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState("members");
   const [isInviteOpen, setIsInviteOpen] = useState(false);
@@ -66,47 +38,32 @@ export default function TeamSettingsPage() {
   const [role, setRole] = useState<"editor" | "viewer">("editor");
 
   // ─── Data Fetching ────────────────────────────────────────────────────────
-  const { data, isLoading } = useQuery({
-    queryKey: ["team", activeOrgId],
-    queryFn: () => fetchTeamData(activeOrgId!),
-    enabled: !!activeOrgId,
-    staleTime: 60 * 1000,
-  });
+  const { data, isLoading } = useTeamList(activeOrgId);
 
   const members = data?.members ?? [];
   const invites = data?.invites ?? [];
 
-  const invalidate = () =>
-    queryClient.invalidateQueries({ queryKey: ["team", activeOrgId] });
-
   // ─── Mutations ────────────────────────────────────────────────────────────
-  const inviteMutation = useMutation({
-    mutationFn: () => inviteTeamMember(email, role),
-    onSuccess: () => {
-      toast.success("Invitation Sent!");
-      setIsInviteOpen(false);
-      setEmail("");
-      invalidate();
-    },
-    onError: (e: Error) => toast.error("Failed to invite", { description: e.message }),
-  });
+  const { inviteMutation, revokeMutation, removeMutation } = useTeamMutations(activeOrgId);
 
-  const revokeMutation = useMutation({
-    mutationFn: (id: string) => revokeInvitation(id),
-    onSuccess: () => { toast.success("Invitation revoked"); invalidate(); },
-  });
-
-  const removeMutation = useMutation({
-    mutationFn: (userId: string) => removeMember(userId),
-    onSuccess: () => { toast.success("Member removed"); invalidate(); },
-  });
+  const handleInvite = () => {
+    inviteMutation.mutate(
+      { email, role },
+      {
+        onSuccess: () => {
+          setIsInviteOpen(false);
+          setEmail("");
+        },
+      }
+    );
+  };
 
   return (
     <div className="space-y-6">
       {/* Header + Invite Button */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-heading text-foreground">
+          <h2 className="text-lg font-heading font-medium text-foreground">
             Members
           </h2>
           <p className="text-sm text-subtle-foreground">
@@ -284,7 +241,7 @@ export default function TeamSettingsPage() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>E-mail</Label>
+              <Label className="text-xs font-medium">E-mail</Label>
               <Input
                 placeholder="someone@example.com"
                 value={email}
@@ -292,7 +249,7 @@ export default function TeamSettingsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Role</Label>
+              <Label className="text-xs font-medium">Role</Label>
               <Select value={role} onValueChange={(v: any) => setRole(v)}>
                 <SelectTrigger>
                   <SelectValue />
@@ -311,7 +268,7 @@ export default function TeamSettingsPage() {
               Cancel
             </Button>
             <Button
-              onClick={() => inviteMutation.mutate()}
+              onClick={handleInvite}
               disabled={inviteMutation.isPending || !email}
             >
               {inviteMutation.isPending ? (

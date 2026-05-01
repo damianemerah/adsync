@@ -158,19 +158,43 @@ export async function POST(request: Request) {
           continue;
         }
 
+
         if (!campaignData) continue;
 
-        // B. Fetch per-campaign daily metrics and write to campaign_metrics
-        // We do this fire-and-forget style — don't let a failure here block the rest
+        // B. Fetch per-campaign daily metrics and write to campaign_metrics.
+        // Use a dynamic time_range from the campaign's actual start date so
+        // campaigns older than 30 days still get their daily rows written.
+        // Meta retains daily insight data for up to 37 months; we cap at 90
+        // days to keep sync fast while covering any typical dashboard window.
         try {
+          const today = new Date();
+          const todayStr = today.toISOString().split("T")[0];
+
+          // Start from whichever is earlier: campaign created_at or 90 days ago.
+          const ninetyDaysAgo = new Date(today);
+          ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+          const campaignCreatedAt = campaignData.created_at
+            ? new Date(campaignData.created_at)
+            : ninetyDaysAgo;
+          const sinceDate =
+            campaignCreatedAt < ninetyDaysAgo ? ninetyDaysAgo : campaignCreatedAt;
+          const sinceStr = sinceDate.toISOString().split("T")[0];
+
+          const timeRange = encodeURIComponent(
+            JSON.stringify({ since: sinceStr, until: todayStr }),
+          );
+
           let dailyCursor: string | null =
-            `https://graph.facebook.com/v25.0/${c.id}/insights?date_preset=last_30d&time_increment=1&fields=spend,impressions,clicks,reach,ctr,date_start&access_token=${token}`;
+            `https://graph.facebook.com/v25.0/${c.id}/insights?time_range=${timeRange}&time_increment=1&fields=spend,impressions,clicks,reach,ctr,date_start&access_token=${token}`;
           const allDailyRows: any[] = [];
 
           while (dailyCursor) {
             const dailyRes: Response = await fetch(dailyCursor);
             const dailyData: any = await dailyRes.json();
-            if (dailyData.error) break;
+            if (dailyData.error) {
+              console.error(`[Sync] Meta insights error for campaign ${c.id}:`, dailyData.error);
+              break;
+            }
             allDailyRows.push(...(dailyData.data || []));
             dailyCursor = dailyData.paging?.next ?? null;
           }
@@ -198,9 +222,11 @@ export async function POST(request: Request) {
               );
             } else {
               console.log(
-                `📊 [Sync] Wrote ${metricRows.length} daily rows for campaign ${c.id}`,
+                `📊 [Sync] Wrote ${metricRows.length} daily rows for campaign ${c.id} (${sinceStr} → ${todayStr})`,
               );
             }
+          } else {
+            console.log(`📊 [Sync] No daily rows returned for campaign ${c.id} (${sinceStr} → ${todayStr})`);
           }
         } catch (dailyErr) {
           console.error(
@@ -208,6 +234,7 @@ export async function POST(request: Request) {
             dailyErr,
           );
         }
+
 
         // C. Ad Sets Upsert
         // Build a map of platform_adset_id → DB id after upsert (needed for ads)

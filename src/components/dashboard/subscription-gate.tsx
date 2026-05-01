@@ -60,7 +60,7 @@ export function SubscriptionGate({
   >("growth");
   const [paymentOpen, setPaymentOpen] = useState(false);
 
-  const { data: subscription } = useSubscription();
+  const { data: subscription, isLoading } = useSubscription();
 
   useEffect(() => {
     setIsClient(true);
@@ -76,7 +76,12 @@ export function SubscriptionGate({
     return <>{children}</>;
   }
 
-  if (!isClient) return null;
+  if (!isClient || isLoading) return null;
+
+  // Pass through if in grace period
+  if (status === "past_due" && subscription?.org?.isInGracePeriod) {
+    return <>{children}</>;
+  }
 
   const prevTier = subscription?.org?.tier ?? "growth";
   const prevTierLabel = prevTier.charAt(0).toUpperCase() + prevTier.slice(1);
@@ -93,7 +98,7 @@ export function SubscriptionGate({
             Your trial has ended
           </h2>
           <p className="text-subtle-foreground max-w-md mx-auto">
-            Your 14-day {prevTierLabel} trial is over. Subscribe to a plan to
+            Your 7-day {prevTierLabel} trial is over. Subscribe to a plan to
             keep your campaigns running and access all features.
           </p>
         </div>

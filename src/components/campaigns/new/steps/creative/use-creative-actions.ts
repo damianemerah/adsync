@@ -5,8 +5,7 @@ import { useCampaignStore, TargetingOption } from "@/stores/campaign-store";
 import { deriveAspectRatio } from "./utils";
 import {
   generateAdCreative,
-  stashGeneratedImage,
-  saveCreativeToLibrary,
+  autoSaveCreative,
 } from "@/actions/ai-images";
 import { saveDraft } from "@/actions/drafts";
 import { CREDIT_COSTS } from "@/lib/constants";
@@ -36,7 +35,7 @@ export function useCreativeActions({ onUpgradeDialog }: UseCreativeActionsProps)
     resolvedSiteContext
   } = useCampaignStore();
 
-  const handleGenerateWithAI = async (overridePrompt?: string, customPrompt?: string) => {
+  const handleGenerateWithAI = async (overridePrompt?: string, referenceImageUrls?: string[]) => {
     if (isGeneratingAI) return;
     if (balance < CREDIT_COSTS.IMAGE_GEN_PRO) {
       toast.error(
@@ -85,10 +84,8 @@ export function useCreativeActions({ onUpgradeDialog }: UseCreativeActionsProps)
 
       const aspectRatio = deriveAspectRatio(platform, objective);
 
-      const promptToUse =
-        typeof overridePrompt === "string" ? overridePrompt : customPrompt;
-      const composedPrompt = promptToUse
-        ? `${adCopy.headline || "product shot"}. Additional instructions: ${promptToUse}`
+      const composedPrompt = overridePrompt
+        ? `${adCopy.headline || "product shot"}. Additional instructions: ${overridePrompt}`
         : adCopy.headline || aiPrompt || "product shot";
 
       const result = await generateAdCreative({
@@ -97,20 +94,20 @@ export function useCreativeActions({ onUpgradeDialog }: UseCreativeActionsProps)
         aspectRatio,
         creativeFormat: "social_ad",
         campaignContext,
+        imageInputs: referenceImageUrls?.length ? referenceImageUrls : undefined,
+        imageIntent: referenceImageUrls?.length ? "reference" : undefined,
       });
 
       if (result?.imageUrl) {
-        toast.loading("Preparing your image...", { id: toastId });
-        const imageUrl = result.imageUrl;
-        let stashedUrl = imageUrl;
-        try {
-          stashedUrl = await stashGeneratedImage(imageUrl);
-        } catch (err) {
-          console.warn("Could not stash image", err);
-        }
+        toast.loading("Saving your creative...", { id: toastId });
+        const saved = await autoSaveCreative({
+          falUrl: result.imageUrl,
+          prompt: result.usedPrompt ?? "",
+          aspectRatio,
+        });
         updateDraft({
           pendingGeneratedImage: {
-            url: stashedUrl,
+            url: saved.publicUrl,
             prompt: result?.usedPrompt ?? "",
             aspectRatio,
             savedAt: Date.now(),
@@ -131,23 +128,8 @@ export function useCreativeActions({ onUpgradeDialog }: UseCreativeActionsProps)
   };
 
   const handleAcceptImage = async (imageUrl: string) => {
-    let finalUrl = imageUrl;
-    const toastId = toast.loading("Saving to your library...");
-    try {
-      const aspectRatio = deriveAspectRatio(platform, objective);
-      const saved = await saveCreativeToLibrary({
-        imageUrl,
-        prompt: pendingGeneratedImage?.prompt ?? adCopy.headline ?? "",
-        aspectRatio: (pendingGeneratedImage?.aspectRatio as "1:1" | "9:16" | "4:5") ?? aspectRatio,
-      });
-      finalUrl = saved.publicUrl;
-      toast.dismiss(toastId);
-      toast.success("Saved seamlessly!");
-    } catch (err) {
-      toast.dismiss(toastId);
-      toast.error("Failed to save image to library");
-    }
-    updateDraft({ selectedCreatives: [finalUrl], pendingGeneratedImage: null });
+    // Image was already auto-saved when generated — just accept it.
+    updateDraft({ selectedCreatives: [imageUrl], pendingGeneratedImage: null });
   };
 
   const handleEditInStudio = async (imageUrl: string, imagePrompt: string) => {
@@ -170,7 +152,7 @@ export function useCreativeActions({ onUpgradeDialog }: UseCreativeActionsProps)
       returnTo: `/campaigns/new?resume=true${savedId ? `&draftId=${savedId}` : ""}`,
       returnStep: "3",
     });
-    router.push(`/creations/studio?${params.toString()}`);
+    router.push(`/ai-creative/studio?${params.toString()}`);
   };
 
   return {

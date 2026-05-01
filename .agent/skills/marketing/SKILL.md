@@ -141,7 +141,7 @@ Every piece of marketing copy must anchor to at least one of these pillars:
 
 **Frame:** Built for US credit cards and desktop workflows. Tenzu is built for Naira transfers, WhatsApp, and mobile.
 
-| Dimension        | Wask/AdCreative               | Tenzu                      |
+| Dimension        | Wask/AdCreative               | Tenzu                       |
 | ---------------- | ----------------------------- | --------------------------- |
 | Payment          | USD credit card (fails often) | Naira via Paystack/Transfer |
 | Audience         | US/EU marketers               | Nigerian hustlers           |
@@ -160,7 +160,7 @@ Every piece of marketing copy must anchor to at least one of these pillars:
 
 **Frame:** Agencies are slow and expensive. Tenzu is instant and affordable. And you see the results yourself.
 
-| Dimension        | Agency                  | Tenzu             |
+| Dimension        | Agency                  | Tenzu              |
 | ---------------- | ----------------------- | ------------------ |
 | Cost             | ₦100k-200k per campaign | From ₦15k/month    |
 | Timeline         | 5-7 days                | 2 minutes          |
@@ -178,7 +178,7 @@ Every piece of marketing copy must anchor to at least one of these pillars:
 
 **Frame:** Too complex, shows the wrong numbers. Tenzu simplifies and shows Naira results.
 
-| Dimension         | Ads Manager         | Tenzu                            |
+| Dimension         | Ads Manager         | Tenzu                             |
 | ----------------- | ------------------- | --------------------------------- |
 | Learning Curve    | Steep (50+ fields)  | Gentle (chat interface)           |
 | Time to Launch    | 2+ hours            | 2 minutes                         |

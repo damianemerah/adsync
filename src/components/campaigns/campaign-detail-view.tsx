@@ -23,7 +23,6 @@ import {
   Calendar,
   CreditCard,
   OpenNewWindow,
-  Facebook,
   ViewGrid,
   MoreHoriz,
   Pause,
@@ -37,6 +36,7 @@ import {
   Mail,
   Copy,
 } from "iconoir-react";
+import { MetaIcon } from "@/components/ui/meta-icon";
 import { DataTable, Column } from "@/components/ui/data-table";
 import { Campaign } from "@/lib/api/campaigns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,6 +51,10 @@ import {
 } from "@/components/dashboard/performance-chart";
 import { useState, useMemo } from "react";
 import { useDashboardStore } from "@/store/dashboard-store";
+import {
+  bucketPerformance,
+  pickGranularity,
+} from "@/lib/utils/date-bucketing";
 
 interface CampaignDetailViewProps {
   campaign: Campaign;
@@ -89,7 +93,13 @@ export function CampaignDetailView({
   // Determine if this is a lead gen campaign
   const isLeadGenCampaign = campaign.objective === "leads";
 
-  // Calculate CTR for chart data since API might return it or we compute it
+  const granularity = useMemo(
+    () => pickGranularity(dateRange?.from, dateRange?.to),
+    [dateRange?.from, dateRange?.to],
+  );
+
+  // Calculate CTR for chart data since API might return it or we compute it,
+  // then bucket by day/week/month based on the selected range size.
   const chartData = useMemo(() => {
     let rawData = campaign.performance || [];
 
@@ -106,13 +116,14 @@ export function CampaignDetailView({
       });
     }
 
-    return rawData.map((day: any) => ({
+    const withCtr = rawData.map((day: any) => ({
       ...day,
-      // If API doesn't return computed CTR per day, do it safely
       ctr:
         day.ctr ?? (day.impressions ? (day.clicks / day.impressions) * 100 : 0),
     }));
-  }, [campaign.performance, dateRange]);
+
+    return bucketPerformance(withCtr, granularity);
+  }, [campaign.performance, dateRange, granularity]);
 
   const currencySymbol = campaign.adAccount?.currency === "NGN" ? "₦" : "$";
 
@@ -174,8 +185,8 @@ export function CampaignDetailView({
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 sm:gap-0 mb-4">
           <div className="flex items-center gap-3">
             {campaign.platform === "meta" ? (
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-meta/10 text-brand-meta shrink-0">
-                <Facebook className="h-6 w-6" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-meta/10 shrink-0">
+                <MetaIcon className="h-7 w-7" />
               </div>
             ) : (
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-tiktok text-brand-tiktok-foreground shrink-0">
@@ -406,6 +417,7 @@ export function CampaignDetailView({
               <PerformanceChart
                 data={chartData}
                 activeMetrics={activeMetrics}
+                granularity={granularity}
               />
             </div>
           </div>

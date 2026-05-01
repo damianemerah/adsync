@@ -5,6 +5,7 @@ This document shows practical examples of how to use the Tenzu marketing skill f
 ## Example 1: Creating a Landing Page Hero Section
 
 ### User Request:
+
 > "Write a hero section for our landing page that emphasizes the payment advantage"
 
 ### Skill Application:
@@ -12,11 +13,13 @@ This document shows practical examples of how to use the Tenzu marketing skill f
 **Step 1:** Identify pillar → Payment Advantage ("Naira-Native")
 
 **Step 2:** Apply hero formula:
+
 ```
 [Outcome Promise] + [Time/Ease Qualifier] + [Key Differentiator]
 ```
 
 **Output:**
+
 ```
 Run Professional Facebook Ads in 2 Minutes
 Pay in Naira. No Expert Needed. No Dollar Card Drama.
@@ -28,6 +31,7 @@ Over 2,000 Nigerian vendors launch campaigns daily without payment friction.
 ```
 
 **Why it works:**
+
 - Leads with outcome (running pro ads)
 - Time qualifier (2 minutes)
 - Differentiator (Naira payment)
@@ -39,6 +43,7 @@ Over 2,000 Nigerian vendors launch campaigns daily without payment friction.
 ## Example 2: Writing a Welcome Email
 
 ### User Request:
+
 > "Create a welcome email for new signups that gets them to launch their first campaign"
 
 ### Skill Application:
@@ -46,6 +51,7 @@ Over 2,000 Nigerian vendors launch campaigns daily without payment friction.
 **Step 1:** Reference email-sequences.md for Welcome Sequence structure
 
 **Step 2:** Apply guidelines:
+
 - Personal greeting
 - Hook with benefit
 - Clear 3-step process
@@ -53,6 +59,7 @@ Over 2,000 Nigerian vendors launch campaigns daily without payment friction.
 - Support contact
 
 **Output:**
+
 ```
 Subject: Welcome to Tenzu, Chioma! Your first campaign in 2 minutes
 
@@ -75,7 +82,7 @@ Ready to start?
 
 Questions? Reply to this email or WhatsApp us: +234 803 123 4567
 
-— 
+—
 Chisom
 Head of Growth, Tenzu
 ```
@@ -85,6 +92,7 @@ Head of Growth, Tenzu
 ## Example 3: Competitive Twitter Thread
 
 ### User Request:
+
 > "Write a Twitter thread explaining why Tenzu is better than Wask for Nigerian businesses"
 
 ### Skill Application:
@@ -96,6 +104,7 @@ Head of Growth, Tenzu
 **Step 3:** Focus on specific pain → payment friction
 
 **Output:**
+
 ```
 🧵 Why Nigerian businesses struggle with Wask (and how Tenzu fixes it):
 
@@ -145,6 +154,7 @@ Your card will thank you.
 ## Example 4: Feature Announcement Post
 
 ### User Request:
+
 > "Announce our new AI lifestyle scene generation feature on Instagram"
 
 ### Skill Application:
@@ -156,6 +166,7 @@ Your card will thank you.
 **Step 3:** Show before/after transformation
 
 **Output:**
+
 ```
 CAROUSEL POST (6 slides):
 
@@ -175,7 +186,7 @@ Slide 3 (After):
 
 Slide 4 (More examples):
 "Your bag → On a café table
-Your shoes → On a city street  
+Your shoes → On a city street
 Your food → Being enjoyed at a party"
 [Split image showing 3 transformations]
 
@@ -213,6 +224,7 @@ Try it free (link in bio)
 ## Example 5: Objection Handling for Sales
 
 ### User Request:
+
 > "Customer says Tenzu is too expensive compared to just using Ads Manager for free. How do I respond?"
 
 ### Skill Application:
@@ -222,6 +234,7 @@ Try it free (link in bio)
 **Step 2:** Frame around real costs (time + mistakes)
 
 **Output:**
+
 ```
 "Great question! Let's look at real costs:
 
@@ -249,6 +262,7 @@ Try 7-day free trial. See which approach saves you more time and money."
 ## Example 6: Blog Post Introduction
 
 ### User Request:
+
 > "Write an intro for a blog post titled 'How to Run Your First Facebook Ad Campaign in Nigeria'"
 
 ### Skill Application:
@@ -258,6 +272,7 @@ Try 7-day free trial. See which approach saves you more time and money."
 **Step 2:** Lead with empathy (Problem-Agitation-Solution from landing-pages.md)
 
 **Output:**
+
 ```
 # How to Run Your First Facebook Ad Campaign in Nigeria
 
@@ -281,6 +296,7 @@ Let's start...
 ```
 
 **Why it works:**
+
 - Opens with aspiration (what they want)
 - Acknowledges specific pain (complexity, confusion)
 - Validates their struggle (not their fault)
@@ -292,6 +308,7 @@ Let's start...
 ## Example 7: Product Comparison Table
 
 ### User Request:
+
 > "Create a comparison table for our pricing page showing Tenzu vs. traditional agencies"
 
 ### Skill Application:
@@ -301,6 +318,7 @@ Let's start...
 **Step 2:** Focus on dimensions that matter to users (cost, speed, control)
 
 **Output:**
+
 ```
 | Dimension | Traditional Agency | Tenzu |
 |-----------|-------------------|---------|
@@ -316,7 +334,7 @@ Let's start...
 | **Best For** | Complex brand strategy | Fast execution & testing |
 
 **The Bottom Line:**
-Agencies deliver expertise. Tenzu delivers efficiency. 
+Agencies deliver expertise. Tenzu delivers efficiency.
 
 If you need strategic consultation on brand positioning, hire an agency. If you know what you want to sell and need professional ads fast, Tenzu is 10x more cost-effective.
 ```
@@ -326,6 +344,7 @@ If you need strategic consultation on brand positioning, hire an agency. If you 
 ## Example 8: Re-engagement Email
 
 ### User Request:
+
 > "Write an email to win back users who signed up but never launched a campaign"
 
 ### Skill Application:
@@ -335,6 +354,7 @@ If you need strategic consultation on brand positioning, hire an agency. If you 
 **Step 2:** Identify likely objections (complexity fear, payment concerns)
 
 **Output:**
+
 ```
 Subject: What's holding you back, Emeka?
 
@@ -366,7 +386,7 @@ Or just start with a simple test campaign right now:
 
 No pressure. Just want to make sure nothing's blocking your success.
 
-— 
+—
 Chisom
 Head of Growth, Tenzu
 +234 803 123 4567 (WhatsApp)

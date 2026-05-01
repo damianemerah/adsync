@@ -44,7 +44,7 @@ Load this skill when working on:
 | `update_campaign_sales_summary` RPC                                                             | ✅ Migrated |
 | `link_clicks.fbclid` column (capture Meta click IDs at redirect time)                           | ✅ Migrated |
 | `ad_accounts.meta_pixel_id` + `capi_access_token` columns                                       | ✅ Migrated |
-| `fbclid` capture in `/l/[token]` redirect route                                                  | ✅ Built    |
+| `fbclid` capture in `/l/[token]` redirect route                                                 | ✅ Built    |
 | `updateAdAccountCapi()` server action + `CapiConfigPanel` settings UI                           | ✅ Built    |
 | `MetaService.sendCAPIEvent()` — server-to-server CAPI event helper                              | ✅ Built    |
 | `fireCAPIWhatsAppSale()` in `sales.ts` — offline Purchase event after WhatsApp sale             | ✅ Built    |
@@ -149,6 +149,7 @@ User clicks Meta ad → tenzu.africa/l/[token]?fbclid=XXXXX
 ### CAPI Setup (Settings → Business)
 
 Each Meta ad account row in Settings → Business has a collapsible `CapiConfigPanel`:
+
 - **Meta Pixel ID (Dataset ID):** Found in Meta Events Manager. Required even for WhatsApp-only sellers — just create a pixel, no website needed.
 - **CAPI Access Token:** Generated in Meta Events Manager → Settings → Generate access token.
 

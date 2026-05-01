@@ -2,7 +2,6 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
-import { Database } from "@/types/supabase";
 import { TIER_CONFIG, TierId } from "@/lib/constants";
 import { useActiveOrgContext } from "@/components/providers/active-org-provider";
 
@@ -18,61 +17,66 @@ export function useSubscription() {
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      let query = supabase
-        .from("organization_members")
+      // ── Fetch user-level subscription (single source of truth) ──────────────
+      const { data: sub, error: subError } = await supabase
+        .from("user_subscriptions")
         .select(
           `
-            organization_id,
-            organizations (
-              id,
-              name,
-              subscription_status,
-              subscription_tier,
-              subscription_expires_at
-            )
+            subscription_tier,
+            subscription_status,
+            subscription_expires_at,
+            subscription_grace_ends_at,
+            paystack_card_last4,
+            paystack_card_type,
+            paystack_card_bank,
+            paystack_card_expiry
           `,
         )
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        .maybeSingle();
 
-      if (activeOrgId) {
-        query = query.eq("organization_id", activeOrgId);
-      }
+      if (subError) throw subError;
 
-      const { data: members, error: memberError } = await query.limit(1);
-
-      if (memberError || !members || members.length === 0)
-        throw new Error("No organization found");
-      const member = members[0];
-
-      // @ts-ignore – nested join typing is loose in generated types
-      const org = member.organizations as {
-        id: string;
-        name: string;
-        subscription_status: string;
-        subscription_tier: string;
-        subscription_expires_at: string | null;
-      };
-
-      // Credits are user-scoped — fetch from users table
+      // ── Credits are user-scoped — fetch from users table ────────────────────
       const { data: userRecord } = await supabase
         .from("users")
         .select("credits_balance, plan_credits_quota")
         .eq("id", user.id)
         .single();
 
+      const status = sub?.subscription_status ?? "incomplete";
+      const tier = (sub?.subscription_tier ?? "starter") as TierId;
+
+      const graceEndsAt = sub?.subscription_grace_ends_at
+        ? new Date(sub.subscription_grace_ends_at)
+        : null;
+
+      const isInGracePeriod =
+        status === "past_due" &&
+        graceEndsAt !== null &&
+        graceEndsAt > new Date();
+
       return {
         org: {
-          id: org?.id,
-          name: org?.name || "My Business",
-          status: org?.subscription_status || "expired",
-          tier: org?.subscription_tier || "starter",
-          tierConfig:
-            TIER_CONFIG[(org?.subscription_tier || "starter") as TierId],
-          expiresAt: org?.subscription_expires_at
-            ? new Date(org.subscription_expires_at)
+          status,
+          tier,
+          tierConfig: TIER_CONFIG[tier],
+          expiresAt: sub?.subscription_expires_at
+            ? new Date(sub.subscription_expires_at)
             : new Date(),
+          graceEndsAt,
+          isInGracePeriod,
           creditsBalance: userRecord?.credits_balance ?? 0,
           creditQuota: userRecord?.plan_credits_quota ?? 0,
+          // Payment method display
+          card: sub?.paystack_card_last4
+            ? {
+                last4: sub.paystack_card_last4,
+                cardType: sub.paystack_card_type,
+                bank: sub.paystack_card_bank,
+                expiry: sub.paystack_card_expiry,
+              }
+            : null,
         },
       };
     },

@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: '50mb',
     },
+    cacheComponents: true,
   },
   images: {
     remotePatterns: [
@@ -23,6 +24,11 @@ const nextConfig: NextConfig = {
         hostname: "*.cdninstagram.com",
         port: "",
         pathname: "/v/**",
+      },
+      {
+        protocol: "https",
+        hostname: "*.fbcdn.net",
+        port: "",
       },
       {
         protocol: "https",

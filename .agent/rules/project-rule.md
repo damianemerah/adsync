@@ -58,10 +58,8 @@ sell fashion, beauty, food, and services primarily via WhatsApp.
 ### B. Business Logic
 
 - **Prepaid Access:** Monthly subscription via Paystack for platform access
-- **Ad Spend (Phase 1):** Charged directly by Meta to user's own card
-- **Ad Spend (Phase 2A+):** Tenzu wallet — SME tops up in Naira via Paystack,
-  Tenzu funds a per-org isolated virtual USD card (Grey/Geegpay API).
-  SME never sees a dollar amount. NEVER use a shared Tenzu card on Meta.
+- **Ad Spend:** Charged directly by Meta to user's own payment method (Card, Bank Transfer, etc.). Tenzu does not handle ad spend funds directly.
+- **Subscription & Credits are per-user, not per-org:** One user → one subscription → one shared credit balance across ALL their organizations. No per-org billing, no per-org credit pools. Gate checks and credit deductions always query the user-level subscription record (via `useSubscription()`). The `organizations` table has no `subscription_status` or `subscription_tier` columns — never reference them.
 - **Gatekeeper:** Check subscription_status === 'active' before any API write
 - **Policy Guard:** Run ad copy through policy check before Meta submission.
   Block on HIGH risk. Warn on MEDIUM. Pass LOW silently.
@@ -88,6 +86,7 @@ sell fashion, beauty, food, and services primarily via WhatsApp.
   If a specific color is needed, define it in globals.css first.
 - **AI Branding:** ALWAYS use text-ai / bg-ai (Purple) for AI-powered features
 - **Data Attributes:** Use data-\* shorthand (data-disabled not data-[disabled])
+- **Loading States & Skeletons:** Whenever you modify a UI component's layout or structure, you MUST update its corresponding `loading.tsx` or skeleton component to match. Prevent layout shifts by ensuring skeletons accurately reflect the loaded state.
 
 ### E. Typography & Readability
 
@@ -138,6 +137,7 @@ Always read the relevant skill reference file before writing code.
 When a task is complete, perform these two audits before signing off:
 
 ### A. The Dummy Data Audit
+
 1. **Scan for Placeholders:** Hardcoded strings, static arrays, mocked responses
 2. **Evaluate Context:**
    - UI/Layout task: dummy data acceptable, but ASK if user wants integration
@@ -147,7 +147,9 @@ When a task is complete, perform these two audits before signing off:
    - Good: "I've implemented the ROI metrics card. It's currently showing hardcoded zeros... would you like me to connect it to live data now?"
 
 ### B. The Impeccable UI Loop
+
 If you just built or modified a frontend UI component, you **MUST** review your work against the Tenzu design system (`.impeccable.md`) and suggest the Impeccable design sequence to the user.
+
 1. Self-review for missing tokens, shadow spam, or AI slop.
 2. Ask the user: "I've completed the feature. Should I run the `/audit` → `/normalize` → `/polish` sequence to ensure it perfectly matches the Tenzu Crisp Modern aesthetic?"
 3. Proactively use skills like `/quieter` or `/arrange` if the UI feels chaotic or ungrounded.

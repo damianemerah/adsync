@@ -26,7 +26,14 @@ import {
   Coins,
   StatUp,
   WarningTriangle,
+  Copy,
 } from "iconoir-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { AdSyncObjective } from "@/lib/constants";
 import { PaymentDialog } from "@/components/billing/payment-dialog";
 import { useRouter } from "next/navigation";
@@ -130,6 +137,7 @@ export function BudgetLaunchStep({
   const [dbCampaignId, setDbCampaignId] = useState<string | null>(null);
   const [showPixelPrompt, setShowPixelPrompt] = useState(false);
   const [skipPixel, setSkipPixel] = useState(false);
+  const [activePlatform, setActivePlatform] = useState<string | null>(null);
 
   // Derive initial selected tier from store budget so phone mockup + this step always agree
   const [selectedTier, setSelectedTier] = useState<string | null>(
@@ -758,23 +766,32 @@ export function BudgetLaunchStep({
                 daily spend is actually generating sales on your website.
               </p>
 
+              <Sheet
+                open={activePlatform !== null}
+                onOpenChange={(open) => { if (!open) setActivePlatform(null); }}
+              >
+                <SheetContent className="overflow-y-auto">
+                  <SheetHeader>
+                    <SheetTitle>
+                      {activePlatform === "Copy Code"
+                        ? "Tenzu Pixel Snippet"
+                        : `Connect ${activePlatform}`}
+                    </SheetTitle>
+                  </SheetHeader>
+                  <PixelPlatformInstructions platform={activePlatform} />
+                </SheetContent>
+              </Sheet>
+
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-                {["Shopify", "WordPress", "Bumpa", "Copy Code"].map(
-                  (platform) => (
-                    <button
-                      key={platform}
-                      onClick={() => {
-                        // TODO: Phase 2 — open Pixel integration modal for each platform
-                        alert(
-                          `Would open ${platform} integration instructions`,
-                        );
-                      }}
-                      className="p-3 bg-white border border-warning-border rounded-md hover:border-warning-icon hover:shadow-sm transition-all text-center text-sm font-bold text-warning-text"
-                    >
-                      {platform}
-                    </button>
-                  ),
-                )}
+                {["Shopify", "WordPress", "Bumpa", "Copy Code"].map((platform) => (
+                  <button
+                    key={platform}
+                    onClick={() => setActivePlatform(platform)}
+                    className="p-3 bg-white border border-warning-border rounded-md hover:border-warning-icon hover:shadow-sm transition-all text-center text-sm font-bold text-warning-text"
+                  >
+                    {platform}
+                  </button>
+                ))}
               </div>
 
               <button
@@ -851,5 +868,191 @@ export function BudgetLaunchStep({
       />
     </div>
   );
+}
+
+function PixelPlatformInstructions({ platform }: { platform: string | null }) {
+  const [copied, setCopied] = useState(false);
+
+  const copy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  if (platform === "Shopify") {
+    const snippet = `{% if first_time_accessed %}
+<script>
+  document.dispatchEvent(new CustomEvent("Tenzu_purchase", {
+    detail: { value: {{ order.total_price | round }} }
+  }));
+</script>
+{% endif %}`;
+
+    return (
+      <div className="space-y-6 mt-6 text-sm">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2 font-semibold">
+            <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold shrink-0">1</span>
+            Install the base pixel
+          </div>
+          <p className="text-muted-foreground pl-7">
+            Go to{" "}
+            <Link href="/settings/business" className="underline font-medium text-foreground">
+              Settings → Business → Tenzu Pixel
+            </Link>
+            , copy your snippet, and paste it into your Shopify theme&apos;s{" "}
+            <code className="text-xs bg-muted px-1 rounded">&lt;head&gt;</code>.
+          </p>
+          <p className="text-muted-foreground pl-7">
+            In Shopify Admin: Online Store → Themes → Actions → Edit code →{" "}
+            <code className="text-xs bg-muted px-1 rounded">theme.liquid</code>
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 font-semibold">
+            <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold shrink-0">2</span>
+            Auto-track purchases
+          </div>
+          <p className="text-muted-foreground pl-7">
+            In Shopify Admin → Online Store → Themes → Edit code →{" "}
+            <code className="text-xs bg-muted px-1 rounded">order-status.liquid</code>, add this before{" "}
+            <code className="text-xs bg-muted px-1 rounded">&lt;/body&gt;</code>:
+          </p>
+          <div className="relative">
+            <pre className="bg-muted rounded-lg p-4 text-xs overflow-x-auto font-mono leading-relaxed">{snippet}</pre>
+            <Button
+              size="sm"
+              variant="outline"
+              className="absolute top-2 right-2 h-7 text-xs"
+              onClick={() => copy(snippet)}
+            >
+              {copied ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
+              {copied ? "Copied" : "Copy"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (platform === "WordPress") {
+    const snippet = `add_action('woocommerce_thankyou', function($order_id) {
+  $order = wc_get_order($order_id);
+  $total = intval($order->get_total());
+  echo "<script>document.dispatchEvent(new CustomEvent('Tenzu_purchase',
+    { detail: { value: $total } }));</script>";
+}, 10, 1);`;
+
+    return (
+      <div className="space-y-6 mt-6 text-sm">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2 font-semibold">
+            <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold shrink-0">1</span>
+            Install the base pixel
+          </div>
+          <p className="text-muted-foreground pl-7">
+            Go to{" "}
+            <Link href="/settings/business" className="underline font-medium text-foreground">
+              Settings → Business → Tenzu Pixel
+            </Link>
+            , copy your snippet, and paste it in your theme&apos;s header.
+          </p>
+          <p className="text-muted-foreground pl-7">
+            In WordPress Admin: Appearance → Theme Editor →{" "}
+            <code className="text-xs bg-muted px-1 rounded">header.php</code>, or use a &ldquo;Header &amp; Footer&rdquo; plugin.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 font-semibold">
+            <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold shrink-0">2</span>
+            Auto-track WooCommerce orders
+          </div>
+          <p className="text-muted-foreground pl-7">
+            Add this to your theme&apos;s{" "}
+            <code className="text-xs bg-muted px-1 rounded">functions.php</code>:
+          </p>
+          <div className="relative">
+            <pre className="bg-muted rounded-lg p-4 text-xs overflow-x-auto font-mono leading-relaxed">{snippet}</pre>
+            <Button
+              size="sm"
+              variant="outline"
+              className="absolute top-2 right-2 h-7 text-xs"
+              onClick={() => copy(snippet)}
+            >
+              {copied ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
+              {copied ? "Copied" : "Copy"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (platform === "Bumpa") {
+    return (
+      <div className="space-y-4 mt-6 text-sm">
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+          <p className="font-semibold text-amber-900 mb-1">Bumpa doesn&apos;t support custom JavaScript</p>
+          <p className="text-amber-700">
+            Bumpa&apos;s platform doesn&apos;t allow installing tracking scripts, so the Tenzu Pixel can&apos;t be added automatically.
+          </p>
+        </div>
+
+        <div>
+          <p className="font-semibold mb-1">Track sales manually instead:</p>
+          <p className="text-muted-foreground">
+            After your campaign launches, use the <strong>&ldquo;Sold! 🎉&rdquo;</strong> button on your campaign page each time a customer completes a purchase. This records the sale and credits it to your ad.
+          </p>
+        </div>
+
+        <div className="p-3 bg-muted rounded-lg text-muted-foreground text-xs">
+          Automatic Bumpa tracking is on our roadmap. We&apos;ll notify you when it&apos;s available.
+        </div>
+      </div>
+    );
+  }
+
+  if (platform === "Copy Code") {
+    const eventSnippet = `document.dispatchEvent(new CustomEvent("Tenzu_purchase", {
+  detail: { value: 15000 } // replace with actual NGN amount
+}));`;
+
+    return (
+      <div className="space-y-4 mt-6 text-sm">
+        <p className="text-muted-foreground">
+          Your pixel snippet lives in{" "}
+          <Link href="/settings/business" className="underline font-medium text-foreground">
+            Settings → Business → Tenzu Pixel
+          </Link>
+          . Paste it once inside your website&apos;s{" "}
+          <code className="text-xs bg-muted px-1 rounded">&lt;head&gt;</code> tag — it automatically tracks visitors from your ad.
+        </p>
+
+        <div className="space-y-2">
+          <p className="font-semibold">To track purchases, fire this event on your order confirmation page:</p>
+          <div className="relative">
+            <pre className="bg-muted rounded-lg p-4 text-xs font-mono leading-relaxed overflow-x-auto">{eventSnippet}</pre>
+            <Button
+              size="sm"
+              variant="outline"
+              className="absolute top-2 right-2 h-7 text-xs"
+              onClick={() => copy(eventSnippet)}
+            >
+              {copied ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
+              {copied ? "Copied" : "Copy"}
+            </Button>
+          </div>
+        </div>
+
+        <Button asChild variant="outline" className="w-full">
+          <Link href="/settings/business">Go to Settings →</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  return null;
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -12,13 +13,26 @@ import { useActiveOrgContext } from "@/components/providers/active-org-provider"
 // Query Hook — subscribe to this if you only need to READ campaigns
 // ---------------------------------------------------------------------------
 
-export function useCampaignsList() {
+interface UseCampaignsListOptions {
+  dateRange?: { from?: Date; to?: Date };
+}
+
+export function useCampaignsList(options: UseCampaignsListOptions = {}) {
   const supabase = createClient();
   const queryClient = useQueryClient();
   const { activeOrgId } = useActiveOrgContext();
 
+  const dateFrom =
+    options.dateRange?.from && options.dateRange?.to
+      ? format(options.dateRange.from, "yyyy-MM-dd")
+      : undefined;
+  const dateTo =
+    options.dateRange?.from && options.dateRange?.to
+      ? format(options.dateRange.to, "yyyy-MM-dd")
+      : undefined;
+
   return useQuery({
-    queryKey: ["campaigns", activeOrgId],
+    queryKey: ["campaigns", activeOrgId, dateFrom ?? null, dateTo ?? null],
     queryFn: async () => {
       // Read campaigns + account freshness in parallel.
       let campaignsQ = supabase
@@ -79,7 +93,59 @@ export function useCampaignsList() {
         });
       }
 
-      return data.map((c: any) => ({
+      // When a date range is supplied, override per-campaign lifetime totals
+      // with sums from campaign_metrics over the selected window. This keeps
+      // the campaigns table in sync with the global date picker.
+      //
+      // IMPORTANT: If a date range IS active, campaigns with NO rows in that
+      // window must show zeros — NOT fall back to lifetime `campaigns.spend_cents`.
+      const metricsByCampaign = new Map<
+        string,
+        { spend_cents: number; impressions: number; clicks: number }
+      >();
+      const isRangeActive = !!(dateFrom && dateTo);
+
+      if (isRangeActive && data.length > 0) {
+        const ids = data.map((c: any) => c.id);
+        const { data: metricRows } = await supabase
+          .from("campaign_metrics")
+          .select("campaign_id, spend_cents, impressions, clicks")
+          .in("campaign_id", ids)
+          .gte("date", dateFrom!)
+          .lte("date", dateTo!);
+
+        for (const row of metricRows ?? []) {
+          if (!row.campaign_id) continue;
+          const agg = metricsByCampaign.get(row.campaign_id) ?? {
+            spend_cents: 0,
+            impressions: 0,
+            clicks: 0,
+          };
+          agg.spend_cents += Number(row.spend_cents ?? 0);
+          agg.impressions += Number(row.impressions ?? 0);
+          agg.clicks += Number(row.clicks ?? 0);
+          metricsByCampaign.set(row.campaign_id, agg);
+        }
+      }
+
+      return data.map((c: any) => {
+        const ranged = metricsByCampaign.get(c.id);
+        // When a range is active:
+        //   - If this campaign has rows in the range → use ranged aggregates
+        //   - If this campaign has NO rows in the range → show zeros (no "leaking" lifetime totals)
+        // When no range is active → fall back to lifetime totals from campaigns table
+        const useLifetime = !isRangeActive;
+        const spendCents = ranged ? ranged.spend_cents : useLifetime ? (c.spend_cents || 0) : 0;
+        const impressions = ranged ? ranged.impressions : useLifetime ? (c.impressions || 0) : 0;
+        const clicks = ranged ? ranged.clicks : useLifetime ? (c.clicks || 0) : 0;
+        const ctr = ranged
+          ? impressions > 0
+            ? (clicks / impressions) * 100
+            : 0
+          : useLifetime
+            ? Number(c.ctr || 0)
+            : 0;
+        return {
         id: c.id,
         name: c.name,
         platform: c.platform as "meta" | "tiktok" | null,
@@ -88,11 +154,11 @@ export function useCampaignsList() {
         budget: c.daily_budget_cents / 100,
         currency: c.ad_accounts?.currency || "NGN",
         createdAt: new Date(c.created_at || Date.now()).toLocaleDateString(),
-        clicks: c.clicks || 0,
-        impressions: c.impressions || 0,
-        spend_cents: c.spend_cents || 0,
-        spend: (c.spend_cents || 0) / 100,
-        ctr: Number(c.ctr || 0),
+        clicks,
+        impressions,
+        spend_cents: spendCents,
+        spend: spendCents / 100,
+        ctr,
         ad_account_id: c.ad_account_id,
         objective: c.objective,
         created_at: c.created_at,
@@ -108,7 +174,8 @@ export function useCampaignsList() {
               accountName: c.ad_accounts.account_name,
             }
           : null,
-      }));
+        };
+      });
     },
     staleTime: 30_000,
     refetchOnMount: "always",

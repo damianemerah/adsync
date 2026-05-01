@@ -1,4 +1,5 @@
 # Attribution + ROI Dashboard — Full Implementation Reference
+
 ## Covers Phase 1A and Phase 1B
 
 Read this entire file before writing any code for attribution or ROI features.
@@ -6,6 +7,7 @@ Read this entire file before writing any code for attribution or ROI features.
 ---
 
 # PHASE 1A — The Attribution Layer
+
 ## "Every ad gets a traceable door"
 
 **Target: Months 1–2**
@@ -14,12 +16,12 @@ Read this entire file before writing any code for attribution or ROI features.
 
 ### The Nigerian SME Landscape — Not Just WhatsApp
 
-| Segment | Est. Size | Current Ad Destination | Problem |
-|---|---|---|---|
-| WhatsApp-only | ~56% | Raw `wa.me` link | Zero tracking after click |
-| Website, no pixel | ~30% | Their URL | Zero tracking, built the site, still blind |
-| Website with pixel | ~5–10% | Tracking already works | Served well by Meta natively |
-| Linktree / bio link | Scattered | Partial tracking | Inconsistent |
+| Segment             | Est. Size | Current Ad Destination | Problem                                    |
+| ------------------- | --------- | ---------------------- | ------------------------------------------ |
+| WhatsApp-only       | ~56%      | Raw `wa.me` link       | Zero tracking after click                  |
+| Website, no pixel   | ~30%      | Their URL              | Zero tracking, built the site, still blind |
+| Website with pixel  | ~5–10%    | Tracking already works | Served well by Meta natively               |
+| Linktree / bio link | Scattered | Partial tracking       | Inconsistent                               |
 
 The Tenzu Attribution Link solves segments 1 and 2 identically. The destination type doesn't matter — the wrapper is the same. Segment 3 gets the optional pixel snippet on top.
 
@@ -174,10 +176,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { UAParser } from "ua-parser-js"; // npm install ua-parser-js
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { token: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: { token: string } }) {
   const supabase = await createClient();
   const { token } = params;
 
@@ -233,15 +232,12 @@ export async function GET(
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-const PIXEL_GIF = Buffer.from(
-  "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
-  "base64"
-);
+const PIXEL_GIF = Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64");
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const token = searchParams.get("t");              // pixel_token (NOT redirect token)
-  const event = searchParams.get("e") || "view";   // 'view' | 'lead' | 'purchase'
+  const token = searchParams.get("t"); // pixel_token (NOT redirect token)
+  const event = searchParams.get("e") || "view"; // 'view' | 'lead' | 'purchase'
   const value = parseInt(searchParams.get("v") || "0"); // NGN sale value
 
   if (token) {
@@ -250,7 +246,7 @@ export async function GET(request: NextRequest) {
     const { data: link } = await supabase
       .from("attribution_links")
       .select("id, campaign_id, organization_id")
-      .eq("pixel_token", token)    // uses pixel_token, not token
+      .eq("pixel_token", token) // uses pixel_token, not token
       .single();
 
     if (link) {
@@ -291,12 +287,13 @@ export async function GET(request: NextRequest) {
 ```html
 <!-- Tenzu Pixel — paste once in <head> -->
 <script>
-(function(t){
-  new Image().src = "https://tenzu.africa/api/pixel?t="+t+"&e=view";
-  document.addEventListener("tenzu_purchase", function(e){
-    new Image().src = "https://tenzu.africa/api/pixel?t="+t+"&e=purchase&v="+(e.detail?.value||0);
-  });
-})("THEIR_PIXEL_TOKEN");
+  (function (t) {
+    new Image().src = "https://tenzu.africa/api/pixel?t=" + t + "&e=view";
+    document.addEventListener("tenzu_purchase", function (e) {
+      new Image().src =
+        "https://tenzu.africa/api/pixel?t=" + t + "&e=purchase&v=" + (e.detail?.value || 0);
+    });
+  })("THEIR_PIXEL_TOKEN");
 </script>
 ```
 
@@ -311,7 +308,11 @@ Show snippet only when `campaign.destination_type === 'website'`. One copy butto
 Find the section around line 85 where `finalUrl` is built. Replace raw URL assignment with attribution link creation:
 
 ```typescript
-import { generateAttributionToken, generatePixelToken, buildAttributionUrl } from "@/lib/attribution";
+import {
+  generateAttributionToken,
+  generatePixelToken,
+  buildAttributionUrl,
+} from "@/lib/attribution";
 
 // ---- Inside launchCampaign(), after building the raw destination URL ----
 
@@ -334,7 +335,6 @@ if (config.objective === "whatsapp") {
 
   finalUrl = attrLink ? buildAttributionUrl(attrLink.token) : whatsappUrl;
   attributionLinkId = attrLink?.id ?? null;
-
 } else {
   // Website or other destination
   if (finalUrl && !finalUrl.startsWith("http")) finalUrl = `https://${finalUrl}`;
@@ -371,6 +371,7 @@ if (attributionLinkId && dbCampaignId) {
 ---
 
 # PHASE 1B — The ROI Dashboard
+
 ## "Show me if my money is working"
 
 **Target: Months 2–4**
@@ -446,7 +447,9 @@ export async function recordSale({
   note?: string;
 }) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
   const { data: member } = await supabase
@@ -506,7 +509,9 @@ export function useCampaignROI(campaignId: string) {
       const supabase = createClient();
       const { data } = await supabase
         .from("campaigns")
-        .select("spend_cents, total_link_clicks, whatsapp_clicks, website_clicks, sales_count, revenue_ngn")
+        .select(
+          "spend_cents, total_link_clicks, whatsapp_clicks, website_clicks, sales_count, revenue_ngn"
+        )
         .eq("id", campaignId)
         .single();
 

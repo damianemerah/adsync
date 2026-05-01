@@ -340,84 +340,84 @@ export async function generateAdCreative({
       console.log(`🤖 [OpenAI Images] Generation — skill: ${useImageSkill}`);
       console.log("📝 [OpenAI Images] userMessage:\n", userMessage);
 
-      // if (useImageSkill) {
-      //   console.log("Using skill path");
-      //   // ── Skill path (Growth/Agency): direct FLUX prompt string ──────────
-      //   const completion = await (openai.responses.create as any)({
-      //     model: "gpt-5.2",
-      //     instructions: FLUX_DIRECT_SYSTEM,
-      //     input: userMessage,
-      //     tools: [
-      //       {
-      //         type: "shell",
-      //         environment: {
-      //           type: "container_auto",
-      //           skills: [
-      //             { type: "skill_reference", skill_id: SKILL_IDS.imageCreative },
-      //           ],
-      //         },
-      //       },
-      //     ],
-      //   });
-      //   console.log("✔️✔️Completion: ", completion);
+      if (useImageSkill) {
+        console.log("Using skill path");
+        // ── Skill path (Growth/Agency): direct FLUX prompt string ──────────
+        const completion = await (openai.responses.create as any)({
+          model: "gpt-5.2",
+          instructions: FLUX_DIRECT_SYSTEM,
+          input: userMessage,
+          tools: [
+            {
+              type: "shell",
+              environment: {
+                type: "container_auto",
+                skills: [
+                  { type: "skill_reference", skill_id: SKILL_IDS.imageCreative },
+                ],
+              },
+            },
+          ],
+        });
+        console.log("✔️✔️Completion: ", completion);
 
-      //   console.log("====================================\n");
-      //   promptGenerationUsage = completion.usage || null;
+        console.log("====================================\n");
+        promptGenerationUsage = completion.usage || null;
 
-      //   if (completion.output_text) {
-      //     const raw = completion.output_text.trim();
-      //     if (raw.startsWith("SAFE_FLAG:")) {
-      //       throw new Error("Your prompt contains unsafe content. Please revise.");
-      //     }
-      //     finalPrompt = raw;
-      //     console.log("🧠 Skill-Generated Prompt:", finalPrompt);
-      //   }
-      //   console.log("Finalprompt after AI: ", finalPrompt);
-      // } else {
-      //   // ── Starter path: JSON schema → compile ────────────────────────────
-      //   const completion = await (openai.responses.create as any)({
-      //     model: "gpt-5.2",
-      //     instructions: FLUX_AD_GENERATOR_SYSTEM,
-      //     input: userMessage,
-      //   });
+        if (completion.output_text) {
+          const raw = completion.output_text.trim();
+          if (raw.startsWith("SAFE_FLAG:")) {
+            throw new Error("Your prompt contains unsafe content. Please revise.");
+          }
+          finalPrompt = raw;
+          console.log("🧠 Skill-Generated Prompt:", finalPrompt);
+        }
+        console.log("Finalprompt after AI: ", finalPrompt);
+      } else {
+        // ── Starter path: JSON schema → compile ────────────────────────────
+        const completion = await (openai.responses.create as any)({
+          model: "gpt-5.2",
+          instructions: FLUX_AD_GENERATOR_SYSTEM,
+          input: userMessage,
+        });
 
-      //   console.log("✔️✔️Completion:22 ", completion.output_text);
+        console.log("✔️✔️Completion:22 ", completion.output_text);
 
-      //   console.log("====================================\n");
-      //   promptGenerationUsage = completion.usage || null;
+        console.log("====================================\n");
+        promptGenerationUsage = completion.usage || null;
 
-      //   if (completion.output_text) {
-      //     const rawJson = completion.output_text
-      //       .replace(/```json\n?/g, "")
-      //       .replace(/```\n?/g, "")
-      //       .trim();
+        if (completion.output_text) {
+          const rawJson = completion.output_text
+            .replace(/```json\n?/g, "")
+            .replace(/```\n?/g, "")
+            .trim();
 
-      //     // SECURITY FIX: Use Zod to validate AI JSON response before using it
-      //     // Prevents runtime errors from malformed AI responses
-      //     let jsonResponse;
-      //     try {
-      //       const parsed = JSON.parse(rawJson);
-      //       jsonResponse = AdSceneSchema.parse(parsed);
-      //     } catch (validationError: any) {
-      //       console.error("AI response validation failed:", validationError.message);
-      //       // Fallback: use raw prompt if schema validation fails
-      //       console.warn("Falling back to raw prompt due to schema validation failure");
-      //       finalPrompt = userMessage;
-      //       // Don't throw - degrade gracefully
-      //       return; // Skip the compilation step
-      //     }
+          // SECURITY FIX: Use Zod to validate AI JSON response before using it
+          // Prevents runtime errors from malformed AI responses
+          let jsonResponse;
+          try {
+            const parsed = JSON.parse(rawJson);
+            jsonResponse = AdSceneSchema.parse(parsed);
+          } catch (validationError: any) {
+            console.error("AI response validation failed:", validationError.message);
+            // Fallback: use raw prompt if schema validation fails
+            console.warn("Falling back to raw prompt due to schema validation failure");
+            finalPrompt = userMessage;
+            // Don't throw - degrade gracefully
+            return; // Skip the compilation step
+          }
 
-      //     if (jsonResponse.safety_flagged) {
-      //       throw new Error("Your prompt contains unsafe content. Please revise.");
-      //     }
+          if (jsonResponse.safety_flagged) {
+            throw new Error("Your prompt contains unsafe content. Please revise.");
+          }
 
-      //     const { compileFluxPrompt } = await import("@/lib/ai/compiler");
-      //     // Cast to the expected type - the AI should return all required fields
-      //     // but Zod schema makes them optional for safety
-      //     finalPrompt = compileFluxPrompt(jsonResponse as any, aspectRatio || "1:1");
-      //     console.log("🧠 Compiled Prompt:", finalPrompt);
-      //   }
-      // }
+          const { compileFluxPrompt } = await import("@/lib/ai/compiler");
+          // Cast to the expected type - the AI should return all required fields
+          // but Zod schema makes them optional for safety
+          finalPrompt = compileFluxPrompt(jsonResponse as any, aspectRatio || "1:1");
+          console.log("🧠 Compiled Prompt:", finalPrompt);
+        }
+      }
     }
   } catch (error) {
     console.error("Prompt Engineering Failed:", error);
@@ -608,66 +608,25 @@ export async function generateAdCreative({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// stashGeneratedImage
+// autoSaveCreative
 //
-// After fal.ai returns an ephemeral CDN URL, upload it to the temp-uploads
-// bucket so it survives step-navigation and page reloads WITHOUT creating a
-// DB row in `creatives`. The image only graduates to `creatives` when the
-// user explicitly clicks "Use This" / "Use in Campaign" / "Save to Library".
+// Immediately saves a generated image (ephemeral FAL CDN URL) to the permanent
+// `creatives` bucket and creates a DB row. Called right after every generation
+// — no explicit "Save" step required from the user.
 //
-// Mirrors uploadTempImage but pulls from a URL instead of a browser File.
+// Pass parentCreativeId when saving a refinement/edit so the new creative is
+// stored as a variant (parent_id is set on the DB row).
 // ─────────────────────────────────────────────────────────────────────────────
-export async function stashGeneratedImage(falUrl: string): Promise<string> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
-
-  const orgId = await getActiveOrgId();
-  if (!orgId) throw new Error("No organization found");
-
-  const imageRes = await fetch(falUrl);
-  if (!imageRes.ok)
-    throw new Error("Could not fetch generated image from AI provider.");
-  const buffer = Buffer.from(await imageRes.arrayBuffer());
-
-  // Store under a `generated/` prefix so it's easy to distinguish from
-  // user-uploaded reference images and easy to bulk-clean with a cron.
-  const filePath = `${orgId}/generated/${Date.now()}_${Math.random().toString(36).slice(2)}.jpeg`;
-
-  const { error } = await supabase.storage
-    .from("temp-uploads")
-    .upload(filePath, buffer, { contentType: "image/jpeg" });
-
-  if (error) throw new Error("Failed to stash generated image.");
-
-  const {
-    data: { publicUrl },
-  } = supabase.storage.from("temp-uploads").getPublicUrl(filePath);
-
-  return publicUrl;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// saveCreativeToLibrary
-//
-// Promote an image (temp-uploads URL OR fal URL) to the permanent `creatives`
-// bucket and create the DB row. Safe to call multiple times on the same
-// permanent URL — if the URL is already in the creatives bucket it returns
-// the existing record instead of re-uploading.
-// ─────────────────────────────────────────────────────────────────────────────
-export async function saveCreativeToLibrary({
-  imageUrl,
+export async function autoSaveCreative({
+  falUrl,
   prompt,
   aspectRatio = "1:1",
   parentCreativeId,
 }: {
-  imageUrl: string;
+  falUrl: string;
   prompt: string;
   aspectRatio?: "1:1" | "9:16" | "4:5" | "16:9";
-  parentCreativeId?: string;
+  parentCreativeId?: string | null;
 }): Promise<{ creativeId: string; publicUrl: string }> {
   const supabase = await createClient();
 
@@ -679,34 +638,15 @@ export async function saveCreativeToLibrary({
   const orgId = await getActiveOrgId();
   if (!orgId) throw new Error("No organization found");
 
-  // ── Dedup guard ──────────────────────────────────────────────────────────────────
-  // If the URL already points to the permanent creatives bucket, look up the
-  // existing DB row and return it — no re-upload, no duplicate row.
-  if (isPermanentCreativeUrl(imageUrl)) {
-    const { data: existing } = await supabase
-      .from("creatives")
-      .select("id, original_url")
-      .eq("original_url", imageUrl)
-      .eq("organization_id", orgId as string)
-      .single();
-
-    if (existing) {
-      return { creativeId: existing.id, publicUrl: existing.original_url };
-    }
-    // URL is in the right bucket but no DB row — fall through to re-insert
-    // (shouldn't happen in normal flow, but safe to handle).
-  }
-
-  // 1. Fetch the image from its current location (temp-uploads or fal CDN)
-  const imageRes = await fetch(imageUrl);
+  // 1. Fetch the image from the ephemeral FAL CDN URL
+  const imageRes = await fetch(falUrl);
   if (!imageRes.ok)
     throw new Error(
-      "Failed to fetch image — it may have expired. Please regenerate.",
+      "Failed to fetch generated image — it may have expired. Please regenerate.",
     );
-  const imageBuffer = await imageRes.arrayBuffer();
-  const buffer = Buffer.from(imageBuffer);
+  const buffer = Buffer.from(await imageRes.arrayBuffer());
 
-  // 2. Upload to permanent storage
+  // 2. Upload directly to permanent storage
   const filePath = `${orgId}/${Date.now()}_ai_gen.jpeg`;
   const { error: uploadError } = await supabase.storage
     .from("creatives")
@@ -725,36 +665,24 @@ export async function saveCreativeToLibrary({
     "9:16": { width: 768, height: 1344 },
     "4:5": { width: 1024, height: 1280 },
   };
-
   const dims = ASPECT_DIMENSIONS[aspectRatio] || { width: 1024, height: 1024 };
 
-  // 4. Insert DB row using shared saveCreative action (prevents RLS bypass)
+  // 4. Insert DB row (parentId sets parent_id column for variant tracking)
   const { saveCreative } = await import("@/actions/creatives");
   const result = await saveCreative({
     originalUrl: publicUrl,
     width: dims.width,
     height: dims.height,
     format: "image/jpeg",
-    generationParams: {
-      prompt,
-      aspectRatio,
-      parentCreativeId: parentCreativeId || null,
-    },
+    parentId: parentCreativeId || null,
+    generationParams: { prompt, aspectRatio },
   });
 
   if (!result.success || !result.creative) {
     throw new Error("Failed to save creative to database.");
   }
 
-  const creativeData = result.creative;
-
-  // Clean up temp stash now that the image has a permanent home.
-  // Fire-and-forget — failure here doesn't affect the caller.
-  if (isTempUploadUrl(imageUrl)) {
-    cleanupTempUploads([imageUrl]).catch(() => {});
-  }
-
-  return { creativeId: creativeData.id, publicUrl };
+  return { creativeId: result.creative.id, publicUrl };
 }
 
 // [NEW] Action to retrieve history for editing or refine variations
@@ -833,14 +761,14 @@ export async function getCreativeHistory(creativeId: string) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// uploadTempImage
+// uploadReferenceImage
 //
-// Uploads a file to the ephemeral `temp-uploads` bucket for use as a
-// reference image during generation. No DB row is created — the file
-// auto-cleans up after 1 hour and is also cleaned inline after generation.
+// Uploads a user-provided reference image to the ephemeral `temp-uploads`
+// bucket. Reference images are generation *inputs* — they are not saved as
+// creatives. The file is cleaned up after generation completes.
 // Returns the public URL that can be passed to Fal.
 // ─────────────────────────────────────────────────────────────────────────────
-export async function uploadTempImage(formData: FormData): Promise<string> {
+export async function uploadReferenceImage(formData: FormData): Promise<string> {
   const supabase = await createClient();
 
   const {
@@ -867,7 +795,7 @@ export async function uploadTempImage(formData: FormData): Promise<string> {
     });
 
   if (uploadError) {
-    console.error("[uploadTempImage] Upload failed:", uploadError);
+    console.error("[uploadReferenceImage] Upload failed:", uploadError);
     throw new Error(`Failed to upload image. Please try again. (${uploadError.message || "Unknown error"})`);
   }
 
@@ -884,7 +812,7 @@ export async function uploadTempImage(formData: FormData): Promise<string> {
 // Fire-and-forget helper that deletes temp-upload files by their public URLs.
 // Called after generation completes so ephemeral images don't linger.
 // ─────────────────────────────────────────────────────────────────────────────
-export async function cleanupTempUploads(publicUrls: string[]): Promise<void> {
+async function cleanupTempUploads(publicUrls: string[]): Promise<void> {
   if (!publicUrls.length) return;
 
   const supabase = await createClient();

@@ -10,6 +10,13 @@ serve(async (req) => {
     return new Response("Method not allowed", { status: 405 });
   }
 
+  const authHeader = req.headers.get("Authorization");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+  if (!authHeader || authHeader !== `Bearer ${serviceRoleKey}`) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
   try {
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -23,41 +30,31 @@ serve(async (req) => {
     let resetCount = 0;
     let expiredCount = 0;
 
-    // 1. Credit Reset: Find active/trialing orgs where today is their billing cycle day.
+    // 1. Credit Reset: Find active/trialing subscriptions where today is their billing cycle day.
     //    Credits are user-scoped — reset on the users table per org owner.
-    const { data: orgsToReset, error: resetErr } = await supabaseClient
-      .from("organizations")
-      .select("id, last_billing_update_at")
+    const { data: subsToReset, error: resetErr } = await supabaseClient
+      .from("user_subscriptions")
+      .select("user_id, last_billing_update_at")
       .in("subscription_status", ["active", "trialing"])
       .eq("billing_cycle_day", currentDay);
 
     if (resetErr) throw resetErr;
 
-    if (orgsToReset && orgsToReset.length > 0) {
-      for (const org of orgsToReset) {
+    if (subsToReset && subsToReset.length > 0) {
+      for (const sub of subsToReset) {
         // Skip if already updated in the last 20 hours
-        if (org.last_billing_update_at) {
-          const lastUpdate = new Date(org.last_billing_update_at);
+        if (sub.last_billing_update_at) {
+          const lastUpdate = new Date(sub.last_billing_update_at);
           if (today.getTime() - lastUpdate.getTime() < 20 * 60 * 60 * 1000) {
             continue;
           }
         }
 
-        // Find the org owner
-        const { data: ownerMember } = await supabaseClient
-          .from("organization_members")
-          .select("user_id")
-          .eq("organization_id", org.id)
-          .eq("role", "owner")
-          .single();
-
-        if (!ownerMember?.user_id) continue;
-
         // Reset user's credits to their plan quota
         const { data: userRecord } = await supabaseClient
           .from("users")
           .select("plan_credits_quota")
-          .eq("id", ownerMember.user_id)
+          .eq("id", sub.user_id)
           .single();
 
         const quota = userRecord?.plan_credits_quota ?? 50;
@@ -65,13 +62,13 @@ serve(async (req) => {
         const { error: updateErr } = await supabaseClient
           .from("users")
           .update({ credits_balance: quota, credits_reset_at: nowIso })
-          .eq("id", ownerMember.user_id);
+          .eq("id", sub.user_id);
 
-        // Also stamp the org so we don't double-reset today
+        // Also stamp the user_subscription so we don't double-reset today
         await supabaseClient
-          .from("organizations")
+          .from("user_subscriptions")
           .update({ last_billing_update_at: nowIso })
-          .eq("id", org.id);
+          .eq("user_id", sub.user_id);
 
         if (!updateErr) resetCount++;
       }
@@ -79,28 +76,28 @@ serve(async (req) => {
 
     // 2. Trial Expiry Check
     const { data: expiredTrials, error: trialErr } = await supabaseClient
-      .from("organizations")
-      .select("id")
+      .from("user_subscriptions")
+      .select("user_id")
       .eq("subscription_status", "trialing")
       .lte("subscription_expires_at", nowIso);
 
     if (trialErr) throw trialErr;
 
     if (expiredTrials && expiredTrials.length > 0) {
-      const expiredIds = expiredTrials.map((o) => o.id);
+      const expiredUserIds = expiredTrials.map((s) => s.user_id);
       
       const { error: expireUpdateErr } = await supabaseClient
-        .from("organizations")
+        .from("user_subscriptions")
         .update({ subscription_status: "expired" })
-        .in("id", expiredIds);
+        .in("user_id", expiredUserIds);
         
-      if (!expireUpdateErr) expiredCount = expiredIds.length;
+      if (!expireUpdateErr) expiredCount = expiredUserIds.length;
     }
 
     // 3. Past Due Grace Period Expiry (Cancelled after 7 days)
     const gracePeriodEndIso = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const { error: cancelErr } = await supabaseClient
-      .from("organizations")
+      .from("user_subscriptions")
       .update({ subscription_status: "canceled" }) // or expired
       .eq("subscription_status", "past_due")
       .lte("updated_at", gracePeriodEndIso);

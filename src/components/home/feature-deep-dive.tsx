@@ -97,20 +97,20 @@ export function FeatureDeepDive() {
               <div className="size-12 rounded-lg bg-primary/10 flex items-center justify-center mb-6">
                 <CreditCard className="text-primary size-6" />
               </div>
-              <h3 className="text-2xl font-bold font-heading mb-2">Naira Meta Ads Wallet</h3>
+              <h3 className="text-2xl font-bold font-heading mb-2">Native Naira Payments</h3>
               <p className="text-subtle-foreground">
-                Forget the black market dollar rates and failed card transactions. Top up your unified Tenzu Wallet in Naira, and we automatically provision virtual USD cards to pay for your Meta Ads.
+                Stop worrying about dollar limits. Pay for your ads directly in Naira through Meta's native payment options. We'll guide you on the best methods to keep your ads running without interruptions.
               </p>
             </div>
 
             <div className="md:w-1/2 w-full bg-muted rounded-lg border border-border/50 p-6 shadow-sm relative">
                <div className="flex justify-between items-end mb-6">
                  <div>
-                   <p className="text-sm text-subtle-foreground mb-1">Wallet Balance</p>
+                   <p className="text-sm text-subtle-foreground mb-1">Meta Account Balance</p>
                    <p className="text-3xl font-bold font-heading tabular-nums">₦450,000</p>
                  </div>
                  <div className="bg-background border border-border px-3 py-1 rounded-md text-xs font-medium shadow-sm">
-                   + Fund Wallet
+                   Meta Pay
                  </div>
                </div>
                <div className="space-y-3">
@@ -118,7 +118,7 @@ export function FeatureDeepDive() {
                    <div key={i} className="flex justify-between items-center bg-background p-3 rounded-md border border-border shadow-sm">
                      <div className="flex items-center gap-3">
                        <span className="w-2 h-2 rounded-full bg-primary" />
-                       <span className="text-sm font-medium">Meta Ad Spend</span>
+                       <span className="text-sm font-medium">Ad Spend (Direct)</span>
                      </div>
                      <span className="text-sm tabular-nums">- ₦15,400</span>
                    </div>

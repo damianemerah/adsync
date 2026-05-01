@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { encrypt } from "@/lib/crypto";
 import { TIER_CONFIG, TierId } from "@/lib/constants";
+import { activateTrialIfNeeded } from "@/lib/trial-activation";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get("code");
-  const state = searchParams.get("state"); // Expected format: "userId:orgId"
-  const [userId, orgId] = (state || "").split(":");
+  const state = searchParams.get("state"); // Expected format: "userId:orgId:source"
+  const [userId, orgId, source = "settings"] = (state || "").split(":");
   const error = searchParams.get("error");
 
   console.log("🚀🔥Meta Callback Params:", { code, state, error });
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
       state,
     });
     return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL}/onboarding?error=meta_rejected`,
+      `${process.env.NEXT_PUBLIC_APP_URL}/${source === "onboarding" ? "onboarding" : "settings/business"}?error=meta_rejected`,
     );
   }
 
@@ -165,19 +166,20 @@ export async function GET(request: NextRequest) {
   }
 
   // 3b. Enforce maxAdAccounts tier limit (defense-in-depth)
-  const { data: orgData } = await supabase
-    .from("organizations")
+  const { data: userSubData } = await supabase
+    .from("user_subscriptions")
     .select("subscription_tier")
-    .eq("id", targetOrgId)
-    .single();
+    .eq("user_id", userData.id)
+    .maybeSingle();
 
-  const tier = (orgData?.subscription_tier || "starter") as TierId;
+  const tier = (userSubData?.subscription_tier || "starter") as TierId;
   const maxAccounts = TIER_CONFIG[tier]?.limits?.maxAdAccounts ?? 1;
 
   const { count: existingCount } = await supabase
     .from("ad_accounts")
     .select("id", { count: "exact", head: true })
-    .eq("organization_id", targetOrgId);
+    .eq("organization_id", targetOrgId)
+    .is("disconnected_at", null);
 
   if ((existingCount ?? 0) >= maxAccounts) {
     console.warn(
@@ -237,6 +239,9 @@ export async function GET(request: NextRequest) {
           `${process.env.NEXT_PUBLIC_APP_URL}/onboarding?error=db_save_failed`,
         );
       }
+
+      // Activate trial exactly once — idempotent, anti-exploit guard inside
+      await activateTrialIfNeeded(supabase, targetOrgId, userId);
 
       // Subscribe this ad account to Meta webhooks (fire-and-forget)
       subscribeToMetaWebhooks(acc.account_id, finalToken).catch((err) => {
@@ -298,8 +303,9 @@ export async function GET(request: NextRequest) {
         );
       }
 
+      const redirectBase = source === "onboarding" ? "onboarding" : "settings/business";
       return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_APP_URL}/settings/business?meta_session=${pendingSession.id}`,
+        `${process.env.NEXT_PUBLIC_APP_URL}/${redirectBase}?meta_session=${pendingSession.id}`,
       );
     }
   } else {

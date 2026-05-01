@@ -2,7 +2,7 @@
 
 ## Overview
 
-The FX Rate system provides **real-time USD→NGN exchange rates** for accurate budget calculations, virtual card loads, and ROI metrics across the Tenzu platform.
+The FX Rate system provides **real-time USD→NGN exchange rates** for accurate budget calculations and ROI metrics across the Tenzu platform.
 
 Previously, the system used a static `FX_RATE = 1600` hardcoded in [`src/lib/intelligence/benchmarks.ts`](../src/lib/intelligence/benchmarks.ts). This has been upgraded to a **dynamic, database-backed system** with automatic daily updates.
 
@@ -104,17 +104,14 @@ These files **cannot** be made async (client components/hooks), so they continue
 
 ## Usage Patterns
 
-### Pattern 1: Server Actions (New Recommended)
-```ts
-// src/actions/ad-budget.ts
+// src/actions/campaigns.ts
 import { getFxRate } from "@/lib/fx-rate";
 
-export async function creditAdBudget(ngnAmount: number) {
+export async function estimateRoi(ngnBudget: number) {
   const fxRate = await getFxRate(); // ✅ Dynamic, cached
-  const usdAmount = ngnAmount / fxRate;
-  // ... load virtual card
+  const usdEquivalent = ngnBudget / fxRate;
+  // ... predict ROAS based on USD benchmarks
 }
-```
 
 ### Pattern 2: Edge Functions (Background Jobs)
 ```ts
@@ -267,6 +264,5 @@ clearFxRateCache(); // Forces fresh DB fetch
 ## Related Files
 
 - [Naira Payments Skill](.agent/skills/naira-payments/SKILL.md)
-- [Virtual Cards Migration](../supabase/migrations/20260313000000_ad_budget_wallet.sql)
-- [Sudo Africa Integration](../src/lib/sudo.ts)
+- [FX Rate Utility](../src/lib/utils/fx-rate.ts)
 - [Active Org Pattern](../CLAUDE.md#active-organization-pattern)

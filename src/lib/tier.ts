@@ -28,19 +28,20 @@ export async function resolveTier(
   supabase: Supabase,
   userId: string,
 ): Promise<ResolvedTier> {
-  const { data: member, error } = await supabase
-    .from("organization_members")
-    .select(
-      `organization_id,
-       organizations (
-         id,
-         subscription_tier
-       )`,
-    )
-    .eq("user_id", userId)
-    .single();
+  const [{ data: userSub }, { data: member }] = await Promise.all([
+    supabase
+      .from("user_subscriptions")
+      .select("subscription_tier")
+      .eq("user_id", userId)
+      .maybeSingle(),
+    supabase
+      .from("organization_members")
+      .select("organization_id")
+      .eq("user_id", userId)
+      .single(),
+  ]);
 
-  if (error || !member) {
+  if (!member) {
     console.warn("[resolveTier] No org found for user, defaulting to starter");
     return {
       tierId: "starter",
@@ -49,14 +50,8 @@ export async function resolveTier(
     };
   }
 
-  // @ts-ignore — nested join typing
-  const org = member.organizations as {
-    id: string;
-    subscription_tier: string | null;
-  };
-
-  const tierId = (org?.subscription_tier || "starter") as TierId;
+  const tierId = (userSub?.subscription_tier || "starter") as TierId;
   const config = TIER_CONFIG[tierId] || TIER_CONFIG.starter;
 
-  return { tierId, config, orgId: org?.id || "" };
+  return { tierId, config, orgId: member.organization_id || "" };
 }

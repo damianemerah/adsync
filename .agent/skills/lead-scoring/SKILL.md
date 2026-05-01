@@ -52,28 +52,23 @@ chat_to_sale_rate = campaigns.sales_count / MAX(campaigns.whatsapp_clicks, 1)
 ```typescript
 function scoreCampaign(campaign: Campaign, allCampaigns: Campaign[]): number {
   // 1. Revenue per chat (higher is better)
-  const revPerChat =
-    campaign.revenue_ngn / Math.max(campaign.whatsapp_clicks, 1);
+  const revPerChat = campaign.revenue_ngn / Math.max(campaign.whatsapp_clicks, 1);
   const maxRevPerChat = Math.max(
-    ...allCampaigns.map((c) => c.revenue_ngn / Math.max(c.whatsapp_clicks, 1)),
+    ...allCampaigns.map((c) => c.revenue_ngn / Math.max(c.whatsapp_clicks, 1))
   );
   const revScore = maxRevPerChat > 0 ? (revPerChat / maxRevPerChat) * 50 : 0;
 
   // 2. Cost per chat (lower is better — invert)
-  const costPerChat =
-    campaign.spend_cents / 100 / Math.max(campaign.whatsapp_clicks, 1);
+  const costPerChat = campaign.spend_cents / 100 / Math.max(campaign.whatsapp_clicks, 1);
   const minCostPerChat = Math.min(
-    ...allCampaigns.map(
-      (c) => c.spend_cents / 100 / Math.max(c.whatsapp_clicks, 1),
-    ),
+    ...allCampaigns.map((c) => c.spend_cents / 100 / Math.max(c.whatsapp_clicks, 1))
   );
   const costScore = costPerChat > 0 ? (minCostPerChat / costPerChat) * 30 : 0;
 
   // 3. Chat-to-sale rate (higher is better)
-  const chatToSale =
-    campaign.sales_count / Math.max(campaign.whatsapp_clicks, 1);
+  const chatToSale = campaign.sales_count / Math.max(campaign.whatsapp_clicks, 1);
   const maxChatToSale = Math.max(
-    ...allCampaigns.map((c) => c.sales_count / Math.max(c.whatsapp_clicks, 1)),
+    ...allCampaigns.map((c) => c.sales_count / Math.max(c.whatsapp_clicks, 1))
   );
   const saleScore = maxChatToSale > 0 ? (chatToSale / maxChatToSale) * 20 : 0;
 
@@ -122,14 +117,14 @@ function scoreCampaign(campaign: Campaign, allCampaigns: Campaign[]): number {
 
 ## Implementation Status
 
-| Item                                                                       | Status         |
-| -------------------------------------------------------------------------- | -------------- |
-| `scoreCampaign()` utility                                                  | ⬜ Not Started |
-| Score badge on campaign list                                               | ⬜ Not Started |
-| Score interpretation in campaign detail                                    | ⬜ Not Started |
-| "Best Audience" pre-fill from top-scored campaign                          | ⬜ Not Started |
-| ROI overview ranked list                                                   | ⬜ Not Started |
-| Feed 🔥 Hot campaigns (score ≥ 75) to `analyze-assets` cron (Phase 3)     | ⬜ Phase 3     |
+| Item                                                                  | Status         |
+| --------------------------------------------------------------------- | -------------- |
+| `scoreCampaign()` utility                                             | ⬜ Not Started |
+| Score badge on campaign list                                          | ⬜ Not Started |
+| Score interpretation in campaign detail                               | ⬜ Not Started |
+| "Best Audience" pre-fill from top-scored campaign                     | ⬜ Not Started |
+| ROI overview ranked list                                              | ⬜ Not Started |
+| Feed 🔥 Hot campaigns (score ≥ 75) to `analyze-assets` cron (Phase 3) | ⬜ Phase 3     |
 
 ## Phase 3 Connection — Score as Vision Loop Trigger
 

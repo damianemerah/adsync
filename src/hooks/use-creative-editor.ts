@@ -5,10 +5,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { generateAdCreative, saveCreativeToLibrary } from "@/actions/ai-images";
+import { generateAdCreative, autoSaveCreative } from "@/actions/ai-images";
 import { useActiveOrgContext } from "@/components/providers/active-org-provider";
 import { useCampaignStore } from "@/stores/campaign-store";
-import { useBeforeLeave } from "@/hooks/use-before-leave";
 import { useCreativeHistory } from "@/hooks/use-creatives";
 import { type CampaignContext } from "@/lib/ai/context-compiler";
 import { type AspectRatio } from "@/components/creatives/studio/prompt-input";
@@ -38,13 +37,10 @@ export function useCreativeEditor(id: string) {
   // Client-only state driven by AI generation
   const [activeCreativeId, setActiveCreativeId] = useState<string>(id);
   const [seed, setSeed] = useState<number | undefined>(undefined);
-  const [generationHistory, setGenerationHistory] = useState<string[]>([]);
+  const [generationHistory, setGenerationHistory] = useState<{ id: string; imageUrl: string }[]>([]);
   const [lastUsedFullPrompt, setLastUsedFullPrompt] = useState<string | null>(
     null,
   );
-  const [hasEdited, setHasEdited] = useState(false);
-
-  useBeforeLeave(hasEdited, "You have unsaved edits. Leave anyway?");
 
   // Primary data query: creative + campaign context in one round-trip
   const { data, isLoading } = useQuery({
@@ -60,7 +56,7 @@ export function useCreativeEditor(id: string) {
 
       if (error) {
         toast.error("Failed to load creative");
-        router.push("/creations/studio");
+        router.push("/ai-creative/studio");
         return null;
       }
 
@@ -92,7 +88,11 @@ export function useCreativeEditor(id: string) {
   // Derive from history data (read-only — client state is authoritative after first
   // generation, but we seed it from DB on initial load via this hook)
   const dbSeed = historyData?.seed;
-  const dbHistory = historyData?.history?.map((h) => h.imageUrl) ?? [];
+  const dbHistory =
+    historyData?.history?.map((h: { id: string; imageUrl: string }) => ({
+      id: h.id,
+      imageUrl: h.imageUrl,
+    })) ?? [];
   const dbLastPrompt = historyData?.prompt ?? null;
 
   const effectiveSeed = seed ?? dbSeed;
@@ -147,9 +147,25 @@ export function useCreativeEditor(id: string) {
         setLastUsedFullPrompt(result.usedPrompt);
       }
 
-      setHasEdited(true);
+      // Auto-save immediately — no explicit Save step required
+      const saved = await autoSaveCreative({
+        falUrl: result.imageUrl,
+        prompt: result.usedPrompt ?? "",
+        aspectRatio,
+        parentCreativeId: activeCreativeId,
+      });
 
-      return result.imageUrl;
+      setActiveCreativeId(saved.creativeId);
+      setGenerationHistory((prev) => [
+        ...prev,
+        { id: saved.creativeId, imageUrl: saved.publicUrl },
+      ]);
+      queryClient.invalidateQueries({ queryKey: ["creatives", activeOrgId] });
+      queryClient.invalidateQueries({
+        queryKey: ["creative-history", saved.creativeId, activeOrgId],
+      });
+
+      return saved.publicUrl;
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Refinement failed";
       toast.error("Refinement Failed", { description: msg });
@@ -157,41 +173,9 @@ export function useCreativeEditor(id: string) {
     }
   };
 
-  const handleSave = async (imageUrl: string) => {
-    const result = await saveCreativeToLibrary({
-      imageUrl,
-      prompt: effectiveLastPrompt || prompt,
-      aspectRatio,
-      parentCreativeId: activeCreativeId,
-    });
-
-    setActiveCreativeId(result.creativeId);
-    setHasEdited(false);
-    queryClient.invalidateQueries({ queryKey: ["creatives", activeOrgId] });
-    queryClient.invalidateQueries({
-      queryKey: ["creative-history", result.creativeId, activeOrgId],
-    });
-  };
-
   const handleUseInCampaign = async (imageUrl: string) => {
-    let finalUrl = imageUrl;
-
-    if (hasEdited) {
-      try {
-        const result = await saveCreativeToLibrary({
-          imageUrl,
-          prompt: effectiveLastPrompt || prompt,
-          aspectRatio,
-          parentCreativeId: activeCreativeId,
-        });
-        finalUrl = result.publicUrl;
-        queryClient.invalidateQueries({ queryKey: ["creatives", activeOrgId] });
-      } catch {
-        // Non-fatal — use whatever URL we have
-      }
-    }
-
-    updateDraft({ selectedCreatives: [finalUrl], pendingGeneratedImage: null });
+    // Image is already auto-saved — just add to campaign draft.
+    updateDraft({ selectedCreatives: [imageUrl], pendingGeneratedImage: null });
 
     toast.success("Creative added to your campaign!", {
       description:
@@ -217,8 +201,11 @@ export function useCreativeEditor(id: string) {
       router.push(returnTo);
       return;
     }
-    router.push("/creations/studio");
+    router.push("/ai-creative/studio");
   };
+
+  const rootId =
+    historyData?.history?.find((h: any) => h.isRoot)?.id ?? null;
 
   return {
     isLoading,
@@ -231,9 +218,8 @@ export function useCreativeEditor(id: string) {
     seed: effectiveSeed,
     generationHistory: effectiveHistory,
     lastUsedFullPrompt: effectiveLastPrompt,
-    hasEdited,
+    rootId,
     handleRefine,
-    handleSave,
     handleUseInCampaign,
     handleBack,
   };

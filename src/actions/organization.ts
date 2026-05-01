@@ -71,11 +71,8 @@ async function _insertOrgWithMember(
     sellingMethod?: string | null;
     priceTier?: string | null;
     customerGender?: string | null;
-    hasPhysicalLocation?: boolean | null;
-    getsLeadsViaWebsite?: boolean | null;
-    sellsOnline?: boolean | null;
-    booksAppointments?: boolean | null;
-    wantsContactAds?: boolean | null;
+    phoneNumber?: string | null;
+    whatsappNumber?: string | null;
     subscriptionTier: string;
     subscriptionStatus: string;
     subscriptionExpiresAt: string | null;
@@ -91,11 +88,8 @@ async function _insertOrgWithMember(
     sellingMethod,
     priceTier,
     customerGender,
-    hasPhysicalLocation,
-    getsLeadsViaWebsite,
-    sellsOnline,
-    booksAppointments,
-    wantsContactAds,
+    phoneNumber,
+    whatsappNumber,
     subscriptionTier,
     subscriptionStatus,
     subscriptionExpiresAt,
@@ -113,11 +107,8 @@ async function _insertOrgWithMember(
       selling_method: sellingMethod || null,
       price_tier: priceTier || null,
       customer_gender: customerGender || null,
-      has_physical_location: hasPhysicalLocation ?? null,
-      gets_leads_via_website: getsLeadsViaWebsite ?? null,
-      sells_online: sellsOnline ?? null,
-      books_appointments: booksAppointments ?? null,
-      wants_contact_ads: wantsContactAds ?? null,
+      business_phone: phoneNumber || null,
+      whatsapp_number: whatsappNumber || null,
       subscription_tier: subscriptionTier,
       subscription_status: subscriptionStatus,
       subscription_expires_at: subscriptionExpiresAt,
@@ -187,13 +178,9 @@ export async function createOrganization(
   const priceTier = formData.get("priceTier") as string;
   const customerGender = formData.get("customerGender") as string;
   const businessDescription = formData.get("businessDescription") as string;
-  const userRole = formData.get("userRole") as string;
 
-  const hasPhysicalLocation = parseBool(formData.get("hasPhysicalLocation") as string);
-  const getsLeadsViaWebsite = parseBool(formData.get("getsLeadsViaWebsite") as string);
-  const sellsOnline = parseBool(formData.get("sellsOnline") as string);
-  const booksAppointments = parseBool(formData.get("booksAppointments") as string);
-  const wantsContactAds = parseBool(formData.get("wantsContactAds") as string);
+  const phoneNumber = formData.get("phone_number") as string;
+  const whatsappNumber = formData.get("whatsapp_number") as string;
 
   // ── ONBOARDING PATH ─────────────────────────────────────────────────────────
   if (isOnboarding) {
@@ -220,11 +207,8 @@ export async function createOrganization(
           selling_method: sellingMethod || null,
           price_tier: priceTier || null,
           customer_gender: customerGender || null,
-          has_physical_location: hasPhysicalLocation,
-          gets_leads_via_website: getsLeadsViaWebsite,
-          sells_online: sellsOnline,
-          books_appointments: booksAppointments,
-          wants_contact_ads: wantsContactAds,
+          business_phone: phoneNumber || null,
+          whatsapp_number: whatsappNumber || null,
         })
         .eq("id", existingOrgId);
 
@@ -235,22 +219,12 @@ export async function createOrganization(
 
       activeOrgId = existingOrgId;
     } else {
-      // First-time: insert org locked to Growth (best trial experience)
+      // First-time: insert org locked to Growth tier but in incomplete state.
+      // Trial (status, expiry, credits) is activated later when Meta connects.
       const slug =
         orgName.toLowerCase().replace(/\s+/g, "-") +
         "-" +
         Math.floor(Math.random() * 10000);
-
-      const trialExpiresAt =
-        user.user_metadata?.trial_expires_at ||
-        new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
-      const isNewTrial = !user.user_metadata?.trial_expires_at;
-
-      if (isNewTrial) {
-        await supabase.auth.updateUser({
-          data: { trial_expires_at: trialExpiresAt },
-        });
-      }
 
       const { orgId, error } = await _insertOrgWithMember(supabase, {
         name: orgName,
@@ -260,16 +234,13 @@ export async function createOrganization(
         sellingMethod,
         priceTier,
         customerGender,
-        hasPhysicalLocation,
-        getsLeadsViaWebsite,
-        sellsOnline,
-        booksAppointments,
-        wantsContactAds,
-        subscriptionTier: PLAN_IDS.GROWTH, // ← Trial always on Growth
-        subscriptionStatus: SUBSCRIPTION_STATUS.TRIALING,
-        subscriptionExpiresAt: trialExpiresAt,
+        phoneNumber,
+        whatsappNumber,
+        subscriptionTier: PLAN_IDS.GROWTH,
+        subscriptionStatus: SUBSCRIPTION_STATUS.INCOMPLETE,
+        subscriptionExpiresAt: null,
         userId: user.id,
-        grantTrialCredits: isNewTrial,
+        grantTrialCredits: false,
       });
 
       if (error || !orgId)
@@ -277,10 +248,7 @@ export async function createOrganization(
       activeOrgId = orgId;
     }
 
-    // Persist job role in user metadata
-    if (userRole) {
-      await supabase.auth.updateUser({ data: { job_role: userRole } });
-    }
+
 
     // Set active-org cookie so the layout picks up the right workspace
     if (activeOrgId) {
@@ -303,64 +271,16 @@ export async function createOrganization(
 
   // ── ADD-BUSINESS PATH (settings) ────────────────────────────────────────────
 
-  // 1. Load all owned orgs to check limits
-  const { data: ownedMemberships, error: countError } = await supabase
-    .from("organization_members")
-    .select(
-      "organization_id, organizations(subscription_tier, subscription_status, subscription_expires_at)",
-    )
+  // 1. Read authoritative subscription state from user_subscriptions
+  const { data: userSub } = await supabase
+    .from("user_subscriptions")
+    .select("subscription_tier, subscription_status, subscription_expires_at")
     .eq("user_id", user.id)
-    .eq("role", "owner");
+    .maybeSingle();
 
-  if (countError) {
-    console.error("Org count error:", countError);
-    return { error: "Failed to check organization limit" };
-  }
-
-  // 2. Determine highest tier and its attributes across all owned orgs
-  const tierOrder: TierId[] = ["starter", "growth", "agency"];
-
-  // Type guard helper for the joined organizations data
-  type OrgMembership = {
-    organization_id: string;
-    organizations: {
-      subscription_tier: string;
-      subscription_status: string;
-      subscription_expires_at: string | null;
-    } | null;
-  };
-
-  const bestOrg = (ownedMemberships ?? []).reduce<OrgMembership | null>(
-    (best, current) => {
-      const currentOrg = (current as OrgMembership).organizations;
-
-      // Skip if no org data (shouldn't happen but be defensive)
-      if (!currentOrg) {
-        console.warn("Missing org data for membership:", current);
-        return best;
-      }
-
-      if (!best || !best.organizations) return current as OrgMembership;
-
-      const bestTier: TierId = (best.organizations.subscription_tier ||
-        "starter") as TierId;
-      const currentTier: TierId = (currentOrg.subscription_tier ||
-        "starter") as TierId;
-
-      return tierOrder.indexOf(currentTier) > tierOrder.indexOf(bestTier)
-        ? (current as OrgMembership)
-        : best;
-    },
-    null,
-  );
-
-  // Extract tier and status with fallbacks
-  const orgData = bestOrg?.organizations;
-  const highestTier: TierId = (orgData?.subscription_tier ||
-    "starter") as TierId;
-  const inheritedStatus =
-    orgData?.subscription_status || SUBSCRIPTION_STATUS.TRIALING;
-  let inheritedExpiresAt = orgData?.subscription_expires_at || null;
+  const highestTier: TierId = (userSub?.subscription_tier || "starter") as TierId;
+  const inheritedStatus = userSub?.subscription_status || SUBSCRIPTION_STATUS.TRIALING;
+  let inheritedExpiresAt = userSub?.subscription_expires_at || null;
 
   // Fallback to auth metadata if it's trialing and missing for some reason
   if (inheritedStatus === SUBSCRIPTION_STATUS.TRIALING && !inheritedExpiresAt) {
@@ -369,8 +289,20 @@ export async function createOrganization(
 
   const maxOrgs = TIER_CONFIG[highestTier]?.limits?.maxOrganizations ?? 1;
 
+  // 2. Count owned orgs to enforce plan limit
+  const { count: ownedOrgCount, error: countError } = await supabase
+    .from("organization_members")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .eq("role", "owner");
+
+  if (countError) {
+    console.error("Org count error:", countError);
+    return { error: "Failed to check organization limit" };
+  }
+
   // 3. Enforce limit
-  if ((ownedMemberships?.length ?? 0) >= maxOrgs) {
+  if ((ownedOrgCount ?? 0) >= maxOrgs) {
     const tierLabel =
       highestTier.charAt(0).toUpperCase() + highestTier.slice(1);
     return {
@@ -394,11 +326,8 @@ export async function createOrganization(
       sellingMethod,
       priceTier,
       customerGender,
-      hasPhysicalLocation,
-      getsLeadsViaWebsite,
-      sellsOnline,
-      booksAppointments,
-      wantsContactAds,
+      phoneNumber,
+      whatsappNumber,
       subscriptionTier: highestTier, // ← Inherit highest tier
       subscriptionStatus: inheritedStatus,
       subscriptionExpiresAt: inheritedExpiresAt,

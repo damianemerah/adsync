@@ -1,9 +1,8 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Sparks, Check, Heart, Download } from "iconoir-react";
+import { ArrowLeft, Sparks, Check, Download } from "iconoir-react";
 import { PromptInput } from "./prompt-input";
-import { cn } from "@/lib/utils";
 import { CREDIT_COSTS } from "@/lib/constants";
 import { type AspectRatio } from "./prompt-input";
 
@@ -19,10 +18,7 @@ interface StudioSidebarProps {
   onRefineImageUrlsChange: (urls: string[]) => void;
   isGenerating: boolean;
   onRefine: () => void;
-  isSaving: boolean;
-  isCurrentSaved: boolean;
   isDownloading: boolean;
-  onSave: () => void;
   onDownload: () => void;
 }
 
@@ -38,10 +34,7 @@ export function StudioSidebar({
   onRefineImageUrlsChange,
   isGenerating,
   onRefine,
-  isSaving,
-  isCurrentSaved,
   isDownloading,
-  onSave,
   onDownload,
 }: StudioSidebarProps) {
   return (
@@ -71,7 +64,7 @@ export function StudioSidebar({
           >
             {isUsingInCampaign ? (
               <>
-                <Sparks className="h-4 w-4 animate-spin" /> Saving…
+                <Sparks className="h-4 w-4 animate-spin" /> Adding…
               </>
             ) : (
               <>
@@ -80,7 +73,7 @@ export function StudioSidebar({
             )}
           </Button>
           <p className="text-[10px] text-subtle-foreground text-center mt-1.5">
-            Saves to library &amp; returns you to the campaign wizard
+            Returns you to the campaign wizard
           </p>
         </div>
       )}
@@ -103,6 +96,7 @@ export function StudioSidebar({
             hideControls={true}
             imageUrls={refineImageUrls}
             onImageUrlsChange={onRefineImageUrlsChange}
+            imageIndexOffset={1}
           />
         </div>
       </div>
@@ -127,32 +121,6 @@ export function StudioSidebar({
                 (Costs {CREDIT_COSTS.IMAGE_EDIT_PRO} Credits)
               </span>
             </div>
-          )}
-        </Button>
-
-        <Button
-          variant={isCurrentSaved ? "default" : "outline"}
-          onClick={onSave}
-          disabled={isSaving || isCurrentSaved}
-          className={cn(
-            "w-full h-10 rounded-md font-medium transition-all",
-            isCurrentSaved
-              ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/10 cursor-default"
-              : "border-border text-foreground hover:bg-muted",
-          )}
-        >
-          {isSaving ? (
-            <>
-              <Sparks className="mr-2 h-4 w-4 animate-spin" /> Saving...
-            </>
-          ) : isCurrentSaved ? (
-            <>
-              <Check className="mr-2 h-4 w-4" /> Saved to Library
-            </>
-          ) : (
-            <>
-              <Heart className="mr-2 h-4 w-4" /> Save to Library
-            </>
           )}
         </Button>
 

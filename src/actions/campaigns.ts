@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { decrypt } from "@/lib/crypto";
 import { MetaService } from "@/lib/api/meta";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { generateWhatsAppLink } from "@/lib/utils";
 import { AdSyncObjective } from "@/lib/constants";
 import { sendNotification } from "@/lib/notifications";
@@ -107,17 +107,24 @@ export async function launchCampaign(config: LaunchConfig) {
   const orgId = await getActiveOrgId();
   if (!orgId) throw new Error("No organization found");
 
-  const { data: org } = await supabase
-    .from("organizations")
-    .select("subscription_status, subscription_expires_at, country_code")
-    .eq("id", orgId)
-    .single();
+  const [{ data: org }, { data: userSub }] = await Promise.all([
+    supabase
+      .from("organizations")
+      .select("country_code")
+      .eq("id", orgId)
+      .single(),
+    supabase
+      .from("user_subscriptions")
+      .select("subscription_status, subscription_expires_at")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+  ]);
 
   if (!org) {
     throw new Error("No organization found");
   }
 
-  const subStatus = org.subscription_status;
+  const subStatus = userSub?.subscription_status ?? "incomplete";
 
   // 🛑 GATEKEEPER: Check Subscription
   if (subStatus !== "active" && subStatus !== "trialing") {
@@ -126,8 +133,8 @@ export async function launchCampaign(config: LaunchConfig) {
     );
   }
 
-  if (subStatus === "trialing" && org.subscription_expires_at) {
-    if (new Date(org.subscription_expires_at).getTime() < Date.now()) {
+  if (subStatus === "trialing" && userSub?.subscription_expires_at) {
+    if (new Date(userSub.subscription_expires_at).getTime() < Date.now()) {
       throw new Error(
         "Your free trial has expired. Please upgrade to launch campaigns.",
       );
@@ -774,6 +781,8 @@ export async function launchCampaign(config: LaunchConfig) {
     });
 
     revalidatePath("/campaigns");
+    revalidateTag(`campaigns-${orgId}`, "minutes");
+    revalidateTag(`dashboard-${orgId}`, "minutes");
     return {
       success: true,
       campaignId: campaignRes.id,
@@ -957,6 +966,8 @@ export async function updateCampaignStatus(
     }
 
     revalidatePath("/campaigns");
+    revalidateTag(`campaigns-${orgId}`, "minutes");
+    revalidateTag(`dashboard-${orgId}`, "minutes");
     return { success: true };
   } catch (error: any) {
     console.error("Campaign Update Error:", error);
@@ -1014,6 +1025,7 @@ export async function duplicateCampaign(campaignId: string) {
   if (insertError || !newCampaign) return { success: false as const, error: "Failed to duplicate campaign" };
 
   revalidatePath("/campaigns");
+  revalidateTag(`campaigns-${orgId}`, "minutes");
   return { success: true as const, campaignId: newCampaign.id };
 }
 
@@ -1487,6 +1499,8 @@ export async function upgradeToPixelOptimization(campaignId: string) {
 
     revalidatePath("/campaigns");
     revalidatePath(`/campaigns/${campaignId}`);
+    revalidateTag(`campaigns-${orgId}`, "minutes");
+    revalidateTag(`dashboard-${orgId}`, "minutes");
 
     return { success: true };
   } catch (error: any) {
@@ -1560,6 +1574,8 @@ export async function deleteCampaign(campaignId: string) {
     if (deleteErr) throw new Error(deleteErr.message);
 
     revalidatePath("/campaigns");
+    revalidateTag(`campaigns-${orgId}`, "minutes");
+    revalidateTag(`dashboard-${orgId}`, "minutes");
     return { success: true as const };
   } catch (error: any) {
     console.error("[deleteCampaign] Error:", error);
@@ -1589,6 +1605,7 @@ export async function archiveCampaign(campaignId: string) {
   }
 
   revalidatePath("/campaigns");
+  revalidateTag(`campaigns-${orgId}`, "minutes");
   return { success: true as const };
 }
 
@@ -1649,6 +1666,7 @@ export async function renameCampaign(campaignId: string, newName: string) {
     if (updateErr) throw new Error(updateErr.message);
 
     revalidatePath("/campaigns");
+    revalidateTag(`campaigns-${orgId}`, "minutes");
     return { success: true as const };
   } catch (error: any) {
     console.error("[renameCampaign] Error:", error);

@@ -3,6 +3,7 @@
 This rule defines constraints for refactoring code within the Tenzu codebase.
 
 ## Objective
+
 Refactor carefully and incrementally. Improve readability and structure without changing behavior. **Identify the minimum safe refactor.** Never create abstractions unless they fix specific duplication or boundary problems.
 
 ## Core Architecture & Next.js Rules
@@ -18,11 +19,11 @@ Refactor carefully and incrementally. Improve readability and structure without 
 
 State has a strict hierarchy. Refactoring must not change ownership.
 
-| State type | Tool | Rule |
-|---|---|---|
-| Server data | TanStack Query | **Exclusively.** Never use `useEffect` + `useState` for fetches. |
-| Wizard state | Zustand | Only for multi-step flows and cross-component client state. |
-| Local UI state | `useState` | For isolated toggles/hover within one component. |
+| State type     | Tool           | Rule                                                             |
+| -------------- | -------------- | ---------------------------------------------------------------- |
+| Server data    | TanStack Query | **Exclusively.** Never use `useEffect` + `useState` for fetches. |
+| Wizard state   | Zustand        | Only for multi-step flows and cross-component client state.      |
+| Local UI state | `useState`     | For isolated toggles/hover within one component.                 |
 
 - **No Duplication:** Never copy server state into Zustand.
 - **React Query:** Always include `activeOrgId` in `queryKey`. Use `onSuccess/onError` for mutations.
@@ -32,21 +33,23 @@ State has a strict hierarchy. Refactoring must not change ownership.
 
 **Rule:** Mutation hooks must be independent of query hooks. Never bundle `useMutation` calls inside the same exported function as a `useQuery`. They must be split into separate named exports.
 
-| Pattern | Correct | Forbidden |
-|---|---|---|
-| Data fetching | `useCampaignsList()` | ~~`useCampaigns()` with embedded mutations~~ |
-| Write actions | `useCampaignMutations()` | ~~Mutations inside a query hook~~ |
+| Pattern       | Correct                  | Forbidden                                    |
+| ------------- | ------------------------ | -------------------------------------------- |
+| Data fetching | `useCampaignsList()`     | ~~`useCampaigns()` with embedded mutations~~ |
+| Write actions | `useCampaignMutations()` | ~~Mutations inside a query hook~~            |
 
 **Rationale:** When a monolithic hook bundles queries + mutations, every component that needs a single mutation also initializes and subscribes to the full background query. A single list-data update then re-renders all those components unnecessarily — even those that only care about writing. Splitting them eliminates this wasteful coupling.
 
 **Naming Convention:**
+
 - Query hook: `use{Resource}List()` or `use{Resource}Detail()` for single items.
 - Mutation hook: `use{Resource}Mutations()`.
 - Deprecated combined shims may exist temporarily during migration and MUST be marked `/** @deprecated */`.
 
 ## Defensive Filter Audit
 
-**Rule:** Ensure status filters (e.g., `.eq("status", "active")`) guard *writes*, not *reads*.
+**Rule:** Ensure status filters (e.g., `.eq("status", "active")`) guard _writes_, not _reads_.
+
 - **Read/Display:** Should generally return data regardless of health/status so the UI can handle the state.
 - **Write/Action:** Must strictly filter to safe/valid states.
 
@@ -55,16 +58,19 @@ State has a strict hierarchy. Refactoring must not change ownership.
 **Rule:** No static brand names, labels, or identifiers in API payloads or database writes. These drift silently when the product name changes.
 
 **Watch for:**
+
 - Hardcoded `name:` fields in Meta API requests (ads, adcreatives, adsets, campaigns)
 - Static strings used as display names in DB upserts (e.g. `name: "AdSync Ad 1"`)
 - Any string literal that embeds the app name or a fixed sequence number (`Ad 1`, `Creative 1`)
 
 **Fix pattern:**
+
 1. Derive the name from user-provided input (e.g. `campaignName`, `headline`)
 2. If the value is unavailable, use a generator function — never a hardcoded fallback string
 3. DB rows that mirror a platform object should use `platformObject.name`, not a static literal, so they stay in sync
 
 **Generator pattern (approved):**
+
 ```ts
 function generateAdObjectName(suffix: string, format?: "carousel" | "video"): string {
   const label = format ? `${format.charAt(0).toUpperCase() + format.slice(1)} ` : "";
@@ -72,6 +78,16 @@ function generateAdObjectName(suffix: string, format?: "carousel" | "video"): st
   return `${label}${suffix} - ${timestamp}`;
 }
 ```
+
+## Dummy Data & UI Placeholder Audit
+
+**Rule:** Always detect and address mocked data, static arrays, and hardcoded UI placeholders during refactoring.
+
+- **Scan for Placeholders:** Actively look for hardcoded strings, static arrays, mocked responses, or `TODO:` comments indicating missing implementation.
+- **Evaluate Context:** 
+  - If it's a UI/Layout task, dummy data might be acceptable, but you MUST ask if the user wants to connect it to live data.
+  - If it's a functional task, dummy data is technical debt and must be flagged immediately.
+- **The Follow-Up Question:** Never silently ignore dummy data. Proactively ask: *"I've noticed this component is using hardcoded data. Would you like me to connect it to the live backend/state now?"*
 
 ## Coding Standards
 

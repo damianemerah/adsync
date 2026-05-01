@@ -62,11 +62,11 @@ export default function NotificationsSettingsPage() {
   return (
     <div className="space-y-6">
       {/* WhatsApp Section */}
-      <Card className="border-primary/20 shadow-sm border border-border bg-primary/5">
+      <Card className="shadow-sm border border-border bg-primary/5">
         <CardHeader>
           <div className="flex items-start justify-between">
             <div>
-              <CardTitle className="text-foreground flex items-center gap-2">
+              <CardTitle className="text-lg font-heading font-medium text-foreground flex items-center gap-2">
                 <ChatBubble className="h-5 w-5 text-primary" /> WhatsApp Alerts
               </CardTitle>
               <CardDescription className="text-muted-foreground mt-1">
@@ -180,7 +180,7 @@ export default function NotificationsSettingsPage() {
       {/* Email Preferences */}
       <div className="pt-4">
         <div className="mb-6 space-y-1">
-          <h3 className="font-heading text-lg font-semibold">Email Preferences</h3>
+          <h3 className="text-lg font-heading font-medium">Email Preferences</h3>
           <p className="text-sm text-subtle-foreground">
             Manage your email delivery settings.
           </p>
@@ -232,7 +232,7 @@ function PreferenceRow({
   return (
     <div className="flex items-center justify-between">
       <div className="space-y-0.5">
-        <Label className="text-base">{label}</Label>
+        <Label className="text-sm font-medium">{label}</Label>
         <p className="text-sm text-subtle-foreground">{description}</p>
       </div>
       <Switch checked={checked} onCheckedChange={onCheckedChange} />

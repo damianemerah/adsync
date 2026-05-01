@@ -27,7 +27,7 @@ export default function CreativeAnalyzePage() {
   const handleImprove = (ad: any) => {
     // Enhanced: Pass full ad context for smarter improvement suggestions
     if (!ad.image || ad.image === "/placeholder.png") {
-      router.push(`/creations/studio`);
+      router.push(`/ai-creative/studio`);
       return;
     }
 
@@ -41,7 +41,7 @@ export default function CreativeAnalyzePage() {
       impressions: ad.impressions.toString(),
     });
 
-    router.push(`/creations/studio?${params.toString()}`);
+    router.push(`/ai-creative/studio?${params.toString()}`);
   };
 
   return (

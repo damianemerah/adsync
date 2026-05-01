@@ -17,14 +17,14 @@ Load this skill when working on:
 
 ## Implementation Status
 
-| Item                                               | Status                                                       |
-| -------------------------------------------------- | ------------------------------------------------------------ |
-| WhatsApp URL wrapping in attribution link          | ✅ Built                                                     |
-| Website URL wrapping in attribution link           | ⬜ Pending — add to else branch at ~line 167 of campaigns.ts |
-| Policy guard (`checkAdPolicy`) integration         | ✅ Built                                                     |
-| Post-insert `attribution_links.campaign_id` update | ✅ Built                                                     |
-| 1:1:1 campaign/adset/ad structure                  | ✅ Enforced                                                  |
-| Phase 4 creative testing (1:1:N, Meta Creative Testing API)                | ⬜ Phase 4 Future |
+| Item                                                        | Status                                                       |
+| ----------------------------------------------------------- | ------------------------------------------------------------ |
+| WhatsApp URL wrapping in attribution link                   | ✅ Built                                                     |
+| Website URL wrapping in attribution link                    | ⬜ Pending — add to else branch at ~line 167 of campaigns.ts |
+| Policy guard (`checkAdPolicy`) integration                  | ✅ Built                                                     |
+| Post-insert `attribution_links.campaign_id` update          | ✅ Built                                                     |
+| 1:1:1 campaign/adset/ad structure                           | ✅ Enforced                                                  |
+| Phase 4 creative testing (1:1:N, Meta Creative Testing API) | ⬜ Phase 4 Future                                            |
 
 ## Reference Implementation
 

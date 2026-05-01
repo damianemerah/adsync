@@ -5,15 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function BillingPage() {
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold text-foreground">
-          Subscription &amp; Payment
-        </h2>
-        <p className="text-sm text-subtle-foreground">
-          Manage your plan and billing details.
-        </p>
-      </div>
-
+     
       <Suspense
         fallback={
           <div className="space-y-8">

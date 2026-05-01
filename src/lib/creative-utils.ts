@@ -7,7 +7,7 @@
 
 /**
  * Returns true when the URL already points to the permanent `creatives` bucket.
- * Used to short-circuit saveCreativeToLibrary when the image was already saved.
+ * Used to distinguish permanent creatives bucket URLs from temp-upload URLs.
  */
 export function isPermanentCreativeUrl(url: string): boolean {
   return url.includes("/object/public/creatives/");

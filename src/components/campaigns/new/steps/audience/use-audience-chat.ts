@@ -184,36 +184,6 @@ export function useAudienceChat({
     return () => clearInterval(interval);
   }, [inputValue, chatPhase]);
 
-  // Seed locations + interests from org defaults on fresh campaigns
-  useEffect(() => {
-    if (!currentOrg) return;
-    const state = useCampaignStore.getState();
-    // Only seed on a fresh campaign — never overwrite an in-progress one
-    if (state.aiPrompt) return;
-
-    const updates: Partial<Parameters<typeof updateDraft>[0]> = {};
-
-    if (state.locations.length === 0 && currentOrg.default_target_locations?.length) {
-      updates.locations = (currentOrg.default_target_locations as Array<{ id: string; name: string; type: string; country_code: string }>).map((l) => ({
-        id: l.id,
-        name: l.name,
-        type: l.type,
-        country: l.country_code,
-      }));
-    }
-
-    if (state.targetInterests.length === 0 && currentOrg.default_target_interests?.length) {
-      updates.targetInterests = (currentOrg.default_target_interests as Array<{ id: string; name: string }>).map((i) => ({
-        id: i.id,
-        name: i.name,
-        resolved: true,
-      }));
-    }
-
-    if (Object.keys(updates).length > 0) updateDraft(updates);
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- run once when org loads
-  }, [currentOrg?.id]);
-
   // Init-chat greeting (runs once on mount)
   useEffect(() => {
     if (messages.length > 0) return;

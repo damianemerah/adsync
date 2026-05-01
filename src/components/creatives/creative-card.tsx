@@ -18,12 +18,16 @@ export function CreativeCard({
   onSelect,
   onClick,
   onDelete,
+  displayUrl,
+  variantCount = 0,
 }: {
   data: Creative;
   selected: boolean;
   onSelect: () => void;
   onClick: () => void;
   onDelete?: (id: string) => void;
+  displayUrl?: string;
+  variantCount?: number;
 }) {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -60,7 +64,7 @@ export function CreativeCard({
           )
         ) : (
           <Image
-            src={data.original_url}
+            src={displayUrl ?? data.original_url}
             alt={data.name || "Creative"}
             fill
             className="object-cover transition-transform duration-500 group-hover:scale-105"
@@ -151,7 +155,7 @@ export function CreativeCard({
                 className="gap-2 cursor-pointer"
                 onClick={(e) => {
                   e.stopPropagation();
-                  router.push(`/creations/studio?edit=${data.id}`);
+                  router.push(`/ai-creative/studio?edit=${data.id}`);
                 }}
               >
                 <Sparks className="w-4 h-4 text-primary" />
@@ -175,11 +179,18 @@ export function CreativeCard({
 
         <div className="flex items-center justify-between text-xs text-subtle-foreground">
           <span className="font-mono">{`${data.width || 0}×${data.height || 0}`}</span>
-          {data.usageCount && data.usageCount > 0 && (
-            <span className="flex items-center gap-1 text-primary font-medium">
-              <GraphUp className="w-3 h-3" /> {data.usageCount}
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {variantCount > 0 && (
+              <span className="text-muted-foreground">
+                {variantCount} variant{variantCount !== 1 ? "s" : ""}
+              </span>
+            )}
+            {data.usageCount && data.usageCount > 0 && (
+              <span className="flex items-center gap-1 text-primary font-medium">
+                <GraphUp className="w-3 h-3" /> {data.usageCount}
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </div>

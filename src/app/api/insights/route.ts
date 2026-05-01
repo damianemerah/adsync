@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getDashboardData } from "@/lib/api/insights";
+import { getActiveOrgId } from "@/lib/active-org";
 
 /**
  * GET /api/insights
@@ -21,6 +22,9 @@ export async function GET(request: Request) {
   } = await supabase.auth.getUser();
   if (!user) return new Response("Unauthorized", { status: 401 });
 
+  const orgId = await getActiveOrgId();
+  if (!orgId) return new Response("No organization found", { status: 400 });
+
   // 2. Parse query params
   const { searchParams } = new URL(request.url);
   console.log("searchParams🔥", searchParams);
@@ -37,7 +41,7 @@ export async function GET(request: Request) {
 
   // 3. Delegate to the shared server-side fetcher
   try {
-    const data = await getDashboardData(supabase, user.id, {
+    const data = await getDashboardData(user.id, orgId, {
       campaignId,
       platform,
       accountId,

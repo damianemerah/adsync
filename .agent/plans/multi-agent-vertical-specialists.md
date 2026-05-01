@@ -245,8 +245,7 @@ const verticalSkillMap: Record<string, string | undefined> = {
   events: process.env.SKILL_ID_COPY_EVENTS_NG, // existing
 };
 
-const verticalSkillId =
-  verticalSkillMap[businessType] ?? process.env.SKILL_ID_COPY_VERTICALS_NG; // fallback for general/unknown
+const verticalSkillId = verticalSkillMap[businessType] ?? process.env.SKILL_ID_COPY_VERTICALS_NG; // fallback for general/unknown
 
 if (verticalSkillId) skills.push(verticalSkillId);
 
@@ -259,10 +258,7 @@ const policyGuardTypes = [
   "health_wellness",
   "finance",
 ];
-if (
-  policyGuardTypes.includes(businessType) &&
-  process.env.SKILL_ID_POLICY_GUARD_NG
-) {
+if (policyGuardTypes.includes(businessType) && process.env.SKILL_ID_POLICY_GUARD_NG) {
   skills.push(process.env.SKILL_ID_POLICY_GUARD_NG);
 }
 ```

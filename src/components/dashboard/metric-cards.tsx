@@ -7,7 +7,6 @@ import {
   Coins,
   StatUp,
   Shop,
-  Wallet,
   Percentage,
 } from "iconoir-react";
 import { CampaignMetrics } from "@/lib/utils/campaign-metrics";
@@ -142,7 +141,7 @@ export function MetricCards({ summary }: MetricCardsProps) {
       change: spendChange?.text ?? null,
       trend: spendChange?.trend ?? "neutral",
       tone: "blue",
-      icon: <Wallet className="h-4 w-4" />,
+      icon: <Coins className="h-4 w-4" />,
     },
     {
       label: "People Messaged",

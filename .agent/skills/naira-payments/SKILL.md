@@ -44,6 +44,7 @@ SME pays ₦ → Paystack → webhook → creditAdBudget()
 ```
 
 **Callback flow (client-side):**
+
 ```
 Paystack redirects → ?topup_success=true
   → billing-content.tsx reads param

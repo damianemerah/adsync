@@ -32,6 +32,57 @@ export function messageContainsUrl(text: string): boolean {
 }
 
 /**
+ * Fetch a URL server-side and return text content plus ranked image candidates.
+ * imageOptions: og:image first (most reliable), then prominent <img> tags.
+ * Returns null on any fetch/parse failure.
+ */
+export async function scrapeUrlFull(url: string): Promise<{
+  text: string | null;
+  imageOptions: string[];
+} | null> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6000);
+
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (compatible; TenzuBot/1.0; +https://tenzu.ai)",
+        Accept: "text/html,application/xhtml+xml",
+      },
+    });
+    clearTimeout(timeout);
+
+    if (!res.ok) {
+      console.log(`[scrapeUrlFull] HTTP ${res.status} ${res.statusText} for ${url}`);
+      return null;
+    }
+
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("text/html")) {
+      console.log(`[scrapeUrlFull] Non-HTML content-type "${contentType}" for ${url}`);
+      return null;
+    }
+
+    const html = await res.text();
+    const ogImage = extractOgImageFromHtml(html);
+    const imgTags = extractImagesFromHtml(html, url);
+
+    // og:image first, then deduplicated img tags (skip duplicates of og:image)
+    const imageOptions = [
+      ...(ogImage ? [ogImage] : []),
+      ...imgTags.filter((u) => u !== ogImage),
+    ].slice(0, 4);
+
+    return { text: extractTextFromHtml(html), imageOptions };
+  } catch (e) {
+    console.log(`[scrapeUrlFull] Fetch error for ${url}:`, e);
+    return null;
+  }
+}
+
+/**
  * Fetch a URL server-side and extract meaningful text content.
  * Returns null on any failure — the chat should always degrade gracefully.
  * Caps output at 2,000 chars to stay within token budget.
@@ -72,6 +123,43 @@ export async function scrapeUrl(url: string): Promise<string | null> {
     console.log(`[scrapeUrl] Fetch error for ${url}:`, e)
     return null;
   }
+}
+
+function extractOgImageFromHtml(html: string): string | null {
+  const match =
+    html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
+    html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+  return match ? match[1].trim() : null;
+}
+
+function extractImagesFromHtml(html: string, baseUrl: string): string[] {
+  const results: string[] = [];
+  const imgPattern = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+  let match;
+
+  while ((match = imgPattern.exec(html)) !== null) {
+    const src = match[1].trim();
+    if (!src || src.startsWith("data:")) continue;
+
+    let abs: string;
+    try {
+      abs = new URL(src, baseUrl).href;
+    } catch {
+      continue;
+    }
+
+    if (!abs.startsWith("http")) continue;
+    const lower = abs.toLowerCase();
+    // Only raster image formats likely to be product photos
+    if (!/\.(jpe?g|png|webp|avif)(\?|$|#)/.test(lower)) continue;
+    // Skip tracking pixels, favicons, icons
+    if (/favicon|\.ico|1x1|pixel|tracking|beacon|spacer/.test(lower)) continue;
+
+    results.push(abs);
+    if (results.length >= 6) break;
+  }
+
+  return [...new Set(results)];
 }
 
 function extractTextFromHtml(html: string): string | null {

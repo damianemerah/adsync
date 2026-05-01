@@ -32,30 +32,35 @@ tenzu-marketing-enhanced/
 ### When to Use Each Reference File
 
 **brand-voice.md**
+
 - Setting up tone guidelines for writers
 - Reviewing copy for vocabulary compliance
 - Training team members on voice
 - Resolving "what should we call this?" debates
 
 **landing-pages.md**
+
 - Writing hero sections
 - Creating feature benefit blocks
 - Handling objections in FAQ
 - Optimizing conversion copy
 
 **email-sequences.md**
+
 - Building welcome sequences
 - Re-engaging inactive users
 - Announcing features
 - Winning back churned users
 
 **social-templates.md**
+
 - Planning content calendar
 - Creating platform-specific posts
 - Running social campaigns
 - Engaging with community
 
 **battle-cards.md**
+
 - Responding to competitive questions
 - Writing comparison content
 - Training sales team
@@ -66,16 +71,19 @@ tenzu-marketing-enhanced/
 The skill positions Tenzu on three core pillars:
 
 ### 1. Payment Advantage (Naira-Native)
+
 - **Pain:** International tools reject Nigerian cards
 - **Solution:** Paystack integration, local payment
 - **Message:** "Pay in Naira, not dollars"
 
 ### 2. Creative Advantage (AI Studio)
+
 - **Pain:** Amateur phone photos, expensive agencies
 - **Solution:** AI transforms photos into professional ads
 - **Message:** "Studio-quality from phone photos"
 
 ### 3. Simplicity Advantage (No-Expert Required)
+
 - **Pain:** Ads Manager complexity (50+ fields)
 - **Solution:** Chat-based AI consultant
 - **Message:** "Chat to launch in 2 minutes"
@@ -83,51 +91,61 @@ The skill positions Tenzu on three core pillars:
 ## Competitive Positioning Summary
 
 ### vs. Wask / AdCreative.ai (Global Tools)
+
 **Attack:** Payment friction, generic approach, desktop-first
 **Defense:** Local infrastructure, Nigerian focus, mobile-first
 
 ### vs. Traditional Agencies
+
 **Attack:** Cost (₦150k vs ₦15k), speed (7 days vs 2 min), transparency
 **Defense:** Efficiency over expertise, testing capability
 
 ### vs. Meta Ads Manager (DIY)
+
 **Attack:** Complexity (50 fields vs chat), learning curve, no creative help
 **Defense:** Simplicity, guidance, AI creative tools
 
 ## Brand Voice Summary
 
 ### Core Tone
+
 Empathetic fintech expert - understands hustle, speaks with authority
 
 ### Key Guidelines
+
 - **DO**: Prepaid Access, Membership, Vendor, SME, WhatsApp Link, Naira
 - **DON'T**: Recurring Billing, Subscription, Enterprise, Landing Page, Bot, Dollars
 
 ### Emotional Target
+
 - Evoke: Relief, empowerment, pride, control
 - Avoid: Desperation, confusion, inadequacy, aggressive FOMO
 
 ## Content Formulas
 
 ### Hero Section
+
 ```
 [Outcome Promise] + [Time/Ease Qualifier] + [Key Differentiator]
 Example: "Run Professional Facebook Ads in 2 Minutes. Pay in Naira. No Expert Needed."
 ```
 
 ### Problem-Agitation-Solution (PAS)
+
 ```
 1. State pain clearly
-2. Make them feel it  
+2. Make them feel it
 3. Show Tenzu as the fix
 ```
 
 ### Feature-Benefit-Proof (FBP)
+
 ```
 [What It Does] → [Why That Matters] → [Social Proof]
 ```
 
 ### Email Subject Lines
+
 ```
 40-50 chars | Personalization | Clarity > Cleverness | Numbers work | Questions engage
 ```
@@ -135,6 +153,7 @@ Example: "Run Professional Facebook Ads in 2 Minutes. Pay in Naira. No Expert Ne
 ## Quality Assurance Checklist
 
 Before publishing any copy, verify:
+
 - [ ] Primary pillar is clear (Payment/Creative/Simplicity)
 - [ ] Local context acknowledged (Naira, WhatsApp, mobile-first)
 - [ ] Approved vocabulary used (see brand-voice.md)
@@ -151,6 +170,7 @@ Before publishing any copy, verify:
 ### For Use in .agent/skills Directory
 
 1. Copy the `tenzu-marketing-enhanced` folder to your project's `.agent/skills/` directory:
+
    ```
    .agent/skills/tenzu-marketing-copywriter/
    ```
@@ -167,6 +187,7 @@ Before publishing any copy, verify:
 ### Customization
 
 You can customize this skill by:
+
 - Updating brand-voice.md with company-specific terms
 - Adding your own testimonials to battle-cards.md
 - Creating company-specific templates in each reference file
@@ -175,6 +196,7 @@ You can customize this skill by:
 ## Examples
 
 See `examples/usage-examples.md` for detailed walkthroughs of:
+
 - Landing page hero sections
 - Welcome emails
 - Twitter threads
@@ -198,6 +220,7 @@ See `examples/usage-examples.md` for detailed walkthroughs of:
 ## Maintenance
 
 This skill should be updated when:
+
 - New competitors emerge (add to battle-cards.md)
 - Brand voice evolves (update brand-voice.md)
 - New features launch (add to social-templates.md)
@@ -207,6 +230,7 @@ This skill should be updated when:
 ## Support
 
 For questions about using this skill:
+
 1. Read the relevant reference file first
 2. Check usage-examples.md for similar scenarios
 3. Consult brand-voice.md for terminology questions
@@ -219,6 +243,7 @@ For questions about using this skill:
 **Status:** Production-ready
 
 This skill follows Anthropic's skill-creator best practices including:
+
 - Progressive disclosure pattern
 - Clear frontmatter with comprehensive description
 - Reference files for detailed content

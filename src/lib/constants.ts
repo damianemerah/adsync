@@ -5,9 +5,17 @@ export const PLAN_IDS = {
 } as const;
 
 export const PLAN_PRICES: Record<string, number> = {
-  starter: 15000,
-  growth: 35000,
-  agency: 75000,
+  starter: 9900,
+  growth: 24900,
+  agency: 59900,
+};
+
+// Paystack plan codes — created in Paystack dashboard, stored in env
+// Each plan code maps to a recurring monthly plan that Paystack manages
+export const PAYSTACK_PLAN_CODES: Record<string, string | undefined> = {
+  starter: process.env.NEXT_PUBLIC_PAYSTACK_PLAN_STARTER,
+  growth: process.env.NEXT_PUBLIC_PAYSTACK_PLAN_GROWTH,
+  agency: process.env.NEXT_PUBLIC_PAYSTACK_PLAN_AGENCY,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -16,12 +24,14 @@ export const PLAN_PRICES: Record<string, number> = {
 /** 5% platform processing fee on every ad budget top-up */
 export const PLATFORM_FEE_RATE = 0.05;
 
+export const TRIAL_DAYS = 7;
+
 // Monthly credit quotas per plan (must mirror plan_definitions DB table)
 export const PLAN_CREDITS: Record<string, number> = {
   free_trial: 50,
-  starter: 150,
-  growth: 400,
-  agency: 1200,
+  starter: 50,
+  growth: 150,
+  agency: 250,
 };
 
 // Credits cost per AI action (mirrors credit_costs DB table)
@@ -54,7 +64,7 @@ export const TIER_CONFIG = {
       maxCopyVariations: 2,
       maxRefinementsPerCampaign: 3,
     },
-    credits: { monthly: 150, imageCost: 5, premiumImageCost: null },
+    credits: { monthly: 50, imageCost: 5, premiumImageCost: null },
     limits: {
       maxOrganizations: 1,
       maxAdAccounts: 1,
@@ -62,6 +72,8 @@ export const TIER_CONFIG = {
       linkAnalyticsDays: 7,
       customLinkSlugs: false,
       maxMonthlyChats: 50,
+      adSpendCeilingKobo: 10_000_000,  // ₦100,000
+      anomalyBufferKobo: 2_000_000,    // ₦20,000
     },
   },
   growth: {
@@ -74,7 +86,7 @@ export const TIER_CONFIG = {
       maxCopyVariations: 3,
       maxRefinementsPerCampaign: Infinity,
     },
-    credits: { monthly: 400, imageCost: 5, premiumImageCost: null },
+    credits: { monthly: 150, imageCost: 5, premiumImageCost: null },
     limits: {
       maxOrganizations: 3,
       maxAdAccounts: 3,
@@ -82,6 +94,8 @@ export const TIER_CONFIG = {
       linkAnalyticsDays: 30,
       customLinkSlugs: true,
       maxMonthlyChats: 200,
+      adSpendCeilingKobo: 30_000_000,  // ₦300,000
+      anomalyBufferKobo: 5_000_000,    // ₦50,000
     },
   },
   agency: {
@@ -94,14 +108,16 @@ export const TIER_CONFIG = {
       maxCopyVariations: 5,
       maxRefinementsPerCampaign: Infinity,
     },
-    credits: { monthly: 1200, imageCost: 5, premiumImageCost: 8 },
+    credits: { monthly: 250, imageCost: 5, premiumImageCost: 8 },
     limits: {
       maxOrganizations: 999,
       maxAdAccounts: 999,
       maxTeamMembers: 10,
       linkAnalyticsDays: 36500, // "Lifetime"
       customLinkSlugs: true,
-      maxMonthlyChats: 999999, // Effectively unlimited
+      maxMonthlyChats: 2000, // Above this, chat dips into credit pool at 1 cr/msg
+      adSpendCeilingKobo: null,         // Unlimited
+      anomalyBufferKobo: null,
     },
   },
 } as const;
@@ -128,6 +144,7 @@ export const getDailyRate = (planId: string) => {
 export const SUBSCRIPTION_STATUS = {
   ACTIVE: "active",
   TRIALING: "trialing",
+  INCOMPLETE: "incomplete", // org created but Meta not yet connected; trial not started
   PAST_DUE: "past_due",
   CANCELLED: "cancelled",
   EXPIRED: "expired",
@@ -148,6 +165,58 @@ export const AD_ACCOUNT_STATUS = {
 
 // Helper arrays for validation/dropdowns
 export const PLANS = Object.values(PLAN_IDS);
+
+// Full plan data for billing UI — single source of truth consumed by billing-content, subscription-gate, and payment-dialog
+export const BILLING_PLANS = [
+  {
+    id: PLAN_IDS.STARTER,
+    name: "Starter",
+    price: PLAN_PRICES.starter,
+    credits: PLAN_CREDITS.starter,
+    tagline: "Perfect for solo SMEs",
+    features: [
+      `${PLAN_CREDITS.starter} AI credits / month`,
+      `${TIER_CONFIG.starter.limits.maxAdAccounts} Meta Ad Account${TIER_CONFIG.starter.limits.maxAdAccounts > 1 ? "s" : ""}`,
+      `${TIER_CONFIG.starter.limits.maxTeamMembers} Team Member${TIER_CONFIG.starter.limits.maxTeamMembers > 1 ? "s" : ""}`,
+      `${TIER_CONFIG.starter.limits.maxMonthlyChats} AI chat sessions / month`,
+      "AI Ad Copy (Free) + Image Generation",
+      "Campaign Analytics",
+    ],
+    highlight: false,
+  },
+  {
+    id: PLAN_IDS.GROWTH,
+    name: "Growth",
+    price: PLAN_PRICES.growth,
+    credits: PLAN_CREDITS.growth,
+    tagline: "For scaling businesses",
+    features: [
+      `${PLAN_CREDITS.growth} AI credits / month`,
+      `Up to ${TIER_CONFIG.growth.limits.maxAdAccounts} Ad Accounts`,
+      `Up to ${TIER_CONFIG.growth.limits.maxTeamMembers} Team Members`,
+      `${TIER_CONFIG.growth.limits.maxMonthlyChats} AI chat sessions / month`,
+      "AI Copy (Free) + Pro Image Generation",
+      "Advanced Analytics + Rollover Credits",
+    ],
+    highlight: true,
+  },
+  {
+    id: PLAN_IDS.AGENCY,
+    name: "Agency",
+    price: PLAN_PRICES.agency,
+    credits: PLAN_CREDITS.agency,
+    tagline: "Built for agencies managing multiple clients",
+    features: [
+      `${PLAN_CREDITS.agency} AI credits / month`,
+      "Unlimited Accounts",
+      `Up to ${TIER_CONFIG.agency.limits.maxTeamMembers} Team Members`,
+      "Unlimited AI chat sessions",
+      "All AI features + Video (Phase 2)",
+      "Priority Support + Credit Rollover",
+    ],
+    highlight: false,
+  },
+] as const;
 export const ROLES_LIST = Object.values(ROLES);
 
 // 1. The AdSync Objectives (Refactored for Revenue vs Growth)

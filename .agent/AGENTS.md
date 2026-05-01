@@ -26,7 +26,7 @@
 | **Attribution Layer**       | attribution link, smart link, `/l/[token]`, pixel, WhatsApp clicks, ROI dashboard, `link_clicks`, CAPI, Conversions API, fbclid, `updateAdAccountCapi`, Meta Pixel ID, offline conversion, capi_access_token                 | [skills/attribution/SKILL.md](skills/attribution/SKILL.md)                         |
 | **AI Context**              | org context, business description, `compileContextPrompt`, `useOrgContext`, category playbooks                                                                                                                               | [skills/ai-context/SKILL.md](skills/ai-context/SKILL.md)                           |
 | **Campaign Launch**         | launch campaign, Meta API, `campaigns.ts`, policy guard, ad copy check, 1:1:1 rule                                                                                                                                           | [skills/campaign-launch/SKILL.md](skills/campaign-launch/SKILL.md)                 |
-| **Naira Payments**          | ad budget, top-up, virtual card, wallet, Paystack, Grey API, Geegpay                                                                                                                                                         | [skills/naira-payments/SKILL.md](skills/naira-payments/SKILL.md)                   |
+| **Naira Payments**          | Paystack, subscriptions, billing, invoices                                                                                                                    | [skills/naira-payments/SKILL.md](skills/naira-payments/SKILL.md)                         |
 | **Tier Strategy**           | tier, credits, Starter, Growth, Agency, `TIER_CONFIG`, feature gates, upgrade prompt                                                                                                                                         | [skills/tier-strategy/SKILL.md](skills/tier-strategy/SKILL.md)                     |
 | **Marketing Copy**          | landing page, email, social post, copywriting, brand voice, competitive positioning                                                                                                                                          | [skills/marketing/SKILL.md](skills/marketing/SKILL.md)                             |
 | **Frontend Design**         | UI, dashboard, Soft Modern, Wask aesthetic, Shadcn, layout, `/remodel`                                                                                                                                                       | [skills/frontend-design/SKILL.md](skills/frontend-design/SKILL.md)                 |
@@ -42,19 +42,19 @@
 
 ## Implementation Phase Status
 
-| Phase    | Feature                                                                                              | Status      |
-| -------- | ---------------------------------------------------------------------------------------------------- | ----------- |
-| **1A**   | Attribution layer — smart links, click tracking, redirect route                                      | ✅ Complete |
-| **1B**   | Naira ROI dashboard — Mark as Sold, `useCampaignROI`                                                 | ✅ Complete |
-| **1C**   | Org-level AI context — `useOrgContext`, category playbooks                                           | ✅ Complete |
-| **CAPI** | Meta Conversions API — offline WhatsApp + website CAPI events, `fbclid` capture, CAPI settings UI    | ✅ Complete |
-| **2A**   | Naira ad budget wallet — Paystack top-up, Sudo Africa virtual USD card, wallet balance check in launch step, billing page integration | ✅ Complete |
-| **T1**   | Targeting Phase 1 — Language, income proxies, exclusions                                             | ⬜ Next     |
-| **T2**   | Targeting Phase 2 — Custom audiences, retargeting                                                    | ⬜ Planned  |
-| **T3**   | Targeting Phase 3 — Lookalike audiences (Agency tier)                                                | ⬜ Planned  |
-| **2B**   | Creative intelligence — UGC video pipeline                                                           | ⬜ Planned  |
-| **3**    | AI Vision Feedback Loop — `analyze-assets` cron, GPT-4o Vision, `design_insights`, `insightsContext` | 🟡 Planned  |
-| **4**    | Creative Testing — 1:1:N Meta Creative Testing API, multi-creative launch, CAPI-gated                | 🟢 Future   |
+| Phase    | Feature                                                                                                                               | Status      |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| **1A**   | Attribution layer — smart links, click tracking, redirect route                                                                       | ✅ Complete |
+| **1B**   | Naira ROI dashboard — Mark as Sold, `useCampaignROI`                                                                                  | ✅ Complete |
+| **1C**   | Org-level AI context — `useOrgContext`, category playbooks                                                                            | ✅ Complete |
+| **CAPI** | Meta Conversions API — offline WhatsApp + website CAPI events, `fbclid` capture, CAPI settings UI                                     | ✅ Complete |
+| **2A**   | Naira ad budget wallet (DEPRECATED) — Replaced by Meta's native payment support                                                                      | 🚫 Dropped  |
+| **T1**   | Targeting Phase 1 — Language, income proxies, exclusions                                                                              | ⬜ Next     |
+| **T2**   | Targeting Phase 2 — Custom audiences, retargeting                                                                                     | ⬜ Planned  |
+| **T3**   | Targeting Phase 3 — Lookalike audiences (Agency tier)                                                                                 | ⬜ Planned  |
+| **2B**   | Creative intelligence — UGC video pipeline                                                                                            | ⬜ Planned  |
+| **3**    | AI Vision Feedback Loop — `analyze-assets` cron, GPT-4o Vision, `design_insights`, `insightsContext`                                  | 🟡 Planned  |
+| **4**    | Creative Testing — 1:1:N Meta Creative Testing API, multi-creative launch, CAPI-gated                                                 | 🟢 Future   |
 
 Always check `.agent/rules/decisions.md` before starting any phase.
 Always read the relevant skill file before writing code.
@@ -71,19 +71,19 @@ Always read the relevant skill file before writing code.
 - **Subscription Gate:** Check `subscription_status === 'active'` before any Meta API write.
 - **Policy Guard:** Run ad copy through `checkAdPolicy()` before Meta submission. Block HIGH, warn MEDIUM.
 - **TikTok:** Deferred. Gated in backend. Remove from UI if visible.
-- **No Shared Cards:** Each org gets their own Meta virtual card. Never use a shared Tenzu card on Meta.
+- **Direct Ad Spend:** SMEs pay Meta directly via their own payment methods. Tenzu does not manage ad spend funds.
 
 ---
 
 ## Workflows
 
-| Workflow           | When to Use                                          |
-| ------------------ | ---------------------------------------------------- |
-| `/implement-phase` | Starting a new feature phase from the plan           |
-| `/new-migration`   | Creating a Supabase DB migration                     |
-| `/policy-check`    | Checking ad copy risk before launch                  |
+| Workflow           | When to Use                                         |
+| ------------------ | --------------------------------------------------- |
+| `/implement-phase` | Starting a new feature phase from the plan          |
+| `/new-migration`   | Creating a Supabase DB migration                    |
+| `/policy-check`    | Checking ad copy risk before launch                 |
 | `/remodel`         | Refactoring UI to match Tenzu Soft Modern aesthetic |
-| `/fix-layout`      | Fixing spacing and layout inconsistencies            |
+| `/fix-layout`      | Fixing spacing and layout inconsistencies           |
 
 ---
 
@@ -96,7 +96,7 @@ State:       TanStack Query (server) + Zustand (wizard client state)
 UI:          Tailwind CSS v4 + Shadcn UI
 Validation:  Zod
 AI:          OpenAI (Responses API, strategy/copy) + Fal.ai/Flux (images)
-Payments:    Paystack (Naira subscriptions + top-ups)
+Payments:    Paystack (Naira subscriptions)
 ```
 
 ### Key File Locations

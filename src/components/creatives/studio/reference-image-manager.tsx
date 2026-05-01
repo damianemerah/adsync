@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { CreativeSelectorDialog } from "../creative-selector-dialog";
-import { uploadTempImage } from "@/actions/ai-images";
+import { uploadReferenceImage } from "@/actions/ai-images";
 import { toast } from "sonner";
 import { Plus, Sparks, Upload, MediaImage, Xmark } from "iconoir-react";
 import { cn } from "@/lib/utils";
@@ -50,7 +50,7 @@ export function useReferenceImageUpload({
       const uploadPromises = files.map(async (file) => {
         const formData = new FormData();
         formData.append("file", file);
-        return uploadTempImage(formData);
+        return uploadReferenceImage(formData);
       });
 
       const results = await Promise.all(uploadPromises);

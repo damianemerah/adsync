@@ -28,7 +28,6 @@ Before starting, confirm all three anchors are available:
 
 1. Open the target component(s) and run a **mobile-focused `/audit`** pass.
    Concentrate the audit on two dimensions only:
-
    - **Responsive Design** (score 0–4) — fixed widths, touch targets < 44px,
      horizontal scroll, missing `sm:` breakpoints
    - **Anti-Patterns** (score 0–4) — nested cards, desktop-only patterns,
@@ -37,7 +36,7 @@ Before starting, confirm all three anchors are available:
 2. Produce a triage table:
 
    | Component | Responsive | Anti-Pattern | Priority |
-   |-----------|------------|--------------|----------|
+   | --------- | ---------- | ------------ | -------- |
    | `foo.tsx` | 1/4        | 2/4          | P0       |
 
 3. Fix order: P0 first, then P1, P2. Do not work on P3 items in this workflow.
@@ -56,12 +55,13 @@ For each P0/P1 component, apply `/distill` with the mobile context:
 - Identify desktop-only panels, sidebars, or multi-column layouts that collapse
   badly at 375px.
 - Remove or defer any element that is not essential to the primary mobile task.
-  Ask: *"Can this SME on an Android complete their goal without this?"*
+  Ask: _"Can this SME on an Android complete their goal without this?"_
 - Replace complex nested layouts with a **linear vertical flow**.
 - Apply progressive disclosure: collapse secondary content behind accordions,
   sheets, or step-through flows rather than hiding it with `hidden md:block`.
 
 **Rules**:
+
 - Never remove core functionality — only restructure access to it.
 - `hidden md:block` is a last resort, not a default. If it matters, make it
   work on mobile first.
@@ -88,8 +88,9 @@ For each P0/P1 component, apply `/distill` with the mobile context:
    primary action within 2 seconds?
 
 **Rules**:
+
 - No nested cards. If hierarchy is needed inside a card, use a `border-t
-  border-border` divider, not another `<div className="bg-card rounded-lg">`.
+border-border` divider, not another `<div className="bg-card rounded-lg">`.
 - Grid is only for 2D layouts. Use Flexbox + column direction for mobile lists.
 
 **Skills used**: `/arrange`
@@ -143,6 +144,7 @@ Apply `/typeset` to every component touched:
 **Skills used**: `/typeset`
 
 ---
+
 ## Step 5 — Touch & Interaction (skill: /adapt)
 
 > **Goal**: Make every interaction feel native on a phone.
@@ -218,19 +220,19 @@ Work through the Polish checklist, mobile-weighted:
 
 ## Quick Reference — Tenzu Mobile Tokens
 
-| Token              | Use case                          |
-|--------------------|-----------------------------------|
-| `p-4`              | Standard card internal padding    |
-| `gap-4` / `gap-6`  | Vertical stacking between items   |
-| `min-h-11`         | Touch target minimum height       |
-| `text-sm`          | Body text (14px — mobile floor)   |
-| `rounded-lg`       | Cards and containers              |
-| `rounded-md`       | Inputs, badges                    |
-| `border-border`    | All surface separation            |
-| `bg-muted`         | Subtle section background         |
-| `text-subtle-foreground` | Secondary/supporting text  |
-| `font-heading`     | All H1–H3                         |
-| `font-sans`        | All body, labels, buttons         |
+| Token                    | Use case                        |
+| ------------------------ | ------------------------------- |
+| `p-4`                    | Standard card internal padding  |
+| `gap-4` / `gap-6`        | Vertical stacking between items |
+| `min-h-11`               | Touch target minimum height     |
+| `text-sm`                | Body text (14px — mobile floor) |
+| `rounded-lg`             | Cards and containers            |
+| `rounded-md`             | Inputs, badges                  |
+| `border-border`          | All surface separation          |
+| `bg-muted`               | Subtle section background       |
+| `text-subtle-foreground` | Secondary/supporting text       |
+| `font-heading`           | All H1–H3                       |
+| `font-sans`              | All body, labels, buttons       |
 
 ## Do Not / Never
 

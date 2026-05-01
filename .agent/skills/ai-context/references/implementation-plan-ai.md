@@ -48,11 +48,7 @@ export const CATEGORY_PLAYBOOKS: Record<BusinessCategory, CategoryPlaybook> = {
   },
   beauty: {
     category: "beauty",
-    topCreativeFormats: [
-      "close-up product shot",
-      "before/after result",
-      "user applying product",
-    ],
+    topCreativeFormats: ["close-up product shot", "before/after result", "user applying product"],
     copyTone: "results_focused",
     highPerformingCTAs: ["Send Message", "Get Quote"],
     avoidPatterns: ["medical claims", "miracle language"],
@@ -61,11 +57,7 @@ export const CATEGORY_PLAYBOOKS: Record<BusinessCategory, CategoryPlaybook> = {
   },
   food: {
     category: "food",
-    topCreativeFormats: [
-      "hero food shot",
-      "packaging on clean surface",
-      "process/cooking shot",
-    ],
+    topCreativeFormats: ["hero food shot", "packaging on clean surface", "process/cooking shot"],
     copyTone: "warm_casual",
     highPerformingCTAs: ["Order Now", "Send Message"],
     avoidPatterns: ["overly dark images", "small portions"],
@@ -74,11 +66,7 @@ export const CATEGORY_PLAYBOOKS: Record<BusinessCategory, CategoryPlaybook> = {
   },
   digital_services: {
     category: "digital_services",
-    topCreativeFormats: [
-      "result/outcome graphic",
-      "testimonial screenshot",
-      "before/after result",
-    ],
+    topCreativeFormats: ["result/outcome graphic", "testimonial screenshot", "before/after result"],
     copyTone: "credibility_focused",
     highPerformingCTAs: ["Learn More", "Send Message"],
     avoidPatterns: ["income claims", "guaranteed results language"],
@@ -87,11 +75,7 @@ export const CATEGORY_PLAYBOOKS: Record<BusinessCategory, CategoryPlaybook> = {
   },
   real_estate: {
     category: "real_estate",
-    topCreativeFormats: [
-      "property exterior shot",
-      "interior lifestyle",
-      "aerial view",
-    ],
+    topCreativeFormats: ["property exterior shot", "interior lifestyle", "aerial view"],
     copyTone: "premium_aspirational",
     highPerformingCTAs: ["Get Quote", "Send Message", "Book Now"],
     avoidPatterns: ["price in creative", "cluttered contact details"],
@@ -100,16 +84,11 @@ export const CATEGORY_PLAYBOOKS: Record<BusinessCategory, CategoryPlaybook> = {
   },
   general: {
     category: "general",
-    topCreativeFormats: [
-      "product on clean background",
-      "lifestyle usage",
-      "offer graphic",
-    ],
+    topCreativeFormats: ["product on clean background", "lifestyle usage", "offer graphic"],
     copyTone: "casual_nigerian",
     highPerformingCTAs: ["Send Message", "Shop Now"],
     avoidPatterns: ["too much text in image", "dark low-quality photography"],
-    systemPromptAddition:
-      "Nigerian market, clean modern aesthetic, product clearly visible",
+    systemPromptAddition: "Nigerian market, clean modern aesthetic, product clearly visible",
   },
 };
 
@@ -118,10 +97,8 @@ export function detectCategory(businessDescription: string): BusinessCategory {
   if (/fashion|cloth|wear|outfit|dress|shoe/.test(desc)) return "fashion";
   if (/beauty|hair|skin|makeup|cosmetic|salon/.test(desc)) return "beauty";
   if (/food|restaurant|catering|eat|meal|cook/.test(desc)) return "food";
-  if (/digital|online|course|training|software|tech/.test(desc))
-    return "digital_services";
-  if (/property|real estate|land|house|apartment|estate/.test(desc))
-    return "real_estate";
+  if (/digital|online|course|training|software|tech/.test(desc)) return "digital_services";
+  if (/property|real estate|land|house|apartment|estate/.test(desc)) return "real_estate";
   return "general";
 }
 ```
@@ -129,10 +106,7 @@ export function detectCategory(businessDescription: string): BusinessCategory {
 **Wire into `ai-images.ts`** — when `campaignContext` is present:
 
 ```typescript
-import {
-  detectCategory,
-  CATEGORY_PLAYBOOKS,
-} from "@/lib/ai/category-playbooks";
+import { detectCategory, CATEGORY_PLAYBOOKS } from "@/lib/ai/category-playbooks";
 
 // In generateAdCreative, when campaign context exists:
 if (campaignContext?.businessDescription) {
@@ -200,11 +174,7 @@ export async function processUGCVideo({
   });
 
   // Spend credits after successful generation
-  await spendCredits(
-    user.id,
-    CREDIT_COSTS.VIDEO_PROCESS || 20,
-    "video_process",
-  );
+  await spendCredits(user.id, CREDIT_COSTS.VIDEO_PROCESS || 20, "video_process");
 
   return {
     success: true,
@@ -303,7 +273,7 @@ export async function getOptimizationRecommendations({
       cost_per_sale_ngn,
       targeting_snapshot,
       daily_budget_cents
-    `,
+    `
     )
     .filter("ai_context->>'businessDescription'", "ilike", `%${category}%`)
     .gte("whatsapp_clicks", 5) // Only include campaigns with meaningful data
@@ -316,12 +286,8 @@ export async function getOptimizationRecommendations({
 
   // Build context for the AI
   const benchmarkSummary = {
-    avgClickRate: average(
-      categoryBenchmarks.map((b: any) => b.whatsapp_click_rate),
-    ),
-    avgConversionRate: average(
-      categoryBenchmarks.map((b: any) => b.conversation_to_sale_rate),
-    ),
+    avgClickRate: average(categoryBenchmarks.map((b: any) => b.whatsapp_click_rate)),
+    avgConversionRate: average(categoryBenchmarks.map((b: any) => b.conversation_to_sale_rate)),
     topInterests: extractTopInterests(categoryBenchmarks),
   };
 
@@ -349,9 +315,7 @@ Reply in JSON: { "interests": [], "budgetAdvice": "", "creativeFormat": "" }`,
 }
 
 function average(nums: number[]): number {
-  return nums.length
-    ? Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 10) / 10
-    : 0;
+  return nums.length ? Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 10) / 10 : 0;
 }
 
 function extractTopInterests(benchmarks: any[]): string[] {

@@ -16,15 +16,15 @@ The launch flow in `src/actions/campaigns.ts` correctly skips attribution links 
 
 ## Why It's Different From Other Objectives
 
-| Feature           | WhatsApp / Traffic / Sales              | Leads                             |
-| ----------------- | --------------------------------------- | --------------------------------- |
-| Destination URL   | Required (`wa.me/...` or `https://...`) | ❌ None                           |
+| Feature          | WhatsApp / Traffic / Sales              | Leads                             |
+| ---------------- | --------------------------------------- | --------------------------------- |
+| Destination URL  | Required (`wa.me/...` or `https://...`) | ❌ None                           |
 | Tenzu Smart Link | Yes, wraps destination URL              | ❌ Not applicable                 |
-| Attribution link  | Yes (`attribution_links` row)           | ❌ Not needed                     |
-| Meta Pixel        | Optional (CAPI)                         | ❌ Not needed                     |
-| Ad Creative       | `link_data` with URL + CTA              | `lead_gen_form_id` attached       |
-| Meta Form         | None                                    | ✅ **Must be created first**      |
-| CAPI signal       | `Purchase` after "Sold!"                | `Lead` event (auto via Meta form) |
+| Attribution link | Yes (`attribution_links` row)           | ❌ Not needed                     |
+| Meta Pixel       | Optional (CAPI)                         | ❌ Not needed                     |
+| Ad Creative      | `link_data` with URL + CTA              | `lead_gen_form_id` attached       |
+| Meta Form        | None                                    | ✅ **Must be created first**      |
+| CAPI signal      | `Purchase` after "Sold!"                | `Lead` event (auto via Meta form) |
 
 Meta Lead Ads capture contact info **inside** Facebook/Instagram using a native Instant Form. The user never leaves the platform. Tenzu sends no destination URL.
 
@@ -90,26 +90,21 @@ Lead Ads use a **fundamentally different creative structure**. In `MetaService.c
 ```typescript
 // Lead Ad creative — no link_data, uses lead_gen_form_id
 if (objective === "leads") {
-  const creativeRes = await MetaService.request(
-    `/${id}/adcreatives`,
-    "POST",
-    token,
-    {
-      name: "Tenzu Lead Creative",
-      object_story_spec: {
-        page_id: copy.pageId,
-        link_data: {
-          image_hash: creativeHash,
-          message: copy.primaryText,
-          name: copy.headline,
-          call_to_action: {
-            type: "LEARN_MORE",
-            value: { lead_gen_form_id: leadGenFormId },
-          },
+  const creativeRes = await MetaService.request(`/${id}/adcreatives`, "POST", token, {
+    name: "Tenzu Lead Creative",
+    object_story_spec: {
+      page_id: copy.pageId,
+      link_data: {
+        image_hash: creativeHash,
+        message: copy.primaryText,
+        name: copy.headline,
+        call_to_action: {
+          type: "LEARN_MORE",
+          value: { lead_gen_form_id: leadGenFormId },
         },
       },
     },
-  );
+  });
   // ... rest of ad creation
 }
 ```

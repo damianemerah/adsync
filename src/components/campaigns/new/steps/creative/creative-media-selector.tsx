@@ -1,23 +1,51 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Sparks, SystemRestart, MediaImage, Play, Check } from "iconoir-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Sparks, SystemRestart, MediaImage, Play, Check, Link } from "iconoir-react";
 import { cn } from "@/lib/utils";
 import { useCreativesList } from "@/hooks/use-creatives";
 import { useCampaignStore } from "@/stores/campaign-store";
 import { CreativeUploadDialog } from "@/components/creatives/creative-upload-dialog";
+import {
+  useReferenceImageUpload,
+  ReferenceImageControls,
+} from "@/components/creatives/studio/reference-image-manager";
+import {
+  Popover,
+  PopoverAnchor,
+  PopoverContent,
+} from "@/components/ui/popover";
+import { useAtMention, ReferenceImageMentionGrid } from "@/components/creatives/studio/reference-image-picker";
 
 interface CreativeMediaSelectorProps {
   isGeneratingAI: boolean;
-  onGenerateWithAI: () => Promise<void>;
+  onGenerateWithAI: (prompt?: string) => Promise<void>;
+  referenceImageUrls: string[];
+  onReferenceImagesChange: (urls: string[]) => void;
 }
 
 export function CreativeMediaSelector({
   isGeneratingAI,
   onGenerateWithAI,
+  referenceImageUrls,
+  onReferenceImagesChange,
 }: CreativeMediaSelectorProps) {
   const { data: creatives, isLoading: isLoadingCreatives } = useCreativesList();
   const { pendingGeneratedImage, selectedCreatives, updateDraft } = useCampaignStore();
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [customPrompt, setCustomPrompt] = useState("");
+  const promptRef = useRef<HTMLTextAreaElement>(null);
+
+  const { isUploading, uploadFiles } = useReferenceImageUpload({
+    imageUrls: referenceImageUrls,
+    onImageUrlsChange: onReferenceImagesChange,
+  });
+
+  const { mentionOpen, handleChange, handleSelect, closeMention } = useAtMention(
+    customPrompt,
+    setCustomPrompt,
+    referenceImageUrls,
+  );
 
   const toggleCreative = (url: string) => {
     if (selectedCreatives.includes(url)) {
@@ -31,6 +59,50 @@ export function CreativeMediaSelector({
 
   return (
     <>
+      <div className="flex items-center gap-2 justify-between border border-dashed border-border rounded-lg px-3 py-2">
+        <p className="text-xs text-subtle-foreground flex items-center gap-1.5">
+          <Link className="h-3.5 w-3.5 text-primary" />
+          AI Reference Images
+          <span className="text-[10px] opacity-60">(optional)</span>
+        </p>
+        <ReferenceImageControls
+          imageUrls={referenceImageUrls}
+          onImageUrlsChange={onReferenceImagesChange}
+          isUploading={isUploading}
+          uploadFiles={uploadFiles}
+        />
+      </div>
+
+      {/* Prompt textarea with @-mention trigger */}
+      <Popover open={mentionOpen} onOpenChange={(o) => !o && closeMention()}>
+        <PopoverAnchor asChild>
+          <Textarea
+            ref={promptRef}
+            className="min-h-[60px] max-h-[120px] text-xs resize-none"
+            placeholder={
+              referenceImageUrls.length
+                ? 'Describe your ad… type "@" to reference uploaded images'
+                : "Describe your ad creative (optional)…"
+            }
+            value={customPrompt}
+            onChange={handleChange}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") closeMention();
+            }}
+          />
+        </PopoverAnchor>
+        <PopoverContent
+          className="w-52 p-0"
+          align="start"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <ReferenceImageMentionGrid
+            imageUrls={referenceImageUrls}
+            onSelect={(tag) => handleSelect(tag, promptRef.current)}
+          />
+        </PopoverContent>
+      </Popover>
+
       <div className="flex items-center gap-2 justify-between">
         <p className="text-xs text-subtle-foreground">
           Select creatives for this campaign:
@@ -38,7 +110,7 @@ export function CreativeMediaSelector({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => onGenerateWithAI()}
+          onClick={() => onGenerateWithAI(customPrompt.trim() || undefined)}
           disabled={isGeneratingAI || !!pendingGeneratedImage}
           className={cn(
             "h-8 px-3 rounded-md border-primary/30 text-primary hover:bg-primary/5 hover:border-primary text-xs font-semibold gap-1.5 transition-all",

@@ -126,7 +126,7 @@ In `creative-step.tsx`, the destination input shows `"080 1234 5678"` as placeho
 
 ## 3. Where Tenzu is Ahead of Tenzu
 
-| Tenzu Concept                                         | Tenzu Status              |
+| Tenzu Concept                                          | Tenzu Status               |
 | ------------------------------------------------------ | -------------------------- |
 | Product category → auto-classifies targeting           | ❌ Not implemented         |
 | Outcome-first budget framing ("~20 conversations")     | ❌ Inverted — budget-first |

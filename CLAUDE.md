@@ -138,6 +138,12 @@ But if you're building a **feature component** (user-facing):
 - **ALWAYS wire it immediately**
 - Don't leave it orphaned
 
+### Updating Loading States & Skeletons
+
+When making structural or layout changes to UI components, **always update the corresponding loading state.**
+- If you add, remove, or resize elements in a UI component, update its `loading.tsx` or skeleton component to match the new structure.
+- Inconsistent loading states cause layout shifts (CLS) and a poor user experience.
+
 ---
 
 ## Architecture Overview

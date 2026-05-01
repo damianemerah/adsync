@@ -99,7 +99,7 @@ workflow above — it uses the Chat Completions endpoint because vision lives th
 ```typescript
 // Pattern for vision-based ad creative analysis
 const response = await openai.chat.completions.create({
-  model: "gpt-4o",  // Use gpt-4o for vision, not gpt-5.2
+  model: "gpt-4o", // Use gpt-4o for vision, not gpt-5.2
   messages: [
     {
       role: "system",
@@ -130,9 +130,9 @@ const response = await openai.chat.completions.create({
         type: "object",
         properties: {
           successful_patterns: { type: "array", items: { type: "string" } },
-          color_palette:       { type: "array", items: { type: "string" } },
-          visual_themes:       { type: "array", items: { type: "string" } },
-          copy_hooks:          { type: "array", items: { type: "string" } },
+          color_palette: { type: "array", items: { type: "string" } },
+          visual_themes: { type: "array", items: { type: "string" } },
+          copy_hooks: { type: "array", items: { type: "string" } },
         },
         required: ["successful_patterns", "color_palette", "visual_themes", "copy_hooks"],
         additionalProperties: false,
@@ -147,13 +147,13 @@ const insights = JSON.parse(response.choices[0].message.content!);
 
 ### Key Differences from the Responses API Pattern
 
-| | Responses API (`responses.create`) | Vision analysis (`chat.completions.create`) |
-|---|---|---|
-| Use case | Strategy/copy generation with skills | Image analysis |
-| Model | `gpt-5.2` | `gpt-4o` |
-| Image input | Not applicable | `image_url` content part |
-| Skills/tools | `skill_reference` in shell env | Not used |
-| Output | `response.output_text` | `response.choices[0].message.content` |
+|              | Responses API (`responses.create`)   | Vision analysis (`chat.completions.create`) |
+| ------------ | ------------------------------------ | ------------------------------------------- |
+| Use case     | Strategy/copy generation with skills | Image analysis                              |
+| Model        | `gpt-5.2`                            | `gpt-4o`                                    |
+| Image input  | Not applicable                       | `image_url` content part                    |
+| Skills/tools | `skill_reference` in shell env       | Not used                                    |
+| Output       | `response.output_text`               | `response.choices[0].message.content`       |
 
 Ensure the image URL is publicly accessible or a valid signed URL from Supabase Storage.
 The result feeds `organizations.design_insights` — see `ai-context/SKILL.md` for how it

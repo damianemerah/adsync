@@ -29,7 +29,7 @@ Add to `src/lib/api/meta.ts`:
  * Creates a lookalike audience from a source custom audience.
  * Meta v24 — ratio is a decimal between 0.01 (1%) and 0.20 (20%).
  * Country: "NG" for Nigeria.
- * 
+ *
  * After creation, Meta returns an audience ID. Sync it into meta_audiences table.
  * Lookalike creation is async on Meta's side — status will be "processing" initially.
  */
@@ -75,7 +75,7 @@ Add to `src/actions/audiences.ts`:
 export async function createLookalikeAudience({
   adAccountId,
   sourceAudienceId,
-  ratio,        // 0.01 | 0.03 | 0.05 | 0.10
+  ratio, // 0.01 | 0.03 | 0.05 | 0.10
   country = "NG",
 }: {
   adAccountId: string;
@@ -85,7 +85,9 @@ export async function createLookalikeAudience({
 }) {
   const supabase = await createClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return { success: false, error: "Unauthorized" };
 
   // Tier gate — Agency only
@@ -217,7 +219,7 @@ const LOOKALIKE_RATIOS = [
   { value: 0.01, label: "1% — Most Similar (Best Quality)", recommended: false },
   { value: 0.03, label: "3% — Sweet Spot (Recommended)", recommended: true },
   { value: 0.05, label: "5% — Wider Reach", recommended: false },
-  { value: 0.10, label: "10% — Maximum Scale", recommended: false },
+  { value: 0.1, label: "10% — Maximum Scale", recommended: false },
 ];
 ```
 

@@ -1,10 +1,10 @@
 import {
-  Facebook,
   MoreVert,
   RefreshDouble,
   Star,
   WarningCircle,
 } from "iconoir-react";
+import { MetaIcon } from "@/components/ui/meta-icon";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -78,7 +78,7 @@ export function CompactAccountCard({
       <div className="flex items-center gap-3 min-w-0">
         <div className="h-9 w-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
           {isMeta ? (
-            <Facebook className="h-4 w-4 text-primary" />
+            <MetaIcon className="h-5 w-5" />
           ) : (
             <span className="font-bold text-xs text-primary">Tk</span>
           )}
@@ -127,8 +127,8 @@ export function CompactAccountCard({
             </>
           )}
           <DropdownMenuItem onClick={onSetDefault} disabled={account.isDefault}>
-            <Star className="h-3.5 w-3.5 mr-2" />
             Make Default
+            <Star className="h-3.5 w-3.5 mr-2" />
           </DropdownMenuItem>
           <DropdownMenuItem onClick={onRename}>Rename</DropdownMenuItem>
           <DropdownMenuSeparator />

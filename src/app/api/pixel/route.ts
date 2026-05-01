@@ -157,6 +157,14 @@ export async function GET(request: NextRequest) {
                 console.warn("⚠️ [CAPI] Pixel fire failed (non-critical):", err),
               );
             }
+
+            // Credit lead conversions as a conversion count (no revenue)
+            if (event === "lead" && campaignId) {
+              supabase.rpc("update_campaign_sales_summary", {
+                p_campaign_id: campaignId,
+                p_amount_ngn: 0,
+              });
+            }
           });
       }
     }

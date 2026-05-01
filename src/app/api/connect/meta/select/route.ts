@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { decrypt, encrypt } from "@/lib/crypto";
 import { TIER_CONFIG, TierId } from "@/lib/constants";
+import { activateTrialIfNeeded } from "@/lib/trial-activation";
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -68,13 +69,13 @@ export async function POST(request: NextRequest) {
   const orgId = session.org_id;
 
   // 3. Re-check tier limit
-  const { data: orgData } = await supabase
-    .from("organizations")
+  const { data: userSubData } = await supabase
+    .from("user_subscriptions")
     .select("subscription_tier")
-    .eq("id", orgId)
-    .single();
+    .eq("user_id", user.id)
+    .maybeSingle();
 
-  const tier = (orgData?.subscription_tier || "starter") as TierId;
+  const tier = (userSubData?.subscription_tier || "starter") as TierId;
   const maxAccounts = TIER_CONFIG[tier]?.limits?.maxAdAccounts ?? 1;
 
   const { count: existingCount } = await supabase
@@ -122,6 +123,9 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
+
+  // Activate trial exactly once — idempotent, anti-exploit guard inside
+  await activateTrialIfNeeded(supabase, orgId, user.id);
 
   // 5. Subscribe this ad account to Meta webhooks (fire-and-forget)
   subscribeToMetaWebhooks(chosen.account_id, accessToken).catch((err) => {

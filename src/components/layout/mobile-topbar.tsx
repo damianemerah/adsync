@@ -3,12 +3,14 @@
 import { Menu } from "iconoir-react";
 import { useSidebar } from "@/components/providers/sidebar-provider";
 import { NotificationBell } from "@/components/layout/notification-bell";
-import { useSubscription } from "@/hooks/use-subscription";
+import { useActiveOrgContext } from "@/components/providers/active-org-provider";
+import { useOrganization } from "@/hooks/use-organization";
 
 export function MobileTopbar() {
   const { toggleMobile } = useSidebar();
-  const { data } = useSubscription();
-  const orgName = data?.org?.name ?? "Tenzu";
+  const { activeOrgId } = useActiveOrgContext();
+  const { organization } = useOrganization(activeOrgId);
+  const orgName = organization?.name ?? "Tenzu";
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-border bg-background px-4 lg:hidden">

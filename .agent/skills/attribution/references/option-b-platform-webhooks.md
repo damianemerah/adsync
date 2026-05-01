@@ -250,10 +250,7 @@ export function buildAttributionUrl(
 
 ```typescript
 // Add referral param appending for webhook attribution
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { token: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: { token: string } }) {
   // ... existing lookup logic ...
 
   // Check if this campaign's org has platform webhooks enabled
@@ -286,15 +283,8 @@ import crypto from "crypto";
  * 5. Copy webhook secret to Tenzu Settings
  */
 
-function verifyShopifyWebhook(
-  body: string,
-  hmacHeader: string,
-  secret: string
-): boolean {
-  const hash = crypto
-    .createHmac("sha256", secret)
-    .update(body, "utf8")
-    .digest("base64");
+function verifyShopifyWebhook(body: string, hmacHeader: string, secret: string): boolean {
+  const hash = crypto.createHmac("sha256", secret).update(body, "utf8").digest("base64");
   return crypto.timingSafeEqual(Buffer.from(hash), Buffer.from(hmacHeader));
 }
 
@@ -334,9 +324,9 @@ export async function POST(request: NextRequest) {
     // 4. Parse order data
     const order = JSON.parse(body);
     const orderValue = parseFloat(order.total_price); // In store currency
-    const referralToken = order.note_attributes?.find(
-      (attr: any) => attr.name === "ref"
-    )?.value || new URL(order.landing_site || "").searchParams.get("ref");
+    const referralToken =
+      order.note_attributes?.find((attr: any) => attr.name === "ref")?.value ||
+      new URL(order.landing_site || "").searchParams.get("ref");
 
     console.log(`[Shopify Webhook] Order ${order.id} - ${orderValue} - ref: ${referralToken}`);
 
@@ -376,10 +366,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error("[Shopify Webhook] Error:", error);
-    return NextResponse.json(
-      { error: "Webhook processing failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 });
   }
 }
 ```
@@ -403,15 +390,8 @@ import crypto from "crypto";
  * 5. API Version: WP REST API Integration v3
  */
 
-function verifyWooCommerceWebhook(
-  body: string,
-  signatureHeader: string,
-  secret: string
-): boolean {
-  const hash = crypto
-    .createHmac("sha256", secret)
-    .update(body, "utf8")
-    .digest("base64");
+function verifyWooCommerceWebhook(body: string, signatureHeader: string, secret: string): boolean {
+  const hash = crypto.createHmac("sha256", secret).update(body, "utf8").digest("base64");
   return crypto.timingSafeEqual(Buffer.from(hash), Buffer.from(signatureHeader));
 }
 
@@ -498,10 +478,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error("[WooCommerce Webhook] Error:", error);
-    return NextResponse.json(
-      { error: "Webhook processing failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 });
   }
 }
 ```
@@ -540,9 +517,7 @@ export async function connectPlatform(data: {
       platform: data.platform,
       store_domain: data.storeDomain,
       webhook_secret: encrypt(secret),
-      api_credentials: data.apiCredentials
-        ? encryptPlatformCredentials(data.apiCredentials)
-        : null,
+      api_credentials: data.apiCredentials ? encryptPlatformCredentials(data.apiCredentials) : null,
       status: "active",
     });
 
@@ -954,16 +929,19 @@ Replace the alert placeholder (lines 638-655) with actual connection flow:
 ## Testing Strategy
 
 ### Shopify Test Webhooks
+
 1. Use Shopify's webhook testing tool in admin panel
 2. Or install on dev store and create test orders
 3. Verify HMAC signature with Shopify's test secret
 
 ### WooCommerce Test Webhooks
+
 1. Install WooCommerce on local WordPress
 2. Use webhook testing plugins (e.g., WP Webhooks)
 3. Create test orders with test payment gateway
 
 ### End-to-End Test Flow
+
 1. Create Tenzu campaign with website objective
 2. Connect platform in Settings → Integrations
 3. Click ad → redirected to store with `?ref=TOKEN`
@@ -977,6 +955,7 @@ Replace the alert placeholder (lines 638-655) with actual connection flow:
 Create help article in Tenzu dashboard:
 
 **"How to Connect Your Shopify Store"**
+
 1. Go to Settings → Integrations
 2. Click "Connect Platform"
 3. Select "Shopify" and enter your store domain

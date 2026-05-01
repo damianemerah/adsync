@@ -112,7 +112,9 @@ import { decrypt } from "@/lib/crypto";
 export async function syncMetaAudiences(adAccountId: string) {
   const supabase = await createClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return { success: false, error: "Unauthorized" };
 
   // Fetch ad account with token
@@ -126,10 +128,7 @@ export async function syncMetaAudiences(adAccountId: string) {
 
   try {
     const token = decrypt(account.access_token);
-    const audiences = await MetaService.getCustomAudiences(
-      token,
-      account.platform_account_id,
-    );
+    const audiences = await MetaService.getCustomAudiences(token, account.platform_account_id);
 
     if (!audiences.length) return { success: true, count: 0 };
 
@@ -167,7 +166,9 @@ export async function getAvailableAudiences(adAccountId: string) {
 
   const { data, error } = await supabase
     .from("meta_audiences")
-    .select("id, platform_audience_id, name, audience_type, subtype, approximate_count, lookalike_ratio")
+    .select(
+      "id, platform_audience_id, name, audience_type, subtype, approximate_count, lookalike_ratio"
+    )
     .eq("ad_account_id", adAccountId)
     .order("audience_type", { ascending: true }) // custom first, then lookalike
     .order("name", { ascending: true });
@@ -247,10 +248,7 @@ if (org.subscription_tier === "starter") {
 
 ```typescript
 // In campaigns.ts server action — validate server-side too:
-if (
-  params.targeting.customAudienceIds?.length > 0 &&
-  org.subscription_tier === "starter"
-) {
+if (params.targeting.customAudienceIds?.length > 0 && org.subscription_tier === "starter") {
   return {
     success: false,
     error: "Custom audience retargeting requires Growth plan or above.",

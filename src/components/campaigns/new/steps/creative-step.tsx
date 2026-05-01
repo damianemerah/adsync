@@ -47,6 +47,7 @@ export function CreativeStep({
   const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
   const [adFormat, setAdFormat] = useState<"single" | "carousel">("single");
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [referenceUrls, setReferenceUrls] = useState<string[]>([]);
 
   const {
     isGeneratingAI,
@@ -146,13 +147,16 @@ export function CreativeStep({
               <CardContent className="p-4 flex flex-col gap-4">
                 <CreativeAiPreview
                   isGeneratingAI={isGeneratingAI}
-                  onGenerateWithAI={handleGenerateWithAI}
+                  onGenerateWithAI={(prompt) => handleGenerateWithAI(prompt, referenceUrls)}
                   onAcceptImage={handleAcceptImage}
                   onEditInStudio={handleEditInStudio}
+                  referenceImageUrls={referenceUrls}
                 />
                 <CreativeMediaSelector
                   isGeneratingAI={isGeneratingAI}
-                  onGenerateWithAI={handleGenerateWithAI}
+                  onGenerateWithAI={(prompt) => handleGenerateWithAI(prompt, referenceUrls)}
+                  referenceImageUrls={referenceUrls}
+                  onReferenceImagesChange={setReferenceUrls}
                 />
               </CardContent>
             </Card>

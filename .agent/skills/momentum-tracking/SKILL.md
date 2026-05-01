@@ -31,11 +31,7 @@ Nigerian SMEs often launch an ad, check it once, and then forget it. A stalled a
 
 import { differenceInHours, differenceInDays } from "date-fns";
 
-export type StallType =
-  | "click_drought"
-  | "chat_silence"
-  | "revenue_stall"
-  | "spend_waste";
+export type StallType = "click_drought" | "chat_silence" | "revenue_stall" | "spend_waste";
 
 export interface StallSignal {
   type: StallType;
@@ -72,8 +68,7 @@ export function detectStalls(campaign: Campaign): StallSignal[] {
     signals.push({
       type: "chat_silence",
       severity: "high",
-      message:
-        "People are clicking but not messaging you. Something is blocking the conversation.",
+      message: "People are clicking but not messaging you. Something is blocking the conversation.",
       cta: "Check WhatsApp Link",
       ctaHref: `/campaigns/${campaign.id}`,
     });
@@ -81,16 +76,11 @@ export function detectStalls(campaign: Campaign): StallSignal[] {
 
   // 3. Revenue Stall (chats without sales)
   const daysSinceCreated = differenceInDays(now, new Date(campaign.created_at));
-  if (
-    campaign.whatsapp_clicks >= 10 &&
-    campaign.sales_count === 0 &&
-    daysSinceCreated >= 5
-  ) {
+  if (campaign.whatsapp_clicks >= 10 && campaign.sales_count === 0 && daysSinceCreated >= 5) {
     signals.push({
       type: "revenue_stall",
       severity: "high",
-      message:
-        "You've had chats but no recorded sales in 5 days. Did you close any deals?",
+      message: "You've had chats but no recorded sales in 5 days. Did you close any deals?",
       cta: "Record a Sale",
       ctaHref: `/campaigns/${campaign.id}`,
     });
@@ -99,16 +89,11 @@ export function detectStalls(campaign: Campaign): StallSignal[] {
   // 4. Spend Waste (half budget gone, zero sales)
   const budgetCents = campaign.daily_budget_cents * daysSinceCreated;
   const spendPercent = budgetCents > 0 ? campaign.spend_cents / budgetCents : 0;
-  if (
-    spendPercent >= 0.5 &&
-    campaign.sales_count === 0 &&
-    daysSinceCreated >= 3
-  ) {
+  if (spendPercent >= 0.5 && campaign.sales_count === 0 && daysSinceCreated >= 3) {
     signals.push({
       type: "spend_waste",
       severity: "critical",
-      message:
-        "You've spent half your budget with no sales. This ad needs a new creative.",
+      message: "You've spent half your budget with no sales. This ad needs a new creative.",
       cta: "Pause & Rebuild",
       ctaHref: `/campaigns/${campaign.id}/edit`,
     });
@@ -209,11 +194,11 @@ pattern) for the full implementation plan.
 
 ## Implementation Status
 
-| Item                                                                      | Status         |
-| ------------------------------------------------------------------------- | -------------- |
-| `detectStalls()` utility in `src/lib/momentum.ts`                         | ⬜ Not Started |
-| Stall badge on campaign list                                               | ⬜ Not Started |
-| Momentum alert banner in campaign detail                                   | ⬜ Not Started |
-| "Needs Attention" dashboard section                                        | ⬜ Not Started |
-| WhatsApp notification for stalls (Growth+)                                 | ⬜ Phase 3     |
-| Feed 🔥 Hot campaigns to `analyze-assets` cron (Phase 3 vision loop)      | ⬜ Phase 3     |
+| Item                                                                 | Status         |
+| -------------------------------------------------------------------- | -------------- |
+| `detectStalls()` utility in `src/lib/momentum.ts`                    | ⬜ Not Started |
+| Stall badge on campaign list                                         | ⬜ Not Started |
+| Momentum alert banner in campaign detail                             | ⬜ Not Started |
+| "Needs Attention" dashboard section                                  | ⬜ Not Started |
+| WhatsApp notification for stalls (Growth+)                           | ⬜ Phase 3     |
+| Feed 🔥 Hot campaigns to `analyze-assets` cron (Phase 3 vision loop) | ⬜ Phase 3     |

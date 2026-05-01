@@ -105,7 +105,7 @@ export default function InvoicesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-bold text-foreground">
+        <h2 className="text-lg font-heading font-medium text-foreground">
           Invoices &amp; Payment History
         </h2>
         <p className="text-sm text-subtle-foreground">

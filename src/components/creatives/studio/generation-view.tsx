@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { toast } from "sonner";
 import { StudioSidebar } from "./studio-sidebar";
 import { StudioCanvas } from "./studio-canvas";
-import { StudioHistoryStrip } from "./studio-history-strip";
+import { StudioHistoryStrip, type HistoryItem } from "./studio-history-strip";
 import { type AspectRatio } from "./prompt-input";
+import { toast } from "sonner";
 
 interface GenerationViewProps {
   initialImage: string;
@@ -17,11 +17,12 @@ interface GenerationViewProps {
     seed?: number,
     additionalImages?: string[],
   ) => Promise<string>;
-  onSave: (imageUrl: string) => Promise<void>;
   aspectRatio: AspectRatio;
   seed?: number;
-  history?: string[];
+  history?: HistoryItem[];
   onUseInCampaign?: (imageUrl: string) => Promise<void>;
+  rootId?: string | null;
+  selectedVariantId?: string | null;
 }
 
 export function GenerationView({
@@ -29,21 +30,22 @@ export function GenerationView({
   initialPrompt,
   onBack,
   onRefine,
-  onSave,
   aspectRatio,
   seed,
   history: initialHistory = [],
   onUseInCampaign,
+  rootId,
+  selectedVariantId,
 }: GenerationViewProps) {
   const [currentImage, setCurrentImage] = useState(initialImage);
   const [prompt, setPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [savedImages, setSavedImages] = useState<Set<string>>(new Set());
   const [isUsingInCampaign, setIsUsingInCampaign] = useState(false);
-  const [history, setHistory] = useState<string[]>(
-    initialHistory.length > 0 ? initialHistory : [initialImage],
+  const [history, setHistory] = useState<HistoryItem[]>(
+    initialHistory.length > 0
+      ? initialHistory
+      : [{ id: "initial", imageUrl: initialImage }],
   );
   const [refineImageUrls, setRefineImageUrls] = useState<string[]>([]);
 
@@ -53,38 +55,19 @@ export function GenerationView({
     }
   }, [initialHistory]);
 
-  const isCurrentSaved = savedImages.has(currentImage);
-
   const handleRefine = async () => {
     if (!prompt) return;
     setIsGenerating(true);
     try {
-      const newImage = await onRefine(prompt, currentImage, seed, refineImageUrls);
-      setCurrentImage(newImage);
-      setHistory((prev) => [...prev, newImage]);
+      const newImageUrl = await onRefine(prompt, currentImage, seed, refineImageUrls);
+      setCurrentImage(newImageUrl);
+      setHistory((prev) => [...prev, { id: `temp-${Date.now()}`, imageUrl: newImageUrl }]);
       setPrompt("");
       setRefineImageUrls([]);
     } catch (error) {
       console.error("Refinement failed:", error);
     } finally {
       setIsGenerating(false);
-    }
-  };
-
-  const handleSave = async () => {
-    if (isCurrentSaved || isSaving) return;
-    setIsSaving(true);
-    try {
-      await onSave(currentImage);
-      setSavedImages((prev) => new Set(prev).add(currentImage));
-      toast.success("Saved to your library", {
-        description: "Find it in Creations → Media Library.",
-        duration: 4000,
-      });
-    } catch (error: any) {
-      toast.error("Save failed", { description: error.message });
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -135,25 +118,21 @@ export function GenerationView({
         onRefineImageUrlsChange={setRefineImageUrls}
         isGenerating={isGenerating}
         onRefine={handleRefine}
-        isSaving={isSaving}
-        isCurrentSaved={isCurrentSaved}
         isDownloading={isDownloading}
-        onSave={handleSave}
         onDownload={handleDownload}
       />
       <StudioCanvas
         currentImage={currentImage}
         aspectRatio={aspectRatio}
-        isSaving={isSaving}
-        isCurrentSaved={isCurrentSaved}
         isDownloading={isDownloading}
-        onSave={handleSave}
         onDownload={handleDownload}
       >
         <StudioHistoryStrip
           history={history}
           currentImage={currentImage}
           onSelect={setCurrentImage}
+          rootId={rootId}
+          selectedVariantId={selectedVariantId}
         />
       </StudioCanvas>
     </div>

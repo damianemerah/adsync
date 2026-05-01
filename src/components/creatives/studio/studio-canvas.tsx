@@ -1,12 +1,11 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Sparks, Check, Heart, Download } from "iconoir-react";
+import { Sparks, Download } from "iconoir-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { type AspectRatio } from "./prompt-input";
 
-// Maps aspect ratios to their actual pixel dimensions from fal.ai
 const ASPECT_RATIO_DIMENSIONS: Record<AspectRatio, { w: number; h: number }> =
   {
     "1:1": { w: 1024, h: 1024 },
@@ -25,10 +24,7 @@ const RATIO_CLASSES: Record<AspectRatio, string> = {
 interface StudioCanvasProps {
   currentImage: string;
   aspectRatio: AspectRatio;
-  isSaving: boolean;
-  isCurrentSaved: boolean;
   isDownloading: boolean;
-  onSave: () => void;
   onDownload: () => void;
   children?: React.ReactNode;
 }
@@ -36,10 +32,7 @@ interface StudioCanvasProps {
 export function StudioCanvas({
   currentImage,
   aspectRatio,
-  isSaving,
-  isCurrentSaved,
   isDownloading,
-  onSave,
   onDownload,
   children,
 }: StudioCanvasProps) {
@@ -57,27 +50,6 @@ export function StudioCanvas({
           <span className="text-xs text-subtle-foreground">
             {new Date().toLocaleDateString()}
           </span>
-          <Button
-            variant={isCurrentSaved ? "default" : "outline"}
-            size="sm"
-            onClick={onSave}
-            disabled={isSaving || isCurrentSaved}
-            className={cn(
-              "h-8 px-3 text-xs border rounded-lg",
-              isCurrentSaved
-                ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/10"
-                : "bg-background hover:bg-muted border-border text-foreground",
-            )}
-          >
-            {isSaving ? (
-              <Sparks className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-            ) : isCurrentSaved ? (
-              <Check className="w-3.5 h-3.5 mr-1.5" />
-            ) : (
-              <Heart className="w-3.5 h-3.5 mr-1.5" />
-            )}
-            {isSaving ? "Saving..." : isCurrentSaved ? "Saved" : "Save"}
-          </Button>
           <Button
             variant="outline"
             size="sm"

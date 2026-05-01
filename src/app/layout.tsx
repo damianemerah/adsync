@@ -1,5 +1,6 @@
 import type React from "react";
 import type { Metadata } from "next";
+import { Montserrat, Montserrat_Alternates } from "next/font/google";
 
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
@@ -8,6 +9,17 @@ import { ThemeProvider } from "../components/theme-provider";
 
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { Toaster } from "@/components/ui/sonner";
+
+const montserrat = Montserrat({
+  subsets: ["latin"],
+  variable: "--font-sans",
+});
+
+const montserratAlternates = Montserrat_Alternates({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-heading",
+});
 
 export const metadata: Metadata = {
   title: "Tenzu - AI-Powered Social Ad Manager for Meta & TikTok",
@@ -40,7 +52,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="font-sans antialiased">
+      <body className={`${montserrat.variable} ${montserratAlternates.variable} font-sans antialiased bg-background`} suppressHydrationWarning>
         <QueryProvider>
           <ThemeProvider defaultTheme="system" storageKey="tenzu-theme">
             <AuthProvider>{children}</AuthProvider>
@@ -48,7 +60,10 @@ export default function RootLayout({
           <Analytics />
           <Toaster />
         </QueryProvider>
-      </body>
+      {/* impeccable-live-start */}
+<script src="http://localhost:8400/live.js"></script>
+{/* impeccable-live-end */}
+</body>
     </html>
   );
 }

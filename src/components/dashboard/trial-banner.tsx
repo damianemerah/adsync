@@ -12,16 +12,16 @@ export function TrialBanner() {
   const router = useRouter();
   const [dismissed, setDismissed] = useState(false);
 
-  // Persist dismissal per session
+  // Persist dismissal per session — keyed by tier so it resets on upgrade
   useEffect(() => {
-    const key = `trial_banner_dismissed_${data?.org?.id ?? ""}`;
+    const key = `trial_banner_dismissed_${data?.org?.tier ?? ""}_${data?.org?.status ?? ""}`;
     if (sessionStorage.getItem(key)) {
       setDismissed(true);
     }
-  }, [data?.org?.id]);
+  }, [data?.org?.tier, data?.org?.status]);
 
   const handleDismiss = () => {
-    const key = `trial_banner_dismissed_${data?.org?.id ?? ""}`;
+    const key = `trial_banner_dismissed_${data?.org?.tier ?? ""}_${data?.org?.status ?? ""}`;
     sessionStorage.setItem(key, "1");
     setDismissed(true);
   };
@@ -41,7 +41,7 @@ export function TrialBanner() {
   if (daysLeft <= 0) return null;
 
   const tierLabel = tier.charAt(0).toUpperCase() + tier.slice(1);
-  const urgency = daysLeft <= 3 ? "high" : daysLeft <= 7 ? "medium" : "low";
+  const urgency = daysLeft <= 2 ? "high" : daysLeft <= 4 ? "medium" : "low";
 
   return (
     <div
@@ -56,7 +56,7 @@ export function TrialBanner() {
             : "bg-primary/5 border-primary/10",
       )}
     >
-      <div className="max-w-screen-xl mx-auto flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="max-w-7xl mx-auto flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         {/* Left — icon + message */}
         <div className="flex items-center gap-3 min-w-0">
           <div

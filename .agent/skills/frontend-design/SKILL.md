@@ -10,6 +10,7 @@ description: Create production-grade, "Crisp Modern" dashboards for Tenzu. Drive
 ## For Reference Only
 
 The Tenzu design system is defined at:
+
 - **`.impeccable.md`** — Design context, tokens, anti-patterns, component patterns (auto-read by all Impeccable skills)
 - **`src/app/globals.css`** — Source of truth for all CSS custom properties
 - **`.agent/rules/shadcn-theme.md`** → points to `.impeccable.md`
@@ -18,12 +19,12 @@ The Tenzu design system is defined at:
 
 Read `.impeccable.md` for the full table. Summary:
 
-| Role | Token |
-|---|---|
-| Primary action | `bg-primary` / `text-primary` |
-| Secondary text | `text-subtle-foreground` |
-| Placeholder / disabled | `text-muted-foreground` |
-| AI features | `text-ai` / `bg-ai` |
-| Error states | `text-destructive` |
-| Surfaces | `bg-card`, `bg-muted`, `bg-background` |
-| Borders | `border-border`, `border-sidebar-border` |
+| Role                   | Token                                    |
+| ---------------------- | ---------------------------------------- |
+| Primary action         | `bg-primary` / `text-primary`            |
+| Secondary text         | `text-subtle-foreground`                 |
+| Placeholder / disabled | `text-muted-foreground`                  |
+| AI features            | `text-ai` / `bg-ai`                      |
+| Error states           | `text-destructive`                       |
+| Surfaces               | `bg-card`, `bg-muted`, `bg-background`   |
+| Borders                | `border-border`, `border-sidebar-border` |

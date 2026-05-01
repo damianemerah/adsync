@@ -141,7 +141,7 @@ export async function creditAdBudget({
       balance_ngn: newBalance,
       updated_at: new Date().toISOString(),
     },
-    { onConflict: "organization_id" },
+    { onConflict: "organization_id" }
   );
 
   // Record transaction

@@ -19,8 +19,9 @@ Always check `.agent/rules/decisions.md` before making any tier-related changes.
 
 | Feature                   | Starter               | Growth                | Agency                    |
 | ------------------------- | --------------------- | --------------------- | ------------------------- |
-| **Monthly Price (₦)**     | ₦10,000               | ₦25,000               | ₦60,000                   |
-| **AI Credits / Month**    | 150                   | 400                   | 1,200                     |
+| **Monthly Price (₦)**     | ₦10,000               | ₦25,000               | ₦65,000                   |
+| **AI Credits / Month**    | 50                    | 150                   | 250                       |
+| **Monthly Chat Quota**    | 50                    | 200                   | 2,000 (cap)               |
 | **Image Model**           | FLUX 2 Pro            | FLUX 2 Pro            | FLUX 2 Pro                |
 | **Premium Image Model**   | —                     | —                     | Nano Banana Pro (Phase 3) |
 | **AI Skills**             | ❌ Inline prompt only | ✅ Full Skills loaded | ✅ Full Skills loaded     |
@@ -49,12 +50,13 @@ export const TIER_CONFIG = {
       maxCopyVariations: 2,
       maxRefinementsPerCampaign: 3,
     },
-    credits: { monthly: 150, imageCost: 3, premiumImageCost: null },
+    credits: { monthly: 50, imageCost: 5, premiumImageCost: null },
     limits: {
       maxAdAccounts: 1,
       maxTeamMembers: 1,
       linkAnalyticsDays: 7,
       customLinkSlugs: false,
+      maxMonthlyChats: 50,
     },
   },
   growth: {
@@ -67,12 +69,13 @@ export const TIER_CONFIG = {
       maxCopyVariations: 3,
       maxRefinementsPerCampaign: Infinity,
     },
-    credits: { monthly: 400, imageCost: 3, premiumImageCost: null },
+    credits: { monthly: 150, imageCost: 5, premiumImageCost: null },
     limits: {
       maxAdAccounts: 3,
       maxTeamMembers: 3,
       linkAnalyticsDays: 30,
       customLinkSlugs: true,
+      maxMonthlyChats: 200,
     },
   },
   agency: {
@@ -85,12 +88,13 @@ export const TIER_CONFIG = {
       maxCopyVariations: 5,
       maxRefinementsPerCampaign: Infinity,
     },
-    credits: { monthly: 1200, imageCost: 3, premiumImageCost: 8 },
+    credits: { monthly: 250, imageCost: 5, premiumImageCost: 8 },
     limits: {
       maxAdAccounts: 999, // treated as "unlimited" in UI
       maxTeamMembers: 10,
       linkAnalyticsDays: 36500, // treated as "lifetime" in UI
       customLinkSlugs: true,
+      maxMonthlyChats: 2000, // above this, chat dips into credits at 1 cr/msg
     },
   },
 };
@@ -104,14 +108,15 @@ export type TierId = keyof typeof TIER_CONFIG; // "starter" | "growth" | "agency
 
 | Action                           | Credits | Notes                                     |
 | -------------------------------- | ------- | ----------------------------------------- |
-| Image gen — FLUX 2 Pro           | **3**   | Default for all tiers                     |
-| Image edit / refine — FLUX 2 Pro | **2**   |                                           |
+| Image gen — FLUX 2 Pro           | **5**   | Default for all tiers                     |
+| Image edit / refine — FLUX 2 Pro | **3**   | Cheaper than gen to encourage iteration   |
 | Image gen — Nano Banana Pro      | **8**   | Agency only, Phase 3                      |
 | Ad copy strategy                 | **0**   | FREE — text generation is negligible cost |
 | Copy refinement                  | **0**   | FREE                                      |
-| Video — Kling v2 5s              | **35**  | Phase 2                                   |
-| Video — Kling v2 10s             | **60**  | Phase 2                                   |
-| Video — Veo 3.1 5s               | **42**  | Phase 2                                   |
+| Chat overage                     | **1**   | After monthly chat quota exhausted        |
+| Video — Kling v2 5s              | **40**  | Phase 2                                   |
+| Video — Kling v2 10s             | **70**  | Phase 2                                   |
+| Video — Veo 3.1 5s               | **50**  | Phase 2                                   |
 
 > **Critical:** Text/copy generation costs 0 credits. Never gate copy on credits.
 
@@ -132,10 +137,10 @@ export type TierId = keyof typeof TIER_CONFIG; // "starter" | "growth" | "agency
 ## Monthly Credits by Plan (from `src/lib/constants.ts` → `PLAN_CREDITS`)
 
 ```
-free_trial: 50 credits
-starter:   150 credits
-growth:    400 credits
-agency:   1200 credits
+free_trial:  50 credits
+starter:     50 credits
+growth:     150 credits
+agency:     250 credits
 ```
 
 ---
@@ -148,7 +153,7 @@ The resolver reads `organizations.subscription_tier` from the DB via Supabase. I
 // src/lib/tier.ts
 export async function resolveTier(
   supabase: SupabaseClient<Database>,
-  userId: string,
+  userId: string
 ): Promise<ResolvedTier> {
   // Reads organization_members → organizations.subscription_tier
   // Returns { tierId, config, orgId }
@@ -164,10 +169,7 @@ export async function resolveTier(
 
 ```typescript
 // In every server action that costs credits:
-const { orgId, userId } = await requireCredits(
-  supabase,
-  CREDIT_COSTS.IMAGE_GEN_PRO,
-);
+const { orgId, userId } = await requireCredits(supabase, CREDIT_COSTS.IMAGE_GEN_PRO);
 // ... call AI model ...
 await spendCredits(
   supabase,
@@ -176,7 +178,7 @@ await spendCredits(
   CREDIT_COSTS.IMAGE_GEN_PRO,
   "image_gen_flux_pro",
   creativeId,
-  "fal-ai/flux-2-pro",
+  "fal-ai/flux-2-pro"
 );
 ```
 

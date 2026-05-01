@@ -141,6 +141,9 @@
   --font-sans: "Montserrat", sans-serif;
   --font-heading: "Montserrat Alternates", sans-serif;
 
+  /* Custom font-size tokens */
+  --text-2xs: 0.8125rem; /* 13px */
+
   /* Use --color-* prefix for variables to become color utilities */
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
@@ -220,7 +223,7 @@
 
 @utility container {
   margin-inline: auto;
-  /* padding-inline: 2rem; */
+  padding-inline: 2rem;
   max-width: 1400px;
   width: 100%;
 
@@ -247,6 +250,7 @@
     outline: 2px solid color-mix(in srgb, var(--ring) 50%, transparent);
   }
 
+
   body {
     background-color: var(--background);
     color: var(--foreground);
@@ -257,8 +261,6 @@
   h2,
   h3 {
     font-family: var(--font-heading);
-    font-weight: 700;
-    letter-spacing: -0.025em;
   }
 
   .side-menu-sub-item {
@@ -308,7 +310,12 @@
     color: var(--primary-foreground);
   }
 
-  .head-section:before {
+  /* Phone input: reset library margin so country + input share one border */
+.PhoneInputCountry {
+  --PhoneInputCountrySelect-marginRight: 0;
+}
+
+.head-section:before {
     background-image: url(/bg-hero.svg);
     background-position: 50%;
     content: "";
@@ -322,4 +329,9 @@
     width: 100%;
     z-index: -1 !important;
   }
+
+    /* *{
+    border: 1px solid red !important
+  } */
+
 }

@@ -1,10 +1,12 @@
 "use client";
 
+import { useRef } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { type CreativeFormat } from "@/lib/ai/prompts";
 import { ReferenceImageManager, ReferenceImageControls, useReferenceImageUpload } from "./reference-image-manager";
 import { PromptInputControls } from "./prompt-input-controls";
+import { useAtMention, AtMentionDropdown } from "./reference-image-picker";
 
 // Define the aspect ratio type
 export type AspectRatio = "1:1" | "9:16" | "4:5" | "16:9";
@@ -26,6 +28,12 @@ interface PromptInputProps {
   onImageUrlsChange?: (urls: string[]) => void;
   format?: CreativeFormat;
   onFormatChange?: (val: CreativeFormat) => void;
+  /**
+   * Shifts @imageN mention labels by this offset.
+   * Set to 1 in edit/refine mode where @image1 is reserved for the
+   * image currently being edited (prepended first in imageInputs).
+   */
+  imageIndexOffset?: number;
 }
 
 export function PromptInput({
@@ -45,11 +53,20 @@ export function PromptInput({
   onImageUrlsChange,
   format = "auto",
   onFormatChange,
+  imageIndexOffset = 0,
 }: PromptInputProps) {
   // Character count helpers
   const charCount = value.length;
   // "Sweet spot" for Flux logic: ~20 to ~300 characters is usually good.
   const isPromptLengthGood = charCount > 20 && charCount < 300;
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const { mentionOpen, handleChange, handleSelect, closeMention } = useAtMention(
+    value,
+    onChange,
+    imageUrls,
+  );
 
   const { isUploading, uploadFiles, handlePaste } = useReferenceImageUpload({
     imageUrls,
@@ -64,9 +81,11 @@ export function PromptInput({
     >
       <div className="relative w-full">
         <Textarea
+          ref={textareaRef}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={handleChange}
           onKeyDown={(e) => {
+            if (e.key === "Escape") closeMention();
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
               onGenerate();
@@ -79,6 +98,22 @@ export function PromptInput({
             compact && "min-h-[80px]",
           )}
         />
+
+        {/* @ mention dropdown */}
+        {mentionOpen && imageUrls.length > 0 && (
+          <AtMentionDropdown
+            imageUrls={imageUrls}
+            onSelect={(tag) => handleSelect(tag, textareaRef.current)}
+            imageIndexOffset={imageIndexOffset}
+          />
+        )}
+
+        {/* Hint text when reference images are loaded */}
+        {imageUrls.length > 0 && (
+          <p className="absolute bottom-8 left-4 text-[10px] text-subtle-foreground pointer-events-none">
+            Type <code className="text-primary font-mono">@</code> to reference an uploaded image
+          </p>
+        )}
 
         {/* Prompt Length Indicator */}
         <div className="absolute bottom-2 right-4 text-[10px] pointer-events-none transition-colors duration-300">

@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getActiveOrgId } from "@/lib/active-org";
 
 export async function GET(request: Request) {
+  const reqUrl = new URL(request.url);
+  const source = reqUrl.searchParams.get("source") ?? "settings"; // "onboarding" | "settings"
   const supabase = await createClient();
   const {
     data: { user },
@@ -20,8 +22,8 @@ export async function GET(request: Request) {
   const appId = process.env.META_APP_ID;
   const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/connect/meta/callback`;
 
-  // Combine user ID and active org ID so the callback knows which business context this is
-  const state = `${user.id}:${activeOrgId}`;
+  // Combine user ID, active org ID, and source so the callback knows where to redirect
+  const state = `${user.id}:${activeOrgId}:${source}`;
 
   // UPDATED SCOPES: Added Pages, Lead Gen & Instagram permissions
   const scopes = [

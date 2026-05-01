@@ -8,8 +8,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { HelpCircle, Play } from "iconoir-react";
-import Image from "next/image";
+import { Lifebelt, Headset, Laptop } from "iconoir-react";
 
 interface HelpVideo {
   id: string;
@@ -51,73 +50,57 @@ export function HelpCenterSheet() {
       <SheetTrigger asChild>
         <Button
           variant="outline"
-          className="gap-2 border-border bg-background text-foreground hover:bg-muted font-bold shadow-sm h-9 rounded-md"
+          className="gap-2 border-border bg-background text-foreground hover:bg-muted h-9 rounded-md shadow-sm"
         >
-          <HelpCircle className="h-4 w-4" />
+          <Lifebelt className="h-4 w-4" />
           Help Center
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto no-scrollbar">
-        <SheetHeader className="mb-6">
-          <SheetTitle className="flex items-center gap-2 text-xl font-heading">
-            <HelpCircle className="h-5 w-5 text-primary" />
+      <SheetContent className="flex flex-col w-[400px] sm:w-[400px] p-0 gap-0">
+        <SheetHeader className="px-6 py-4 border-b border-border text-left space-y-0">
+          <SheetTitle className="flex items-center gap-2 text-sm">
+            <Lifebelt className="h-5 w-5" />
             Help Center
           </SheetTitle>
         </SheetHeader>
 
-        <div className="space-y-6">
-          <div className="space-y-2">
-            <h3 className="font-semibold text-foreground">Video Tutorials</h3>
-            <p className="text-sm text-subtle-foreground">
-              Learn how to get the most out of AdSync.
-            </p>
-          </div>
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-background">
+          <h3 className="font-medium text-foreground">Watch & Learn</h3>
 
           <div className="grid gap-4">
             {HELP_VIDEOS.map((video) => (
               <div
                 key={video.id}
-                className="group relative aspect-video w-full overflow-hidden rounded-md border border-border bg-muted shadow-sm transition-all hover:shadow-md cursor-pointer"
+                className="group cursor-pointer rounded-[16px] border border-border bg-card p-2 transition-all hover:shadow-md"
               >
-                {/* Thumbnail Layer */}
-                <div className="absolute inset-0 bg-black/10 transition-colors group-hover:bg-black/20" />
-
-                {/* Ideally use Next/Image with real thumbnails. Using a colored div fallback if src fails effectively */}
-                <div className="absolute inset-0 flex items-center justify-center bg-muted">
-                  <div className="h-full w-full bg-linear-to-br from-purple-100 to-indigo-100 flex items-center justify-center">
-                    <Play className="h-12 w-12 text-primary/50 group-hover:text-primary transition-colors fill-current" />
+                <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-black mb-2">
+                  <div className="absolute inset-0 z-10 bg-black/10 transition-colors group-hover:bg-transparent" />
+                  <img
+                    src={video.thumbnail}
+                    alt={video.title}
+                    className="h-full w-full object-cover opacity-90 transition-opacity group-hover:opacity-100"
+                  />
+                  <div className="absolute bottom-2 right-2 z-20 rounded bg-black/80 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                    {video.duration}
                   </div>
                 </div>
-
-                {/* Duration Badge */}
-                <div className="absolute bottom-2 right-2 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                  {video.duration}
-                </div>
-
-                {/* Title Overlay (Bottom) */}
-                <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/60 to-transparent p-3 pt-8">
-                  <p className="text-sm font-medium text-white line-clamp-1">
-                    {video.title}
-                  </p>
-                </div>
+                <p className="px-2 pb-2 pt-1 text-sm font-medium text-foreground line-clamp-1">
+                  {video.title}
+                </p>
               </div>
             ))}
           </div>
+        </div>
 
-          <div className="rounded-md bg-primary/5 p-4 border border-primary/10">
-            <h4 className="font-semibold text-primary text-sm mb-1">
-              Need more help?
-            </h4>
-            <p className="text-xs text-subtle-foreground mb-3">
-              Check our documentation or contact support.
-            </p>
-            <Button
-              size="sm"
-              className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              Contact Support
-            </Button>
-          </div>
+        <div className="flex border-t border-border bg-background">
+          <button className="flex flex-1 h-16 items-center justify-center gap-2 text-sm font-medium text-subtle-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
+            <Headset className="h-4 w-4" />
+            Support
+          </button>
+          <button className="flex flex-1 h-16 items-center justify-center gap-2 text-sm font-medium text-subtle-foreground hover:text-foreground hover:bg-muted/50 transition-colors border-l border-border">
+            <Laptop className="h-4 w-4" />
+            Get a Demo
+          </button>
         </div>
       </SheetContent>
     </Sheet>

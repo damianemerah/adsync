@@ -23,11 +23,29 @@ const tooltipStyle: React.CSSProperties = {
   zIndex: 50,
 };
 
-// Custom label outside pie
-function renderPieLabel({ percent }: { percent: number }) {
-  return percent > 0 ? `${(percent * 100).toFixed(0)}%` : "";
+function ChartTooltip({ active, payload, formatter }: any) {
+  if (!active || !payload || !payload.length) return null;
+  return (
+    <div style={tooltipStyle} className="px-3 py-2.5 flex flex-col gap-1.5">
+      {payload.map((entry: any, index: number) => {
+        const formatted = formatter ? formatter(entry.value, entry.name, entry) : [entry.value, entry.name];
+        const displayValue = Array.isArray(formatted) ? formatted[0] : entry.value;
+        const displayName = Array.isArray(formatted) ? formatted[1] : entry.name;
+        const color = entry.color || entry.payload?.fill || entry.fill || "var(--primary)";
+        return (
+          <div key={index} className="flex items-center gap-2 text-xs">
+            <span 
+              className="w-1 h-3 rounded-full shrink-0" 
+              style={{ backgroundColor: color }} 
+            />
+            <span className="text-subtle-foreground">{displayName}</span>
+            <span className="text-foreground font-semibold ml-auto pl-4">{displayValue}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
-
 export function RevenueChannelBreakdown({
   whatsappRevenue,
   websiteRevenue,
@@ -83,20 +101,18 @@ export function RevenueChannelBreakdown({
                 nameKey="name"
                 stroke="var(--card)"
                 strokeWidth={2}
-                label={renderPieLabel}
-                labelLine={{ stroke: "var(--subtle-foreground)", strokeWidth: 1 }}
               >
                 {data.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.fill} />
                 ))}
               </Pie>
               <Tooltip
+                content={<ChartTooltip />}
                 formatter={(value: number, name: string) => [
                   formatCurrency(value),
                   name,
                 ]}
-                contentStyle={tooltipStyle}
-                wrapperStyle={{ zIndex: 50 }}
+                wrapperStyle={{ outline: "none", zIndex: 50 }}
               />
             </PieChart>
           </ResponsiveContainer>

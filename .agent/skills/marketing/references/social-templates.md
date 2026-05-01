@@ -5,24 +5,28 @@ Platform-specific content strategies and templates for Tenzu social media market
 ## Platform Strategy Overview
 
 ### Twitter/X (Primary Platform)
+
 - **Frequency:** 3-5 posts/day
 - **Best Time:** 8-10 AM, 12-2 PM, 7-9 PM WAT
 - **Content Mix:** 40% value, 30% social proof, 20% product, 10% culture
 - **Tone:** Direct, slightly edgy, problem-focused
 
 ### LinkedIn
+
 - **Frequency:** 1 post/day
 - **Best Time:** 8-9 AM, 12-1 PM WAT (business hours)
 - **Content Mix:** 50% thought leadership, 30% case studies, 20% product
 - **Tone:** Professional but accessible, data-driven
 
 ### Instagram
+
 - **Frequency:** 1-2 posts/day + 3-5 stories/day
 - **Best Time:** 12-1 PM, 7-9 PM WAT
 - **Content Mix:** 50% visual/creative showcase, 30% lifestyle, 20% education
 - **Tone:** Aspirational, creative, visual-first
 
 ### Facebook
+
 - **Frequency:** 1 post/day
 - **Best Time:** 1-3 PM, 7-9 PM WAT
 - **Content Mix:** 40% community, 30% education, 30% product
@@ -125,7 +129,7 @@ Wask: Great tool. Terrible payment experience.
 
 AdCreative.ai: Same problem.
 
-Tenzu: Built for your Naira card. 
+Tenzu: Built for your Naira card.
 
 Because Nigerian businesses shouldn't need international credit cards to run local ads.
 
@@ -228,7 +232,7 @@ Excited to share: Tenzu just crossed 2,000 active users 🎉
 All Nigerian SMEs. All running professional Facebook campaigns without:
 
 → Dollar cards
-→ Expensive agencies  
+→ Expensive agencies
 → Confusing dashboards
 
 What we learned:
@@ -288,7 +292,7 @@ Try AI Studio free for 7 days
 Link in bio → @tenzu_ng
 
 Caption:
-"Stop paying agencies ₦150k per design. 
+"Stop paying agencies ₦150k per design.
 
 AI Studio turns your phone photos into professional ads in seconds.
 
@@ -352,7 +356,7 @@ Story 3:
 
 Same processor as:
 → Piggyvest
-→ Cowrywise  
+→ Cowrywise
 → Flutterwave"
 
 Story 4:
@@ -431,7 +435,7 @@ B) "I don't know how to set up campaigns"
 C) "I don't have professional product photos"
 D) "It's too expensive"
 
-Comment A, B, C, or D below. 
+Comment A, B, C, or D below.
 
 (And yes, Tenzu solves all four 😉)
 
@@ -460,12 +464,14 @@ Comment A, B, C, or D below.
 ## Hashtag Strategy
 
 ### Primary Hashtags (Always include 2-3)
+
 - #Tenzu
 - #NigerianBusiness
 - #FacebookAds
 - #SMEGrowth
 
 ### Secondary Hashtags (Rotate based on content)
+
 - #DigitalMarketing
 - #AdTech
 - #SmallBusinessTips
@@ -476,12 +482,14 @@ Comment A, B, C, or D below.
 - #AIDesign
 
 ### Avoid Generic Hashtags
+
 - ❌ #Success #Business #Money (too broad, low engagement)
 - ✅ Use niche, community-specific hashtags
 
 ## Social Media Checklist
 
 Before posting, verify:
+
 - [ ] Copy is concise (social media = short attention)
 - [ ] Hook is strong (first 5 words matter most)
 - [ ] CTA is clear (one action, not multiple)
@@ -496,6 +504,7 @@ Before posting, verify:
 ## Engagement Response Templates
 
 ### Positive Comment
+
 ```
 "This tool is amazing! Just launched my first campaign."
 
@@ -504,6 +513,7 @@ Response:
 ```
 
 ### Question/Concern
+
 ```
 "Does this work with my existing Meta account?"
 
@@ -512,6 +522,7 @@ Response:
 ```
 
 ### Complaint/Issue
+
 ```
 "My campaign isn't getting results."
 
@@ -520,6 +531,7 @@ Response:
 ```
 
 ### Competitor Mention
+
 ```
 "I'm currently using Wask. Why should I switch?"
 

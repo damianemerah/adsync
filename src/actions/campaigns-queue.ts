@@ -18,7 +18,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { getActiveOrgId } from "@/lib/active-org";
 import { validatePreLaunch, validateDestinationUrl } from "@/lib/intelligence";
 import { enqueueJob } from "@/lib/queue/job-queue";
@@ -88,17 +88,24 @@ export async function launchCampaignQueued(config: LaunchConfig) {
   const orgId = await getActiveOrgId();
   if (!orgId) throw new Error("No organization found");
 
-  const { data: org } = await supabase
-    .from("organizations")
-    .select("subscription_status, subscription_expires_at, country_code")
-    .eq("id", orgId)
-    .single();
+  const [{ data: org }, { data: userSub }] = await Promise.all([
+    supabase
+      .from("organizations")
+      .select("country_code")
+      .eq("id", orgId)
+      .single(),
+    supabase
+      .from("user_subscriptions")
+      .select("subscription_status, subscription_expires_at")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+  ]);
 
   if (!org) {
     throw new Error("No organization found");
   }
 
-  const subStatus = org.subscription_status;
+  const subStatus = userSub?.subscription_status ?? "incomplete";
 
   // 🛑 GATEKEEPER: Check Subscription
   if (subStatus !== "active" && subStatus !== "trialing") {
@@ -107,8 +114,8 @@ export async function launchCampaignQueued(config: LaunchConfig) {
     );
   }
 
-  if (subStatus === "trialing" && org.subscription_expires_at) {
-    if (new Date(org.subscription_expires_at).getTime() < Date.now()) {
+  if (subStatus === "trialing" && userSub?.subscription_expires_at) {
+    if (new Date(userSub.subscription_expires_at).getTime() < Date.now()) {
       throw new Error(
         "Your free trial has expired. Please upgrade to launch campaigns.",
       );
@@ -281,6 +288,8 @@ export async function launchCampaignQueued(config: LaunchConfig) {
     console.log(`[Queue] ✅ Campaign ${dbCampaignId} enqueued as job ${jobId}`);
 
     revalidatePath("/campaigns");
+    revalidateTag(`campaigns-${orgId}`, "minutes");
+    revalidateTag(`dashboard-${orgId}`, "minutes");
 
     return {
       success: true,
@@ -410,6 +419,7 @@ export async function retryCampaignLaunch(campaignId: string) {
   });
 
   revalidatePath("/campaigns");
+  revalidateTag(`campaigns-${orgId}`, "minutes");
 
   return { success: true, jobId };
 }

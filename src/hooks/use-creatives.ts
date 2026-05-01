@@ -25,19 +25,41 @@ export function useCreativesList() {
   return useQuery({
     queryKey: ["creatives", activeOrgId],
     queryFn: async () => {
-      let query = supabase
+      if (!activeOrgId) return [];
+
+      // 1. Fetch root creatives (no parent) with their selected variant URL
+      const { data: roots, error } = await supabase
         .from("creatives")
-        .select("*")
+        .select("*, selected_variant:creatives!selected_variant_id(id, original_url)")
+        .eq("organization_id", activeOrgId)
+        .is("parent_id", null)
         .order("created_at", { ascending: false });
 
-      if (activeOrgId) {
-        query = query.eq("organization_id", activeOrgId);
+      if (error) throw error;
+      if (!roots || roots.length === 0) return [];
+
+      // 2. Fetch variant counts for all roots in a single query
+      const rootIds = roots.map((r) => r.id);
+      const { data: variantRows } = await supabase
+        .from("creatives")
+        .select("parent_id")
+        .in("parent_id", rootIds)
+        .eq("organization_id", activeOrgId);
+
+      const countMap: Record<string, number> = {};
+      for (const v of variantRows ?? []) {
+        if (v.parent_id)
+          countMap[v.parent_id] = (countMap[v.parent_id] ?? 0) + 1;
       }
 
-      const { data, error } = await query;
-
-      if (error) throw error;
-      return data;
+      // 3. Enrich each root with a resolved display URL and variant count
+      return roots.map((c) => ({
+        ...c,
+        displayUrl:
+          (c.selected_variant as { original_url: string } | null)
+            ?.original_url ?? c.original_url,
+        variantCount: countMap[c.id] ?? 0,
+      }));
     },
   });
 }

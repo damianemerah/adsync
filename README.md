@@ -71,7 +71,7 @@ All agent instructions live in `.agent/`. Do not use root-level `.md` files as s
 | 1A    | Attribution + smart links | ✅ Live    |
 | 1B    | Naira ROI dashboard       | ✅ Live    |
 | 1C    | Org-level AI context      | ✅ Live    |
-| 2A    | Naira ad budget wallet    | ⬜ Next    |
+| 2A    | Naira ad budget wallet    | 🚫 Dropped  |
 | 2B    | Creative intelligence     | ⬜ Planned |
 
 ---

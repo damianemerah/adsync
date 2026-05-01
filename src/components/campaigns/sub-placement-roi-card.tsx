@@ -6,11 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Instagram,
-  Facebook,
   ViewGrid,
   Sparks,
   RefreshDouble,
 } from "iconoir-react";
+import { MetaIcon } from "@/components/ui/meta-icon";
 
 interface SubPlacementROICardProps {
   campaignId: string;
@@ -81,7 +81,7 @@ export function SubPlacementROICard({ campaignId }: SubPlacementROICardProps) {
     if (platform === "instagram")
       return <Instagram className="h-4 w-4 text-pink-600" />;
     if (platform === "facebook")
-      return <Facebook className="h-4 w-4 text-blue-600" />;
+      return <MetaIcon className="h-5 w-5" />;
     return <ViewGrid className="h-4 w-4 text-slate-500" />;
   };
 

@@ -32,8 +32,17 @@ export function PixelSnippetCard({ orgPixelToken }: PixelSnippetCardProps) {
   document.addEventListener("Tenzu_purchase",function(e){
     new Image().src=b+"&e=purchase&v="+(e.detail?.value||0);
   });
+  document.addEventListener("Tenzu_lead",function(){
+    new Image().src=b+"&e=lead";
+  });
 })("${orgPixelToken}");
 </script>`;
+
+  const purchaseSnippet = `document.dispatchEvent(new CustomEvent("Tenzu_purchase", {
+  detail: { value: 15000 } // replace with actual NGN amount
+}));`;
+
+  const leadSnippet = `document.dispatchEvent(new CustomEvent("Tenzu_lead"));`;
 
   const handleCopy = (e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -76,10 +85,28 @@ export function PixelSnippetCard({ orgPixelToken }: PixelSnippetCardProps) {
         </Button>
       </div>
       <CollapsibleContent>
-        <div className="p-4 pt-0">
+        <div className="p-4 pt-0 space-y-4">
           <pre className="bg-[#0f172a] text-[#f8fafc] text-xs rounded-md p-4 overflow-x-auto font-mono leading-relaxed border border-slate-800 shadow-inner">
             <code>{snippet}</code>
           </pre>
+
+          <div className="space-y-3 text-xs text-muted-foreground">
+            <p className="font-medium text-foreground text-sm">After installing, fire these events on the right pages:</p>
+
+            <div className="space-y-1">
+              <p className="font-medium text-foreground">Track a purchase — on your order confirmation page:</p>
+              <pre className="bg-muted rounded-md p-3 font-mono overflow-x-auto leading-relaxed">{purchaseSnippet}</pre>
+            </div>
+
+            <div className="space-y-1">
+              <p className="font-medium text-foreground">Track a lead — on your form thank-you page:</p>
+              <pre className="bg-muted rounded-md p-3 font-mono overflow-x-auto leading-relaxed">{leadSnippet}</pre>
+            </div>
+
+            <p className="text-xs">
+              The pixel handles page views automatically. You only need to fire these events for conversions.
+            </p>
+          </div>
         </div>
       </CollapsibleContent>
     </Collapsible>

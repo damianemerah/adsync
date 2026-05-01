@@ -106,9 +106,9 @@ export function Sidebar({ activeOrgId }: { activeOrgId?: string | null }) {
       iconColor: "text-ai", // [UPDATED] Semantic token
       labelColor: "text-ai", // [UPDATED] Semantic token
       items: [
-        { label: "Create", icon: MagicWand, href: "/creations" },
+        { label: "Create", icon: MagicWand, href: "/ai-creative" },
         // { label: "Improve", icon: GraphUp, href: "#" },
-        { label: "My Creations", icon: LayoutLeft, href: "/creations/library" },
+        { label: "My Creations", icon: LayoutLeft, href: "/ai-creative/library" },
       ],
     },
     // {
@@ -160,7 +160,7 @@ export function Sidebar({ activeOrgId }: { activeOrgId?: string | null }) {
             {organization?.logo_url ? (
               <img src={organization.logo_url} alt="Logo" className="w-full h-full object-cover" />
             ) : (
-              (organization?.name?.[0] || subscription?.org?.name?.[0] || "A").toUpperCase()
+              (organization?.name?.[0] || "A").toUpperCase()
             )}
           </div>
         )}
@@ -368,7 +368,7 @@ export function Sidebar({ activeOrgId }: { activeOrgId?: string | null }) {
           <DropdownMenuTrigger asChild>
             <div
               className={cn(
-                "bg-background rounded-lg p-3 border border-border flex items-center gap-3 shadow-sm border border-border cursor-pointer hover:bg-muted/50 transition-colors", // [UPDATED] shadow-sm border border-border
+                "bg-background rounded-lg p-3 border border-border flex items-center gap-3 shadow-sm cursor-pointer hover:bg-muted/50 transition-colors", // [UPDATED] shadow-sm border border-border
                 !isOpen &&
                   "p-1 border-0 shadow-none justify-center bg-transparent",
               )}
@@ -398,11 +398,8 @@ export function Sidebar({ activeOrgId }: { activeOrgId?: string | null }) {
           <DropdownMenuContent
             align="end"
             side={isOpen ? "top" : "right"}
-            className="w-56 p-2 rounded-md shadow-sm border border-border border-border bg-popover" // [UPDATED] bg-popover
+            className="w-56 p-2 rounded-md shadow-sm border border-border bg-popover" // [UPDATED] bg-popover
           >
-            <div className="px-2 py-1.5 text-sm font-semibold border-b border-border mb-1 text-foreground">
-              {user?.user_metadata?.full_name || "User"}
-            </div>
 
             <Link href="/settings/general">
               <DropdownMenuItem className="cursor-pointer text-muted-foreground focus:text-foreground focus:bg-muted/50 rounded-lg px-3 py-2">

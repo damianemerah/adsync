@@ -18,7 +18,6 @@
   - `get_current_fx_rate()` → Returns active rate (fallback: 1600)
   - `update_fx_rate(rate, source)` → Atomically updates active rate
 - Seeded with current market rate: **1377.21 NGN/USD**
-- Added `fx_rate_id` column to `ad_budget_transactions` for audit
 
 **Status:** ✅ Deployed and verified
 
@@ -101,7 +100,7 @@ These files remain using static `FX_RATE` because they're called from React clie
 - `src/lib/intelligence/post-launch-rules.ts` (client component)
 - `src/hooks/use-org-roi.ts` (defines inline)
 
-**Rationale:** UI estimates don't need real-time accuracy. Server-side financial operations (virtual card loads, budget calculations) use dynamic rates.
+**Rationale:** UI estimates don't need real-time accuracy. Server-side calculations (ROI prediction, budget estimation) use dynamic rates.
 
 ---
 
@@ -129,10 +128,10 @@ These files remain using static `FX_RATE` because they're called from React clie
 ```ts
 import { getFxRate } from "@/lib/fx-rate";
 
-export async function loadVirtualCard(ngnAmount: number) {
+export async function estimateAdCost(usdAmount: number) {
   const fxRate = await getFxRate(); // ✅ Dynamic, cached
-  const usdAmount = ngnAmount / fxRate;
-  // ... Sudo API call
+  const ngnAmount = usdAmount * fxRate;
+  // ... return estimation
 }
 ```
 
@@ -193,7 +192,6 @@ export const FX_RATE = 1600; // Hardcoded, outdated
 ```
 - ❌ Rate manually updated (never)
 - ❌ Budget calculations inaccurate (±15% error)
-- ❌ Virtual card loads use stale rate
 
 ### After (Dynamic Rate)
 ```ts
@@ -201,19 +199,11 @@ const fxRate = await getFxRate(); // Real-time from DB
 ```
 - ✅ Daily automatic updates (01:00 UTC)
 - ✅ Accurate budget calculations (±0.5% tolerance)
-- ✅ Virtual card loads use current market rate
 - ✅ Audit trail for rate changes
 - ✅ Graceful fallback if API fails
 
 ### Financial Impact (Example)
-**Scenario:** User tops up ₦100,000 for ad spend
-
-| Rate | USD Amount | Difference |
-|------|------------|-----------|
-| Static (1600) | $62.50 | Baseline |
-| Dynamic (1377.21) | **$72.60** | **+$10.10** (+16% more ad spend) |
-
-**Result:** Users get **16% more ad spend** for the same Naira payment.
+**Result:** Users get more accurate estimates for their ad spend.
 
 ---
 

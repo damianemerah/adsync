@@ -331,7 +331,6 @@ if (field === "account_budget") {
 **Benefits:**
 - ✅ Better visibility into Meta billing
 - ✅ Faster payment issue resolution
-- ✅ Audit trail for virtual card transactions
 
 #### Implementation
 
@@ -776,7 +775,7 @@ Check Supabase Edge Function logs or your webhook route logs for:
 
 ### Phase 2 (Next Sprint)
 3. ⬜ `account_budget` field - Nice to have for proactive alerts
-4. ⬜ `billing` field - Useful for virtual card audit trail
+4. ⬜ `billing` field - Useful for payment issue tracking
 
 ---
 

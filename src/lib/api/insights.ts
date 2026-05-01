@@ -2,6 +2,8 @@ import { decrypt } from "@/lib/crypto";
 import { MetaService } from "@/lib/api/meta";
 import { SupabaseClient } from "@supabase/supabase-js";
 import { getActiveOrgId } from "@/lib/active-org";
+import { createAdminClient } from "@/lib/supabase/server";
+import { cacheTag, cacheLife } from "next/cache";
 
 /**
  * Server-side fetcher for dashboard insights.
@@ -9,8 +11,8 @@ import { getActiveOrgId } from "@/lib/active-org";
  * Stale path (cache miss): fetches from Meta API, persists to DB, then returns.
  */
 export async function getDashboardData(
-  supabase: SupabaseClient,
   userId: string,
+  orgId: string,
   filter?: {
     campaignId?: string | "all";
     platform?: string;
@@ -19,9 +21,12 @@ export async function getDashboardData(
     dateTo?: string;
   },
 ) {
-  // 1. Get active org ID from cookie
-  const activeOrgId = await getActiveOrgId();
-  if (!activeOrgId) return null;
+  "use cache";
+  cacheTag(`dashboard-${orgId}`);
+  cacheLife("minutes");
+
+  const supabase = createAdminClient();
+  const activeOrgId = orgId;
 
   // Build query for ad accounts
   let query = supabase

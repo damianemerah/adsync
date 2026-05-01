@@ -38,7 +38,7 @@ The entire 12-month roadmap closes both gaps.
 
 | Phase  | Timeline           | Theme                   | Core Deliverable                                                                 |
 | ------ | ------------------ | ----------------------- | -------------------------------------------------------------------------------- |
-| **1A** | Now → Month 2      | Close the gap           | Tenzu Attribution Link — wraps WhatsApp AND website destinations                |
+| **1A** | Now → Month 2      | Close the gap           | Tenzu Attribution Link — wraps WhatsApp AND website destinations                 |
 | **1B** | Month 2 → Month 4  | Make it legible         | Naira ROI Dashboard + "Mark as Sold"                                             |
 | **1C** | Month 2 → Month 4  | AI that knows you       | Org-level context — extends existing `CampaignContext` and `context-compiler.ts` |
 | **2A** | Month 4 → Month 7  | Remove payment friction | Naira ad budget top-up (Grey/Geegpay card abstraction)                           |
@@ -193,19 +193,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { UAParser } from "ua-parser-js"; // npm install ua-parser-js
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { token: string } },
-) {
+export async function GET(request: NextRequest, { params }: { params: { token: string } }) {
   const supabase = await createClient();
   const { token } = params;
 
   // 1. Look up the link
   const { data: link } = await supabase
     .from("attribution_links")
-    .select(
-      "id, campaign_id, organization_id, destination_url, destination_type",
-    )
+    .select("id, campaign_id, organization_id, destination_url, destination_type")
     .eq("token", token)
     .single();
 
@@ -289,8 +284,7 @@ export function generateAttributionToken(length = 8): string {
  * Builds the full Tenzu redirect URL
  */
 export function buildAttributionUrl(token: string, baseUrl?: string): string {
-  const base =
-    baseUrl || process.env.NEXT_PUBLIC_APP_URL || "https://tenzu.africa";
+  const base = baseUrl || process.env.NEXT_PUBLIC_APP_URL || "https://tenzu.africa";
   return `${base}/l/${token}`;
 }
 ```
@@ -308,10 +302,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
 // 1x1 transparent GIF
-const PIXEL_GIF = Buffer.from(
-  "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
-  "base64",
-);
+const PIXEL_GIF = Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64");
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -373,10 +364,7 @@ export async function GET(request: NextRequest) {
     // Fire purchase event: document.dispatchEvent(new CustomEvent("tenzu_purchase", {detail:{value:15000}}))
     document.addEventListener("tenzu_purchase", function (e) {
       new Image().src =
-        "https://tenzu.africa/api/pixel?t=" +
-        t +
-        "&e=purchase&v=" +
-        (e.detail?.value || 0);
+        "https://tenzu.africa/api/pixel?t=" + t + "&e=purchase&v=" + (e.detail?.value || 0);
     });
   })("THEIR_PIXEL_TOKEN");
 </script>
@@ -651,7 +639,7 @@ export function useCampaignROI(campaignId: string) {
           sales_count,
           revenue_ngn,
           daily_budget_cents
-        `,
+        `
         )
         .eq("id", campaignId)
         .single();
@@ -676,10 +664,7 @@ export function useCampaignROI(campaignId: string) {
         revenueNgn: revenue,
         costPerClickNgn: clicks > 0 ? Math.round(spendNgn / clicks) : 0,
         costPerSaleNgn: sales > 0 ? Math.round(spendNgn / sales) : 0,
-        roiPercent:
-          spendNgn > 0
-            ? Math.round(((revenue - spendNgn) / spendNgn) * 100)
-            : 0,
+        roiPercent: spendNgn > 0 ? Math.round(((revenue - spendNgn) / spendNgn) * 100) : 0,
       };
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
@@ -1077,8 +1062,7 @@ const { data: org } = await supabase
   .insert({
     name: orgName,
     slug: generateSlug(orgName),
-    business_description:
-      (formData.get("businessDescription") as string) || null,
+    business_description: (formData.get("businessDescription") as string) || null,
     business_category: mapIndustryToCategory(industry), // new helper below
     target_audience: (formData.get("targetAudience") as string) || null,
     // ... existing fields
@@ -1135,7 +1119,7 @@ export function useOrgContext() {
           business_location,
           target_audience,
           whatsapp_number
-        `,
+        `
         )
         .single();
 
@@ -1297,8 +1281,7 @@ export async function updateOrgProfile(formData: FormData) {
   const { error } = await supabase
     .from("organizations")
     .update({
-      business_description:
-        (formData.get("businessDescription") as string) || null,
+      business_description: (formData.get("businessDescription") as string) || null,
       business_category: (formData.get("businessCategory") as string) || null,
       business_location: (formData.get("businessLocation") as string) || null,
       target_audience: (formData.get("targetAudience") as string) || null,
@@ -1328,8 +1311,7 @@ const { data: orgContext } = useOrgContext();
 
 // When initialising the AI strategy call, merge org context into the input:
 const aiInput = {
-  businessDescription:
-    orgContext?.businessDescription || campaignStore.businessDescription || "",
+  businessDescription: orgContext?.businessDescription || campaignStore.businessDescription || "",
   location: orgContext?.businessLocation || "Nigeria",
   targetAudience: orgContext?.targetAudience || undefined,
 };
@@ -1496,7 +1478,7 @@ export async function creditAdBudget({
       balance_ngn: newBalance,
       updated_at: new Date().toISOString(),
     },
-    { onConflict: "organization_id" },
+    { onConflict: "organization_id" }
   );
 
   // Record transaction
@@ -1828,11 +1810,7 @@ export const CATEGORY_PLAYBOOKS: Record<BusinessCategory, CategoryPlaybook> = {
   },
   beauty: {
     category: "beauty",
-    topCreativeFormats: [
-      "close-up product shot",
-      "before/after result",
-      "user applying product",
-    ],
+    topCreativeFormats: ["close-up product shot", "before/after result", "user applying product"],
     copyTone: "results_focused",
     highPerformingCTAs: ["Send Message", "Get Quote"],
     avoidPatterns: ["medical claims", "miracle language"],
@@ -1841,11 +1819,7 @@ export const CATEGORY_PLAYBOOKS: Record<BusinessCategory, CategoryPlaybook> = {
   },
   food: {
     category: "food",
-    topCreativeFormats: [
-      "hero food shot",
-      "packaging on clean surface",
-      "process/cooking shot",
-    ],
+    topCreativeFormats: ["hero food shot", "packaging on clean surface", "process/cooking shot"],
     copyTone: "warm_casual",
     highPerformingCTAs: ["Order Now", "Send Message"],
     avoidPatterns: ["overly dark images", "small portions"],
@@ -1854,11 +1828,7 @@ export const CATEGORY_PLAYBOOKS: Record<BusinessCategory, CategoryPlaybook> = {
   },
   digital_services: {
     category: "digital_services",
-    topCreativeFormats: [
-      "result/outcome graphic",
-      "testimonial screenshot",
-      "before/after result",
-    ],
+    topCreativeFormats: ["result/outcome graphic", "testimonial screenshot", "before/after result"],
     copyTone: "credibility_focused",
     highPerformingCTAs: ["Learn More", "Send Message"],
     avoidPatterns: ["income claims", "guaranteed results language"],
@@ -1867,11 +1837,7 @@ export const CATEGORY_PLAYBOOKS: Record<BusinessCategory, CategoryPlaybook> = {
   },
   real_estate: {
     category: "real_estate",
-    topCreativeFormats: [
-      "property exterior shot",
-      "interior lifestyle",
-      "aerial view",
-    ],
+    topCreativeFormats: ["property exterior shot", "interior lifestyle", "aerial view"],
     copyTone: "premium_aspirational",
     highPerformingCTAs: ["Get Quote", "Send Message", "Book Now"],
     avoidPatterns: ["price in creative", "cluttered contact details"],
@@ -1880,16 +1846,11 @@ export const CATEGORY_PLAYBOOKS: Record<BusinessCategory, CategoryPlaybook> = {
   },
   general: {
     category: "general",
-    topCreativeFormats: [
-      "product on clean background",
-      "lifestyle usage",
-      "offer graphic",
-    ],
+    topCreativeFormats: ["product on clean background", "lifestyle usage", "offer graphic"],
     copyTone: "casual_nigerian",
     highPerformingCTAs: ["Send Message", "Shop Now"],
     avoidPatterns: ["too much text in image", "dark low-quality photography"],
-    systemPromptAddition:
-      "Nigerian market, clean modern aesthetic, product clearly visible",
+    systemPromptAddition: "Nigerian market, clean modern aesthetic, product clearly visible",
   },
 };
 
@@ -1898,10 +1859,8 @@ export function detectCategory(businessDescription: string): BusinessCategory {
   if (/fashion|cloth|wear|outfit|dress|shoe/.test(desc)) return "fashion";
   if (/beauty|hair|skin|makeup|cosmetic|salon/.test(desc)) return "beauty";
   if (/food|restaurant|catering|eat|meal|cook/.test(desc)) return "food";
-  if (/digital|online|course|training|software|tech/.test(desc))
-    return "digital_services";
-  if (/property|real estate|land|house|apartment|estate/.test(desc))
-    return "real_estate";
+  if (/digital|online|course|training|software|tech/.test(desc)) return "digital_services";
+  if (/property|real estate|land|house|apartment|estate/.test(desc)) return "real_estate";
   return "general";
 }
 ```
@@ -1909,10 +1868,7 @@ export function detectCategory(businessDescription: string): BusinessCategory {
 **Wire into `ai-images.ts`** — when `campaignContext` is present:
 
 ```typescript
-import {
-  detectCategory,
-  CATEGORY_PLAYBOOKS,
-} from "@/lib/ai/category-playbooks";
+import { detectCategory, CATEGORY_PLAYBOOKS } from "@/lib/ai/category-playbooks";
 
 // In generateAdCreative, when campaign context exists:
 if (campaignContext?.businessDescription) {
@@ -1980,11 +1936,7 @@ export async function processUGCVideo({
   });
 
   // Spend credits after successful generation
-  await spendCredits(
-    user.id,
-    CREDIT_COSTS.VIDEO_PROCESS || 20,
-    "video_process",
-  );
+  await spendCredits(user.id, CREDIT_COSTS.VIDEO_PROCESS || 20, "video_process");
 
   return {
     success: true,
@@ -2083,7 +2035,7 @@ export async function getOptimizationRecommendations({
       cost_per_sale_ngn,
       targeting_snapshot,
       daily_budget_cents
-    `,
+    `
     )
     .filter("ai_context->>'businessDescription'", "ilike", `%${category}%`)
     .gte("whatsapp_clicks", 5) // Only include campaigns with meaningful data
@@ -2096,12 +2048,8 @@ export async function getOptimizationRecommendations({
 
   // Build context for the AI
   const benchmarkSummary = {
-    avgClickRate: average(
-      categoryBenchmarks.map((b: any) => b.whatsapp_click_rate),
-    ),
-    avgConversionRate: average(
-      categoryBenchmarks.map((b: any) => b.conversation_to_sale_rate),
-    ),
+    avgClickRate: average(categoryBenchmarks.map((b: any) => b.whatsapp_click_rate)),
+    avgConversionRate: average(categoryBenchmarks.map((b: any) => b.conversation_to_sale_rate)),
     topInterests: extractTopInterests(categoryBenchmarks),
   };
 
@@ -2129,9 +2077,7 @@ Reply in JSON: { "interests": [], "budgetAdvice": "", "creativeFormat": "" }`,
 }
 
 function average(nums: number[]): number {
-  return nums.length
-    ? Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 10) / 10
-    : 0;
+  return nums.length ? Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 10) / 10 : 0;
 }
 
 function extractTopInterests(benchmarks: any[]): string[] {
@@ -2162,7 +2108,7 @@ These will be requested. The answer is no for 12 months.
 | TikTok Ads (it's in the UI)      | Remove from Phase 1 UI. Nigeria is Facebook/Instagram. Keeping it visible confuses SMEs and splits roadmap focus. Ship it in Phase 3 or later. |
 | Full CRM / pipeline stages       | "Mark as Sold" is enough. A full CRM means competing with WhatsApp's own native features and adding onboarding complexity.                     |
 | Web store / Shopify-like builder | SMEs don't want websites. They want more WhatsApp sales. Completely different product and market.                                              |
-| Agency white-label dashboard     | Agencies' incentives are opposed to Tenzu's value prop. Their SME clients would own nothing.                                                  |
+| Agency white-label dashboard     | Agencies' incentives are opposed to Tenzu's value prop. Their SME clients would own nothing.                                                   |
 | Google Ads integration           | Wrong market right now.                                                                                                                        |
 | Desktop-first features           | Your users are on phones.                                                                                                                      |
 

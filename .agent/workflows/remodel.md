@@ -14,7 +14,7 @@ description: Remodel UI to match Tenzu's premium "Crisp Modern" flat aesthetic
    - **Colors**: Override generic colors with semantic tokens. Use `bg-primary` for primary actions. Use `bg-background` or specific surface tokens for backgrounds.
      - **CRITICAL:** Search for and **REMOVE** all hex codes (e.g., `bg-[#12e193]`) and replace them with their `globals.css` variable equivalents (e.g., `bg-primary`).
    - **Shapes**: Apply `rounded-md` or `rounded-lg` border radius to cards, buttons, and containers. Remove `rounded-full` unless explicitly used for avatars.
-   - **Depth**: Replace standard Tailwind shadows with crisp borders (`border border-border`) and completely flat surfaces. 
+   - **Depth**: Replace standard Tailwind shadows with crisp borders (`border border-border`) and completely flat surfaces.
    - **Typography**: Ensure fonts and hierarchy align with the clean, precise aesthetic.
    - **Icons**: Replace all `lucide-react` icons with `iconoir-react` equivalents.
 

@@ -51,6 +51,7 @@ export async function saveCreative(params: {
   width: number;
   height: number;
   format: string;
+  parentId?: string | null;
   generationParams?: any;
 }) {
   const supabase = await createClient();
@@ -77,6 +78,7 @@ export async function saveCreative(params: {
       width: params.width,
       height: params.height,
       media_type: mediaType,
+      parent_id: params.parentId ?? null,
       generation_context: params.generationParams,
     })
     .select()
@@ -158,4 +160,35 @@ export async function deleteCreatives(ids: string[]) {
   if (dbError) throw dbError;
 
   return { success: true, count: creatives.length };
+}
+
+/**
+ * Sets a variant as the "primary" image for a creative family.
+ * The root creative stores a pointer to whichever variant (or itself) should
+ * be shown in the library. Pass variantId = null to revert to the root image.
+ */
+export async function setSelectedVariant(
+  rootId: string,
+  variantId: string | null,
+) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const orgId = await getActiveOrgId();
+  if (!orgId) throw new Error("No organization found");
+
+  const { error } = await supabase
+    .from("creatives")
+    .update({ selected_variant_id: variantId })
+    .eq("id", rootId)
+    .eq("organization_id", orgId)
+    .is("parent_id", null); // only roots can hold selected_variant_id
+
+  if (error) throw error;
+
+  return { success: true };
 }

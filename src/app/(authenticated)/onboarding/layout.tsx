@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
@@ -6,6 +7,7 @@ export default async function OnboardingLayout({
 }: {
   children: React.ReactNode;
 }) {
+  await connection();
   const supabase = await createClient();
 
   const {
@@ -16,19 +18,25 @@ export default async function OnboardingLayout({
     redirect("/login");
   }
 
-  // Check if they have *any* organization memberships.
-  // We only look for owners/members to confirm they've completed onboarding
-  // and have at least one valid workspace.
   const { data: memberships } = await supabase
     .from("organization_members")
     .select("organization_id")
     .eq("user_id", user.id)
     .limit(1);
 
-  // If they have completed onboarding (i.e. they are part of at least one org),
-  // they do not need to be here. Kick them back to dashboard.
+  // Only redirect to dashboard if they have an org AND a connected ad account.
+  // If they have an org but no ad account yet, let them stay to complete step 3.
   if (memberships && memberships.length > 0) {
-    redirect("/dashboard");
+    const { data: adAccounts } = await supabase
+      .from("ad_accounts")
+      .select("id")
+      .eq("organization_id", memberships[0].organization_id!)
+      .is("disconnected_at", null)
+      .limit(1);
+
+    if (adAccounts && adAccounts.length > 0) {
+      redirect("/dashboard");
+    }
   }
 
   return <>{children}</>;

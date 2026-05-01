@@ -691,6 +691,7 @@ export type Database = {
           original_url: string
           parent_id: string | null
           platform_media_hash: string | null
+          selected_variant_id: string | null
           tags: string[] | null
           thumbnail_url: string | null
           uploaded_by: string | null
@@ -713,6 +714,7 @@ export type Database = {
           original_url: string
           parent_id?: string | null
           platform_media_hash?: string | null
+          selected_variant_id?: string | null
           tags?: string[] | null
           thumbnail_url?: string | null
           uploaded_by?: string | null
@@ -735,6 +737,7 @@ export type Database = {
           original_url?: string
           parent_id?: string | null
           platform_media_hash?: string | null
+          selected_variant_id?: string | null
           tags?: string[] | null
           thumbnail_url?: string | null
           uploaded_by?: string | null
@@ -764,6 +767,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "creatives_selected_variant_id_fkey"
+            columns: ["selected_variant_id"]
+            isOneToOne: false
+            referencedRelation: "creatives"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "creatives_uploaded_by_fkey"
             columns: ["uploaded_by"]
             isOneToOne: false
@@ -771,36 +781,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      credit_costs: {
-        Row: {
-          action_key: string
-          created_at: string
-          credits: number
-          display_name: string
-          is_active: boolean
-          model_id: string
-          notes: string | null
-        }
-        Insert: {
-          action_key: string
-          created_at?: string
-          credits: number
-          display_name: string
-          is_active?: boolean
-          model_id: string
-          notes?: string | null
-        }
-        Update: {
-          action_key?: string
-          created_at?: string
-          credits?: number
-          display_name?: string
-          is_active?: boolean
-          model_id?: string
-          notes?: string | null
-        }
-        Relationships: []
       }
       credit_packs: {
         Row: {
@@ -1472,7 +1452,6 @@ export type Database = {
       }
       organizations: {
         Row: {
-          billing_cycle_day: number | null
           billing_provider: string
           books_appointments: boolean | null
           business_description: string | null
@@ -1490,31 +1469,22 @@ export type Database = {
           has_physical_location: boolean | null
           id: string
           industry: string | null
-          last_billing_update_at: string | null
           logo_url: string | null
           max_ad_accounts: number | null
           max_team_members: number | null
           name: string
-          paystack_customer_code: string | null
-          paystack_sub_code: string | null
           pixel_token: string | null
-          plan_interval: string | null
           price_tier: string | null
           selling_method: string | null
           sells_online: boolean | null
           slug: string
           state: string | null
-          stripe_customer_id: string | null
-          subscription_expires_at: string | null
-          subscription_status: string | null
-          subscription_tier: string | null
           timezone: string
           updated_at: string | null
           wants_contact_ads: boolean | null
           whatsapp_number: string | null
         }
         Insert: {
-          billing_cycle_day?: number | null
           billing_provider?: string
           books_appointments?: boolean | null
           business_description?: string | null
@@ -1532,31 +1502,22 @@ export type Database = {
           has_physical_location?: boolean | null
           id?: string
           industry?: string | null
-          last_billing_update_at?: string | null
           logo_url?: string | null
           max_ad_accounts?: number | null
           max_team_members?: number | null
           name: string
-          paystack_customer_code?: string | null
-          paystack_sub_code?: string | null
           pixel_token?: string | null
-          plan_interval?: string | null
           price_tier?: string | null
           selling_method?: string | null
           sells_online?: boolean | null
           slug: string
           state?: string | null
-          stripe_customer_id?: string | null
-          subscription_expires_at?: string | null
-          subscription_status?: string | null
-          subscription_tier?: string | null
           timezone?: string
           updated_at?: string | null
           wants_contact_ads?: boolean | null
           whatsapp_number?: string | null
         }
         Update: {
-          billing_cycle_day?: number | null
           billing_provider?: string
           books_appointments?: boolean | null
           business_description?: string | null
@@ -1574,24 +1535,16 @@ export type Database = {
           has_physical_location?: boolean | null
           id?: string
           industry?: string | null
-          last_billing_update_at?: string | null
           logo_url?: string | null
           max_ad_accounts?: number | null
           max_team_members?: number | null
           name?: string
-          paystack_customer_code?: string | null
-          paystack_sub_code?: string | null
           pixel_token?: string | null
-          plan_interval?: string | null
           price_tier?: string | null
           selling_method?: string | null
           sells_online?: boolean | null
           slug?: string
           state?: string | null
-          stripe_customer_id?: string | null
-          subscription_expires_at?: string | null
-          subscription_status?: string | null
-          subscription_tier?: string | null
           timezone?: string
           updated_at?: string | null
           wants_contact_ads?: boolean | null
@@ -1601,12 +1554,15 @@ export type Database = {
       }
       plan_definitions: {
         Row: {
+          ad_spend_ceiling_kobo: number | null
+          anomaly_buffer_kobo: number | null
           created_at: string
           credits_monthly: number
           credits_trial: number
           display_name: string
           is_active: boolean
           max_ad_accounts: number
+          max_organizations: number | null
           max_team_members: number
           plan_id: string
           price_ngn: number
@@ -1614,12 +1570,15 @@ export type Database = {
           rollover_max: number
         }
         Insert: {
+          ad_spend_ceiling_kobo?: number | null
+          anomaly_buffer_kobo?: number | null
           created_at?: string
           credits_monthly: number
           credits_trial?: number
           display_name: string
           is_active?: boolean
           max_ad_accounts?: number
+          max_organizations?: number | null
           max_team_members?: number
           plan_id: string
           price_ngn: number
@@ -1627,12 +1586,15 @@ export type Database = {
           rollover_max?: number
         }
         Update: {
+          ad_spend_ceiling_kobo?: number | null
+          anomaly_buffer_kobo?: number | null
           created_at?: string
           credits_monthly?: number
           credits_trial?: number
           display_name?: string
           is_active?: boolean
           max_ad_accounts?: number
+          max_organizations?: number | null
           max_team_members?: number
           plan_id?: string
           price_ngn?: number
@@ -1848,6 +1810,69 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_subscriptions: {
+        Row: {
+          billing_cycle_day: number | null
+          created_at: string | null
+          id: string
+          last_billing_update_at: string | null
+          paystack_authorization_code: string | null
+          paystack_card_bank: string | null
+          paystack_card_expiry: string | null
+          paystack_card_last4: string | null
+          paystack_card_type: string | null
+          paystack_customer_code: string | null
+          paystack_sub_code: string | null
+          plan_interval: string | null
+          subscription_expires_at: string | null
+          subscription_grace_ends_at: string | null
+          subscription_status: string
+          subscription_tier: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          billing_cycle_day?: number | null
+          created_at?: string | null
+          id?: string
+          last_billing_update_at?: string | null
+          paystack_authorization_code?: string | null
+          paystack_card_bank?: string | null
+          paystack_card_expiry?: string | null
+          paystack_card_last4?: string | null
+          paystack_card_type?: string | null
+          paystack_customer_code?: string | null
+          paystack_sub_code?: string | null
+          plan_interval?: string | null
+          subscription_expires_at?: string | null
+          subscription_grace_ends_at?: string | null
+          subscription_status?: string
+          subscription_tier?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          billing_cycle_day?: number | null
+          created_at?: string | null
+          id?: string
+          last_billing_update_at?: string | null
+          paystack_authorization_code?: string | null
+          paystack_card_bank?: string | null
+          paystack_card_expiry?: string | null
+          paystack_card_last4?: string | null
+          paystack_card_type?: string | null
+          paystack_customer_code?: string | null
+          paystack_sub_code?: string | null
+          plan_interval?: string | null
+          subscription_expires_at?: string | null
+          subscription_grace_ends_at?: string | null
+          subscription_status?: string
+          subscription_tier?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       users: {
         Row: {

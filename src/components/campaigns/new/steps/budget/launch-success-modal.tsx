@@ -112,7 +112,7 @@ export function LaunchSuccessModal({
               className="w-full h-14 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-lg shadow-sm border border-border"
               onClick={() => {
                 if (dbCampaignId)
-                  router.push(`/creations/studio?campaign_id=${dbCampaignId}`);
+                  router.push(`/ai-creative/studio?campaign_id=${dbCampaignId}`);
               }}
               disabled={!dbCampaignId}
             >

@@ -49,9 +49,7 @@ The step should collect:
 
 ```typescript
 // Parse Meta application_id from store URL
-function parseAppId(
-  url: string,
-): { applicationId: string; platform: "ios" | "android" } | null {
+function parseAppId(url: string): { applicationId: string; platform: "ios" | "android" } | null {
   // Google Play: https://play.google.com/store/apps/details?id=COM_PACKAGE
   const gplay = url.match(/id=([a-zA-Z0-9_.]+)/);
   if (gplay) return { applicationId: gplay[1], platform: "android" };

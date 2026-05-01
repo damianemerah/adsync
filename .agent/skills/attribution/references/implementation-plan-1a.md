@@ -84,10 +84,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { UAParser } from "ua-parser-js"; // npm install ua-parser-js
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { token: string } },
-) {
+export async function GET(request: NextRequest, { params }: { params: { token: string } }) {
   const supabase = await createClient();
   const { token } = params;
 
@@ -167,8 +164,7 @@ export function generateAttributionToken(length = 8): string {
  * Builds the full Tenzu redirect URL
  */
 export function buildAttributionUrl(token: string, baseUrl?: string): string {
-  const base =
-    baseUrl || process.env.NEXT_PUBLIC_APP_URL || "https://tenzu.africa";
+  const base = baseUrl || process.env.NEXT_PUBLIC_APP_URL || "https://tenzu.africa";
   return `${base}/l/${token}`;
 }
 ```
@@ -440,7 +436,7 @@ export function useCampaignROI(campaignId: string) {
           sales_count,
           revenue_ngn,
           daily_budget_cents
-        `,
+        `
         )
         .eq("id", campaignId)
         .single();
@@ -465,10 +461,7 @@ export function useCampaignROI(campaignId: string) {
         revenueNgn: revenue,
         costPerClickNgn: clicks > 0 ? Math.round(spendNgn / clicks) : 0,
         costPerSaleNgn: sales > 0 ? Math.round(spendNgn / sales) : 0,
-        roiPercent:
-          spendNgn > 0
-            ? Math.round(((revenue - spendNgn) / spendNgn) * 100)
-            : 0,
+        roiPercent: spendNgn > 0 ? Math.round(((revenue - spendNgn) / spendNgn) * 100) : 0,
       };
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
