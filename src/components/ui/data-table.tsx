@@ -46,6 +46,12 @@ interface DataTableProps<T> {
   onSort?: (key: string) => void;
   /** Remove the table's own border/shadow wrapper (use when parent provides the container) */
   borderless?: boolean;
+  /** Total row count from server. When provided along with onPageChange, enables server-side pagination. */
+  totalCount?: number;
+  /** Controlled current page (1-indexed). Used in server-side pagination mode. */
+  currentPage?: number;
+  /** Called when user navigates to a page. When provided, enables server-side pagination mode. */
+  onPageChange?: (page: number) => void;
 }
 
 export function DataTable<T extends { id?: string | number }>({
@@ -66,27 +72,35 @@ export function DataTable<T extends { id?: string | number }>({
   sortDir,
   onSort,
   borderless = false,
+  totalCount,
+  currentPage: controlledPage,
+  onPageChange,
 }: DataTableProps<T>) {
   const [viewMode, setViewMode] = useState<"table" | "grid">(defaultView);
-  const [page, setPage] = useState(1);
+  const [internalPage, setInternalPage] = useState(1);
 
-  // Calculate total pages
+  const isServerPaginated = onPageChange !== undefined;
+  const page = isServerPaginated ? (controlledPage ?? 1) : internalPage;
+  const setPage = isServerPaginated ? onPageChange : setInternalPage;
+
+  // For server-side mode, total pages come from totalCount; for client-side, derive from data length
+  const effectiveTotalCount = isServerPaginated ? (totalCount ?? data.length) : data.length;
   const totalPages =
-    pageSize && pageSize > 0 ? Math.ceil(data.length / pageSize) : 1;
+    pageSize && pageSize > 0 ? Math.ceil(effectiveTotalCount / pageSize) : 1;
 
-  // Reset page if it exceeds likely range (e.g. data filtered down)
-  // We use a layout effect or effect to correct "out of bounds" page
+  // Reset internal page if it exceeds range (client-side mode only)
   React.useEffect(() => {
-    if (page > totalPages && totalPages > 0) {
-      setPage(1);
+    if (!isServerPaginated && internalPage > totalPages && totalPages > 0) {
+      setInternalPage(1);
     }
-  }, [data.length, page, totalPages]);
+  }, [data.length, internalPage, totalPages, isServerPaginated]);
 
-  // Slice data for current page when pagination is enabled
+  // In server-side mode, data is already the current page — don't slice.
+  // In client-side mode, slice to the current page window.
   const paginated =
-    pageSize && pageSize > 0
-      ? data.slice((page - 1) * pageSize, page * pageSize)
-      : data;
+    isServerPaginated || !(pageSize && pageSize > 0)
+      ? data
+      : data.slice((page - 1) * pageSize, page * pageSize);
 
   // Loading State
   if (isLoading) {
@@ -201,9 +215,9 @@ export function DataTable<T extends { id?: string | number }>({
             )}
           </div>
 
-          {pageSize && pageSize > 0 && data.length > pageSize && (
+          {pageSize && pageSize > 0 && effectiveTotalCount > pageSize && (
             <Pagination
-              total={data.length}
+              total={effectiveTotalCount}
               pageSize={pageSize}
               page={page}
               onPageChange={setPage}
@@ -290,9 +304,9 @@ export function DataTable<T extends { id?: string | number }>({
             </Table>
           </div>
 
-          {pageSize && pageSize > 0 && data.length > pageSize && (
+          {pageSize && pageSize > 0 && effectiveTotalCount > pageSize && (
             <Pagination
-              total={data.length}
+              total={effectiveTotalCount}
               pageSize={pageSize}
               page={page}
               onPageChange={setPage}

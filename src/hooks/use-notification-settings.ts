@@ -9,6 +9,10 @@ import {
   disconnectWhatsApp,
 } from "@/actions/notifications";
 import { toast } from "sonner";
+import type { Database } from "@/types/supabase";
+
+type NotificationSettings =
+  Database["public"]["Tables"]["notification_settings"]["Row"];
 
 export function useNotificationSettings() {
   const query = useQuery({
@@ -30,16 +34,15 @@ export function useUpdateNotificationSettings() {
     mutationFn: updateNotificationSettings,
     onMutate: async (newSettings) => {
       await queryClient.cancelQueries({ queryKey: ["notification-settings"] });
-      const previousSettings = queryClient.getQueryData([
-        "notification-settings",
-      ]);
-      queryClient.setQueryData(["notification-settings"], (old: any) => ({
-        ...old,
-        ...newSettings,
-      }));
+      const previousSettings =
+        queryClient.getQueryData<NotificationSettings>(["notification-settings"]);
+      queryClient.setQueryData<NotificationSettings>(
+        ["notification-settings"],
+        (old) => (old ? { ...old, ...newSettings } : old),
+      );
       return { previousSettings };
     },
-    onError: (err, newSettings, context) => {
+    onError: (_err, _newSettings, context) => {
       queryClient.setQueryData(
         ["notification-settings"],
         context?.previousSettings,

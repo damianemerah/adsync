@@ -127,9 +127,70 @@ export function useCreativeActions({ onUpgradeDialog }: UseCreativeActionsProps)
     }
   };
 
+  const handleGenerateFromTemplate = async (
+    templateId: string,
+    templateValues: Record<string, string>,
+  ) => {
+    if (isGeneratingAI) return;
+    if (balance < CREDIT_COSTS.IMAGE_GEN_PRO) {
+      toast.error(
+        `Not enough credits. You need ${CREDIT_COSTS.IMAGE_GEN_PRO} credits to generate an image.`,
+      );
+      onUpgradeDialog();
+      return;
+    }
+
+    setIsGeneratingAI(true);
+    const toastId = "ai-creative-gen";
+    toast.loading("Generating from template…", { id: toastId });
+
+    try {
+      const fallbackRatio = deriveAspectRatio(platform, objective);
+
+      const result = await generateAdCreative({
+        prompt: templateId,
+        mode: "template",
+        templateValues,
+        aspectRatio: fallbackRatio,
+        creativeFormat: "social_ad",
+      });
+
+      if (result?.imageUrl) {
+        const finalRatio = result.resolvedAspectRatio ?? fallbackRatio;
+        toast.loading("Saving your creative…", { id: toastId });
+        const saved = await autoSaveCreative({
+          falUrl: result.imageUrl,
+          prompt: result.usedPrompt ?? "",
+          aspectRatio: finalRatio,
+          templateId,
+          templateValues,
+        });
+        updateDraft({
+          pendingGeneratedImage: {
+            url: saved.publicUrl,
+            prompt: result?.usedPrompt ?? "",
+            aspectRatio: finalRatio,
+            savedAt: Date.now(),
+          },
+        });
+        toast.success("Template ready to review!", { id: toastId });
+      } else {
+        throw new Error("No image URL returned");
+      }
+    } catch (e: unknown) {
+      const message =
+        e instanceof Error && e.message
+          ? e.message
+          : "Couldn't generate from template. Please try again.";
+      toast.error(message, { id: toastId });
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
+
   const handleAcceptImage = async (imageUrl: string) => {
-    // Image was already auto-saved when generated — just accept it.
-    updateDraft({ selectedCreatives: [imageUrl], pendingGeneratedImage: null });
+    const { selectedCreatives } = useCampaignStore.getState();
+    updateDraft({ selectedCreatives: [...selectedCreatives, imageUrl], pendingGeneratedImage: null });
   };
 
   const handleEditInStudio = async (imageUrl: string, imagePrompt: string) => {
@@ -158,6 +219,7 @@ export function useCreativeActions({ onUpgradeDialog }: UseCreativeActionsProps)
   return {
     isGeneratingAI,
     handleGenerateWithAI,
+    handleGenerateFromTemplate,
     handleAcceptImage,
     handleEditInStudio
   };

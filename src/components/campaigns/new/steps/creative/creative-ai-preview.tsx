@@ -26,7 +26,7 @@ export function CreativeAiPreview({
   onEditInStudio,
   referenceImageUrls = [],
 }: CreativeAiPreviewProps) {
-  const { pendingGeneratedImage } = useCampaignStore();
+  const { pendingGeneratedImage, adFormatType, selectedCreatives } = useCampaignStore();
   const [customPrompt, setCustomPrompt] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -122,9 +122,26 @@ export function CreativeAiPreview({
               className="flex-1 h-9 text-xs bg-primary hover:bg-primary/90 text-primary-foreground"
               onClick={() => onAcceptImage(pendingGeneratedImage.url)}
             >
-              <Check className="h-3.5 w-3.5 mr-1" /> Accept Image
+              <Check className="h-3.5 w-3.5 mr-1" />
+              {adFormatType === "dynamic_creative" && selectedCreatives.length >= 1 ? "Add to Set" : "Accept Image"}
             </Button>
           </div>
+          {adFormatType === "dynamic_creative" && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full h-9 text-xs border-ai/30 text-ai hover:bg-ai/5 hover:border-ai/60 font-semibold gap-1.5"
+              disabled={isGeneratingAI}
+              onClick={async () => {
+                await onAcceptImage(pendingGeneratedImage.url);
+                onGenerateWithAI(customPrompt || undefined, referenceImageUrls);
+              }}
+            >
+              <Sparks className="h-3.5 w-3.5" />
+              Accept &amp; Generate Another Variation
+            </Button>
+          )}
+
         </div>
       </div>
     </div>

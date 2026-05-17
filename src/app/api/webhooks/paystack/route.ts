@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import { Database } from "@/types/supabase";
-import { PLAN_CREDITS, TIER_CONFIG, TierId } from "@/lib/constants";
+import { PLAN_CREDITS } from "@/lib/constants";
+import { revalidateTag } from "next/cache";
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -26,48 +27,16 @@ async function propagateToOrgMirrors(
 
   if (!ownedOrgs || ownedOrgs.length === 0) return;
 
-  const allOrgIds = ownedOrgs.map((m) => m.organization_id).filter((id): id is string => id !== null);
-  const { data: orgsData } = await supabase
+  const orgIds = ownedOrgs
+    .map((m) => m.organization_id)
+    .filter((id): id is string => id !== null);
+
+  if (orgIds.length === 0) return;
+
+  await supabase
     .from("organizations")
-    .select("id, created_at")
-    .in("id", allOrgIds)
-    .order("created_at", { ascending: true });
-
-  if (!orgsData || orgsData.length === 0) return;
-  const sortedOrgIds = orgsData.map(o => o.id);
-
-  const tier = (mirrorData.subscription_tier as TierId) || "starter";
-  const maxOrgs = TIER_CONFIG[tier]?.limits?.maxOrganizations ?? 1;
-
-  const status = mirrorData.subscription_status as string;
-  if (status !== "active" && status !== "trialing") {
-    await supabase
-      .from("organizations")
-      .update({ ...mirrorData, updated_at: new Date().toISOString() })
-      .in("id", sortedOrgIds);
-    return;
-  }
-
-  const allowedOrgIds = sortedOrgIds.slice(0, maxOrgs);
-  const overageOrgIds = sortedOrgIds.slice(maxOrgs);
-
-  if (allowedOrgIds.length > 0) {
-    await supabase
-      .from("organizations")
-      .update({ ...mirrorData, updated_at: new Date().toISOString() })
-      .in("id", allowedOrgIds);
-  }
-
-  if (overageOrgIds.length > 0) {
-    await supabase
-      .from("organizations")
-      .update({
-        subscription_status: "canceled",
-        subscription_tier: tier,
-        updated_at: new Date().toISOString(),
-      })
-      .in("id", overageOrgIds);
-  }
+    .update({ ...mirrorData, updated_at: new Date().toISOString() })
+    .in("id", orgIds);
 }
 
 export async function POST(req: NextRequest) {
@@ -289,6 +258,9 @@ export async function POST(req: NextRequest) {
           });
           if (creditError) console.error("Failed to grant credits:", creditError);
 
+          revalidateTag(`dashboard-${orgId}`, "minutes");
+          revalidateTag(`campaigns-${orgId}`, "minutes");
+
           console.log(
             `[Webhook] Activated ${planId} for user ${ownerId}, granted ${creditsToGrant} credits`,
           );
@@ -307,6 +279,8 @@ export async function POST(req: NextRequest) {
               user_id: ownerId,
               paystack_sub_code: data.subscription_code,
               subscription_status: "active",
+              // Clear the pending upgrade flag — user has now subscribed at the correct tier
+              pending_paystack_plan_upgrade: false,
               updated_at: new Date().toISOString(),
             },
             { onConflict: "user_id" },

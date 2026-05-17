@@ -8,10 +8,10 @@ import { type AspectRatio } from "./prompt-input";
 
 const ASPECT_RATIO_DIMENSIONS: Record<AspectRatio, { w: number; h: number }> =
   {
-    "1:1": { w: 1024, h: 1024 },
-    "16:9": { w: 1344, h: 768 },
-    "9:16": { w: 768, h: 1344 },
-    "4:5": { w: 1024, h: 1280 },
+    "1:1": { w: 1088, h: 1088 },
+    "16:9": { w: 1280, h: 720 },
+    "9:16": { w: 1088, h: 1920 },
+    "4:5": { w: 1088, h: 1360 },
   };
 
 const RATIO_CLASSES: Record<AspectRatio, string> = {

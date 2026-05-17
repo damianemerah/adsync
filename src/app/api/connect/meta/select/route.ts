@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { decrypt, encrypt } from "@/lib/crypto";
-import { TIER_CONFIG, TierId } from "@/lib/constants";
 import { activateTrialIfNeeded } from "@/lib/trial-activation";
+import { syncSpendAndUpdateTier } from "@/actions/spend-sync";
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -68,30 +68,12 @@ export async function POST(request: NextRequest) {
 
   const orgId = session.org_id;
 
-  // 3. Re-check tier limit
-  const { data: userSubData } = await supabase
-    .from("user_subscriptions")
-    .select("subscription_tier")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  const tier = (userSubData?.subscription_tier || "starter") as TierId;
-  const maxAccounts = TIER_CONFIG[tier]?.limits?.maxAdAccounts ?? 1;
-
+  // 3b. Count existing accounts to determine is_default for newly connected account
   const { count: existingCount } = await supabase
     .from("ad_accounts")
     .select("id", { count: "exact", head: true })
     .eq("organization_id", orgId)
     .is("disconnected_at", null);
-
-  if ((existingCount ?? 0) >= maxAccounts) {
-    return NextResponse.json(
-      {
-        error: `Ad account limit reached (${existingCount}/${maxAccounts}) for your plan.`,
-      },
-      { status: 403 },
-    );
-  }
 
   // 4. Decrypt token and upsert chosen account
   const accessToken = decrypt(session.access_token);
@@ -127,6 +109,9 @@ export async function POST(request: NextRequest) {
   // Activate trial exactly once — idempotent, anti-exploit guard inside
   await activateTrialIfNeeded(supabase, orgId, user.id);
 
+  // Fire-and-forget: sync 30d Meta spend so dashboard banner has data immediately
+  syncSpendAndUpdateTier(user.id, orgId).catch(() => {});
+
   // 5. Subscribe this ad account to Meta webhooks (fire-and-forget)
   subscribeToMetaWebhooks(chosen.account_id, accessToken).catch((err) => {
     console.warn("[Meta Select] Webhook subscription failed silently:", err);
@@ -148,7 +133,7 @@ export async function POST(request: NextRequest) {
       fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/campaigns/sync`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accountId: newAccount.id }),
+        body: JSON.stringify({ accountId: newAccount.id, orgId }),
       }).catch((err) => {
         console.warn("[Meta Select] Initial sync failed silently:", err);
       });

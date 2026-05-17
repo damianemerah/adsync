@@ -1,22 +1,38 @@
 "use client";
 
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useCampaignDetail } from "@/hooks/use-campaign-detail";
 import { ROIMetricsCard } from "@/components/campaigns/roi-metrics-card";
 import { MarkAsSoldButton } from "@/components/campaigns/mark-as-sold-button";
 import { SubPlacementROICard } from "@/components/campaigns/sub-placement-roi-card";
 import { PostLaunchRuleAlert } from "@/components/campaigns/post-launch-rule-alert";
-import { DemographicsCard } from "@/components/campaigns/demographics-card";
-import { LeadsList } from "@/components/campaigns/leads-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
   StatsReport,
@@ -27,22 +43,28 @@ import {
   MoreHoriz,
   Pause,
   Play,
-  Settings,
   SystemRestart,
   Edit,
   ArrowRight,
   NavArrowDown,
   GraphUp,
-  Mail,
   Copy,
+  Archive,
+  Trash,
+  EditPencil,
+  InfoCircle,
 } from "iconoir-react";
 import { MetaIcon } from "@/components/ui/meta-icon";
 import { DataTable, Column } from "@/components/ui/data-table";
 import { Campaign } from "@/lib/api/campaigns";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCampaignMutations } from "@/hooks/use-campaigns";
-import { CampaignMetrics } from "@/lib/utils/campaign-metrics";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 import {
   PerformanceChart,
@@ -53,8 +75,38 @@ import { useState, useMemo } from "react";
 import { useDashboardStore } from "@/store/dashboard-store";
 import {
   bucketPerformance,
+  fillBucketRange,
   pickGranularity,
 } from "@/lib/utils/date-bucketing";
+
+const PERF_CHIP_METRICS = ["spend", "impressions", "clicks", "ctr", "cpc", "revenue"] as const;
+
+const PERF_CHIP_COLORS: Record<string, string> = {
+  spend: "#4F6EF7",
+  impressions: "#E2445C",
+  clicks: "#00C875",
+  ctr: "#784BD1",
+  cpc: "#FDAB3D",
+  revenue: "#0F9B8E",
+};
+
+const PERF_CHIP_LABELS: Record<string, string> = {
+  spend: "Spend",
+  impressions: "Impr.",
+  clicks: "Clicks",
+  ctr: "CTR",
+  cpc: "CPC",
+  revenue: "Revenue",
+};
+
+const PERF_CHIP_TOOLTIPS: Record<string, string> = {
+  spend: "Total amount spent in the selected period",
+  impressions: "Total number of times your ads were seen",
+  clicks: "Total link clicks from your ads",
+  ctr: "Click-through rate — clicks ÷ impressions",
+  cpc: "Average cost per click",
+  revenue: "Estimated revenue attributed to this campaign",
+};
 
 interface CampaignDetailViewProps {
   campaign: Campaign;
@@ -64,39 +116,48 @@ export function CampaignDetailView({
   campaign: initialCampaign,
 }: CampaignDetailViewProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
-  const { updateStatus, isUpdating, duplicateCampaign, isDuplicating } = useCampaignMutations();
+  const { updateStatus, isUpdating, duplicateCampaign, isDuplicating, renameCampaign, archiveCampaign, deleteCampaign, isDeleting } = useCampaignMutations();
   const [activeMetrics, setActiveMetrics] = useState<MetricKey[]>([
     "revenue",
     "spend",
   ]);
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
+  const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const { dateRange } = useDashboardStore();
   const { campaign: liveCampaign } = useCampaignDetail(initialCampaign.id, {
     initialData: initialCampaign,
   });
   const campaign = liveCampaign ?? initialCampaign;
 
-  // Tab management: read from URL query param
-  const activeTab = searchParams.get("tab") || "overview";
-
-  const handleTabChange = (value: string) => {
-    const current = new URLSearchParams(searchParams.toString());
-    if (value === "overview") {
-      current.delete("tab"); // Keep URL clean for default tab
-    } else {
-      current.set("tab", value);
-    }
-    router.push(`${pathname}?${current.toString()}`);
-  };
-
-  // Determine if this is a lead gen campaign
-  const isLeadGenCampaign = campaign.objective === "leads";
-
   const granularity = useMemo(
     () => pickGranularity(dateRange?.from, dateRange?.to),
     [dateRange?.from, dateRange?.to],
   );
+
+  const currencySymbol = campaign.adAccount?.currency === "NGN" ? "₦" : "$";
+
+  // Aggregate summary values displayed in the colored metric chips
+  const perfSummaryValues = useMemo(() => {
+    const s = campaign.summary || {};
+    const spend = Number(s.spend || 0);
+    const impressions = Number(s.impressions || 0);
+    const clicks = Number(s.clicks || 0);
+    const ctr = Number(s.ctr || 0);
+    const cpc = Number(s.cpc || 0);
+    const revenue = Number(s.revenue || 0);
+    const fmt = (v: number) =>
+      `${currencySymbol}${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return {
+      spend: fmt(spend),
+      impressions: Math.round(impressions).toLocaleString(),
+      clicks: Math.round(clicks).toLocaleString(),
+      ctr: `${ctr.toFixed(2)}%`,
+      cpc: fmt(cpc),
+      revenue: fmt(revenue),
+    };
+  }, [campaign.summary, currencySymbol]);
 
   // Calculate CTR for chart data since API might return it or we compute it,
   // then bucket by day/week/month based on the selected range size.
@@ -122,18 +183,13 @@ export function CampaignDetailView({
         day.ctr ?? (day.impressions ? (day.clicks / day.impressions) * 100 : 0),
     }));
 
-    return bucketPerformance(withCtr, granularity);
+    const bucketed = bucketPerformance(withCtr, granularity);
+    return fillBucketRange(bucketed, dateRange?.from, dateRange?.to, granularity);
   }, [campaign.performance, dateRange, granularity]);
-
-  const currencySymbol = campaign.adAccount?.currency === "NGN" ? "₦" : "$";
 
   // Formatters
   const formatMoney = (amount: number) => {
     return `${currencySymbol}${amount.toLocaleString()}`;
-  };
-
-  const formatNumber = (num: number) => {
-    return num.toLocaleString();
   };
 
   const handleStatusChange = (newStatus: "ACTIVE" | "PAUSED" | "ARCHIVED") => {
@@ -144,21 +200,16 @@ export function CampaignDetailView({
     return (
       <div className="flex flex-col h-full bg-muted/50">
         {/* Header */}
-        <div className="p-4 sm:p-6 bg-card border-b border-border flex justify-between items-center">
+        <div className="p-4 sm:p-6 bg-card border-b border-border flex justify-between items-center space-x-1">
           <div>
-            <h2 className="text-lg sm:text-xl font-heading font-bold text-foreground">
+            <h2 className="text-foreground truncate text-lg font-heading font-medium">
               {campaign.name || "Untitled Draft"}
             </h2>
             <Badge variant="warning-soft" className="mt-1">
               Draft
             </Badge>
           </div>
-          <Button
-            onClick={() => router.push(`/campaigns/new?draftId=${campaign.id}`)}
-            className="bg-primary hover:bg-primary/90 font-bold shadow-sm border border-border min-h-11"
-          >
-            Resume Editing <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
+
         </div>
 
         {/* Empty State Content */}
@@ -166,13 +217,19 @@ export function CampaignDetailView({
           <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
             <Edit className="w-8 h-8 text-muted-foreground" />
           </div>
-          <h3 className="text-lg font-medium text-foreground">
+          <h3 className="font-medium text-foreground">
             This campaign hasn't been launched yet.
           </h3>
           <p className="max-w-sm mt-2">
             It is currently saved as a draft. Resume editing to complete the
             setup and launch your ad.
           </p>
+          <Button
+            onClick={() => router.push(`/campaigns/new?draftId=${campaign.id}`)}
+            className="mt-6 bg-primary hover:bg-primary/90 font-bold shadow-sm border border-border min-h-11"
+          >
+            Resume <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
         </div>
       </div>
     );
@@ -194,7 +251,7 @@ export function CampaignDetailView({
               </div>
             )}
             <div>
-              <h2 className="text-lg sm:text-xl font-heading font-bold text-foreground">
+              <h2 className="sm:text-xl font-heading font-bold text-foreground">
                 {campaign.name}
               </h2>
               <div className="flex items-center gap-2 text-xs sm:text-sm text-subtle-foreground mt-0.5">
@@ -236,9 +293,49 @@ export function CampaignDetailView({
               <OpenNewWindow className="h-4 w-4 mr-2" />
               View Ad
             </Button>
-            <Button variant="ghost" size="icon" className="min-h-11 w-11 shrink-0">
-              <MoreHoriz className="h-4 w-4" />
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="min-h-11 w-11 shrink-0 mr-2">
+                  <MoreHoriz className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem
+                  onClick={() => duplicateCampaign({ id: campaign.id })}
+                  className="cursor-pointer"
+                  disabled={isDuplicating}
+                >
+                  <Copy className="h-4 w-4 mr-2" /> Duplicate
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    setRenameValue(campaign.name);
+                    setRenameDialogOpen(true);
+                  }}
+                  className="cursor-pointer"
+                >
+                  <EditPencil className="h-4 w-4 mr-2" /> Rename
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => {
+                    setArchiveDialogOpen(true);
+                  }}
+                  className="cursor-pointer text-status-warning focus:text-status-warning"
+                >
+                  <Archive className="h-4 w-4 mr-2" /> Archive
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    setDeleteDialogOpen(true);
+                  }}
+                  className="cursor-pointer text-destructive focus:text-destructive"
+                  disabled={isDeleting}
+                >
+                  <Trash className="h-4 w-4 mr-2" /> Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -312,148 +409,206 @@ export function CampaignDetailView({
         </div>
       </div>
 
-      
-      {/* Tabs */}
-      <Tabs
-        value={activeTab}
-        onValueChange={handleTabChange}
-        className="flex-1 flex flex-col"
-      >
-        <div className="px-4 sm:px-6 bg-card border-b border-border">
-          <TabsList className="bg-transparent h-12 p-0 gap-4 sm:gap-6 w-full justify-start overflow-x-auto no-scrollbar shrink-0">
-            <TabsTrigger
-              value="overview"
-              className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none bg-transparent px-0 pb-3 pt-3 h-full font-semibold min-h-11 shrink-0"
-            >
-              <ViewGrid className="h-4 w-4 mr-2" />
-              Overview
-            </TabsTrigger>
-            {isLeadGenCampaign && (
-              <TabsTrigger
-                value="leads"
-                className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none bg-transparent px-0 pb-3 pt-3 h-full font-semibold min-h-11 shrink-0"
-              >
-                <Mail className="h-4 w-4 mr-2" />
-                Leads
-              </TabsTrigger>
-            )}
-            <TabsTrigger
-              value="analytics"
-              className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none bg-transparent px-0 pb-3 pt-3 h-full font-semibold min-h-11 shrink-0"
-            >
-              <GraphUp className="h-4 w-4 mr-2" />
-              Analytics
-            </TabsTrigger>
-          </TabsList>
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 no-scrollbar">
+        <PostLaunchRuleAlert campaign={campaign} />
+
+        {/* Attribution & ROI Section */}
+        <div className="space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
+            <h3 className="text-sm font-heading font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
+              <StatsReport className="h-4 w-4" /> Attribution & ROI
+            </h3>
+            <MarkAsSoldButton campaignId={campaign.id} />
+          </div>
+          <ROIMetricsCard campaignId={campaign.id} />
+          <SubPlacementROICard campaignId={campaign.id} />
         </div>
 
-        {/* Overview Tab */}
-        <TabsContent
-          value="overview"
-          className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 m-0 no-scrollbar"
-        >
-          {/* Post-launch intelligence alert — surfaces highest-severity triggered rule */}
-          <PostLaunchRuleAlert campaign={campaign} />
+        {/* Ads Table */}
+        <AdsTable ads={campaign.ads || []} formatMoney={formatMoney} />
 
-          {/* Attribution & ROI Section */}
-          <div className="space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
-              <h3 className="text-sm font-heading font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
-                <StatsReport className="h-4 w-4" /> Attribution & ROI
-              </h3>
-              <MarkAsSoldButton campaignId={campaign.id} />
+        {/* Performance Graph */}
+        <Card className="border border-border overflow-hidden">
+          <CardHeader className="flex flex-col gap-3 pb-3">
+            <h3 className="text-sm font-heading font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
+              <GraphUp className="h-4 w-4" /> Performance
+            </h3>
+            {/* Metric chips — show aggregate value + toggle chart line */}
+            <div className="w-full -mx-1 flex gap-0 overflow-x-auto no-scrollbar rounded-lg overflow-hidden border border-border">
+              {PERF_CHIP_METRICS.map((key, idx) => {
+                const color = PERF_CHIP_COLORS[key];
+                const label = PERF_CHIP_LABELS[key];
+                const value = perfSummaryValues[key];
+                const isActive = activeMetrics.includes(key as MetricKey);
+                return (
+                  <Tooltip key={key}>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => {
+                          if (isActive && activeMetrics.length === 1) return;
+                          setActiveMetrics((prev) =>
+                            isActive
+                              ? prev.filter((k) => k !== key)
+                              : [...prev, key as MetricKey],
+                          );
+                        }}
+                        className={[
+                          "group flex-1 min-w-[90px] sm:min-w-0 flex flex-col items-start gap-0.5 px-3 py-2.5 transition-all",
+                          idx > 0 ? "border-l border-white/10" : "",
+                          !isActive ? "opacity-60" : "",
+                        ].join(" ")}
+                        style={{ backgroundColor: color }}
+                      >
+                        <div className="flex items-center gap-1.5 w-full">
+                          <span
+                            className={[
+                              "h-3 w-3 shrink-0 rounded-sm border flex items-center justify-center transition-all",
+                              isActive
+                                ? "bg-white/30 border-white/50"
+                                : "bg-transparent border-white/30",
+                            ].join(" ")}
+                          >
+                            {isActive && (
+                              <svg viewBox="0 0 10 10" className="h-2 w-2" fill="none">
+                                <path
+                                  d="M2 5l2.5 2.5L8 3"
+                                  stroke="white"
+                                  strokeWidth="1.5"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            )}
+                          </span>
+                          <span className="text-[10px] font-bold text-white/80 uppercase tracking-wider truncate">
+                            {label}
+                          </span>
+                          <InfoCircle className="h-2.5 w-2.5 text-white/50 shrink-0 ml-auto" />
+                        </div>
+                        <span className="text-sm font-bold text-white tabular-nums truncate w-full text-left pl-[18px]">
+                          {value}
+                        </span>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="text-xs">
+                      {PERF_CHIP_TOOLTIPS[key]}
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
             </div>
-            <ROIMetricsCard campaignId={campaign.id} />
-            <SubPlacementROICard campaignId={campaign.id} />
-          </div>
-
-          
-          {/* Ads Table */}
-          <AdsTable ads={campaign.ads || []} formatMoney={formatMoney} />
-
-          {/* Performance Graph */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-heading font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
-                <GraphUp className="h-4 w-4" /> Performance
-              </h3>
-
-              {/* Metric Toggles */}
-              <div className="flex flex-wrap sm:flex-nowrap items-center gap-1 bg-muted p-1 rounded-lg">
-                {(Object.keys(METRIC_CONFIG) as MetricKey[]).map((key) => {
-                  const isActive = activeMetrics.includes(key);
-                  const config = METRIC_CONFIG[key];
-                  const Icon = config.icon;
-
-                  return (
-                    <button
-                      key={key}
-                      onClick={() => {
-                        if (isActive && activeMetrics.length === 1) return; // Prevent empty
-                        setActiveMetrics((prev) =>
-                          isActive
-                            ? prev.filter((k) => k !== key)
-                            : [...prev, key],
-                        );
-                      }}
-                      className={`
-                      flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all min-h-[36px]
-                      ${
-                        isActive
-                          ? "bg-card text-foreground shadow-sm ring-1 ring-border"
-                          : "text-subtle-foreground hover:text-foreground hover:bg-muted/80"
-                      }
-                    `}
-                    >
-                      <Icon className="h-3.5 w-3.5" />
-                      <span>{config.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="h-[300px] w-full bg-card border border-border rounded-lg p-4 shadow-none">
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="w-full h-[280px] sm:h-[320px]">
               <PerformanceChart
                 data={chartData}
                 activeMetrics={activeMetrics}
                 granularity={granularity}
               />
             </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ── Rename Dialog ── */}
+      <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Rename Ad</DialogTitle>
+          </DialogHeader>
+          <div className="py-2">
+            <Input
+              id="rename-input"
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && renameValue.trim()) {
+                  renameCampaign({ id: campaign.id, name: renameValue });
+                  setRenameDialogOpen(false);
+                }
+              }}
+              placeholder="Ad name"
+              className="w-full"
+              autoFocus
+              maxLength={150}
+            />
+            <p className="text-xs text-subtle-foreground mt-1.5">
+              {renameValue.length}/150 characters
+            </p>
           </div>
-        </TabsContent>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!renameValue.trim() || renameValue.trim() === campaign.name}
+              onClick={() => {
+                if (renameValue.trim()) {
+                  renameCampaign({ id: campaign.id, name: renameValue });
+                  setRenameDialogOpen(false);
+                }
+              }}
+            >
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-        {/* Leads Tab */}
-        {isLeadGenCampaign && (
-          <TabsContent value="leads" className="flex-1 overflow-y-auto p-4 sm:p-6 m-0 no-scrollbar">
-            <LeadsList campaignId={campaign.id} />
-          </TabsContent>
-        )}
+      {/* ── Archive Confirmation ── */}
+      <AlertDialog open={archiveDialogOpen} onOpenChange={setArchiveDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive this ad?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong className="text-foreground">{campaign.name}</strong> will be hidden from active views.
+              It will remain on Meta untouched — you can still view it in completed campaigns.
+              This only affects your Tenzu dashboard.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-status-warning hover:bg-status-warning/90 text-status-warning-foreground"
+              onClick={() => {
+                archiveCampaign({ id: campaign.id });
+                setArchiveDialogOpen(false);
+                router.push("/campaigns");
+              }}
+            >
+              Archive
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
-        {/* Analytics Tab */}
-        <TabsContent
-          value="analytics"
-          className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 m-0 no-scrollbar"
-        >
-          {/* Demographics Visualization */}
-          {campaign.demographics && (
-            <div className="space-y-3">
-              <h3 className="text-sm font-heading font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
-                <StatsReport className="h-4 w-4" /> Demographics
-              </h3>
-              <DemographicsCard demographics={campaign.demographics} />
-            </div>
-          )}
-
-          {/* Sub-Placement ROI */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-heading font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
-              <ViewGrid className="h-4 w-4" /> Placement Performance
-            </h3>
-            <SubPlacementROICard campaignId={campaign.id} />
-          </div>
-        </TabsContent>
-      </Tabs>
+      {/* ── Delete Confirmation ── */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Permanently delete this ad?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong className="text-foreground">{campaign.name}</strong> will be deleted from Meta and
+              permanently removed from Tenzu. This action cannot be undone.
+              Draft ads (not yet launched) will only be removed from Tenzu.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              onClick={() => {
+                deleteCampaign({ id: campaign.id });
+                setDeleteDialogOpen(false);
+                router.push("/campaigns");
+              }}
+            >
+              Delete permanently
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -545,7 +700,7 @@ function AdsTable({
         columns={columns}
         data={ads}
         pageSize={5}
-        striped
+        striped={false}
         emptyState={
           <EmptyState
             icon={<ViewGrid className="h-6 w-6" />}

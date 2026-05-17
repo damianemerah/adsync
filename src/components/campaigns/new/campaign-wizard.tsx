@@ -131,12 +131,13 @@ export function CampaignWizard({ draftId, isResume }: CampaignWizardProps) {
   const isAudienceStep = step === (hasExtraStep ? 3 : 2);
 
   return (
-    <div className="min-h-screen bg-muted font-sans">
+    <div className="min-h-screen bg-background font-sans">
       {/* HEADER */}
-      <PageHeader
-        showCredits
-        className="z-40"
-        leftContent={
+      {!isAudienceStep && (
+        <PageHeader
+          showCredits
+          className="z-40"
+          leftContent={
           <div className="flex items-center gap-4 flex-1">
             <Button
               variant="outline"
@@ -220,12 +221,13 @@ export function CampaignWizard({ draftId, isResume }: CampaignWizardProps) {
           </DropdownMenu>
         </div>
       </PageHeader>
+      )}
 
       {/* MAIN CONTENT */}
       <main
         className={cn(
           "mx-auto",
-          isAudienceStep ? "w-full h-[calc(100vh-64px)] flex flex-col" : "max-w-7xl px-4 md:px-6 py-8"
+          isAudienceStep ? "w-full h-screen flex flex-col" : "max-w-7xl px-4 md:px-6 py-8"
         )}
       >
         <Tabs
@@ -267,6 +269,17 @@ export function CampaignWizard({ draftId, isResume }: CampaignWizardProps) {
                 <AudienceChatStep
                   persistedDraftId={persistedDraftId}
                   onDraftSaved={onDraftSaved}
+                  wizardActions={{
+                    savingState,
+                    isSaving,
+                    isDeleting,
+                    completionPercentage,
+                    persistedDraftId,
+                    onSaveOnly: handleSaveOnly,
+                    onSaveAndExit: handleSaveAndExit,
+                    onDeleteDraft: handleDeleteDraft,
+                    onStartOver: () => { if (confirm("Discard this ad and start over?")) resetDraft(); },
+                  }}
                 />
               )}
               {step === (hasExtraStep ? 4 : 3) && (

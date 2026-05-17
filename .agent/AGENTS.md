@@ -27,13 +27,13 @@
 | **AI Context**              | org context, business description, `compileContextPrompt`, `useOrgContext`, category playbooks                                                                                                                               | [skills/ai-context/SKILL.md](skills/ai-context/SKILL.md)                           |
 | **Campaign Launch**         | launch campaign, Meta API, `campaigns.ts`, policy guard, ad copy check, 1:1:1 rule                                                                                                                                           | [skills/campaign-launch/SKILL.md](skills/campaign-launch/SKILL.md)                 |
 | **Naira Payments**          | Paystack, subscriptions, billing, invoices                                                                                                                    | [skills/naira-payments/SKILL.md](skills/naira-payments/SKILL.md)                         |
-| **Tier Strategy**           | tier, credits, Starter, Growth, Agency, `TIER_CONFIG`, feature gates, upgrade prompt                                                                                                                                         | [skills/tier-strategy/SKILL.md](skills/tier-strategy/SKILL.md)                     |
+| **Tier Strategy**           | tier, credits, Starter, Growth, Agency, `TIER_CONFIG`, credit quota, upgrade prompt, spend-based tier, `BILLING_PLANS`, `tier-resolver`, auto-upgrade                                                                        | [skills/tier-strategy/SKILL.md](skills/tier-strategy/SKILL.md)                     |
 | **Marketing Copy**          | landing page, email, social post, copywriting, brand voice, competitive positioning                                                                                                                                          | [skills/marketing/SKILL.md](skills/marketing/SKILL.md)                             |
 | **Frontend Design**         | UI, dashboard, Soft Modern, Wask aesthetic, Shadcn, layout, `/remodel`                                                                                                                                                       | [skills/frontend-design/SKILL.md](skills/frontend-design/SKILL.md)                 |
 | **OpenAI API**              | OpenAI, Responses API, structured output, skill upload, JSON schema                                                                                                                                                          | [skills/openai-api/SKILL.md](skills/openai-api/SKILL.md)                           |
 | **Lead Scoring**            | lead prioritization, which ad to optimize, cost-per-chat, best performing ad                                                                                                                                                 | [skills/lead-scoring/SKILL.md](skills/lead-scoring/SKILL.md)                       |
 | **Momentum Tracking**       | stalled deal, no chats, ad went quiet, no sales, re-engagement prompt                                                                                                                                                        | [skills/momentum-tracking/SKILL.md](skills/momentum-tracking/SKILL.md)             |
-| **Growth Strategy**         | free dashboard, read-only mode, `SubscriptionGate`, action gating, date range limit, upsell                                                                                                                                  | [skills/growth-strategy/SKILL.md](skills/growth-strategy/SKILL.md)                 |
+| **Growth Strategy**         | trial, free trial, `SubscriptionGate`, subscription lifecycle, expired, incomplete, `TrialBanner`, `SpendTierBanner`, plan selection, paywall, upsell, reactivation                                                          | [skills/growth-strategy/SKILL.md](skills/growth-strategy/SKILL.md)                 |
 | **Audience Targeting**      | language targeting, locales, income proxy, custom audiences, lookalike audiences, retargeting toggle, exclusions, Phase 1/2/3 targeting, meta_audiences table, `customAudienceIds`, `lookalikAudienceIds`, `targetLanguages` | [skills/audience-targeting/SKILL.md](skills/audience-targeting/SKILL.md)           |
 | **Lead Gen Objective**      | OUTCOME_LEADS, lead gen form, instant form, lead ad creative, lead_gen_form_id, `createLeadGenForm`, `getLeadGenForms`, lead-form-step                                                                                       | [skills/lead-gen-objective/SKILL.md](skills/lead-gen-objective/SKILL.md)           |
 | **App Promotion Objective** | OUTCOME_APP_PROMOTION, app installs, application_id, promoted_object, app store URL, `app-info-step`, app_promotion                                                                                                          | [skills/app-promotion-objective/SKILL.md](skills/app-promotion-objective/SKILL.md) |
@@ -72,6 +72,28 @@ Always read the relevant skill file before writing code.
 - **Policy Guard:** Run ad copy through `checkAdPolicy()` before Meta submission. Block HIGH, warn MEDIUM.
 - **TikTok:** Deferred. Gated in backend. Remove from UI if visible.
 - **Direct Ad Spend:** SMEs pay Meta directly via their own payment methods. Tenzu does not manage ad spend funds.
+- **No tier feature gates:** All tiers get the same features. Only credit balance and subscription status gate actions. Never add checks like `if (tier === 'starter') { block }`.
+
+---
+
+## Keeping Agent Context Current
+
+**These files drift when product decisions change. Update them in the same session when the code changes.**
+
+| What changed in code                                    | Update this file                                       |
+| ------------------------------------------------------- | ------------------------------------------------------ |
+| Tier features, prices, credit quotas, limits            | `skills/tier-strategy/SKILL.md`                        |
+| Acquisition model, trial flow, subscription gate        | `skills/growth-strategy/SKILL.md`                      |
+| Paystack webhooks, plan codes, billing flow             | `skills/naira-payments/SKILL.md`                       |
+| Any architectural or product decision that won't change | `rules/decisions.md`                                   |
+| A phase changes status (started / complete / dropped)   | Phase Status table in this file (`AGENTS.md`)          |
+
+### Rules
+
+1. **If your code change would make an example in a skill file wrong, update the skill file.** Don't leave stale `TIER_CONFIG` examples, wrong file paths, or deprecated patterns.
+2. **If a planned feature is dropped,** mark it `🚫 Dropped` in the Implementation Phase Status table and add a `decisions.md` entry explaining why.
+3. **If a settled decision is superseded,** do not delete the old entry — strike it through with `~~...~~` and add a new dated entry that references it.
+4. **The skill file description field matters.** It's how agents decide whether to load the file. Keep it accurate to current trigger phrases.
 
 ---
 

@@ -1,144 +1,140 @@
 ---
 name: growth-strategy
-description: Governs Tenzu's "Connect for Free, Pay to Launch" growth model. Use when working on `SubscriptionGate`, free-tier routing, read-only dashboard access, date range limits, action gating (pause/edit/create), AI insight blurring, or any upsell trigger placement. Core principle — "Monitoring is Free, Action is Paid."
+description: Governs Tenzu's acquisition and subscription lifecycle model. Use when working on `SubscriptionGate`, trial flow, expired-vs-incomplete states, `TrialBanner`, `SpendTierBanner`, `GracePeriodBanner`, plan selection, paywall triggers, or any upsell/reactivation UX.
 ---
 
-# Growth Strategy Skill — Free Dashboard ("Insight vs. Action")
+# Growth Strategy Skill — 7-Day Free Trial Model
 
 ## Core Philosophy
 
-> **"We give you the Diagnosis for free, but you pay for the Cure."**
+> **"Experience the full product first. Pay once you see the value."**
 
-Users connect their Meta Ad Account for free and instantly see a beautiful read-only dashboard of their _existing_ campaigns. They upgrade when they need to **act** — pause a wasteful ad, create a new one, or unlock AI optimization.
+New users get 7 days of Growth-tier features for free. No credit card required upfront. They subscribe when the trial ends — or when they feel the pain of losing access.
 
-This is the primary acquisition funnel. Tenzu is a **"Trojan Horse"** — let them into the fortress (the dashboard) for free, but lock the armory (the tools to fight).
-
----
-
-## Why This Works in Nigeria
-
-1. **Zero Friction Setup:** "Connect Facebook" is one button. No credit card.
-2. **Instant Gratification:** Beautiful, fast stats — better than Facebook's clunky mobile app.
-3. **Trust First:** They see we report accurate data _before_ giving us money.
-4. **Pain-Driven Upgrade:** They don't upgrade because we "sold" them — they upgrade because they have a specific pain (wasting ₦) that the Pro tool solves instantly.
-5. **Low Cost:** Fetching + displaying JSON from Meta API costs us almost nothing.
+This replaced the earlier "Connect for Free, Pay to Launch" read-only dashboard model, which was never built. See `rules/decisions.md` for the superseded decision.
 
 ---
 
-## The Three Friction Layers
+## The Acquisition Funnel
 
-### Layer 1: "Time Machine" Block (Data Limitation)
-
-Business owners are obsessed with "What happened today?" but they _need_ "What happened last month?" to grow.
-
-| Access            | Free Tier                     | Paid Tier (Starter+)               |
-| ----------------- | ----------------------------- | ---------------------------------- |
-| Date range        | Last 7 days / This month only | Unlimited (lifetime, custom dates) |
-| Period comparison | ❌ No "vs. Previous Period"   | ✅ Green/red arrows showing growth |
-| Export            | ❌                            | ✅ CSV/PDF                         |
-
-**Upsell UX:** The `DateRangePicker` component shows all dates, but selecting a date older than 30 days triggers a glassmorphism modal:
-
-> _"See the Full Picture — Analyze seasonal trends with Lifetime History on Tenzu Pro."_
-
-**Server enforcement:**
-
-```typescript
-// In server action: clamp startDate to 30-day window for free tier
-if (tier === "free" && isBefore(startDate, subDays(new Date(), 30))) {
-  return { error: "History limit reached", data: null, isUpgradeTrigger: true };
-}
+```
+Sign up
+  → Connect Meta Ad Account
+      → 7-day Growth trial starts (status: 'trialing', 50 credits)
+          → Trial expires
+              → SubscriptionGate shows paywall (select plan → Paystack → 'active')
 ```
 
----
-
-### Layer 2: "Panic Button" Block (Action Gating)
-
-**Highest conversion trigger.** The user sees a campaign with high CPC — they are panicking because they're wasting money.
-
-| Action                     | Free Tier             | Paid Tier         |
-| -------------------------- | --------------------- | ----------------- |
-| View campaign stats        | ✅                    | ✅                |
-| Pause / Resume campaign    | ❌ (triggers paywall) | ✅                |
-| Edit campaign targeting    | ❌ (triggers paywall) | ✅                |
-| Create new campaign        | ❌ (triggers paywall) | ✅                |
-| AI image / copy generation | ❌ (triggers paywall) | ✅ (credit-gated) |
-
-**Upsell UX:** The "Pause" toggle, "Edit" button, and "New Campaign" CTA are all visible but trigger a paywall on click:
-
-> _"Control your ad spend instantly from Tenzu. Upgrade to Pause, Edit, and Optimize in one click."_
-
-**Why it converts:** They are emotionally invested in stopping the loss. The subscription cost (₦10,000/mo) is likely less than the money they're wasting on that bad ad.
+Key touchpoints along the way:
+- **Trial Banner** (`src/components/dashboard/trial-banner.tsx`) — countdown, urgency, upgrade CTA
+- **Spend Tier Banner** (`src/components/dashboard/spend-tier-banner.tsx`) — warns of upcoming auto-tier upgrade based on Meta spend
+- **Grace Period Banner** (`src/components/dashboard/grace-period-banner.tsx`) — payment failure notice with reactivation CTA
 
 ---
 
-### Layer 3: "Blurred Consultant" (AI Insights Tease)
+## Subscription Status Lifecycle
 
-Use the Bento Grid layout to tease AI analysis results.
+| Status         | Meaning                                                       | UX                                  |
+| -------------- | ------------------------------------------------------------- | ----------------------------------- |
+| `incomplete`   | Org created but Meta not yet connected; trial not started     | Onboarding flow                     |
+| `trialing`     | 7-day trial active (full access, 50 credits)                  | Full access + trial banner          |
+| `active`       | Paid subscription active                                      | Full access                         |
+| `past_due`     | Payment failed; grace period in effect                        | Full access + grace period banner   |
+| `expired`      | Trial ended without payment, or subscription lapsed           | SubscriptionGate paywall            |
+| `cancelled`    | User explicitly cancelled                                     | SubscriptionGate paywall            |
 
-| Element              | Free Tier                       | Paid Tier                                               |
-| -------------------- | ------------------------------- | ------------------------------------------------------- |
-| Optimization Score   | ✅ Visible: "Low (42/100)"      | ✅ Same                                                 |
-| Diagnosis text       | 🔒 Blurred: `filter: blur(4px)` | ✅ Full text: "Your audience targeting is too broad..." |
-| "Fix with AI" button | ❌ Disabled                     | ✅ Auto-applies the optimization                        |
-
-**Upsell UX:** The blurred text is tantalizing — they can see _something intelligent_ was computed, but can't read it:
-
-> _"Unlock AI-powered recommendations to save money and get more customers."_
-
----
-
-## What's Free vs. Paid — Complete Map
-
-### ✅ Free Zone (No subscription required)
-
-| Feature                          | Component                    |
-| -------------------------------- | ---------------------------- |
-| Sign up / Login                  | Auth flow                    |
-| Connect Meta Ad Account          | `/api/connect/meta/callback` |
-| View dashboard (7-day window)    | `unified-dashboard.tsx`      |
-| View campaign list (read-only)   | `campaigns-view.tsx`         |
-| View campaign detail (read-only) | `campaign-detail-view.tsx`   |
-| View notifications               | `/notifications`             |
-| View settings                    | Settings pages               |
-| View subscription / billing page | `billing-content.tsx`        |
-
-### 🔒 Paid Zone (Starter+ subscription required)
-
-| Feature                              | Component                    | Gate                                               |
-| ------------------------------------ | ---------------------------- | -------------------------------------------------- |
-| Create campaign                      | `budget-launch-step.tsx`     | Server: `launchCampaign()` checks sub status       |
-| Pause / Resume campaign              | `campaign-detail-view.tsx`   | Server: `updateCampaignStatus()` checks sub status |
-| Edit campaign                        | Campaign edit flow           | Server action gate                                 |
-| AI copy generation                   | `audience-chat-step.tsx`     | Server: `requireCredits()`                         |
-| AI image generation                  | `creative-step.tsx` / Studio | Server: `requireCredits()`                         |
-| Date range > 30 days                 | `DateRangePicker`            | Server: clamp query window                         |
-| AI optimization insights (full text) | Optimization card            | Server: return blurred flag                        |
-| Mark as Sold                         | `mark-as-sold-button.tsx`    | Server action gate                                 |
-| Sync campaign insights               | `syncCampaignInsights()`     | Server action gate                                 |
+> **"Free" is not a status.** There is no perpetual free tier. `incomplete` = not started, `trialing` = trial active, `expired` = lapsed.
 
 ---
 
-## Implementation Status
+## What SubscriptionGate Does
 
-| Item                                                     | Status         |
-| -------------------------------------------------------- | -------------- |
-| Strategy documented                                      | ✅ This file   |
-| Decision recorded in `decisions.md`                      | ✅             |
-| `SubscriptionGate` allows dashboard read-only for `free` | ⬜ Not Started |
-| `TIER_CONFIG` includes `free` tier entry                 | ⬜ Not Started |
-| Date range clamping (Layer 1)                            | ⬜ Not Started |
-| Action gating on Pause/Edit/Create (Layer 2)             | ⬜ Not Started |
-| AI insight blurring (Layer 3)                            | ⬜ Not Started |
-| Optimization score on campaign detail                    | ⬜ Not Started |
-| Glassmorphism upgrade modals                             | ⬜ Not Started |
+**File: `src/components/dashboard/subscription-gate.tsx`**
+
+The gate wraps all authenticated pages. It checks subscription status and either:
+- Passes through (full access): `active`, `trialing`, `past_due` (within grace window)
+- Shows paywall modal: all other statuses
+
+Settings page (`/settings/general`) always passes through so users can always manage their account.
+
+The paywall modal shows:
+- Left: plan summary (price, credits, tagline, current spend data)
+- Right: CTA button → Paystack redirect
+- First-time users see "Start Free Trial"; expired/cancelled see "Reactivate"
+
+---
+
+## Expired vs Incomplete UX
+
+These are different emotional states and need different UX:
+
+| State        | Who they are                             | UX goal                                                    |
+| ------------ | ---------------------------------------- | ---------------------------------------------------------- |
+| `expired`    | Was a user, stopped paying (or trial lapsed) | Re-activation nudge — remind them what they're missing |
+| `incomplete` | Signed up but never connected Meta       | Onboarding completion — get them to the "Aha!" moment  |
+
+Never show expired users an onboarding flow. Never show incomplete users a "reactivate" CTA.
+
+---
+
+## Spend-Tier Upgrade UX
+
+When a user's 30-day Meta spend approaches the ceiling for their tier, `SpendTierBanner` appears:
+
+- Starter approaching ₦100K → "You're growing fast! Your plan will upgrade to Growth next billing cycle."
+- Growth approaching ₦300K → "You're scaling up! Your plan will upgrade to Agency next billing cycle."
+
+This is a positive framing (growth = success), not a warning. The upgrade happens with a 7-day grace window after the threshold + anomaly buffer is crossed.
+
+---
+
+## Plan Selection Flow (post-trial)
+
+When trial expires, the user is shown the plan selector (`src/components/subscription/plan-selector.tsx`):
+
+1. Three plans displayed side-by-side using `BILLING_PLANS` from `src/lib/constants.ts`
+2. Plans are positioned by spend level (Starter = up to ₦100K, Growth = up to ₦300K, Agency = above ₦300K)
+3. Growth is highlighted as recommended
+4. User selects plan → `initializePaystackTransaction()` → Paystack hosted page → webhook → `subscription_status = 'active'`
+
+---
+
+## What's Gated (Subscription Required)
+
+All features require `active` or `trialing` status. There is no partial/read-only access for any subscription state below that.
+
+| Gated action                    | Gate location                                      |
+| ------------------------------- | -------------------------------------------------- |
+| Create campaign                 | Server: `launchCampaign()` checks `sub_status`     |
+| Pause / Resume campaign         | Server: `updateCampaignStatus()` checks sub status |
+| AI copy generation              | Server: `requireCredits()`                         |
+| AI image generation             | Server: `requireCredits()`                         |
+| Mark as Sold                    | Server action gate                                 |
+
+All gates are server-side. Client UI may show disabled states cosmetically, but the server is the enforcement point.
+
+---
+
+## Key Files
+
+| File                                                             | Purpose                                              |
+| ---------------------------------------------------------------- | ---------------------------------------------------- |
+| `src/components/dashboard/subscription-gate.tsx`                | Main paywall wrapper — status checks + modal         |
+| `src/components/dashboard/trial-banner.tsx`                     | Trial countdown + urgency + upgrade CTA              |
+| `src/components/dashboard/spend-tier-banner.tsx`                | Upcoming auto-tier upgrade warning                   |
+| `src/components/dashboard/grace-period-banner.tsx`              | Payment failure + grace period notice                |
+| `src/components/subscription/plan-selector.tsx`                 | Plan selection UI (post-trial / upgrade flow)        |
+| `src/components/subscription/billing-content.tsx`               | Billing page — current plan, credits, plan change    |
+| `src/actions/paystack.ts`                                        | `initializePaystackTransaction`, `grantFreeTrialCredits` |
+| `src/actions/spend-sync.ts`                                      | `syncSpendAndUpdateTier` — spend-based tier upgrade  |
+| `src/lib/constants.ts` → `BILLING_PLANS`                        | Plan data consumed by all billing UI                 |
 
 ---
 
 ## Key Rules
 
-- **Never hide data with CSS alone.** All gates must be enforced server-side (server actions / RLS). Client blur is cosmetic only.
-- **Never auto-downgrade to free.** Free is the entry state — once they subscribe, expiry goes to `expired` (which shows `SubscriptionGate` lock), not back to `free`.
-- **"Free" is not "Expired."** Free users chose not to pay _yet_. Expired users _stopped_ paying. Different UX — free gets the read-only dashboard; expired gets the reactivation lock screen.
-- **Sync existing campaigns on connect.** As soon as they connect their Meta account, trigger `syncCampaigns()` to populate the dashboard — this is the "Aha!" moment.
-- **UI language:** "Start for free" not "Free trial." "Upgrade" not "Subscribe." "Unlock" not "Pay."
+- **Never hide data with CSS alone.** All gates must be enforced server-side. Client UI is cosmetic only.
+- **Never auto-downgrade.** Trial expires → `expired`. Never silently move a paying user to a lower-featured state.
+- **Sync existing campaigns on Meta connect.** As soon as they connect their Meta account, trigger `syncCampaigns()` — this is the "Aha!" moment that starts the trial.
+- **UI language:** "Start free trial" not "Free trial." "Upgrade" not "Subscribe." "Unlock" not "Pay."
+- **Trial credit allocation:** 50 credits for all trial users, regardless of tier features shown.

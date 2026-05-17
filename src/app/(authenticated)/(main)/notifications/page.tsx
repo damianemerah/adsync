@@ -63,46 +63,52 @@ export default function NotificationsPage() {
         </Button>
       </PageHeader>
 
-      <main className="flex-1 p-8 max-w-4xl mx-auto w-full">
+      <main className="flex-1 flex flex-col w-full">
         {/* Filters */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="px-4 sm:px-8 pt-6 sm:pt-8">
           <Tabs
-            defaultValue="all"
+            value={filter}
             className="w-full"
-            onValueChange={(v) => setFilter(v as "all")}
+            onValueChange={(v) => setFilter(v as "all" | "unread")}
           >
-            <TabsList className="bg-white border border-slate-200 p-1">
-              <TabsTrigger value="all" className="px-4">
+            <TabsList className="bg-muted p-1 h-auto gap-2 rounded-lg w-full max-w-4xl mx-auto ">
+              <TabsTrigger value="all" className="px-4 py-2 text-slate-600 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm hover:bg-slate-100 rounded-md transition-colors">
                 All
               </TabsTrigger>
-              <TabsTrigger value="unread" className="px-4">
+              <TabsTrigger value="unread" className="px-4 py-2 text-slate-600 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm hover:bg-slate-100 rounded-md transition-colors">
                 Unread {unreadCount > 0 && `(${unreadCount})`}
               </TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
 
-        {/* List */}
-        <div className="space-y-3">
-          {filteredList.length === 0 ? (
-            <div className="text-center py-20 bg-white rounded-md border border-dashed border-slate-200">
-              <div className="h-12 w-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Bell className="h-6 w-6 text-slate-300" />
-              </div>
-              <p className="text-slate-500 font-medium">
-                No notifications found.
-              </p>
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="px-4 sm:px-8 py-6 max-w-4xl mx-auto w-full">
+
+            {/* List */}
+            <div className="space-y-3">
+              {filteredList.length === 0 ? (
+                <div className="text-center py-20">
+                  <div className="h-12 w-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <Bell className="h-6 w-6 text-slate-300" />
+                  </div>
+                  <p className="text-slate-500 font-medium">
+                    No notifications found.
+                  </p>
+                </div>
+              ) : (
+                filteredList.map((notification) => (
+                  <NotificationItem
+                    key={notification.id}
+                    notification={notification}
+                    onRead={() => markRead(notification.id)}
+                    onDelete={() => deleteNotification(notification.id)}
+                  />
+                ))
+              )}
             </div>
-          ) : (
-            filteredList.map((notification) => (
-              <NotificationItem
-                key={notification.id}
-                notification={notification}
-                onRead={() => markRead(notification.id)}
-                onDelete={() => deleteNotification(notification.id)}
-              />
-            ))
-          )}
+          </div>
         </div>
       </main>
     </div>
@@ -123,31 +129,8 @@ function NotificationItem({
     "info";
   const category = notification.category || "system";
 
-  // Icon Logic
-  const getIcon = (type: string, category: string) => {
-    if (category === "budget") return <CreditCard className="h-5 w-5" />;
-    if (category === "campaign") return <Megaphone className="h-5 w-5" />;
-    if (type === "critical") return <WarningCircle className="h-5 w-5" />;
-    if (type === "warning") return <WarningTriangle className="h-5 w-5" />;
-    if (type === "success") return <CheckCircle className="h-5 w-5" />;
-    return <InfoCircle className="h-5 w-5" />;
-  };
 
-  // Color Logic
-  const getColors = (type: string) => {
-    switch (type) {
-      case "critical":
-        return "bg-red-50 text-red-600 border-red-100";
-      case "warning":
-        return "bg-orange-50 text-orange-600 border-orange-100";
-      case "success":
-        return "bg-green-50 text-green-600 border-green-100";
-      default:
-        return "bg-blue-50 text-blue-600 border-blue-100";
-    }
-  };
 
-  const colors = getColors(type);
   const timeAgo = notification.created_at
     ? formatDistanceToNow(new Date(notification.created_at), {
         addSuffix: true,
@@ -157,22 +140,13 @@ function NotificationItem({
   return (
     <div
       className={cn(
-        "group flex items-start gap-4 p-4 rounded-md border transition-all hover:shadow-sm bg-white relative cursor-pointer",
+        "group flex items-start gap-4 p-4 rounded-md border transition-all bg-white relative cursor-pointer hover:bg-slate-50",
         notification.is_read
           ? "border-slate-200"
-          : "border-l-4 border-l-blue-600 border-y-slate-200 border-r-slate-200 bg-blue-50/10",
+          : "border-l-4 border-l-blue-600 border-y-slate-200 border-r-slate-200",
       )}
       onClick={() => !notification.is_read && onRead()}
     >
-      {/* Icon */}
-      <div
-        className={cn(
-          "h-10 w-10 rounded-full flex items-center justify-center shrink-0 border",
-          colors,
-        )}
-      >
-        {getIcon(type, category)}
-      </div>
 
       {/* Content */}
       <div className="flex-1 min-w-0">

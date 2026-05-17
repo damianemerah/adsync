@@ -24,10 +24,13 @@ export default async function CampaignsPage() {
     ]);
 
     hasConnectedAccount = (count ?? 0) > 0;
-    // Seed the no-date-range query key so useCampaignsList skips the loading
+    // Seed the first-page query key so useCampaignsList skips the loading
     // flash on first mount. The hook's refetchOnMount:"always" will refresh in
     // the background with the full client-side logic (date filters, sync check).
-    queryClient.setQueryData(["campaigns", orgId, null, null], campaigns);
+    queryClient.setQueryData(
+      ["campaigns", orgId, 1, 20, "", null, false, null, null, null, null],
+      campaigns,
+    );
   }
 
   return (

@@ -44,22 +44,11 @@ export function HeroSection() {
             preset="fade-in-blur"
             speedSegment={0.1}
             as="h1"
-            className="mx-auto max-w-4xl text-5xl md:text-7xl font-bold tracking-tight text-foreground leading-[1.1] mb-6 font-heading"
+            className="mx-auto max-w-4xl text-5xl font-bold tracking-tight text-foreground leading-[1.1] mb-6 font-heading"
           >
-            Maximize Ads Performance Powered by AI
+            Maximize Your Ad Performance and Turn WhatsApp Chats Into Predictable Sales, Powered by AI
           </TextEffect>
 
-          {/* Subheadline */}
-          <TextEffect
-            per="line"
-            preset="fade-in-blur"
-            speedSegment={0.1}
-            delay={0.5}
-            as="p"
-            className="mx-auto max-w-2xl text-lg text-subtle-foreground leading-relaxed mb-10"
-          >
-            Stop guessing what works. Tenzu connects your Meta Ads directly to your WhatsApp chats, automatically improving your creative and tracking your sales — without relying on USD cards.
-          </TextEffect>
 
           {/* CTAs */}
           <AnimatedGroup

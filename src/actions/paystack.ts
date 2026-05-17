@@ -1,8 +1,9 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { PLAN_PRICES, PAYSTACK_PLAN_CODES } from "@/lib/constants";
 import { getActiveOrgId } from "@/lib/active-org";
+import { cacheTag, cacheLife } from "next/cache";
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 
@@ -374,11 +375,38 @@ export interface Invoice {
   reference: string | null;
 }
 
+/**
+ * Public entry point — resolves dynamic cookie-based values (orgId, userId)
+ * outside the cache boundary, then delegates to the cached helper.
+ */
 export async function getInvoices(limit = 50): Promise<Invoice[]> {
   const supabase = await createClient();
-  const orgId = await getActiveOrgId();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
 
+  const orgId = await getActiveOrgId();
   if (!orgId) throw new Error("No organization found");
+
+  return _fetchInvoicesCached(user.id, orgId, limit);
+}
+
+/**
+ * Private cached helper — receives only plain, serializable args.
+ * No cookies(), headers(), or createClient() allowed inside here.
+ */
+async function _fetchInvoicesCached(
+  userId: string,
+  orgId: string,
+  limit: number,
+): Promise<Invoice[]> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag(`invoices-${orgId}`);
+
+  // Admin client is safe here: it's a synchronous factory with no cookie access
+  const supabase = createAdminClient();
 
   const { data, error } = await supabase
     .from("transactions")
@@ -396,7 +424,9 @@ export async function getInvoices(limit = 50): Promise<Invoice[]> {
     id: tx.id,
     date: tx.created_at ?? new Date().toISOString(),
     type: (tx.type === "credit_pack_purchase" ? "credit_pack" : "subscription") as Invoice["type"],
-    description: tx.description || (tx.type === "credit_pack_purchase" ? "Credit Pack" : "Subscription Payment"),
+    description:
+      tx.description ||
+      (tx.type === "credit_pack_purchase" ? "Credit Pack" : "Subscription Payment"),
     amount_display: `₦${((tx.amount_cents || 0) / 100).toLocaleString()}`,
     amount_kobo: tx.amount_cents || 0,
     status: tx.status || "success",

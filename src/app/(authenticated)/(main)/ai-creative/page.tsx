@@ -3,7 +3,7 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Sparks, Play, UserScan } from "iconoir-react";
+import { Sparks, Play, UserScan, ViewGrid } from "iconoir-react";
 
 export default function CreationsHubPage() {
   const router = useRouter();
@@ -42,6 +42,17 @@ export default function CreationsHubPage() {
       action: () => router.push("/ai-creative/studio"),
       comingSoon: false,
       promptText: "Create an Ad image for my Nigerian Jollof Rice brand |",
+    },
+    {
+      id: "image_template",
+      title: "Create Image with Templates",
+      description: "Pick a template, fill in details, and generate a polished ad image instantly.",
+      icon: ViewGrid,
+      color: "bg-ai/10 text-ai border-ai/20",
+      image: "/image_ad_preview.png",
+      action: () => router.push("/ai-creative/templates"),
+      comingSoon: false,
+      promptText: null,
     },
   ];
 

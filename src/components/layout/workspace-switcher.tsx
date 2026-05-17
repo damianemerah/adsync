@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { NavArrowDown, Check, Plus, SystemRestart } from "iconoir-react";
 import { useOrganization, Organization } from "@/hooks/use-organization";
 import { useSubscription } from "@/hooks/use-subscription";
-import { TIER_CONFIG, TierId } from "@/lib/constants";
+import { type TierId } from "@/lib/constants";
 import { CreateBusinessDialog } from "@/components/settings/create-business-dialog";
 import { cn } from "@/lib/utils";
 
@@ -55,8 +55,6 @@ export function WorkspaceSwitcher({ activeOrgId }: WorkspaceSwitcherProps) {
   const [switchingToId, setSwitchingToId] = useState<string | null>(null);
 
   const currentTier = (subscription?.org?.tier || "starter") as TierId;
-  const maxOrgs = TIER_CONFIG[currentTier]?.limits?.maxOrganizations ?? 1;
-  const canCreateMore = organizations.length < maxOrgs;
 
   const handleSwitch = async (org: Organization) => {
     if (org.id === organization?.id) return;
@@ -137,34 +135,14 @@ export function WorkspaceSwitcher({ activeOrgId }: WorkspaceSwitcherProps) {
 
           {/* Create new business */}
           <div className="px-1">
-            {canCreateMore ? (
-              <Button
-                variant="outline"
-                className="w-full justify-center gap-2 h-9 hover:text-foreground border-dashed border-border text-muted-foreground hover:bg-muted text-sm"
-                onClick={() => setCreateOpen(true)}
-              >
-                <Plus className="h-4 w-4" />
-                Add Business
-              </Button>
-            ) : (
-              <div className="text-center py-1">
-                <p className="text-xs text-subtle-foreground mb-1.5">
-                  {maxOrgs === 1
-                    ? "Upgrade to Growth to manage multiple businesses."
-                    : `${organizations.length}/${maxOrgs} businesses used.`}
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full text-xs h-8 border-primary/30 text-primary hover:bg-primary/5"
-                  onClick={() => {
-                    window.location.href = "/settings/subscription";
-                  }}
-                >
-                  Upgrade Plan
-                </Button>
-              </div>
-            )}
+            <Button
+              variant="outline"
+              className="w-full justify-center gap-2 h-9 hover:text-foreground border-dashed border-border text-muted-foreground hover:bg-muted text-sm"
+              onClick={() => setCreateOpen(true)}
+            >
+              <Plus className="h-4 w-4" />
+              Add Business
+            </Button>
           </div>
         </DropdownMenuContent>
       </DropdownMenu>

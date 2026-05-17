@@ -1,23 +1,33 @@
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { BillingContent } from "@/components/subscription/billing-content";
-import { Skeleton } from "@/components/ui/skeleton";
+import { BillingSkeleton } from "@/components/subscription/billing-skeleton";
+import { QueryClient, dehydrate, HydrationBoundary } from "@tanstack/react-query";
+import { getSubscriptionServer } from "@/actions/subscription";
+import { getActiveOrgId } from "@/lib/active-org";
 
-export default function BillingPage() {
+export default async function BillingPage() {
+  // Explicitly opts this page into dynamic rendering.
+  // Required for all pages in (authenticated) that live inside the
+  // (main) layout — which accesses cookies() and auth.getUser().
+  await connection();
+  
+  const queryClient = new QueryClient();
+  const activeOrgId = await getActiveOrgId();
+
+  await queryClient.prefetchQuery({
+    queryKey: ["subscription", activeOrgId],
+    queryFn: async () => {
+      return await getSubscriptionServer();
+    },
+  });
+
   return (
     <div className="space-y-6">
-     
-      <Suspense
-        fallback={
-          <div className="space-y-8">
-            <Skeleton className="h-64 w-full rounded-md" />
-            <div className="grid md:grid-cols-2 gap-6">
-              <Skeleton className="h-96 rounded-md" />
-              <Skeleton className="h-96 rounded-md" />
-            </div>
-          </div>
-        }
-      >
-        <BillingContent />
+      <Suspense fallback={<BillingSkeleton />}>
+        <HydrationBoundary state={dehydrate(queryClient)}>
+          <BillingContent />
+        </HydrationBoundary>
       </Suspense>
     </div>
   );

@@ -43,7 +43,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useAdAccountsList, useAdAccountMutations } from "@/hooks/use-ad-account";
 import { useSubscription } from "@/hooks/use-subscription";
-import { TIER_CONFIG, TierId } from "@/lib/constants";
+import { type TierId } from "@/lib/constants";
 import { ConnectAccountDialog } from "@/components/ad-accounts/connect-account-dialog";
 import { MetaAccountSelectDialog } from "@/components/ad-accounts/meta-account-select-dialog";
 import { CompactAccountCard } from "@/components/ad-accounts/compact-card";
@@ -366,10 +366,7 @@ export function BusinessTab({
   const { data: subscription } = useSubscription();
 
   const currentTier = (subscription?.org?.tier || "starter") as TierId;
-  const maxAccounts = TIER_CONFIG[currentTier]?.limits?.maxAdAccounts ?? 1;
-  const maxOrgs = TIER_CONFIG[currentTier]?.limits?.maxOrganizations ?? 1;
   const currentCount = accounts?.length ?? 0;
-  const canConnect = currentCount < maxAccounts;
 
   if (!organization) {
     return (
@@ -397,12 +394,6 @@ export function BusinessTab({
   };
 
   const handleConnectClick = () => {
-    if (!canConnect) {
-      toast.error(
-        `Your ${currentTier} plan allows ${maxAccounts} ad account${maxAccounts === 1 ? "" : "s"}. Upgrade to connect more.`,
-      );
-      return;
-    }
     setConnectOpen(true);
   };
 
@@ -449,38 +440,17 @@ export function BusinessTab({
       {/* Business Profile Card */}
       <Card>
         <form onSubmit={handleSubmit}>
-          <CardHeader className="flex flex-row items-start justify-between gap-4">
-            <div>
-              <CardTitle className="text-lg font-heading font-medium">Business Profile</CardTitle>
-              <CardDescription>
-                Details about your business. Editing these helps the AI generate
-                more relevant ads.
-              </CardDescription>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {/* Add Business button — tier-gated */}
-              {maxOrgs > 1 ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCreateBizOpen(true)}
-                >
-                  <Plus className="mr-1.5 h-3.5 w-3.5" /> Add Business
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    window.location.href = "/settings/subscription";
-                  }}
-                  className="text-muted-foreground border-dashed"
-                >
-                  <Plus className="mr-1.5 h-3.5 w-3.5" /> Add Business
-                </Button>
-              )}
+          <CardHeader className="flex flex-row items-start justify-between gap-4 w-full">
+           
+            <div className="flex items-center gap-2 shrink-0 justify-end w-full">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setCreateBizOpen(true)}
+              >
+                <Plus className="mr-1.5 h-3.5 w-3.5" /> Add Business
+              </Button>
               {!isEditing && (
                 <Button
                   type="button"
@@ -765,16 +735,10 @@ export function BusinessTab({
             </CardDescription>
           </div>
           <div className="flex items-center gap-3">
-            {!canConnect && (
-              <p className="text-xs text-subtle-foreground hidden sm:block">
-                {maxAccounts}/{maxAccounts} limit reached
-              </p>
-            )}
             <Button
               variant="outline"
               size="sm"
               onClick={handleConnectClick}
-              className={!canConnect ? "opacity-60" : ""}
             >
               <Plus className="w-4 h-4 mr-1" /> Add Ad Account
             </Button>

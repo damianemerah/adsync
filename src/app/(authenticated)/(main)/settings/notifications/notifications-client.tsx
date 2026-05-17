@@ -1,0 +1,231 @@
+"use client";
+
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { SystemRestart, ChatBubble, Check } from "iconoir-react";
+import {
+  useNotificationSettings,
+  useUpdateNotificationSettings,
+  useWhatsAppVerification,
+} from "@/hooks/use-notification-settings";
+
+export function NotificationsClient() {
+  const { settings } = useNotificationSettings();
+  const { mutate: updateSettings } = useUpdateNotificationSettings();
+  const { startVerification, confirmVerification, disconnect } =
+    useWhatsAppVerification();
+
+  // WhatsApp State — default derived from query data on first render
+  const [whatsappNumber, setWhatsappNumber] = useState(
+    () => settings?.whatsapp_number || "+234"
+  );
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState("");
+
+  const handleSendOtp = () => {
+    startVerification.mutate(whatsappNumber, {
+      onSuccess: () => setOtpSent(true),
+    });
+  };
+
+  const handleVerifyOtp = () => {
+    confirmVerification.mutate(otp, {
+      onSuccess: () => {
+        setOtpSent(false);
+        setOtp("");
+      },
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* WhatsApp Section */}
+      <Card className="shadow-sm border border-border bg-primary/5">
+        <CardHeader>
+          <div className="flex items-start justify-between">
+            <div>
+              <CardTitle className="text-lg font-heading font-medium text-foreground flex items-center gap-2">
+                <ChatBubble className="h-5 w-5 text-primary" /> WhatsApp Alerts
+              </CardTitle>
+              <CardDescription className="text-muted-foreground mt-1">
+                Get critical alerts (Payment Failed, Ad Rejected) instantly on
+                WhatsApp.
+              </CardDescription>
+            </div>
+            <Badge
+              variant={settings?.verified ? "default" : "secondary"}
+              className={
+                settings?.verified
+                  ? "bg-primary hover:bg-primary/90"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              }
+            >
+              {settings?.verified ? "Active" : "Not Connected"}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-6 space-y-4">
+          {!settings?.verified ? (
+            <div className="space-y-4 max-w-sm">
+              <div className="flex gap-2">
+                <div className="flex flex-1">
+                  <div className="flex items-center gap-1.5 rounded-l-md border border-r-0 border-input bg-muted/30 px-3 text-sm text-muted-foreground">
+                    <span className="text-base leading-0">🇳🇬</span>
+                    <span className="font-medium">+234</span>
+                  </div>
+                  <Input
+                    type="tel"
+                    value={whatsappNumber.replace(/^\+234/, "")}
+                    onChange={(e) => {
+                      const cleaned = e.target.value.replace(/\D/g, "");
+                      setWhatsappNumber("+234" + cleaned);
+                    }}
+                    disabled={otpSent || startVerification.isPending}
+                    className="rounded-l-none bg-background focus-visible:z-10"
+                    placeholder="801 234 5678"
+                  />
+                </div>
+                {!otpSent ? (
+                  <Button
+                    onClick={handleSendOtp}
+                    disabled={
+                      startVerification.isPending ||
+                      whatsappNumber.replace(/^\+234/, "").length < 10
+                    }
+                  >
+                    {startVerification.isPending ? (
+                      <SystemRestart className="animate-spin" />
+                    ) : (
+                      "Send Code"
+                    )}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    onClick={() => setOtpSent(false)}
+                    disabled={confirmVerification.isPending}
+                  >
+                    Edit Number
+                  </Button>
+                )}
+              </div>
+              {otpSent && (
+                <div className="flex gap-2 animate-in fade-in">
+                  <Input
+                    placeholder="123456"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    className="tracking-widest bg-background"
+                  />
+                  <Button
+                    onClick={handleVerifyOtp}
+                    disabled={confirmVerification.isPending || otp.length < 6}
+                    className="bg-primary hover:bg-primary/90"
+                  >
+                    {confirmVerification.isPending ? (
+                      <SystemRestart className="animate-spin" />
+                    ) : (
+                      "Confirm"
+                    )}
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 text-sm text-primary bg-primary/10 p-3 rounded-md border border-primary/20 w-fit">
+                <Check className="h-4 w-4" /> Connected to{" "}
+                {settings.whatsapp_number}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={() => disconnect.mutate()}
+                disabled={disconnect.isPending}
+              >
+                {disconnect.isPending ? (
+                  <SystemRestart className="animate-spin h-4 w-4" />
+                ) : (
+                  "Disconnect"
+                )}
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Email Preferences */}
+      <div className="pt-4">
+        <div className="mb-6 space-y-1">
+          <h3 className="text-lg font-heading font-medium">Email Preferences</h3>
+          <p className="text-sm text-subtle-foreground">
+            Manage your email delivery settings.
+          </p>
+        </div>
+        <div className="space-y-6">
+          <PreferenceRow
+            label="Payment Failed"
+            description="When Meta fails to charge your card."
+            checked={settings?.alert_payment_failed ?? false}
+            onCheckedChange={(checked) =>
+              updateSettings({ alert_payment_failed: checked })
+            }
+          />
+          <Separator />
+          <PreferenceRow
+            label="Ad Rejected"
+            description="If your creative violates platform policies."
+            checked={settings?.alert_ad_rejected ?? false}
+            onCheckedChange={(checked) =>
+              updateSettings({ alert_ad_rejected: checked })
+            }
+          />
+          <Separator />
+          <PreferenceRow
+            label="Weekly Report"
+            description="Receive a PDF summary every Monday."
+            checked={settings?.alert_weekly_report ?? false}
+            onCheckedChange={(checked) =>
+              updateSettings({ alert_weekly_report: checked })
+            }
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PreferenceRow({
+  label,
+  description,
+  checked,
+  onCheckedChange,
+}: {
+  label: string;
+  description: string;
+  checked?: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <div className="space-y-0.5">
+        <Label className="text-sm font-medium">{label}</Label>
+        <p className="text-sm text-subtle-foreground">{description}</p>
+      </div>
+      <Switch checked={checked} onCheckedChange={onCheckedChange} />
+    </div>
+  );
+}

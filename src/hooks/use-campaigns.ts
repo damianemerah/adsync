@@ -15,12 +15,41 @@ import { useActiveOrgContext } from "@/components/providers/active-org-provider"
 
 interface UseCampaignsListOptions {
   dateRange?: { from?: Date; to?: Date };
+  /** 1-indexed page number. When omitted, all campaigns are fetched (no pagination). */
+  page?: number;
+  /** Rows per page. Only used when `page` is provided. Default 20. */
+  pageSize?: number;
+  /** Filter by name (case-insensitive substring match). Server-side. */
+  search?: string;
+  /** Filter by status ("active" | "paused" | "draft"). Ignored when showArchived=true. */
+  status?: string | null;
+  /** When true, fetches only archived campaigns (status = "completed"). */
+  showArchived?: boolean;
+  /** Filter by ad account platform ("meta" | "tiktok"). */
+  platform?: string | null;
+  /** Filter by ad account ID. */
+  accountId?: string | null;
+  /** Restrict to specific campaign IDs. Pass ["all"] or [] to skip this filter. */
+  campaignIds?: string[];
 }
 
 export function useCampaignsList(options: UseCampaignsListOptions = {}) {
   const supabase = createClient();
   const queryClient = useQueryClient();
   const { activeOrgId } = useActiveOrgContext();
+
+  const {
+    page,
+    pageSize = 20,
+    search,
+    status,
+    showArchived = false,
+    platform,
+    accountId,
+    campaignIds,
+  } = options;
+
+  const isPaginated = page !== undefined;
 
   const dateFrom =
     options.dateRange?.from && options.dateRange?.to
@@ -32,19 +61,52 @@ export function useCampaignsList(options: UseCampaignsListOptions = {}) {
       : undefined;
 
   return useQuery({
-    queryKey: ["campaigns", activeOrgId, dateFrom ?? null, dateTo ?? null],
+    queryKey: [
+      "campaigns",
+      activeOrgId,
+      page ?? null,
+      isPaginated ? pageSize : null,
+      search ?? "",
+      status ?? null,
+      showArchived,
+      platform ?? null,
+      accountId ?? null,
+      dateFrom ?? null,
+      dateTo ?? null,
+    ],
     queryFn: async () => {
+      // Determine select string — use !inner join only when filtering by platform
+      const selectStr =
+        platform && platform !== "all"
+          ? `*, ad_accounts!inner( platform, currency, account_name )`
+          : `*, ad_accounts( platform, currency, account_name )`;
+
       // Read campaigns + account freshness in parallel.
       let campaignsQ = supabase
         .from("campaigns")
-        .select(
-          `
-          *,
-          ad_accounts ( platform, currency, account_name )
-        `,
-        )
+        .select(selectStr, isPaginated ? { count: "exact" } : undefined)
         .order("created_at", { ascending: false });
+
       if (activeOrgId) campaignsQ = campaignsQ.eq("organization_id", activeOrgId);
+
+      // Server-side filters (only applied when paginating)
+      if (isPaginated) {
+        if (search) campaignsQ = campaignsQ.ilike("name", `%${search}%`);
+        if (showArchived) {
+          campaignsQ = campaignsQ.eq("status", "completed");
+        } else {
+          campaignsQ = campaignsQ.neq("status", "completed");
+          if (status) campaignsQ = campaignsQ.eq("status", status);
+        }
+        if (platform && platform !== "all")
+          campaignsQ = (campaignsQ as any).eq("ad_accounts.platform", platform);
+        if (accountId) campaignsQ = campaignsQ.eq("ad_account_id", accountId);
+        if (campaignIds?.length && !campaignIds.includes("all"))
+          campaignsQ = campaignsQ.in("id", campaignIds);
+
+        const offset = (page - 1) * pageSize;
+        campaignsQ = campaignsQ.range(offset, offset + pageSize - 1);
+      }
 
       let accountsQ = supabase
         .from("ad_accounts")
@@ -60,6 +122,7 @@ export function useCampaignsList(options: UseCampaignsListOptions = {}) {
 
       if (campaignsRes.error) throw campaignsRes.error;
       const data = campaignsRes.data ?? [];
+      const totalCount = (campaignsRes as any).count ?? data.length;
       const accounts = accountsRes.data ?? [];
 
       // Cache-on-read: if any healthy account hasn't been synced in the last
@@ -128,7 +191,7 @@ export function useCampaignsList(options: UseCampaignsListOptions = {}) {
         }
       }
 
-      return data.map((c: any) => {
+      const campaigns = data.map((c: any) => {
         const ranged = metricsByCampaign.get(c.id);
         // When a range is active:
         //   - If this campaign has rows in the range → use ranged aggregates
@@ -146,42 +209,49 @@ export function useCampaignsList(options: UseCampaignsListOptions = {}) {
             ? Number(c.ctr || 0)
             : 0;
         return {
-        id: c.id,
-        name: c.name,
-        platform: c.platform as "meta" | "tiktok" | null,
-        status:
-          (c.status as "active" | "paused" | "draft" | "completed" | "queuing" | "failed") || "draft",
-        budget: c.daily_budget_cents / 100,
-        currency: c.ad_accounts?.currency || "NGN",
-        createdAt: new Date(c.created_at || Date.now()).toLocaleDateString(),
-        clicks,
-        impressions,
-        spend_cents: spendCents,
-        spend: spendCents / 100,
-        ctr,
-        ad_account_id: c.ad_account_id,
-        objective: c.objective,
-        created_at: c.created_at,
-        revenueNgn: c.revenue_ngn || 0,
-        salesCount: c.sales_count || 0,
-        whatsappClicks: c.whatsapp_clicks || 0,
-        websiteClicks: c.website_clicks || 0,
-        whatsappClickRate: c.whatsapp_click_rate || 0,
-        adAccount: c.ad_accounts
-          ? {
-              platform: c.ad_accounts.platform,
-              currency: c.ad_accounts.currency || "NGN",
-              accountName: c.ad_accounts.account_name,
-            }
-          : null,
+          id: c.id,
+          name: c.name,
+          platform: c.platform as "meta" | "tiktok" | null,
+          status:
+            (c.status as "active" | "paused" | "draft" | "completed" | "queuing" | "failed") || "draft",
+          budget: c.daily_budget_cents / 100,
+          currency: c.ad_accounts?.currency || "NGN",
+          createdAt: new Date(c.created_at || Date.now()).toLocaleDateString(),
+          clicks,
+          impressions,
+          spend_cents: spendCents,
+          spend: spendCents / 100,
+          ctr,
+          ad_account_id: c.ad_account_id,
+          objective: c.objective,
+          created_at: c.created_at,
+          revenueNgn: c.revenue_ngn || 0,
+          salesCount: c.sales_count || 0,
+          whatsappClicks: c.whatsapp_clicks || 0,
+          websiteClicks: c.website_clicks || 0,
+          whatsappClickRate: c.whatsapp_click_rate || 0,
+          adAccount: c.ad_accounts
+            ? {
+                platform: c.ad_accounts.platform,
+                currency: c.ad_accounts.currency || "NGN",
+                accountName: c.ad_accounts.account_name,
+              }
+            : null,
         };
       });
+
+      return {
+        campaigns,
+        totalCount,
+        totalPages: isPaginated ? Math.ceil(totalCount / pageSize) : 1,
+        page: page ?? 1,
+      };
     },
     staleTime: 30_000,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
     refetchInterval: (q) =>
-      q.state.data?.some((c) => c.status === "active") ? 60_000 : false,
+      q.state.data?.campaigns?.some((c: any) => c.status === "active") ? 60_000 : false,
     refetchIntervalInBackground: false,
   });
 }
@@ -192,47 +262,11 @@ export function useCampaignsList(options: UseCampaignsListOptions = {}) {
 // ---------------------------------------------------------------------------
 
 export function useCampaignMutations() {
-  const supabase = createClient();
   const queryClient = useQueryClient();
   const router = useRouter();
   const { activeOrgId } = useActiveOrgContext();
 
-  // 1. Sync Mutation (Fetches from Meta -> Updates DB)
-  const syncMutation = useMutation({
-    mutationFn: async () => {
-      let q = supabase
-        .from("ad_accounts")
-        .select("id")
-        .eq("health_status", "healthy")
-        .is("disconnected_at", null);
-      if (activeOrgId) q = q.eq("organization_id", activeOrgId);
-      const { data: accounts } = await q;
-
-      if (!accounts || accounts.length === 0)
-        throw new Error("No connected ad accounts.");
-
-      const results = await Promise.all(
-        accounts.map((acc) =>
-          fetch("/api/campaigns/sync", {
-            method: "POST",
-            body: JSON.stringify({ accountId: acc.id }),
-          }).then((res) => res.json()),
-        ),
-      );
-
-      return results;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["campaigns", activeOrgId] });
-      toast.success("Campaigns synced from Meta");
-      router.refresh();
-    },
-    onError: (error) => {
-      toast.error("Failed to sync campaigns", { description: error.message });
-    },
-  });
-
-  // 2. Launch Mutation
+  // 1. Launch Mutation
   const launchMutation = useMutation({
     mutationFn: launchCampaign,
     onSuccess: (data) => {
@@ -362,9 +396,6 @@ export function useCampaignMutations() {
   });
 
   return {
-    // Sync
-    syncCampaigns: syncMutation.mutate,
-    isSyncing: syncMutation.isPending,
     // Launch
     launchCampaign: launchMutation.mutate,
     isLaunching: launchMutation.isPending,

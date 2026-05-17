@@ -2,31 +2,23 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { motion } from "motion/react";
 import { useCreativesList, useCreativeMutations } from "@/hooks/use-creatives";
 import {
   CloudUpload,
-  FilterList,
-  ViewGrid,
-  List,
   Download,
   ArrowRight,
   Xmark,
-  MoreVert,
   CheckCircle,
   Sparks,
   Plus,
-  NavArrowDown,
   Bin,
-  Play,
 } from "iconoir-react";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuCheckboxItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Tabs,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 
 import { Button } from "@/components/ui/button";
@@ -38,11 +30,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
-import { DataTable } from "@/components/ui/data-table";
-import { Creative } from "@/types";
 import { CreativeCard } from "@/components/creatives/creative-card";
-import { useAdAccountsList } from "@/hooks/use-ad-account";
 import { CreativeUploadDialog } from "@/components/creatives/creative-upload-dialog";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -56,7 +44,6 @@ export default function CreativesPage() {
   const { data: creatives, isLoading: creativesLoading } = useCreativesList();
   const { deleteCreatives, isDeleting } = useCreativeMutations();
 
-  const [view, setView] = useState<"grid" | "list">("grid");
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [filterType, setFilterType] = useState<
@@ -106,11 +93,21 @@ export default function CreativesPage() {
     }
   };
 
+  // Counts for tabs
+  const counts = {
+    all: (creatives || []).length,
+    image: (creatives || []).filter((c: any) => c.media_type?.toLowerCase() === "image").length,
+    video: (creatives || []).filter((c: any) => c.media_type?.toLowerCase() === "video").length,
+    generated_image: (creatives || []).filter((c: any) => c.media_type === "generated_image" || c.generation_context).length,
+  };
+
   // Filtered creatives based on type selection
   const filteredCreatives =
     filterType === "all"
       ? (creatives || [])
-      : (creatives || []).filter((c: any) => c.media_type === filterType);
+      : filterType === "generated_image"
+        ? (creatives || []).filter((c: any) => c.media_type === "generated_image" || c.generation_context)
+        : (creatives || []).filter((c: any) => c.media_type?.toLowerCase() === filterType);
 
   // Delete a creative from storage + DB, then invalidate the list
   const handleDelete = async (id: string) => {
@@ -141,107 +138,10 @@ export default function CreativesPage() {
 
   // Navigate to campaign wizard with selected creatives pre-loaded
   const handleCreateCampaign = () => {
-    // Store selected IDs in sessionStorage so the wizard can pick them up
-    sessionStorage.setItem(
-      "preselected_creatives",
-      JSON.stringify(selectedItems),
-    );
-    router.push("/campaigns/new");
+    if (selectedItems.length === 0) return;
+    const ids = selectedItems.join(",");
+    router.push(`/campaigns/new?creatives=${ids}`);
   };
-
-  // --- COLUMNS ---
-  const columns = [
-    {
-      key: "select",
-      title: (
-        <Checkbox
-          checked={
-            selectedItems.length === filteredCreatives?.length &&
-            filteredCreatives?.length > 0
-          }
-          onCheckedChange={() =>
-            setSelectedItems(
-              selectedItems.length === filteredCreatives?.length
-                ? []
-                : filteredCreatives?.map((c) => c.id) || [],
-            )
-          }
-        />
-      ),
-      className: "w-12",
-      render: (item: Creative) => (
-        <Checkbox
-          checked={selectedItems.includes(item.id)}
-          onCheckedChange={() => toggleSelection(item.id)}
-          onClick={(e) => e.stopPropagation()}
-        />
-      ),
-    },
-    {
-      key: "asset",
-      title: "Asset",
-      render: (item: Creative) => (
-        <div className="flex items-center gap-3 font-medium text-foreground">
-          <div className="h-10 w-10 rounded-md bg-muted overflow-hidden relative shrink-0 flex items-center justify-center">
-            {item.media_type === "video" ? (
-              item.thumbnail_url ? (
-                <Image
-                  src={item.thumbnail_url}
-                  alt={item.name || "Creative"}
-                  fill
-                  className="object-cover"
-                />
-              ) : (
-                <Play className="w-4 h-4 text-muted-foreground" />
-              )
-            ) : (
-              item.original_url && (
-                <Image
-                  src={item.original_url}
-                  alt={item.name || "Creative"}
-                  fill
-                  className="object-cover"
-                />
-              )
-            )}
-          </div>
-          <span className="truncate max-w-[240px]" title={item.name || ""}>
-            {item.name}
-          </span>
-        </div>
-      ),
-    },
-    {
-      key: "dimensions",
-      title: "Dimensions",
-      render: (item: Creative) => (
-        <span className="text-subtle-foreground font-mono text-xs">
-          {item.width ? `${item.width}x${item.height}` : "---"}
-        </span>
-      ),
-    },
-    {
-      key: "type",
-      title: "Type",
-      render: (item: Creative) => (
-        <Badge
-          variant="secondary"
-          className="uppercase text-[10px] bg-muted hover:bg-muted/80 text-subtle-foreground shadow-none"
-        >
-          {item.media_type}
-        </Badge>
-      ),
-    },
-    {
-      key: "actions",
-      title: " ",
-      render: () => (
-        <Button size="icon" variant="ghost">
-          <MoreVert className="w-4 h-4 text-muted-foreground" />
-        </Button>
-      ),
-    },
-  ];
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-muted/30 font-sans">
@@ -249,190 +149,113 @@ export default function CreativesPage() {
       <PageHeader title="Creatives" showCredits showHelpCenter={false}/> 
 
       {/* MAIN CONTENT */}
-      <main className="flex-1 overflow-y-auto p-2 md:p-4 lg:p-6 no-scrollbar">
-        <div className="space-y-6 container max-w-7xl mx-auto">
+      <main className="flex-1 overflow-y-auto p-0 sm:p-4 lg:p-6 no-scrollbar">
+        <div className="space-y-6 max-w-7xl mx-auto px-0 sm:px-4 md:px-6">
           {/* Toolbar */}
-          <div className="flex flex-col md:flex-row justify-end items-start md:items-center gap-4 bg-card p-2">
-            <div className="flex items-center gap-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-10 rounded-md border-border text-subtle-foreground hover:text-foreground hover:bg-muted gap-2"
-                  >
-                    <FilterList className="w-4 h-4" />
-                    {filterType === "all"
-                      ? "Filter"
-                      : filterType === "generated_image"
-                        ? "AI Generated"
-                        : filterType.charAt(0).toUpperCase() +
-                          filterType.slice(1) +
-                          "s"}
-                    <NavArrowDown className="w-3 h-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-44">
-                  <DropdownMenuCheckboxItem
-                    checked={filterType === "all"}
-                    onCheckedChange={() => setFilterType("all")}
-                  >
-                    All Assets
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={filterType === "image"}
-                    onCheckedChange={() => setFilterType("image")}
-                  >
-                    Images
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={filterType === "video"}
-                    onCheckedChange={() => setFilterType("video")}
-                  >
-                    Videos
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={filterType === "generated_image"}
-                    onCheckedChange={() => setFilterType("generated_image")}
-                  >
-                    AI Generated
-                  </DropdownMenuCheckboxItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <div className="bg-muted/50 p-1 rounded-md flex border border-border">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setView("grid")}
-                  className={cn(
-                    "h-8 w-8 p-0 rounded-lg transition-all",
-                    view === "grid"
-                      ? "bg-background shadow-sm text-primary"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
+          <div className="mx-4 sm:mx-0 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-card p-2 rounded-xl border border-border/50">
+            <Tabs
+              value={filterType}
+              onValueChange={(v) => setFilterType(v as any)}
+              className="w-full md:w-auto"
+            >
+              <TabsList className="grid grid-cols-4 md:flex w-full md:w-auto h-10 p-1 bg-muted/50">
+                <TabsTrigger value="all" className="rounded-md px-4 gap-2">
+                  All
+                  <Badge variant="secondary" className="px-1.5 h-4 min-w-4 text-[10px] rounded-full bg-muted border-0">
+                    {counts.all}
+                  </Badge>
+                </TabsTrigger>
+                <TabsTrigger value="image" className="rounded-md px-4 gap-2">
+                  Images
+                  <Badge variant="secondary" className="px-1.5 h-4 min-w-4 text-[10px] rounded-full bg-muted border-0">
+                    {counts.image}
+                  </Badge>
+                </TabsTrigger>
+                <TabsTrigger value="video" className="rounded-md px-4 gap-2">
+                  Videos
+                  <Badge variant="secondary" className="px-1.5 h-4 min-w-4 text-[10px] rounded-full bg-muted border-0">
+                    {counts.video}
+                  </Badge>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="generated_image"
+                  className="rounded-md px-4 whitespace-nowrap gap-2"
                 >
-                  <ViewGrid className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setView("list")}
-                  className={cn(
-                    "h-8 w-8 p-0 rounded-lg transition-all",
-                    view === "list"
-                      ? "bg-background shadow-sm text-primary"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  <List className="w-4 h-4" />
-                </Button>
-              </div>
-              <Button
-                onClick={() => setUploadModalOpen(true)}
-                size="sm"
-                className="h-10 px-6 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-sm hover:shadow-sm border border-border transition-all"
-              >
-                <CloudUpload className="w-4 h-4 mr-2" /> Upload
-              </Button>
-            </div>
+                  AI Generated
+                  <Badge variant="secondary" className="px-1.5 h-4 min-w-4 text-[10px] rounded-full bg-ai/10 text-ai border-0">
+                    {counts.generated_image}
+                  </Badge>
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
 
           {/* Tab Content: Library */}
           <div className="mt-0">
-            {view === "grid" ? (
-              <motion.div
-                className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6"
-                initial="hidden"
-                animate="show"
-                variants={{
-                  hidden: {},
-                  show: { transition: { staggerChildren: 0.04 } },
-                }}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 animate-in fade-in duration-500 p-4 sm:p-0">
+              {/* Add New tile */}
+              <div
+                onClick={() => setUploadModalOpen(true)}
+                className="aspect-square rounded-lg border-2 border-dashed border-border bg-card/50 hover:bg-primary/5 hover:border-primary/50 transition-all cursor-pointer flex flex-col items-center justify-center gap-3 text-muted-foreground hover:text-primary group"
               >
-                {/* Add New tile */}
-                <motion.div
-                  onClick={() => setUploadModalOpen(true)}
-                  variants={{
-                    hidden: { opacity: 0, y: 8 },
-                    show: { opacity: 1, y: 0, transition: { duration: 0.2 } },
-                  }}
-                  className="aspect-square rounded-lg border-2 border-dashed border-border bg-card/50 hover:bg-primary/5 hover:border-primary/50 transition-all cursor-pointer flex flex-col items-center justify-center gap-3 text-muted-foreground hover:text-primary group"
-                >
-                  <div className="h-14 w-14 rounded-full bg-background shadow-sm border border-border flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Plus className="w-6 h-6" />
+                <div className="h-14 w-14 rounded-full bg-background shadow-sm border border-border flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Plus className="w-6 h-6" />
+                </div>
+                <span className="text-sm font-medium">Add New</span>
+              </div>
+
+              {/* Skeleton cards while loading */}
+              {creativesLoading &&
+                [...Array(8)].map((_, i) => (
+                  <div
+                    key={`skeleton-${i}`}
+                    className="rounded-lg border border-border bg-card overflow-hidden animate-pulse"
+                  >
+                    <div className="aspect-square bg-muted" />
+                    <div className="p-3 space-y-2">
+                      <div className="h-3 bg-muted rounded-full w-3/4" />
+                      <div className="h-2.5 bg-muted rounded-full w-1/2" />
+                    </div>
                   </div>
-                  <span className="text-sm font-medium">Add New</span>
-                </motion.div>
+                ))}
 
-                {/* Skeleton cards while loading */}
-                {creativesLoading &&
-                  [...Array(8)].map((_, i) => (
-                    <div
-                      key={`skeleton-${i}`}
-                      className="rounded-lg border border-border bg-card overflow-hidden animate-pulse"
+              {/* Real cards */}
+              {!creativesLoading &&
+                filteredCreatives.map((item) => (
+                  <div key={item.id}>
+                    <CreativeCard
+                      data={item}
+                      selected={selectedItems.includes(item.id)}
+                      onSelect={() => toggleSelection(item.id)}
+                      onClick={() => handlePreview(item)}
+                      onDelete={handleDelete}
+                      displayUrl={(item as any).displayUrl}
+                      variantCount={(item as any).variantCount ?? 0}
+                    />
+                  </div>
+                ))}
+
+              {/* Empty state when filter has no results */}
+              {!creativesLoading &&
+                filteredCreatives.length === 0 &&
+                filterType !== "all" && (
+                  <div className="col-span-full py-16 text-center text-subtle-foreground">
+                    <p className="font-medium">
+                      No{" "}
+                      {filterType === "generated_image"
+                        ? "AI generated"
+                        : filterType}{" "}
+                      assets found.
+                    </p>
+                    <button
+                      onClick={() => setFilterType("all")}
+                      className="mt-2 text-sm text-primary hover:underline"
                     >
-                      <div className="aspect-square bg-muted" />
-                      <div className="p-3 space-y-2">
-                        <div className="h-3 bg-muted rounded-full w-3/4" />
-                        <div className="h-2.5 bg-muted rounded-full w-1/2" />
-                      </div>
-                    </div>
-                  ))}
-
-                {/* Real cards */}
-                {!creativesLoading &&
-                  filteredCreatives.map((item) => (
-                    <motion.div
-                      key={item.id}
-                      variants={{
-                        hidden: { opacity: 0, y: 8 },
-                        show: {
-                          opacity: 1,
-                          y: 0,
-                          transition: { duration: 0.2 },
-                        },
-                      }}
-                    >
-                      <CreativeCard
-                        data={item}
-                        selected={selectedItems.includes(item.id)}
-                        onSelect={() => toggleSelection(item.id)}
-                        onClick={() => handlePreview(item)}
-                        onDelete={handleDelete}
-                        displayUrl={(item as any).displayUrl}
-                        variantCount={(item as any).variantCount ?? 0}
-                      />
-                    </motion.div>
-                  ))}
-
-                {/* Empty state when filter has no results */}
-                {!creativesLoading &&
-                  filteredCreatives.length === 0 &&
-                  filterType !== "all" && (
-                    <div className="col-span-full py-16 text-center text-subtle-foreground">
-                      <p className="font-medium">
-                        No{" "}
-                        {filterType === "generated_image"
-                          ? "AI generated"
-                          : filterType}{" "}
-                        assets found.
-                      </p>
-                      <button
-                        onClick={() => setFilterType("all")}
-                        className="mt-2 text-sm text-primary hover:underline"
-                      >
-                        Clear filter
-                      </button>
-                    </div>
-                  )}
-              </motion.div>
-            ) : (
-              <DataTable
-                columns={columns}
-                data={filteredCreatives}
-                enableViewToggle={false}
-              />
-            )}
+                      Clear filter
+                    </button>
+                  </div>
+                )}
+            </div>
           </div>
         </div>
       </main>
@@ -615,7 +438,7 @@ export default function CreativesPage() {
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="max-w-md p-6">
           <DialogHeader>
-            <DialogTitle className="text-xl font-heading">
+            <DialogTitle className="text-lg font-heading">
               Delete {selectedItems.length} Assets?
             </DialogTitle>
           </DialogHeader>

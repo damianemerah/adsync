@@ -34,8 +34,10 @@ interface PhoneMockupProps {
   objective: string;
   platform: "meta" | "tiktok" | null;
   metaPlacement?: "automatic" | "instagram" | "facebook";
-  brandName?: string; // Real org/brand name from useOrganization
-  dailyBudgetNgn?: number; // Used to derive a realistic engagement estimate
+  brandName?: string;
+  dailyBudgetNgn?: number;
+  adFormatType?: "single" | "carousel" | "dynamic_creative";
+  carouselCardHeadlines?: string[];
   onCTAChange?: (ctaCode: string) => void;
 }
 
@@ -47,6 +49,8 @@ export function PhoneMockup({
   metaPlacement = "automatic",
   brandName,
   dailyBudgetNgn = 7000,
+  adFormatType,
+  carouselCardHeadlines,
   onCTAChange,
 }: PhoneMockupProps) {
   // For display purposes: automatic shows Instagram feed (most visual)
@@ -252,6 +256,18 @@ export function PhoneMockup({
           </div>
         )}
 
+        {/* Format badge */}
+        {adFormatType === "dynamic_creative" && (
+          <div className="absolute top-2 left-2 flex items-center gap-1 bg-black/60 backdrop-blur-sm text-white text-[9px] font-bold px-2 py-1 rounded-full">
+            <span>✨</span> Dynamic
+          </div>
+        )}
+        {adFormatType === "carousel" && creatives.length > 1 && (
+          <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-sm text-white text-[9px] font-bold px-2 py-1 rounded-full">
+            {activeIndex + 1} / {creatives.length}
+          </div>
+        )}
+
         {creatives.length > 1 && (
           <>
             <button
@@ -309,9 +325,13 @@ export function PhoneMockup({
       {/* CTA Bar (Sticky Bottom) */}
       <div className="p-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between shrink-0">
         <div className="text-xs">
-          <p className="text-slate-400">Headline</p>
+          <p className="text-slate-400">
+            {adFormatType === "carousel" ? `Card ${activeIndex + 1}` : "Headline"}
+          </p>
           <p className="font-bold text-slate-900 truncate max-w-[140px]">
-            {adCopy.headline || "Shop Now"}
+            {(adFormatType === "carousel" && carouselCardHeadlines?.[activeIndex]) ||
+              adCopy.headline ||
+              "Shop Now"}
           </p>
         </div>
         <DropdownMenu>

@@ -1,6 +1,6 @@
 # Tenzu — Product Context
 
-> Auto-read by all Impeccable design skills. Single source of truth for brand identity and product purpose.
+> Single source of truth for brand identity and product purpose.
 
 ---
 

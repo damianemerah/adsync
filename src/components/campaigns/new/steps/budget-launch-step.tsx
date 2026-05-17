@@ -128,6 +128,9 @@ export function BudgetLaunchStep({
     carouselCards,
     pageId,
     instagramAccountId,
+    adFormatType,
+    adCopyVariations,
+    advantagePlusCreative,
   } = useCampaignStore();
 
   const orgROI = useOrgROI();
@@ -385,8 +388,11 @@ export function BudgetLaunchStep({
       pageId: pageId ?? pages?.[0]?.id,
       instagramAccountId: instagramAccountId ?? undefined,
       leadGenFormId: finalLeadGenFormId || undefined,
-      // Include carousel data if present (2+ cards)
-      ...(carouselCards && carouselCards.length >= 2 && { carouselCards }),
+      // Ad format + carousel/dynamic creative data
+      adFormatType: adFormatType ?? "single",
+      ...(adFormatType === "carousel" && carouselCards && carouselCards.length >= 2 && { carouselCards }),
+      ...(adFormatType === "dynamic_creative" && adCopyVariations?.length && { adCopyVariations }),
+      advantagePlusCreative,
     };
 
     launchCampaign(launchPayload, {

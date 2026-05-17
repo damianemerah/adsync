@@ -81,9 +81,14 @@ Identify the specific page or route you want to optimize.
 
 ---
 
-### 2. Analysis Phase (Read-Only)
+### 3. Analysis Phase (Runtime & Static)
 
-Use `view_file` to understand the target's current state. Look for these anti-patterns:
+Use `view_file` to understand the target's current state. Simultaneously, use the **Next.js MCP** to inspect the live environment:
+
+1. **Check for Errors:** Run `nextjs_call` with `get_errors` to see if there are any active hydration or uncached data access errors.
+2. **Inspect Routes:** Use `nextjs_call` with `get_routes` to verify the page structure and middleware involvement.
+
+Look for these anti-patterns:
 
 | Anti-pattern                   | What to look for                                                                                                     |
 | ------------------------------ | -------------------------------------------------------------------------------------------------------------------- |

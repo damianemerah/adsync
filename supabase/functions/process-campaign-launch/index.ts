@@ -179,12 +179,24 @@ serve(async (req) => {
       // ── STEP 6: UPDATE CAMPAIGN IN DB ───────────────────────────────────
       console.log("[Worker] Step 6: Saving campaign to database");
 
-      // v25.0: Track Advantage+ configuration
+      // v25.0: Track Advantage+ configuration.
+      // `creative` reflects the user's opt-in choice from the wizard, preserved
+      // from what the launch action wrote into the campaign row.
       const advantagePlusConfig = {
         audience: true, // Always enabled via targeting_automation in ad set
         placements: config.metaPlacement === "automatic",
-        creative: false, // Not implemented yet
+        creative:
+          (campaign.advantage_plus_config as { creative?: boolean } | null)
+            ?.creative === true,
         budget: false, // Not implemented yet
+      };
+
+      // Merge creative_hashes (hash→URL mapping) into the existing snapshot so
+      // process-insights-sync can join image_asset breakdown results back to URLs.
+      const existingSnapshot = (campaign.creative_snapshot as Record<string, any>) ?? {};
+      const updatedSnapshot = {
+        ...existingSnapshot,
+        creative_hashes: { [imageHash]: config.creatives[0] },
       };
 
       const { error: updateErr } = await supabase
@@ -194,6 +206,7 @@ serve(async (req) => {
           status: "pending_review", // Meta will review before activating
           advantage_plus_config: advantagePlusConfig, // v25.0: Track Advantage+ features
           uses_pixel_optimization: hasMetaPixel && config.objective === "traffic", // Track if using OUTCOME_SALES
+          creative_snapshot: updatedSnapshot,
           updated_at: new Date().toISOString(),
         })
         .eq("id", campaignId);

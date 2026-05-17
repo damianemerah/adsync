@@ -84,6 +84,13 @@ interface LaunchConfig {
     description?: string;
     link?: string;
   }>;
+  // Ad format selection
+  adFormatType?: "single" | "carousel" | "dynamic_creative";
+  // All copy variations for dynamic creative asset_feed_spec
+  adCopyVariations?: Array<{ headline: string; primary: string }>;
+  // Whether Meta is allowed to auto-modify the creative (Advantage+ Creative).
+  // Defaults to false — opt-in only.
+  advantagePlusCreative?: boolean;
 }
 
 function isVideoCreative(url: string): boolean {
@@ -534,12 +541,18 @@ export async function launchCampaign(config: LaunchConfig) {
     console.log("🎯 [Meta API - Ad Set Created]:", adSetRes);
 
     // Step F: Upload Images
-    // Determine if this is a carousel (2+ cards) or single image ad
-    const isCarousel = config.carouselCards && config.carouselCards.length >= 2;
+    // Determine ad format — explicit adFormatType takes priority
+    const isDynamicCreative = config.adFormatType === "dynamic_creative";
+    const isCarousel =
+      !isDynamicCreative &&
+      config.adFormatType === "carousel" &&
+      config.carouselCards != null &&
+      config.carouselCards.length >= 2;
 
     let imageHash: string | undefined;
     let videoId: string | undefined;
     let thumbnailUrl: string | null = null;
+    let dynamicImageHashes: string[] = [];
     let carouselImageData: Array<{
       imageHash: string;
       headline: string;
@@ -547,7 +560,25 @@ export async function launchCampaign(config: LaunchConfig) {
       link?: string;
     }> = [];
 
-    if (isCarousel && config.carouselCards) {
+    if (isDynamicCreative) {
+      // Dynamic Creative: upload all selected creatives as images for asset_feed_spec
+      console.log(
+        `✨ [Meta API - Uploading ${config.creatives.length} dynamic creative images]`,
+      );
+      for (const creativeUrl of config.creatives) {
+        const imageRes = await MetaService.createAdImage(
+          accessToken,
+          adAccountId,
+          creativeUrl,
+        );
+        const imageKey = Object.keys(imageRes.images)[0];
+        dynamicImageHashes.push(imageRes.images[imageKey].hash);
+      }
+      console.log(
+        "✨ [Meta API - Dynamic Creative Images Uploaded]:",
+        dynamicImageHashes.length,
+      );
+    } else if (isCarousel && config.carouselCards) {
       // Carousel: Upload all images and build carousel cards
       console.log(
         `🎠 [Meta API - Uploading ${config.carouselCards.length} carousel images]`,
@@ -574,6 +605,44 @@ export async function launchCampaign(config: LaunchConfig) {
         "🖼️ [Meta API - Carousel Images Uploaded]:",
         carouselImageData.length,
       );
+
+      // Per-card attribution: wrap each unique card link in a tracking token
+      const isLocalhost =
+        process.env.NODE_ENV === "development" ||
+        process.env.NEXT_PUBLIC_APP_URL?.includes("localhost");
+
+      if (!isLocalhost) {
+        const cardLinkMap = new Map<string, string>();
+        for (const card of config.carouselCards) {
+          const rawLink = card.link?.trim() || config.destinationValue;
+          if (!rawLink || cardLinkMap.has(rawLink)) continue;
+          try {
+            const token = generateAttributionToken();
+            const { data: attrLink } = await supabase
+              .from("attribution_links")
+              .insert({
+                token,
+                organization_id: orgId as string,
+                destination_url: rawLink,
+                destination_type: "website",
+              })
+              .select("id, token")
+              .single();
+            if (attrLink) cardLinkMap.set(rawLink, buildAttributionUrl(attrLink.token));
+          } catch {
+            // Non-critical — fall back to raw link
+          }
+        }
+        carouselImageData = carouselImageData.map((card, i) => ({
+          ...card,
+          link:
+            cardLinkMap.get(
+              config.carouselCards![i].link?.trim() || config.destinationValue,
+            ) ??
+            card.link ??
+            finalUrl,
+        }));
+      }
     } else {
       const creativeUrl = config.creatives[0];
 
@@ -609,11 +678,22 @@ export async function launchCampaign(config: LaunchConfig) {
     }
 
     // Step G: Create Ad Creative & Ad
+    const ctaCode =
+      typeof config.adCopy.cta === "object" && config.adCopy.cta.platformCode
+        ? config.adCopy.cta.platformCode
+        : typeof config.adCopy.cta === "string"
+          ? config.adCopy.cta
+          : undefined;
+
     const adRes = await MetaService.createAd(
       accessToken,
       adAccountId,
       adSetRes.id,
-      isCarousel ? carouselImageData.map((c) => c.imageHash) : (imageHash ?? ""),
+      isDynamicCreative
+        ? dynamicImageHashes
+        : isCarousel
+          ? carouselImageData.map((c) => c.imageHash)
+          : (imageHash ?? ""),
       {
         pageId,
         instagramAccountId: config.instagramAccountId ?? undefined,
@@ -622,16 +702,17 @@ export async function launchCampaign(config: LaunchConfig) {
         destinationUrl: finalUrl,
         leadGenFormId: config.leadGenFormId,
       },
-      typeof config.adCopy.cta === "object" && config.adCopy.cta.platformCode
-        ? config.adCopy.cta.platformCode
-        : typeof config.adCopy.cta === "string"
-          ? config.adCopy.cta
-          : undefined,
+      ctaCode,
       config.objective,
       isCarousel ? carouselImageData : undefined,
       videoId,
       thumbnailUrl,
       config.name,
+      isDynamicCreative
+        ? (config.adCopyVariations?.length
+            ? config.adCopyVariations
+            : [{ headline: config.adCopy.headline, primary: config.adCopy.primary }])
+        : undefined,
     );
 
     console.log("📣 [Meta API - Ad Creative/Ad Created]:", adRes);
@@ -647,6 +728,7 @@ export async function launchCampaign(config: LaunchConfig) {
       status: "pending_review", // Created as PAUSED on Meta while under review
       daily_budget_cents: budgetInCents,
       placement_type: config.metaPlacement ?? "automatic",
+      source: "tenzu" as const, // Distinguishes app-created from Meta-imported
       targeting_snapshot: {
         locations: config.targetLocations,
         interests: config.targetInterests,
@@ -663,10 +745,12 @@ export async function launchCampaign(config: LaunchConfig) {
         creatives: config.creatives,
         ad_copy: config.adCopy,
         destination: finalUrl,
+        ad_format_type: config.adFormatType ?? "single",
         ...(isCarousel && { carousel_cards: config.carouselCards }),
+        ...(isDynamicCreative && { ad_copy_variations: config.adCopyVariations }),
       } as any,
       ai_context: config.aiContext,
-      advantage_plus_config: { creative: true },
+      advantage_plus_config: { creative: config.advantagePlusCreative ?? false },
     };
 
     let dbCampaignId = config.campaignId;
@@ -1017,6 +1101,7 @@ export async function duplicateCampaign(campaignId: string) {
       advantage_plus_config: original.advantage_plus_config,
       uses_pixel_optimization: original.uses_pixel_optimization,
       status: "draft",
+      source: "tenzu" as const,
       platform_campaign_id: null,
     })
     .select("id")

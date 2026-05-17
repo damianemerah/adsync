@@ -98,7 +98,7 @@ function generateAdObjectName(suffix: string, format?: "carousel" | "video"): st
 
 ## Workflow & Stop Conditions
 
-1. **Inspect:** Look for duplication, dead code, large files (>300 lines), and `useEffect` fetches.
+1. **Inspect:** Look for duplication, dead code, large files (>300 lines), and `useEffect` fetches. Use **Next.js MCP** (`get_server_action_by_id`) if tracing obscure mutations.
 2. **Plan:** Propose a plan before large changes.
 3. **Execute:** Smallest safe change first. Verify active-org scoping is preserved.
 4. **Stop and Ask:** If behavior changes, client/server splits are ambiguous, or data leaking is a risk.

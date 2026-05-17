@@ -57,10 +57,14 @@ export async function getDashboardData(
         cpc: "0",
         reach: "0",
       },
+      needsReconnect: false,
     };
   }
 
   const account = accounts[0];
+  const needsReconnect = accounts.some(
+    (a: any) => a.health_status === "token_expired",
+  );
 
   // Campaign-level query for revenue/sales (platform-tracked) + aggregate spend metrics
   let campaignQuery = supabase
@@ -191,12 +195,56 @@ export async function getDashboardData(
         ctr: v.totalImprForCtr > 0 ? v.weightedCtr / v.totalImprForCtr : 0,
       }));
 
-    // Use cached demographics if available, else empty arrays
-    const cachedDemographics = (account as any).demographics_cache ?? {
-      age: [],
-      gender: [],
-      region: [],
-    };
+    // Demographics have their own freshness check (24h) independent of performance cache.
+    // The campaign sync route stamps last_synced_at without populating demographics_cache,
+    // so we must fetch demographics separately when the cache is absent or stale.
+    const DEMO_TTL_MS = 24 * 60 * 60 * 1000;
+    const demoSyncedAt = (account as any).demographics_synced_at
+      ? new Date((account as any).demographics_synced_at).getTime()
+      : 0;
+    const demoCacheIsFresh =
+      !!(account as any).demographics_cache &&
+      Date.now() - demoSyncedAt < DEMO_TTL_MS;
+
+    let cachedDemographics: { age: any[]; gender: any[]; region: any[] };
+
+    if (demoCacheIsFresh) {
+      cachedDemographics = (account as any).demographics_cache;
+    } else {
+      // Fetch demographics from Meta and persist
+      try {
+        const demoToken = decrypt((account as any).access_token);
+        const demoActId = (account as any).platform_account_id;
+        const demoPeriod =
+          filter?.dateFrom && filter?.dateTo
+            ? `time_range=${encodeURIComponent(JSON.stringify({ since: filter.dateFrom, until: filter.dateTo }))}`
+            : `date_preset=last_30d`;
+        const [ageRes, genderRes, regionRes] = await Promise.all([
+          MetaService.request(`/act_${demoActId}/insights?${demoPeriod}&fields=spend,impressions,clicks&breakdowns=age`, "GET", demoToken),
+          MetaService.request(`/act_${demoActId}/insights?${demoPeriod}&fields=spend,impressions,clicks&breakdowns=gender`, "GET", demoToken),
+          MetaService.request(`/act_${demoActId}/insights?${demoPeriod}&fields=spend,impressions,clicks&breakdowns=region`, "GET", demoToken),
+        ]);
+        cachedDemographics = {
+          age: ageRes.data || [],
+          gender: genderRes.data || [],
+          region: regionRes.data || [],
+        };
+        await supabase
+          .from("ad_accounts")
+          .update({
+            demographics_cache: cachedDemographics,
+            demographics_synced_at: new Date().toISOString(),
+          })
+          .eq("id", account.id);
+      } catch (demoErr) {
+        console.error("[Insights] Demographics fetch failed:", demoErr);
+        cachedDemographics = (account as any).demographics_cache ?? {
+          age: [],
+          gender: [],
+          region: [],
+        };
+      }
+    }
 
     return {
       performance,
@@ -212,6 +260,7 @@ export async function getDashboardData(
         sales: localSummary.sales,
         whatsapp_clicks: localSummary.whatsapp_clicks,
       },
+      needsReconnect,
     };
   }
 
@@ -356,6 +405,7 @@ export async function getDashboardData(
         sales: localSummary.sales,
         whatsapp_clicks: localSummary.whatsapp_clicks,
       },
+      needsReconnect,
     };
   } catch (error) {
     console.error("Dashboard Data Error:", error);
@@ -470,6 +520,7 @@ export async function getDashboardData(
         sales: localSummary.sales,
         whatsapp_clicks: localSummary.whatsapp_clicks,
       },
+      needsReconnect,
     };
   }
 }

@@ -142,23 +142,47 @@ Decision: Optional — shown after campaign launch for website destination campa
 Never a gate or requirement to use Tenzu.
 Reason: 56% of users have no website. Pixel cannot be a blocker.
 
-### [Feb 2026] Free Dashboard — "Connect for Free, Pay to Launch"
+### [May 2026] All Features Accessible to All Tiers
 
-Decision: Users connect their Meta Ad Account for free and get a read-only dashboard
+Decision: All three subscription tiers (Starter, Growth, Agency) get identical AI features and platform capabilities. The only difference between tiers is the monthly credit quota (50 / 150 / 250 credits).
+Reason: Simplifies positioning for Nigerian SMEs who don't understand feature matrices. Credit quota is a tangible, understandable limit. Feature gates caused confusion and support overhead.
+Implementation impact:
+- `TIER_CONFIG` in `src/lib/constants.ts` has identical `ai` and `limits` values across all tiers (except `adSpendCeilingKobo` and `anomalyBufferKobo`, which drive auto-upgrade logic).
+- `useSkills: true` for all tiers. `maxCopyVariations: 5`, `maxRefinementsPerCampaign: Infinity` for all.
+- Never add feature gates that check `subscription_tier`. Only check `credits_balance` and `subscription_status`.
+
+### [May 2026] Spend-Based Automatic Tier Upgrade
+
+Decision: The system automatically enforces a minimum (floor) tier based on the SME's 30-day Meta ad spend. Users can upgrade freely but cannot downgrade below the floor.
+Thresholds: ≤ ₦100K/mo → Starter floor; ≤ ₦300K/mo → Growth floor; > ₦300K/mo → Agency floor.
+Anomaly buffers: ₦20K (Starter), ₦50K (Growth) to prevent one-off spikes from triggering upgrades.
+Grace window: 7 days after threshold + buffer is crossed before the tier actually changes.
+Reason: Pricing reflects value delivered — higher spenders extract more platform value. Auto-upgrade removes manual friction (SME doesn't need to remember to upgrade). The buffers prevent bad UX from one-time campaigns.
+Implementation: `src/lib/tier-resolver.ts` + `src/actions/spend-sync.ts`.
+
+### [May 2026] 7-Day Free Trial Replaces Free Dashboard Model
+
+Decision: The "Connect for Free, Pay to Launch" read-only dashboard model (Feb 2026 decision below) is superseded and was never built. Entry is now a **7-day free trial** with full Growth-tier features (50 credits). After the trial, users select a paid plan.
+Reason: The three-friction-layer model (read-only dashboard, date range limits, blurred AI) was complex to build and never shipped. Trial converts better — users experience full product value before paying.
+Implementation impact:
+- `subscription_status = 'trialing'` for trial users — full access, not read-only.
+- `incomplete` status = Meta not yet connected; trial hasn't started.
+- `expired` = trial ended without payment, or subscription lapsed → full paywall (not read-only).
+- There is no perpetual free tier or read-only state. See `skills/growth-strategy/SKILL.md`.
+
+### [Feb 2026] Free Dashboard — "Connect for Free, Pay to Launch" ~~SUPERSEDED by May 2026 decision above~~
+
+~~Decision: Users connect their Meta Ad Account for free and get a read-only dashboard
 of their existing campaigns. Paid actions (create, edit, pause, AI) require a subscription.
 Three friction layers: Time Machine Block (date range limit), Panic Button Block (action gating),
-Blurred Consultant (blurred AI insights).
-Reason: "Monitoring is Free, Action is Paid." Separates value-delivery (beautiful stats)
-from monetization (tools to act). Builds trust before asking for money — critical in Nigeria.
-Low cost to serve (JSON fetch from Meta API). High conversion because upgrade is pain-driven,
-not feature-sold. See `skills/growth-strategy/SKILL.md` for full specification.
+Blurred Consultant (blurred AI insights).~~
+This model was never implemented and has been replaced by the 7-day trial approach.
 
-### [Feb 2026] "Free" vs. "Expired" distinction
+### [May 2026] "Incomplete" vs. "Expired" distinction
 
-Decision: `free` is the entry state (never paid). `expired` is the lapsed state (stopped paying).
-Free users get read-only dashboard. Expired users get the full lock screen with reactivation CTA.
-Reason: Different emotional states require different UX. Free users are prospects exploring value.
-Expired users are churned customers who need a re-activation nudge, not an onboarding flow.
+Decision: `incomplete` is the state before Meta is connected (trial not started). `expired` is the lapsed state (trial ended without payment, or subscription cancelled/lapsed).
+`incomplete` users need onboarding completion (connect Meta). `expired` users need a reactivation nudge.
+Reason: Different emotional states require different UX. Never show `incomplete` users a reactivation CTA — they haven't experienced the product yet.
 
 ### [Feb 2026] FX rate & spend_cents interpretation
 

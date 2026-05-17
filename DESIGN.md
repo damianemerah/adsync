@@ -1,6 +1,6 @@
 # Tenzu — Design System
 
-> Auto-read by all Impeccable design skills. Technical token and component reference.
+> Technical token and component reference.
 > Source of truth for tokens: `src/app/globals.css`
 
 ---

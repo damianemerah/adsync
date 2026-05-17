@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -12,10 +14,13 @@ import { CampaignsView } from "@/components/campaigns/campaigns-view";
 import { CampaignDetailSheet } from "@/components/campaigns/campaign-detail-sheet";
 import { RevenueChannelBreakdown } from "@/components/dashboard/revenue-channel-breakdown";
 import { useDashboardStore } from "@/store/dashboard-store";
+import { useOnboardingStore } from "@/store/onboarding-store";
 import { useInsights } from "@/hooks/use-insights";
 import { useCampaignsList, useCampaignMutations } from "@/hooks/use-campaigns";
 import { useMetaConnectionRefresh } from "@/hooks/use-meta-connection-refresh";
+import { PageHeader } from "@/components/layout/page-header";
 import { calculateChannelBreakdown, CampaignForBreakdown } from "@/lib/utils/campaign-metrics";
+
 
 interface UnifiedDashboardProps {
   initialData: {
@@ -35,6 +40,7 @@ interface UnifiedDashboardProps {
       gender: unknown[];
       region: unknown[];
     };
+    needsReconnect?: boolean;
   };
   campaigns: {
     id: string;
@@ -70,11 +76,18 @@ export function UnifiedDashboard({
   // Invalidate queries automatically after a successful Meta OAuth connection
   useMetaConnectionRefresh({ activeOrgId, selectedPlatform });
 
+  // Clear onboarding state when landing on dashboard
+  useEffect(() => {
+    useOnboardingStore.getState().reset();
+    // Also clear the old legacy local storage key just in case
+    localStorage.removeItem("onboarding_state");
+  }, []);
+
   // Live-fetch campaigns from DB; fall back to server-rendered initial list.
   // Pass dateRange so metrics in the table reflect the calendar selection.
-  const { data: liveCampaigns } = useCampaignsList({ dateRange });
+  const { data: liveCampaignData } = useCampaignsList({ dateRange });
   const { updateStatus } = useCampaignMutations();
-  const allCampaigns = liveCampaigns ?? campaigns;
+  const allCampaigns = liveCampaignData?.campaigns ?? campaigns;
 
   // Apply all GlobalContextBar filters to the campaign list
   const displayCampaigns = allCampaigns.filter((c) => {
@@ -105,6 +118,8 @@ export function UnifiedDashboard({
   // Prefer live data; fall back to server-rendered initial data
   const dashboardData = liveData ?? initialData;
 
+  console.log("DashboardData💎", dashboardData)
+
   // Revenue attribution per channel (WhatsApp vs Website)
   const revenueBreakdown = calculateChannelBreakdown(
     displayCampaigns as CampaignForBreakdown[]
@@ -132,10 +147,29 @@ export function UnifiedDashboard({
     );
   }
 
+  const needsReconnect = (liveData ?? initialData)?.needsReconnect;
+
   return (
     <div>
+      <PageHeader title="Dashboard" />
       {/* Global Filter Bar — AccountHealthDialog is now self-contained inside the bar */}
       <GlobalContextBar />
+
+      {needsReconnect && (
+        <div className="mx-4 md:mx-6 mt-4 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+          <svg className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          </svg>
+          <div>
+            <span className="font-medium">Meta connection expired.</span>{" "}
+            Your ad account access token has expired and data cannot be synced.{" "}
+            <Link href="/settings/business" className="font-medium underline underline-offset-2">
+              Reconnect your Meta account
+            </Link>{" "}
+            to resume data sync.
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="flex-1 p-4 md:p-6 overflow-y-auto no-scrollbar">

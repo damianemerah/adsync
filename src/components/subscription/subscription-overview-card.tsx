@@ -46,10 +46,13 @@ interface SubscriptionOverviewCardProps {
   card: { last4: string; cardType: string | null; bank: string | null; expiry: string | null } | null;
   isProcessing: string | null;
   isCanceling: boolean;
-  onUpgrade: (planId: string) => void;
+  /** Renew / reactivate the spend-assigned plan. No plan picking. */
+  onRenew: (planId: string) => void;
   onAddPaymentMethod: () => void;
   onCancelSubscription: () => void;
   currentTier: string;
+  /** True when the DB tier was auto-upgraded by spend but the Paystack plan hasn't been updated yet */
+  pendingPaystackPlanUpgrade?: boolean;
 }
 
 export function SubscriptionOverviewCard({
@@ -62,10 +65,11 @@ export function SubscriptionOverviewCard({
   card,
   isProcessing,
   isCanceling,
-  onUpgrade,
+  onRenew,
   onAddPaymentMethod,
   onCancelSubscription,
   currentTier,
+  pendingPaystackPlanUpgrade = false,
 }: SubscriptionOverviewCardProps) {
   const isActive = orgStatus === "active" || orgStatus === "trialing";
 
@@ -84,17 +88,20 @@ export function SubscriptionOverviewCard({
           </div>
         </div>
 
-        <CardContent className="px-6">
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-8 gap-4">
+        <CardContent className="px-4 md:px-6">
+          <div className="flex items-start justify-between mb-8 gap-4 w-full">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 shrink-0 rounded-xl bg-linear-to-br from-primary to-accent flex items-center justify-center text-primary-foreground shadow-sm">
-                <Sparkles className="w-7 h-7" />
+              <div className="w-12 h-12 md:w-14 md:h-14 shrink-0 rounded-xl bg-linear-to-br from-primary to-accent flex items-center justify-center text-primary-foreground shadow-sm">
+                <Sparkles className="w-6 h-6 md:w-7 md:h-7" />
               </div>
               <div>
                 <h3 className="capitalize text-foreground flex items-center gap-2 font-medium">
                   {currentPlan.name} Plan
                 </h3>
                 <p className="text-sm text-subtle-foreground mt-0.5">{currentPlan.tagline}</p>
+                <p className="text-xs text-subtle-foreground mt-1">
+                  Tier assigned automatically based on your 30-day ad spend
+                </p>
               </div>
             </div>
 
@@ -106,7 +113,7 @@ export function SubscriptionOverviewCard({
               )}
               {!isActive && (
                 <Button
-                  onClick={() => onUpgrade(currentTier)}
+                  onClick={() => onRenew(currentTier)}
                   disabled={isProcessing !== null}
                   size="sm"
                 >
@@ -209,6 +216,36 @@ export function SubscriptionOverviewCard({
           </div>
         </CardContent>
       </Card>
+
+      {/* Pending Paystack plan upgrade notice */}
+      {pendingPaystackPlanUpgrade && (
+        <div className="mt-3 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+          <Info className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-amber-900">
+              Your billing plan needs updating
+            </p>
+            <p className="text-xs text-amber-700 mt-0.5">
+              Your ad spend triggered an automatic plan upgrade, but your Paystack
+              subscription is still on the old tier. Update now to be billed
+              correctly at next renewal.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => onRenew(currentTier)}
+            disabled={isProcessing !== null}
+            className="shrink-0 bg-amber-600 hover:bg-amber-700 text-white border-0 text-xs"
+          >
+            {isProcessing === currentTier ? (
+              <SystemRestart className="w-3 h-3 animate-spin" />
+            ) : (
+              "Update Billing"
+            )}
+          </Button>
+        </div>
+      )}
+
       <p className="text-xs text-subtle-foreground mt-3">
         Payment Secured by <span className="text-foreground">paystack</span>
       </p>

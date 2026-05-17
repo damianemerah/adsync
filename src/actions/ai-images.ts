@@ -211,7 +211,7 @@ export async function generateAdCreative({
 
   // 4b. Resolve tier — determines whether to use image-creative-ng skill (Growth/Agency)
   // or fall back to the JSON→compile approach (Starter).
-  const { config: tierConfig } = await resolveTier(supabase, user.id);
+  const { tierId, config: tierConfig } = await resolveTier(supabase, user.id);
   const useImageSkill = tierConfig.ai.useSkills;
 
   // --- PROMPT ENGINEERING ---
@@ -222,24 +222,47 @@ export async function generateAdCreative({
       ? `\n\nSYSTEM NOTE: The user provided ${imageInputs.length} reference images. Refer to them strictly as @image1, @image2, etc.`
       : "";
 
-  // Resolve Template if needed
+  // Resolve Template if needed.
+  // Reads the full template row, gates `is_premium` to paid tiers (Growth + Agency),
+  // honours the template's preferred aspect_ratio when the caller hasn't overridden it,
+  // and appends `negative_prompt` as natural-language "Avoid: ..." (works on both
+  // flux-2-pro and nano-banana-pro since neither accepts a negative_prompt parameter).
+  let resolvedTemplateAspectRatio: string | null = null;
   if (mode === "template") {
-    try {
-      const { data: template } = await supabase
-        .from("creative_templates")
-        .select("prompt_template")
-        .eq("id", prompt)
-        .single();
+    const { data: template, error: templateError } = await supabase
+      .from("creative_templates")
+      .select(
+        "id, prompt_template, variables, negative_prompt, aspect_ratio, is_premium",
+      )
+      .eq("id", prompt)
+      .single();
 
-      if (template) {
-        finalPrompt = PromptParser.fill(
-          template.prompt_template,
-          templateValues || {},
-        );
-      }
-    } catch (e) {
-      console.warn("Template resolution failed, falling back to raw prompt", e);
+    if (templateError || !template) {
+      throw new Error("Template not found");
     }
+
+    finalPrompt = PromptParser.fill(
+      template.prompt_template,
+      templateValues || {},
+    );
+
+    if (template.negative_prompt) {
+      finalPrompt += `. Avoid: ${template.negative_prompt}`;
+    }
+
+    if (template.aspect_ratio) {
+      resolvedTemplateAspectRatio = template.aspect_ratio;
+    }
+  }
+
+  // If template specified an aspect ratio, prefer it over the caller's default.
+  // Constrained to the four ratios the rest of the pipeline understands.
+  const RATIO_WHITELIST = new Set(["1:1", "9:16", "4:5", "16:9"]);
+  if (
+    resolvedTemplateAspectRatio &&
+    RATIO_WHITELIST.has(resolvedTemplateAspectRatio)
+  ) {
+    aspectRatio = resolvedTemplateAspectRatio as typeof aspectRatio;
   }
 
   // --- CONTEXT ENRICHMENT (NEW) ---
@@ -432,27 +455,25 @@ export async function generateAdCreative({
     const referenceImages = imageInputs || (imageInput ? [imageInput] : []);
     const hasImages = referenceImages.length > 0;
 
-    // [FIXED] Robust Aspect Ratio Mapping
-    // Flux 2 Pro allows {width, height} for exact control
-    let targetImageSize: any = "square_hd";
+    // Platform-aligned dimensions (multiples of 16, as Flux 2 Pro requires).
+    // 1080px native specs are not M16, so 1088 is the closest valid value (δ8px).
+    let targetImageSize: any = { width: 1088, height: 1088 };
 
     switch (aspectRatio) {
       case "1:1":
-        targetImageSize = "square_hd"; // 1024x1024
+        targetImageSize = { width: 1088, height: 1088 }; // near 1080×1080
         break;
       case "16:9":
-        targetImageSize = "landscape_16_9"; // 1344x768 (approx)
+        targetImageSize = { width: 1280, height: 720 }; // exact 1280×720
         break;
       case "9:16":
-        targetImageSize = "portrait_16_9"; // 768x1344 (approx)
+        targetImageSize = { width: 1088, height: 1920 }; // near 1080×1920
         break;
       case "4:5":
-        // Custom size for 4:5 (Standard Social Media Portrait)
-        // 1024 width -> 1280 height. Both are multiples of 16.
-        targetImageSize = { width: 1024, height: 1280 };
+        targetImageSize = { width: 1088, height: 1360 }; // near 1080×1350
         break;
       default:
-        targetImageSize = "square_hd";
+        targetImageSize = { width: 1088, height: 1088 };
     }
 
     // Determine Model
@@ -559,6 +580,8 @@ export async function generateAdCreative({
           final_prompt: finalPrompt,
           mode,
           model_id: modelId,
+          template_id: mode === "template" ? prompt : null,
+          template_values: mode === "template" ? templateValues || null : null,
           fal_input: {
             ...inputArgs,
             image_urls: inputArgs.image_urls
@@ -597,6 +620,7 @@ export async function generateAdCreative({
       imageUrl,
       usedPrompt: finalPrompt,
       seed: result.data?.seed || result.seed,
+      resolvedAspectRatio: aspectRatio,
     };
   } catch (error: any) {
     console.error("Fal API Error:", error);
@@ -622,11 +646,15 @@ export async function autoSaveCreative({
   prompt,
   aspectRatio = "1:1",
   parentCreativeId,
+  templateId,
+  templateValues,
 }: {
   falUrl: string;
   prompt: string;
   aspectRatio?: "1:1" | "9:16" | "4:5" | "16:9";
   parentCreativeId?: string | null;
+  templateId?: string | null;
+  templateValues?: Record<string, string> | null;
 }): Promise<{ creativeId: string; publicUrl: string }> {
   const supabase = await createClient();
 
@@ -660,10 +688,10 @@ export async function autoSaveCreative({
 
   // 3. Resolve pixel dimensions for the chosen aspect ratio
   const ASPECT_DIMENSIONS: Record<string, { width: number; height: number }> = {
-    "1:1": { width: 1024, height: 1024 },
-    "16:9": { width: 1344, height: 768 },
-    "9:16": { width: 768, height: 1344 },
-    "4:5": { width: 1024, height: 1280 },
+    "1:1": { width: 1088, height: 1088 },
+    "16:9": { width: 1280, height: 720 },
+    "9:16": { width: 1088, height: 1920 },
+    "4:5": { width: 1088, height: 1360 },
   };
   const dims = ASPECT_DIMENSIONS[aspectRatio] || { width: 1024, height: 1024 };
 
@@ -674,8 +702,13 @@ export async function autoSaveCreative({
     width: dims.width,
     height: dims.height,
     format: "image/jpeg",
+    mediaType: "generated_image",
     parentId: parentCreativeId || null,
-    generationParams: { prompt, aspectRatio },
+    generationParams: {
+      prompt,
+      aspectRatio,
+      ...(templateId ? { templateId, templateValues: templateValues ?? null } : {}),
+    },
   });
 
   if (!result.success || !result.creative) {

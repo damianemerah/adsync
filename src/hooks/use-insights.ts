@@ -22,6 +22,7 @@ export interface DashboardInsightsData {
     gender: any[];
     region: any[];
   };
+  needsReconnect?: boolean;
 }
 
 export interface InsightsFilter {

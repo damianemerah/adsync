@@ -2,8 +2,9 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { Database } from "@/types/supabase";
-import { PLAN_CREDITS, TIER_CONFIG, TierId } from "@/lib/constants";
+import { PLAN_CREDITS } from "@/lib/constants";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { revalidateTag } from "next/cache";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -171,43 +172,21 @@ export async function verifyAndActivate(reference: string): Promise<{
     .eq("role", "owner");
 
   if (ownedOrgs && ownedOrgs.length > 0) {
-    const allOrgIds = ownedOrgs.map((m) => m.organization_id).filter((id): id is string => id !== null);
-    const { data: orgsData } = await supabase
-      .from("organizations")
-      .select("id, created_at")
-      .in("id", allOrgIds)
-      .order("created_at", { ascending: true });
+    const orgIds = ownedOrgs
+      .map((m) => m.organization_id)
+      .filter((id): id is string => id !== null);
 
-    if (orgsData && orgsData.length > 0) {
-      const sortedOrgIds = orgsData.map(o => o.id);
-      const maxOrgs = TIER_CONFIG[planId as TierId]?.limits?.maxOrganizations ?? 1;
-
-      const allowedOrgIds = sortedOrgIds.slice(0, maxOrgs);
-      const overageOrgIds = sortedOrgIds.slice(maxOrgs);
-
-      if (allowedOrgIds.length > 0) {
-        await supabase
-          .from("organizations")
-          .update({
-            subscription_status: "active",
-            subscription_tier: planId as "starter" | "growth" | "agency",
-            subscription_expires_at: expiresAt,
-            plan_interval: planInterval,
-            updated_at: new Date().toISOString(),
-          })
-          .in("id", allowedOrgIds);
-      }
-
-      if (overageOrgIds.length > 0) {
-        await supabase
-          .from("organizations")
-          .update({
-            subscription_status: "canceled",
-            subscription_tier: planId as "starter" | "growth" | "agency",
-            updated_at: new Date().toISOString(),
-          })
-          .in("id", overageOrgIds);
-      }
+    if (orgIds.length > 0) {
+      await supabase
+        .from("organizations")
+        .update({
+          subscription_status: "active",
+          subscription_tier: planId as "starter" | "growth" | "agency",
+          subscription_expires_at: expiresAt,
+          plan_interval: planInterval,
+          updated_at: new Date().toISOString(),
+        })
+        .in("id", orgIds);
     }
   }
 
@@ -248,6 +227,9 @@ export async function verifyAndActivate(reference: string): Promise<{
       console.error("[verifyAndActivate] Failed to grant credits:", creditError);
     }
   }
+
+  revalidateTag(`dashboard-${orgId}`, "minutes");
+  revalidateTag(`campaigns-${orgId}`, "minutes");
 
   console.log(
     `[verifyAndActivate] ✅ Fallback activation: ${planId} for org ${orgId}`,

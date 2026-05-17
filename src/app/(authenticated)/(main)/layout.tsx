@@ -6,6 +6,7 @@ import { VerificationBanner } from "@/components/dashboard/verification-banner";
 import { TrialBanner } from "@/components/dashboard/trial-banner";
 import { GracePeriodBanner } from "@/components/dashboard/grace-period-banner";
 import { PaymentMethodBanner } from "@/components/dashboard/payment-method-banner";
+import { SpendTierBanner } from "@/components/dashboard/spend-tier-banner";
 import { SubscriptionGate } from "@/components/dashboard/subscription-gate";
 import { StoreHydrator } from "@/components/dashboard/store-hydrator";
 import { getActiveOrgId } from "@/lib/active-org";
@@ -107,6 +108,7 @@ export default async function MainLayout({
             <VerificationBanner />
             <TrialBanner />
             <PaymentMethodBanner />
+            <SpendTierBanner />
             <GracePeriodBanner />
             <StoreHydrator userId={user.id} />
 

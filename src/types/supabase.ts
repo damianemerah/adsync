@@ -481,6 +481,7 @@ export type Database = {
           ai_context: Json | null
           clicks: number | null
           created_at: string | null
+          creative_asset_cache: Json | null
           creative_snapshot: Json | null
           ctr: number | null
           daily_budget_cents: number | null
@@ -503,6 +504,7 @@ export type Database = {
           promotion_id: string | null
           revenue_ngn: number | null
           sales_count: number | null
+          source: string
           spend_cents: number | null
           status: string | null
           targeting_profile_id: string | null
@@ -521,6 +523,7 @@ export type Database = {
           ai_context?: Json | null
           clicks?: number | null
           created_at?: string | null
+          creative_asset_cache?: Json | null
           creative_snapshot?: Json | null
           ctr?: number | null
           daily_budget_cents?: number | null
@@ -543,6 +546,7 @@ export type Database = {
           promotion_id?: string | null
           revenue_ngn?: number | null
           sales_count?: number | null
+          source?: string
           spend_cents?: number | null
           status?: string | null
           targeting_profile_id?: string | null
@@ -561,6 +565,7 @@ export type Database = {
           ai_context?: Json | null
           clicks?: number | null
           created_at?: string | null
+          creative_asset_cache?: Json | null
           creative_snapshot?: Json | null
           ctr?: number | null
           daily_budget_cents?: number | null
@@ -583,6 +588,7 @@ export type Database = {
           promotion_id?: string | null
           revenue_ngn?: number | null
           sales_count?: number | null
+          source?: string
           spend_cents?: number | null
           status?: string | null
           targeting_profile_id?: string | null
@@ -632,6 +638,51 @@ export type Database = {
           },
         ]
       }
+      creative_insights: {
+        Row: {
+          campaign_id: string | null
+          campaign_name: string | null
+          computed_at: string
+          cta_href: string
+          cta_label: string
+          description: string
+          id: string
+          impact_label: string
+          organization_id: string
+          severity: string
+          title: string
+          type: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          campaign_name?: string | null
+          computed_at?: string
+          cta_href: string
+          cta_label: string
+          description: string
+          id?: string
+          impact_label: string
+          organization_id: string
+          severity: string
+          title: string
+          type: string
+        }
+        Update: {
+          campaign_id?: string | null
+          campaign_name?: string | null
+          computed_at?: string
+          cta_href?: string
+          cta_label?: string
+          description?: string
+          id?: string
+          impact_label?: string
+          organization_id?: string
+          severity?: string
+          title?: string
+          type?: string
+        }
+        Relationships: []
+      }
       creative_templates: {
         Row: {
           aspect_ratio: string | null
@@ -641,9 +692,13 @@ export type Database = {
           id: string
           is_premium: boolean | null
           negative_prompt: string | null
+          preferred_model: string
           prompt_template: string
+          sort_order: number
+          tags: string[]
           thumbnail_url: string | null
           title: string
+          type: string
           variables: Json | null
         }
         Insert: {
@@ -654,9 +709,13 @@ export type Database = {
           id?: string
           is_premium?: boolean | null
           negative_prompt?: string | null
+          preferred_model?: string
           prompt_template: string
+          sort_order?: number
+          tags?: string[]
           thumbnail_url?: string | null
           title: string
+          type?: string
           variables?: Json | null
         }
         Update: {
@@ -667,9 +726,13 @@ export type Database = {
           id?: string
           is_premium?: boolean | null
           negative_prompt?: string | null
+          preferred_model?: string
           prompt_template?: string
+          sort_order?: number
+          tags?: string[]
           thumbnail_url?: string | null
           title?: string
+          type?: string
           variables?: Json | null
         }
         Relationships: []
@@ -1816,6 +1879,7 @@ export type Database = {
           billing_cycle_day: number | null
           created_at: string | null
           id: string
+          last_30d_spend_kobo: number
           last_billing_update_at: string | null
           paystack_authorization_code: string | null
           paystack_card_bank: string | null
@@ -1824,7 +1888,11 @@ export type Database = {
           paystack_card_type: string | null
           paystack_customer_code: string | null
           paystack_sub_code: string | null
+          pending_paystack_plan_upgrade: boolean
+          pending_tier_upgrade_after: string | null
+          pending_tier_upgrade_to: string | null
           plan_interval: string | null
+          spend_evaluated_at: string | null
           subscription_expires_at: string | null
           subscription_grace_ends_at: string | null
           subscription_status: string
@@ -1836,6 +1904,7 @@ export type Database = {
           billing_cycle_day?: number | null
           created_at?: string | null
           id?: string
+          last_30d_spend_kobo?: number
           last_billing_update_at?: string | null
           paystack_authorization_code?: string | null
           paystack_card_bank?: string | null
@@ -1844,7 +1913,11 @@ export type Database = {
           paystack_card_type?: string | null
           paystack_customer_code?: string | null
           paystack_sub_code?: string | null
+          pending_paystack_plan_upgrade?: boolean
+          pending_tier_upgrade_after?: string | null
+          pending_tier_upgrade_to?: string | null
           plan_interval?: string | null
+          spend_evaluated_at?: string | null
           subscription_expires_at?: string | null
           subscription_grace_ends_at?: string | null
           subscription_status?: string
@@ -1856,6 +1929,7 @@ export type Database = {
           billing_cycle_day?: number | null
           created_at?: string | null
           id?: string
+          last_30d_spend_kobo?: number
           last_billing_update_at?: string | null
           paystack_authorization_code?: string | null
           paystack_card_bank?: string | null
@@ -1864,7 +1938,11 @@ export type Database = {
           paystack_card_type?: string | null
           paystack_customer_code?: string | null
           paystack_sub_code?: string | null
+          pending_paystack_plan_upgrade?: boolean
+          pending_tier_upgrade_after?: string | null
+          pending_tier_upgrade_to?: string | null
           plan_interval?: string | null
+          spend_evaluated_at?: string | null
           subscription_expires_at?: string | null
           subscription_grace_ends_at?: string | null
           subscription_status?: string

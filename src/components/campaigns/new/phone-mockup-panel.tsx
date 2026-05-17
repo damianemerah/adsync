@@ -25,6 +25,8 @@ export function PhoneMockupPanel({ compact = false }: PhoneMockupPanelProps) {
     targetInterests,
     objective,
     updateDraft,
+    adFormatType,
+    carouselCards,
   } = useCampaignStore();
 
   const { organization } = useOrganization();
@@ -32,13 +34,23 @@ export function PhoneMockupPanel({ compact = false }: PhoneMockupPanelProps) {
 
   const { data: creatives } = useCreativesList();
 
-  const resolvedCreatives = selectedCreatives.map((url) => {
+  const allResolvedCreatives = selectedCreatives.map((url) => {
     const matched = creatives?.find((c) => c.original_url === url);
     return {
       url: matched?.thumbnail_url || url,
       media_type: matched?.media_type || "image",
     };
   });
+
+  // For single format only preview the first image; carousel and dynamic show all
+  const previewCreatives =
+    adFormatType === "single" ? allResolvedCreatives.slice(0, 1) : allResolvedCreatives;
+
+  // Per-card headlines for carousel: indexed to match the creative order
+  const carouselCardHeadlines =
+    adFormatType === "carousel" && carouselCards.length > 0
+      ? carouselCards.map((c) => c.headline)
+      : undefined;
 
   const openNativePreview = () => {
     if (selectedCreatives.length === 0) {
@@ -94,12 +106,14 @@ export function PhoneMockupPanel({ compact = false }: PhoneMockupPanelProps) {
       <div className={cn("flex-1 min-h-0", compact && "max-h-[320px]")}>
         <PhoneMockup
           adCopy={adCopy}
-          creatives={resolvedCreatives}
+          creatives={previewCreatives}
           objective={objective || "traffic"}
           platform={platform === "tiktok" ? "tiktok" : "meta"}
           metaPlacement={platform === "meta" ? metaPlacement : undefined}
           brandName={brandName}
           dailyBudgetNgn={budget}
+          adFormatType={adFormatType}
+          carouselCardHeadlines={carouselCardHeadlines}
           onCTAChange={(newCode) => {
             const allowed = getAllowedCTAsForPlacement(
               platform as any,

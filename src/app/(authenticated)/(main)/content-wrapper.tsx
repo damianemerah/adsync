@@ -2,7 +2,7 @@
 
 import { useSidebar } from "@/components/providers/sidebar-provider";
 import { cn } from "@/lib/utils";
-import { MobileTopbar } from "@/components/layout/mobile-topbar";
+
 
 export function ContentWrapper({ children }: { children: React.ReactNode }) {
   const { isOpen } = useSidebar();
@@ -15,7 +15,6 @@ export function ContentWrapper({ children }: { children: React.ReactNode }) {
         isOpen ? "lg:ml-64" : "lg:ml-20",
       )}
     >
-      <MobileTopbar />
       {children}
     </div>
   );

@@ -17,6 +17,7 @@ import {
   List,
   Server,
   MediaImage,
+  ViewGrid,
   MoreVert,
   SidebarCollapse,
   SidebarExpand,
@@ -107,6 +108,7 @@ export function Sidebar({ activeOrgId }: { activeOrgId?: string | null }) {
       labelColor: "text-ai", // [UPDATED] Semantic token
       items: [
         { label: "Create", icon: MagicWand, href: "/ai-creative" },
+        { label: "Templates", icon: ViewGrid, href: "/ai-creative/templates" },
         // { label: "Improve", icon: GraphUp, href: "#" },
         { label: "My Creations", icon: LayoutLeft, href: "/ai-creative/library" },
       ],
@@ -390,7 +392,9 @@ export function Sidebar({ activeOrgId }: { activeOrgId?: string | null }) {
                       {subscription?.org?.tier || ""}
                     </p>
                   </div>
-                  <MoreVert className="h-5 w-5 text-muted-foreground" />
+                  <Button variant="ghost" size="icon">
+                    <MoreVert className="h-5 w-5 text-muted-foreground" />
+                  </Button>
                 </>
               )}
             </div>

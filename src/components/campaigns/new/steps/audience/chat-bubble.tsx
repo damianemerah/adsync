@@ -74,10 +74,10 @@ export function ChatBubble({
         {!(isAI && message.type === "outcome_preview") && (
           <div
             className={cn(
-              "p-4 rounded-lg text-sm leading-relaxed whitespace-pre-wrap",
+              "py-3 px-4 rounded-2xl text-[15px] leading-relaxed whitespace-pre-wrap shadow-sm",
               isAI
-                ? "bg-card border border-border text-foreground rounded-tl-none"
-                : "bg-primary text-primary-foreground rounded-tr-none font-medium",
+                ? "bg-card border border-border text-foreground rounded-tl-sm"
+                : "bg-primary text-primary-foreground rounded-tr-sm font-medium",
             )}
           >
             {message.content}

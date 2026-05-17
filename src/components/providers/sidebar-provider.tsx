@@ -82,10 +82,16 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+const NOOP_SIDEBAR: SidebarContextType = {
+  isOpen: false,
+  toggle: () => {},
+  close: () => {},
+  open: () => {},
+  mobileOpen: false,
+  toggleMobile: () => {},
+  closeMobile: () => {},
+};
+
 export function useSidebar() {
-  const context = useContext(SidebarContext);
-  if (context === undefined) {
-    throw new Error("useSidebar must be used within a SidebarProvider");
-  }
-  return context;
+  return useContext(SidebarContext) ?? NOOP_SIDEBAR;
 }

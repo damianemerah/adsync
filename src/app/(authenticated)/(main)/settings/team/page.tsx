@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { notFound } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -30,6 +31,7 @@ import { useTeamList, useTeamMutations } from "@/hooks/use-team";
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function TeamSettingsPage() {
+  return notFound()
   const { activeOrgId } = useActiveOrgContext();
 
   const [activeTab, setActiveTab] = useState("members");

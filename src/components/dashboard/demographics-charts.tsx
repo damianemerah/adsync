@@ -187,7 +187,6 @@ export function DemographicsCharts({ demographics }: { demographics: Record<stri
   const rawAge = (demographics?.age as RawEntry[]) || [];
   const rawGender = (demographics?.gender as RawEntry[]) || [];
   const rawRegion = (demographics?.region as RawEntry[]) || [];
-
   const age = normalizeAgeData(rawAge);
   const gender = normalizeGenderData(rawGender);
   const region = normalizeRegionData(rawRegion);

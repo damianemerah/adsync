@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { motion } from "motion/react";
 import { Badge } from "@/components/ui/badge";
 import {
   MoreVert,
@@ -18,6 +17,7 @@ import {
   Play,
   Download,
   Filter,
+  TiktokSolid
 } from "iconoir-react";
 import { MetaIcon } from "@/components/ui/meta-icon";
 import { DataTable, Column } from "@/components/ui/data-table";
@@ -57,6 +57,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sparkline } from "@/components/dashboard/sparkline";
 import Link from "next/link";
 
@@ -91,10 +92,27 @@ interface CampaignsViewProps {
   controlledSearch?: string;
   /** When false, shows a connect-account empty state instead of the generic one */
   hasConnectedAccount?: boolean;
+  // --- Server-side pagination props ---
+  /** Current page (1-indexed). When provided, enables server-side pagination mode. */
+  currentPage?: number;
+  /** Total number of pages from the server. */
+  totalPages?: number;
+  /** Total campaign count from the server (used for display). */
+  totalCount?: number;
+  /** Called when the user navigates to a different page. */
+  onPageChange?: (page: number) => void;
+  // --- Server-side filter props ---
+  /** Controlled search value (raw, before debounce). */
+  search?: string;
+  onSearchChange?: (s: string) => void;
+  /** Controlled status filter (null = all non-archived). */
+  status?: string | null;
+  onStatusChange?: (s: string | null) => void;
+  /** Called when the active/archived tab changes. */
+  onTabChange?: (tab: "active" | "archived") => void;
 }
 
 const ALL_COLUMN_KEYS = [
-  "name",
   "status",
   "amountSpent",
   "revenue",
@@ -120,9 +138,22 @@ export function CampaignsView({
   controlledStatus,
   controlledSearch,
   hasConnectedAccount = true,
+  // Server-side pagination
+  currentPage,
+  totalCount,
+  onPageChange,
+  // Server-side filters
+  search: searchProp,
+  onSearchChange,
+  status: statusProp,
+  onStatusChange,
+  onTabChange,
 }: CampaignsViewProps) {
+  const isServerMode = onPageChange !== undefined;
+
   const [internalSearchTerm, setInternalSearchTerm] = useState("");
   const [internalStatusFilter, setInternalStatusFilter] = useState<string>("all");
+  const [activeViewTab, setActiveViewTab] = useState<"active" | "archived">("active");
 
   // Column visibility — all on by default
   const [visibleColumns, setVisibleColumns] = useState<Set<string>>(
@@ -145,10 +176,30 @@ export function CampaignsView({
   // Mobile card pagination
   const [currentMobilePage, setCurrentMobilePage] = useState(1);
 
-  // When controlled props are provided, use them; otherwise use internal state
-  const isControlled = controlledStatus !== undefined || controlledSearch !== undefined;
-  const searchTerm = controlledSearch ?? internalSearchTerm;
-  const statusFilter = controlledStatus ?? internalStatusFilter;
+  // In server mode, use controlled props; otherwise fall back to legacy controlledStatus/Search or internal state
+  const searchTerm = isServerMode ? (searchProp ?? "") : (controlledSearch ?? internalSearchTerm);
+  const statusFilter = isServerMode ? (statusProp ?? "all") : (controlledStatus ?? internalStatusFilter);
+
+  function handleSearchChange(value: string) {
+    if (isServerMode) {
+      onSearchChange?.(value);
+    } else {
+      setInternalSearchTerm(value);
+    }
+  }
+
+  function handleStatusChange(value: string) {
+    if (isServerMode) {
+      onStatusChange?.(value === "all" ? null : value);
+    } else {
+      setInternalStatusFilter(value);
+    }
+  }
+
+  function handleTabChange(tab: "active" | "archived") {
+    setActiveViewTab(tab);
+    onTabChange?.(tab);
+  }
 
   // Reset mobile page to 1 whenever filters change
   useEffect(() => {
@@ -282,19 +333,32 @@ export function CampaignsView({
     return normalised.sort((a, b) => b.revenueVal - a.revenueVal);
   }, [campaigns, defaultSort]);
 
-  /** Client-side filtering */
+  /** Client-side filtering — skipped in server mode since data is pre-filtered */
   const filteredCampaigns = useMemo(() => {
+    if (isServerMode) return displayCampaigns;
     return displayCampaigns.filter((c) => {
+      const matchesTab =
+        activeViewTab === "archived"
+          ? c.status === "completed"
+          : c.status !== "completed";
       const matchesSearch =
         !searchTerm || c.name?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = statusFilter === "all" || c.status === statusFilter;
-      return matchesSearch && matchesStatus;
+      const matchesStatus =
+        activeViewTab === "archived" ||
+        statusFilter === "all" ||
+        c.status === statusFilter;
+      return matchesTab && matchesSearch && matchesStatus;
     });
-  }, [displayCampaigns, searchTerm, statusFilter]);
+  }, [isServerMode, displayCampaigns, searchTerm, statusFilter, activeViewTab]);
 
   /** Column sort applied after filter */
   const sortedCampaigns = useMemo(() => {
-    if (!sortKey) return filteredCampaigns;
+    if (!sortKey) {
+      if (activeViewTab === "archived") {
+        return [...filteredCampaigns].sort((a, b) => b.createdAtMs - a.createdAtMs);
+      }
+      return filteredCampaigns;
+    }
     const sorted = [...filteredCampaigns].sort((a, b) => {
       let aVal: any;
       let bVal: any;
@@ -343,7 +407,7 @@ export function CampaignsView({
       return sortDir === "asc" ? aVal - bVal : bVal - aVal;
     });
     return sorted;
-  }, [filteredCampaigns, sortKey, sortDir]);
+  }, [filteredCampaigns, sortKey, sortDir, activeViewTab]);
 
   // Mobile: slice filtered campaigns to the current page window
   const visibleMobileCampaigns =
@@ -378,63 +442,56 @@ export function CampaignsView({
 
   const allColumns: Column<any>[] = [
     {
-      key: "toggle",
-      title: "",
-      className: "w-10 pl-4 pr-1",
-      headerClassName: "w-10 pl-4 pr-1",
-      render: (campaign) => {
-        if (onToggleStatus && (campaign.status === "active" || campaign.status === "paused")) {
-          return (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleStatus(
-                  campaign.id,
-                  campaign.status === "active" ? "PAUSED" : "ACTIVE",
-                );
-              }}
-              className={cn(
-                "flex h-6 w-6 items-center justify-center rounded-full transition-colors",
-                campaign.status === "active"
-                  ? "text-primary hover:bg-primary/10"
-                  : "text-muted-foreground hover:bg-muted",
-              )}
-              title={campaign.status === "active" ? "Pause campaign" : "Resume campaign"}
-            >
-              {campaign.status === "active" ? (
-                <Pause className="h-3.5 w-3.5" />
-              ) : (
-                <Play className="h-3.5 w-3.5" />
-              )}
-            </button>
-          );
-        }
-        return (
-          <div
-            className={`h-2 w-2 rounded-full ${
-              campaign.status === "active"
-                ? "bg-primary animate-pulse"
-                : "bg-muted-foreground/40"
-            }`}
-          />
-        );
-      },
-    },
-    {
       key: "name",
       title: "Name",
-      className: "font-semibold text-foreground",
+      className: "font-semibold text-foreground pl-4",
+      headerClassName: "pl-4",
       sortable: true,
       render: (campaign) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <div className="w-8 flex justify-center items-center shrink-0">
+            {onToggleStatus && (campaign.status === "active" || campaign.status === "paused") ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleStatus(
+                    campaign.id,
+                    campaign.status === "active" ? "PAUSED" : "ACTIVE",
+                  );
+                }}
+                className={cn(
+                  "flex h-6 w-6 items-center justify-center rounded-full transition-colors",
+                  campaign.status === "active"
+                    ? "text-primary hover:bg-primary/10"
+                    : "text-muted-foreground hover:bg-muted",
+                )}
+                title={campaign.status === "active" ? "Pause campaign" : "Resume campaign"}
+              >
+                {campaign.status === "active" ? (
+                  <Pause className="h-3.5 w-3.5" />
+                ) : (
+                  <Play className="h-3.5 w-3.5" />
+                )}
+              </button>
+            ) : (
+              <div
+                className={cn(
+                  "h-2 w-2 rounded-full",
+                  campaign.status === "active"
+                    ? "bg-primary animate-pulse"
+                    : "bg-muted-foreground/40"
+                )}
+              />
+            )}
+          </div>
           {campaign.platform === "meta" && (
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-chart-1-soft border border-chart-1/15 shrink-0">
+            <div className="flex h-7 w-7 items-center justify-center shrink-0">
               <MetaIcon className="h-4 w-4" />
             </div>
           )}
           {campaign.platform === "tiktok" && (
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-tiktok text-brand-tiktok-foreground shrink-0">
-              <span className="font-bold text-[10px]">Tk</span>
+            <div className="flex h-7 w-7 items-center justify-center text-brand-tiktok-foreground shrink-0">
+              <TiktokSolid className="h-4 w-4" />
             </div>
           )}
           <span className="truncate max-w-[200px]">{campaign.name}</span>
@@ -627,14 +684,13 @@ export function CampaignsView({
     },
   ];
 
-  // toggle and action columns are always shown; others respect visibility toggle
+  // name and action columns are always shown; others respect visibility toggle
   const columns = allColumns.filter(
-    (c) => c.key === "action" || c.key === "toggle" || visibleColumns.has(c.key),
+    (c) => c.key === "action" || c.key === "name" || visibleColumns.has(c.key),
   );
 
   // Column label map for the visibility toggle UI
   const COLUMN_LABELS: Record<string, string> = {
-    name: "Name",
     status: "Status",
     amountSpent: "Spend",
     revenue: "Revenue",
@@ -666,34 +722,31 @@ export function CampaignsView({
         <input
           type="text"
           placeholder="Search campaign..."
-          value={isControlled ? (controlledSearch ?? "") : internalSearchTerm}
-          onChange={(e) => {
-            if (!isControlled) setInternalSearchTerm(e.target.value);
-          }}
-          readOnly={isControlled}
+          value={searchTerm}
+          onChange={(e) => handleSearchChange(e.target.value)}
           className="w-full h-8 pl-8 pr-3 rounded-md border border-border bg-muted/40 text-sm outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring transition-all placeholder:text-muted-foreground"
         />
       </div>
 
       {/* Right-side controls */}
       <div className="flex items-center gap-2 lg:ml-auto">
-        {/* Status filter — hidden in controlled mode */}
-        {!isControlled && (
+        {/* Status filter — hidden on archived tab */}
+        {activeViewTab === "active" && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs font-semibold border-border">
                 <Filter className="h-3.5 w-3.5" />
-                {internalStatusFilter === "all" ? "Filter" : <span className="capitalize">{internalStatusFilter}</span>}
+                {statusFilter === "all" ? "Filter" : <span className="capitalize">{statusFilter}</span>}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
               <DropdownMenuLabel className="text-xs text-muted-foreground">Status</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {["all", "active", "paused", "draft", "completed", "failed"].map((s) => (
+              {["all", "active", "paused", "draft", "failed"].map((s) => (
                 <DropdownMenuCheckboxItem
                   key={s}
-                  checked={internalStatusFilter === s}
-                  onCheckedChange={() => setInternalStatusFilter(s)}
+                  checked={statusFilter === s}
+                  onCheckedChange={() => handleStatusChange(s)}
                   className="capitalize cursor-pointer text-sm"
                 >
                   {s === "all" ? "All Statuses" : s}
@@ -751,15 +804,20 @@ export function CampaignsView({
 
   return (
     <div className="space-y-4">
-      {/* Row count when controlled (no inner filter bar) */}
-      {isControlled && filteredCampaigns.length !== displayCampaigns.length && (
-        <p className="text-xs text-subtle-foreground">
-          Showing {filteredCampaigns.length} of {displayCampaigns.length} campaign
-          {displayCampaigns.length !== 1 ? "s" : ""}
-        </p>
-      )}
-
-     
+      {/* Active / Archived tab toggle */}
+      <Tabs
+        value={activeViewTab}
+        onValueChange={(v) => {
+          const tab = v as "active" | "archived";
+          handleTabChange(tab);
+          if (!isServerMode) setInternalStatusFilter("all");
+        }}
+      >
+        <TabsList>
+          <TabsTrigger value="active">Campaigns</TabsTrigger>
+          <TabsTrigger value="archived">Archived</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {/* Desktop: data table (md+) */}
       <div className="rounded-lg border border-border bg-card overflow-hidden">
@@ -773,6 +831,8 @@ export function CampaignsView({
           sortDir={sortDir}
           onSort={handleSort}
           borderless
+          striped={false}
+          {...(isServerMode ? { totalCount, currentPage, onPageChange } : {})}
           emptyState={
             searchTerm || statusFilter !== "all" ? (
               <Empty className="py-12 border-none">

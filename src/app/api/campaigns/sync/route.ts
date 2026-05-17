@@ -7,8 +7,12 @@ import { CAMPAIGN_OBJECTIVES } from "@/lib/constants";
 import { Database } from "@/types/supabase";
 
 export async function POST(request: Request) {
-  // Security: Validate the user's active organization before syncing
-  const orgId = await getActiveOrgId();
+  const body = await request.json();
+  const { accountId, orgId: bodyOrgId } = body;
+
+  // Accept orgId from the request body (server-to-server calls from OAuth callback)
+  // or fall back to the cookie-based active org (browser-initiated calls).
+  const orgId = bodyOrgId ?? (await getActiveOrgId());
   if (!orgId) {
     return NextResponse.json(
       { error: "No organization found" },
@@ -21,8 +25,6 @@ export async function POST(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } },
   );
-
-  const { accountId } = await request.json();
 
   console.log(`🔄 [Sync] Starting sync for accountId: ${accountId}`);
 
@@ -63,7 +65,7 @@ export async function POST(request: Request) {
 
     // Fetch campaigns with lifetime insights for the campaigns table summary columns
     const fields = `
-      id,name,status,objective,daily_budget,lifetime_budget,spend_cap,
+      id,name,status,objective,daily_budget,lifetime_budget,spend_cap,created_time,
       insights.date_preset(maximum){spend,clicks,impressions,ctr},
       promoted_object{id,name},
       adsets{id,name,status,daily_budget,targeting{geo_locations,behaviors,interests}},
@@ -122,6 +124,40 @@ export async function POST(request: Request) {
           : 0;
         const ctr = insights.ctr ? parseFloat(insights.ctr) : 0;
 
+        // ── Auto-archive rules ──────────────────────────────────────────────────
+        // Auto-archive any campaign (Tenzu-created or Meta-imported) if ALL:
+        //   a) Never ran (lifetime spend = 0 AND impressions = 0)
+        //   b) Older than 30 days (creation_time from Meta)
+        //   c) Not currently active on Meta
+        //
+        // The source value is preserved on conflict — we read it from the existing
+        // DB row ONLY if this is an existing campaign (upsert on platform_campaign_id).
+        // For new imports, source defaults to 'meta_import' at DB level.
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const createdTime = c.created_time ? new Date(c.created_time) : null;
+        const isOldEnough = createdTime !== null && createdTime < thirtyDaysAgo;
+        const neverRan = spendCents === 0 && impressions === 0;
+
+        // Fetch existing source so we know if this is a tenzu or import campaign
+        const { data: existingCampaign } = await supabase
+          .from("campaigns")
+          .select("source")
+          .eq("platform_campaign_id", c.id)
+          .maybeSingle();
+        const campaignSource = existingCampaign?.source ?? "meta_import";
+
+        const finalStatus: string =
+          neverRan && isOldEnough && safeStatus !== "active"
+            ? "completed"
+            : safeStatus;
+
+        if (finalStatus === "completed" && safeStatus !== "completed") {
+          console.log(
+            `📦 [Sync] Auto-archiving stale campaign ${c.id}: ${c.name} (30d, never ran)`,
+          );
+        }
+
         console.log(
           `💾 [Sync] Upserting Campaign ${c.id}: ${c.name} | objective: ${safeObjective} | spend: ${spendCents} | impressions: ${impressions}`,
         );
@@ -131,12 +167,12 @@ export async function POST(request: Request) {
           .from("campaigns")
           .upsert(
             {
-              organization_id: account.organization_id,
+              organization_id: account.organization_id!,
               ad_account_id: account.id,
               platform: "meta",
               platform_campaign_id: c.id,
               name: c.name,
-              status: safeStatus,
+              status: finalStatus,
               objective: safeObjective,
               daily_budget_cents: c.daily_budget ? parseInt(c.daily_budget) : 0,
               updated_at: new Date().toISOString(),

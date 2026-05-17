@@ -32,17 +32,41 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MetaAccountSelectDialog } from "@/components/ad-accounts/meta-account-select-dialog";
 import { useAuth } from "@/components/providers/auth-provider";
+import { useOnboardingStore } from "@/store/onboarding-store";
 
 import { createOrganization } from "@/actions/organization";
 
 const INDUSTRIES = [
-  "E-commerce (Fashion/Beauty)",
-  "E-commerce (Electronics)",
-  "Service Business",
-  "Real Estate",
+  "Account & Tax",
+  "Agriculture & Farming",
+  "Art & Creative",
+  "Automotive",
+  "B2B Enterprise",
+  "Beauty & Personal Care",
+  "Business & Consultancy Services",
+  "Consumer Services",
+  "E-Commerce",
+  "Education",
+  "Employment Services",
+  "Entertainment & Media",
+  "Event Planning & Services",
+  "Fashion & Apparel",
+  "Finance & Insurance",
+  "FMCG",
   "Food & Beverage",
-  "Tech / SaaS",
-  "Other",
+  "Gaming",
+  "Health & Medical",
+  "Home Goods",
+  "Industrial Services",
+  "Legal Services",
+  "Logistics & Courier",
+  "Marketing Agency",
+  "Photography & Videography",
+  "Real Estate",
+  "Retail & Wholesale",
+  "Sports",
+  "Technology & Startups",
+  "Travel & Hospitality",
 ];
 
 const SELLING_METHODS = [
@@ -203,19 +227,33 @@ export function OnboardingInner({
   const searchParams = useSearchParams();
   const { signOut } = useAuth();
 
-  const [step, setStep] = useState(1);
-  const [isLoading, setIsLoading] = useState(false);
+  const {
+    step,
+    orgName,
+    industry,
+    businessDescription,
+    sellingMethod,
+    priceTier,
+    customerGender,
+    phone,
+    whatsapp,
+    isWhatsappSame,
+    setField,
+    reset,
+  } = useOnboardingStore();
 
-  // Form State
-  const [orgName, setOrgName] = useState("");
-  const [industry, setIndustry] = useState("");
-  const [businessDescription, setBusinessDescription] = useState("");
-  const [sellingMethod, setSellingMethod] = useState("online");
-  const [priceTier, setPriceTier] = useState("mid");
-  const [customerGender, setCustomerGender] = useState("female");
-  const [phone, setPhone] = useState("");
-  const [whatsapp, setWhatsapp] = useState("");
-  const [isWhatsappSame, setIsWhatsappSame] = useState(true);
+  const setStep = (value: number) => setField("step", value);
+  const setOrgName = (value: string) => setField("orgName", value);
+  const setIndustry = (value: string) => setField("industry", value);
+  const setBusinessDescription = (value: string) => setField("businessDescription", value);
+  const setSellingMethod = (value: string) => setField("sellingMethod", value);
+  const setPriceTier = (value: string) => setField("priceTier", value);
+  const setCustomerGender = (value: string) => setField("customerGender", value);
+  const setPhone = (value: string) => setField("phone", value);
+  const setWhatsapp = (value: string) => setField("whatsapp", value);
+  const setIsWhatsappSame = (value: boolean) => setField("isWhatsappSame", value);
+
+  const [isLoading, setIsLoading] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Account connection state
@@ -232,58 +270,8 @@ export function OnboardingInner({
   }, [metaSessionId]);
 
   useEffect(() => {
-    const saved = localStorage.getItem("onboarding_state");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed.step) setStep(parsed.step);
-        if (parsed.orgName) setOrgName(parsed.orgName);
-        if (parsed.industry) setIndustry(parsed.industry);
-        if (parsed.businessDescription)
-          setBusinessDescription(parsed.businessDescription);
-        if (parsed.sellingMethod) setSellingMethod(parsed.sellingMethod);
-        if (parsed.priceTier) setPriceTier(parsed.priceTier);
-        if (parsed.customerGender) setCustomerGender(parsed.customerGender);
-        if (parsed.phone) setPhone(parsed.phone);
-        if (parsed.whatsapp) setWhatsapp(parsed.whatsapp);
-        if (parsed.isWhatsappSame !== undefined)
-          setIsWhatsappSame(parsed.isWhatsappSame);
-      } catch (e) {
-        console.error("Error parsing onboarding state", e);
-      }
-    }
     setIsLoaded(true);
   }, []);
-
-  useEffect(() => {
-    if (isLoaded) {
-      const state = {
-        step,
-        orgName,
-        industry,
-        businessDescription,
-        sellingMethod,
-        priceTier,
-        customerGender,
-        phone,
-        whatsapp,
-        isWhatsappSame,
-      };
-      localStorage.setItem("onboarding_state", JSON.stringify(state));
-    }
-  }, [
-    isLoaded,
-    step,
-    orgName,
-    industry,
-    businessDescription,
-    sellingMethod,
-    priceTier,
-    customerGender,
-    phone,
-    whatsapp,
-    isWhatsappSame,
-  ]);
 
   const TOTAL_STEPS = 3;
 
@@ -366,7 +354,7 @@ export function OnboardingInner({
           hasConnectedAccount={hasConnectedAccount}
           onConnect={handleReconnect}
           onContinue={() => {
-            localStorage.removeItem("onboarding_state");
+            reset();
             router.push("/dashboard");
           }}
         />
@@ -412,7 +400,7 @@ export function OnboardingInner({
                 key={s}
                 className={cn(
                   "h-1.5 flex-1 rounded-full transition-all duration-300 max-w-[100px]",
-                  s <= step ? "bg-primary" : "bg-slate-200",
+                  s < step ? "bg-primary" : "bg-slate-200",
                 )}
               />
             ))}
@@ -468,10 +456,10 @@ export function OnboardingInner({
 
                 <div className="space-y-1.5">
                   <Label htmlFor="industry" className="text-sm font-medium">
-                    Industry
+                    Business Category
                   </Label>
                   <Select value={industry} onValueChange={setIndustry}>
-                    <SelectTrigger className="w-full h-12 bg-white border-slate-200 focus:border-primary text-base [&>span]:line-clamp-1 text-left">
+                    <SelectTrigger className="w-full h-12 data-[size=default]:h-12 bg-white border-slate-200 focus:border-primary text-base [&>span]:line-clamp-1 text-left">
                       <SelectValue placeholder="What best describes your business?" />
                     </SelectTrigger>
                     <SelectContent>
@@ -698,7 +686,7 @@ export function OnboardingInner({
                 </button>
               </div>
 
-              <div className="relative bg-muted rounded-lg border border-border p-4 pt-5 mt-20">
+              <div className="relative bg-muted rounded-lg border border-border p-4 pt-5 mt-24">
                 {/* Simulated Partner Badge */}
                 <div className="absolute -top-3 right-4 flex bg-white border border-border rounded-md shadow-sm px-2.5 py-1 items-center gap-1.5">
                   <MetaIcon className="h-3.5 w-3.5" />
@@ -764,7 +752,7 @@ export function OnboardingInner({
                   className="flex-1 h-12 text-base font-bold rounded-lg gap-2"
                   disabled={!hasConnectedAccount || isLoading}
                   onClick={() => {
-                    localStorage.removeItem("onboarding_state");
+                    reset();
                     router.push("/dashboard");
                   }}
                 >

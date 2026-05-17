@@ -6,12 +6,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ACTIVE_ORG_COOKIE } from "@/lib/active-org";
 import { nanoid } from "nanoid";
-import {
-  TIER_CONFIG,
-  TierId,
-  SUBSCRIPTION_STATUS,
-  PLAN_IDS,
-} from "@/lib/constants";
 import { grantFreeTrialCredits } from "@/actions/paystack";
 
 // ─── Switch Active Workspace ──────────────────────────────────────────────────
@@ -73,9 +67,6 @@ async function _insertOrgWithMember(
     customerGender?: string | null;
     phoneNumber?: string | null;
     whatsappNumber?: string | null;
-    subscriptionTier: string;
-    subscriptionStatus: string;
-    subscriptionExpiresAt: string | null;
     userId: string;
     grantTrialCredits: boolean;
   },
@@ -90,9 +81,6 @@ async function _insertOrgWithMember(
     customerGender,
     phoneNumber,
     whatsappNumber,
-    subscriptionTier,
-    subscriptionStatus,
-    subscriptionExpiresAt,
     userId,
     grantTrialCredits,
   } = params;
@@ -109,9 +97,6 @@ async function _insertOrgWithMember(
       customer_gender: customerGender || null,
       business_phone: phoneNumber || null,
       whatsapp_number: whatsappNumber || null,
-      subscription_tier: subscriptionTier,
-      subscription_status: subscriptionStatus,
-      subscription_expires_at: subscriptionExpiresAt,
     })
     .select()
     .single();
@@ -150,7 +135,6 @@ async function _insertOrgWithMember(
  *   - Optionally redirects to /dashboard
  *
  * `isOnboarding: false` (default) — "Add Business" from settings:
- *   - Enforces the maxOrganizations limit based on the user's highest tier
  *   - Always inserts a new org (Starter trial)
  *   - Switches the active workspace to the newly created org
  */
@@ -236,9 +220,6 @@ export async function createOrganization(
         customerGender,
         phoneNumber,
         whatsappNumber,
-        subscriptionTier: PLAN_IDS.GROWTH,
-        subscriptionStatus: SUBSCRIPTION_STATUS.INCOMPLETE,
-        subscriptionExpiresAt: null,
         userId: user.id,
         grantTrialCredits: false,
       });
@@ -271,46 +252,7 @@ export async function createOrganization(
 
   // ── ADD-BUSINESS PATH (settings) ────────────────────────────────────────────
 
-  // 1. Read authoritative subscription state from user_subscriptions
-  const { data: userSub } = await supabase
-    .from("user_subscriptions")
-    .select("subscription_tier, subscription_status, subscription_expires_at")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  const highestTier: TierId = (userSub?.subscription_tier || "starter") as TierId;
-  const inheritedStatus = userSub?.subscription_status || SUBSCRIPTION_STATUS.TRIALING;
-  let inheritedExpiresAt = userSub?.subscription_expires_at || null;
-
-  // Fallback to auth metadata if it's trialing and missing for some reason
-  if (inheritedStatus === SUBSCRIPTION_STATUS.TRIALING && !inheritedExpiresAt) {
-    inheritedExpiresAt = user.user_metadata?.trial_expires_at || null;
-  }
-
-  const maxOrgs = TIER_CONFIG[highestTier]?.limits?.maxOrganizations ?? 1;
-
-  // 2. Count owned orgs to enforce plan limit
-  const { count: ownedOrgCount, error: countError } = await supabase
-    .from("organization_members")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .eq("role", "owner");
-
-  if (countError) {
-    console.error("Org count error:", countError);
-    return { error: "Failed to check organization limit" };
-  }
-
-  // 3. Enforce limit
-  if ((ownedOrgCount ?? 0) >= maxOrgs) {
-    const tierLabel =
-      highestTier.charAt(0).toUpperCase() + highestTier.slice(1);
-    return {
-      error: `Your ${tierLabel} plan allows ${maxOrgs} business${maxOrgs === 1 ? "" : "es"}. Upgrade to create more.`,
-    };
-  }
-
-  // 4. Insert new org on Starter trial
+  // Insert new org
   const slug =
     orgName.toLowerCase().replace(/\s+/g, "-") +
     "-" +
@@ -328,9 +270,6 @@ export async function createOrganization(
       customerGender,
       phoneNumber,
       whatsappNumber,
-      subscriptionTier: highestTier, // ← Inherit highest tier
-      subscriptionStatus: inheritedStatus,
-      subscriptionExpiresAt: inheritedExpiresAt,
       userId: user.id,
       grantTrialCredits: false, // New additional orgs don't get free credits again
     },

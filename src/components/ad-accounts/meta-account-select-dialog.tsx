@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { getMetaPendingAccounts } from "@/actions/ad-accounts";
 import { cn } from "@/lib/utils";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface MetaAccount {
   account_id: string;
@@ -41,6 +42,7 @@ export function MetaAccountSelectDialog({
   const [loading, setLoading] = useState(true);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!open || !sessionId) return;
@@ -78,6 +80,8 @@ export function MetaAccountSelectDialog({
         }
 
         toast.success("Ad account connected!");
+        queryClient.invalidateQueries({ queryKey: ["ad-accounts"] });
+        queryClient.invalidateQueries({ queryKey: ["campaigns"] });
         onSuccess();
       } catch {
         toast.error("Something went wrong. Please try again.");

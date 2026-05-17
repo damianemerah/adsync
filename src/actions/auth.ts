@@ -70,7 +70,7 @@ export async function signup(
   // 3. Supabase Auth
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -78,12 +78,18 @@ export async function signup(
         full_name: fullName,
         // avatar_url: `https://ui-avatars.com/api/?name=${fullName}&background=2563EB&color=fff`,
       },
-      emailRedirectTo: `${appUrl}/onboarding`,
+      emailRedirectTo: `${appUrl}/api/auth/callback?next=/onboarding`,
     },
   });
 
   if (error) {
     return { error: error.message };
+  }
+
+  // If email confirmation is disabled, signUp will return a session immediately.
+  if (data.session) {
+    revalidatePath("/", "layout");
+    redirect("/onboarding");
   }
 
   revalidatePath("/", "layout");
@@ -97,7 +103,7 @@ export async function resendVerificationEmail(email: string) {
     type: "signup",
     email,
     options: {
-      emailRedirectTo: `${appUrl}/onboarding`,
+      emailRedirectTo: `${appUrl}/api/auth/callback?next=/onboarding`,
     },
   });
 

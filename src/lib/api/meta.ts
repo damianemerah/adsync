@@ -539,12 +539,12 @@ export const MetaService = {
   },
 
   // 4. Create Ad (The Creative)
-  // Supports both single image ads and carousel ads (2-10 images)
+  // Supports single image, video, carousel, and dynamic creative ads
   createAd: async (
     token: string,
     adAccountId: string,
     adSetId: string,
-    creativeHash: string | string[], // Single hash OR array of hashes for carousel
+    creativeHash: string | string[], // Single hash OR array of hashes for carousel/dynamic
     copy: any,
     ctaCode: string = "SHOP_NOW",
     objective?: string,
@@ -557,6 +557,7 @@ export const MetaService = {
     videoId?: string,
     thumbnailUrl?: string | null,
     campaignName?: string,
+    dynamicCopyVariations?: Array<{ headline: string; primary: string }>,
   ) => {
     const id = adAccountId.startsWith("act_")
       ? adAccountId
@@ -564,9 +565,12 @@ export const MetaService = {
 
     const isWhatsApp = objective === "whatsapp";
     const isLead = objective === "leads";
+    // Dynamic Creative: array of hashes + copy variations → asset_feed_spec
+    const isDynamicCreative =
+      Array.isArray(creativeHash) && !!dynamicCopyVariations?.length;
     const isCarousel =
-      Array.isArray(creativeHash) ||
-      (carouselCards && carouselCards.length > 1);
+      !isDynamicCreative &&
+      (Array.isArray(creativeHash) || (carouselCards && carouselCards.length > 1));
 
     let callToAction: Record<string, any>;
     if (isWhatsApp) {
@@ -586,8 +590,59 @@ export const MetaService = {
     console.log("📣 [Meta API] createAd - CallToAction:", callToAction);
     console.log(
       "📣 [Meta API] createAd - Format:",
-      isCarousel ? "CAROUSEL" : videoId ? "VIDEO" : "SINGLE_IMAGE",
+      isDynamicCreative ? "DYNAMIC_CREATIVE" : isCarousel ? "CAROUSEL" : videoId ? "VIDEO" : "SINGLE_IMAGE",
     );
+
+    // ── Dynamic Creative path (asset_feed_spec — v25.0) ──────────────────────
+    // asset_feed_spec is a sibling to object_story_spec, not nested inside it.
+    if (isDynamicCreative && dynamicCopyVariations) {
+      const imageHashes = creativeHash as string[];
+      const fmtPrefix = "Dynamic ";
+      const adName = campaignName
+        ? `${campaignName} - Dynamic Ad`
+        : generateAdObjectName("Ad");
+
+      const creativeRes = await MetaService.request(
+        `/${id}/adcreatives`,
+        "POST",
+        token,
+        {
+          name: campaignName
+            ? `${campaignName} - Dynamic Creative`
+            : generateAdObjectName("Creative"),
+          object_story_spec: {
+            page_id: copy.pageId,
+            ...(copy.instagramAccountId && {
+              instagram_actor_id: copy.instagramAccountId,
+            }),
+          },
+          asset_feed_spec: {
+            images: imageHashes.map((hash) => ({ hash })),
+            bodies: dynamicCopyVariations.map((v) => ({ text: v.primary })),
+            titles: dynamicCopyVariations.map((v) => ({ text: v.headline })),
+            ad_formats: ["SINGLE_IMAGE"],
+            call_to_action_types: [ctaCode],
+            link_urls: [{ website_url: copy.destinationUrl }],
+          },
+          degrees_of_freedom_spec: {
+            creative_features_spec: {
+              adapt_to_placement:    { enroll_status: "OPT_IN" },
+              image_touchups:        { enroll_status: "OPT_IN" },
+              text_optimizations:    { enroll_status: "OPT_IN" },
+              description_automation:{ enroll_status: "OPT_IN" },
+              inline_comment:        { enroll_status: "OPT_IN" },
+            },
+          },
+        },
+      );
+
+      return MetaService.request(`/${id}/ads`, "POST", token, {
+        name: adName,
+        adset_id: adSetId,
+        creative: { creative_id: creativeRes.id },
+        status: "ACTIVE",
+      });
+    }
 
     let linkData: Record<string, any>;
 

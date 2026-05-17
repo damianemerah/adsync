@@ -122,10 +122,7 @@ export async function getCampaignById(supabase: SupabaseClient, id: string) {
 
       if (dbMetrics && dbMetrics.length > 0) {
         performanceData = dbMetrics.map((m: any) => ({
-          date: new Date(m.date).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-          }),
+          date: m.date,
           spend: (m.spend_cents || 0) / 100,
           clicks: m.clicks || 0,
           impressions: m.impressions || 0,
@@ -178,10 +175,7 @@ export async function getCampaignById(supabase: SupabaseClient, id: string) {
         // 1. Map for UI
         performanceData = insightsRes.data
           .map((day: any) => ({
-            date: new Date(day.date_start).toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-            }),
+            date: day.date_start,
             spend: parseFloat(day.spend || "0"),
             clicks: parseInt(day.clicks || "0", 10),
             impressions: parseInt(day.impressions || "0", 10),
@@ -307,10 +301,7 @@ export async function getCampaignById(supabase: SupabaseClient, id: string) {
 
       if (dbMetrics && dbMetrics.length > 0) {
         performanceData = dbMetrics.map((m: any) => ({
-          date: new Date(m.date).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-          }),
+          date: m.date,
           spend: (m.spend_cents || 0) / 100,
           clicks: m.clicks || 0,
           impressions: m.impressions || 0,
@@ -397,14 +388,15 @@ export async function getCampaignById(supabase: SupabaseClient, id: string) {
  * Used in the campaigns list page
  * Note: Relies on RLS policies to filter campaigns by organization/user
  */
-export async function getCampaigns(orgId: string) {
+export async function getCampaigns(orgId: string, page = 1, pageSize = 20) {
   "use cache";
   cacheTag(`campaigns-${orgId}`);
   cacheLife("minutes");
 
   const supabase = createAdminClient();
 
-  const { data, error } = await supabase
+  const offset = (page - 1) * pageSize;
+  const { data, error, count } = await supabase
     .from("campaigns")
     .select(
       `
@@ -415,13 +407,17 @@ export async function getCampaigns(orgId: string) {
         account_name
       )
     `,
+      { count: "exact" },
     )
     .eq("organization_id", orgId)
-    .order("created_at", { ascending: false });
+    .neq("status", "completed")
+    .order("created_at", { ascending: false })
+    .range(offset, offset + pageSize - 1);
 
   if (error) throw error;
 
-  return (data || []).map((campaign: any) => ({
+  const totalCount = count ?? 0;
+  const campaigns = (data || []).map((campaign: any) => ({
     id: campaign.id,
     name: campaign.name,
     // Cast types safely based on your DB Check constraints
@@ -453,6 +449,13 @@ export async function getCampaigns(orgId: string) {
         }
       : null,
   }));
+
+  return {
+    campaigns,
+    totalCount,
+    totalPages: Math.ceil(totalCount / pageSize),
+    page,
+  };
 }
 
 /**
@@ -463,4 +466,4 @@ export type Campaign = NonNullable<Awaited<ReturnType<typeof getCampaignById>>>;
 /**
  * Type for campaigns returned by getCampaigns
  */
-export type CampaignListItem = Awaited<ReturnType<typeof getCampaigns>>[number];
+export type CampaignListItem = Awaited<ReturnType<typeof getCampaigns>>["campaigns"][number];

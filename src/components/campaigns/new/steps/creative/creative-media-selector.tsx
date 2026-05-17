@@ -1,11 +1,14 @@
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparks, SystemRestart, MediaImage, Play, Check, Link } from "iconoir-react";
+import { Sparks, SystemRestart, MediaImage, Play, Check, Link, ViewGrid } from "iconoir-react";
 import { cn } from "@/lib/utils";
 import { useCreativesList } from "@/hooks/use-creatives";
 import { useCampaignStore } from "@/stores/campaign-store";
 import { CreativeUploadDialog } from "@/components/creatives/creative-upload-dialog";
+import { TemplatePickerSheet } from "@/components/creatives/template-picker-sheet";
+import { useSubscription } from "@/hooks/use-subscription";
+import type { TierId } from "@/lib/constants";
 import {
   useReferenceImageUpload,
   ReferenceImageControls,
@@ -20,6 +23,11 @@ import { useAtMention, ReferenceImageMentionGrid } from "@/components/creatives/
 interface CreativeMediaSelectorProps {
   isGeneratingAI: boolean;
   onGenerateWithAI: (prompt?: string) => Promise<void>;
+  onGenerateFromTemplate: (
+    templateId: string,
+    values: Record<string, string>,
+  ) => Promise<void>;
+  onUpgradeDialog: () => void;
   referenceImageUrls: string[];
   onReferenceImagesChange: (urls: string[]) => void;
 }
@@ -27,9 +35,13 @@ interface CreativeMediaSelectorProps {
 export function CreativeMediaSelector({
   isGeneratingAI,
   onGenerateWithAI,
+  onGenerateFromTemplate,
+  onUpgradeDialog,
   referenceImageUrls,
   onReferenceImagesChange,
 }: CreativeMediaSelectorProps) {
+  const { data: subscription } = useSubscription();
+  const tierId = (subscription?.org?.tier as TierId | undefined) ?? "starter";
   const { data: creatives, isLoading: isLoadingCreatives } = useCreativesList();
   const { pendingGeneratedImage, selectedCreatives, updateDraft } = useCampaignStore();
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
@@ -103,33 +115,58 @@ export function CreativeMediaSelector({
         </PopoverContent>
       </Popover>
 
-      <div className="flex items-center gap-2 justify-between">
+      <div className="flex items-center gap-2 justify-between flex-wrap">
         <p className="text-xs text-subtle-foreground">
           Select creatives for this campaign:
         </p>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onGenerateWithAI(customPrompt.trim() || undefined)}
-          disabled={isGeneratingAI || !!pendingGeneratedImage}
-          className={cn(
-            "h-8 px-3 rounded-md border-primary/30 text-primary hover:bg-primary/5 hover:border-primary text-xs font-semibold gap-1.5 transition-all",
-            (isGeneratingAI || !!pendingGeneratedImage) &&
-              "opacity-60 cursor-not-allowed"
-          )}
-        >
-          {isGeneratingAI && !pendingGeneratedImage ? (
-            <>
-              <SystemRestart className="h-3.5 w-3.5 animate-spin" />
-              Generating…
-            </>
-          ) : (
-            <>
-              <Sparks className="h-3.5 w-3.5" />
-              Generate with AI
-            </>
-          )}
-        </Button>
+        <div className="flex items-center gap-2">
+          <TemplatePickerSheet
+            tierId={tierId}
+            isSubmitting={isGeneratingAI}
+            onUpgradeRequired={onUpgradeDialog}
+            onGenerate={async (templateId, values) => {
+              await onGenerateFromTemplate(templateId, values);
+            }}
+            trigger={
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isGeneratingAI || !!pendingGeneratedImage}
+                className={cn(
+                  "h-8 px-3 rounded-md border-border text-foreground hover:bg-muted text-xs font-semibold gap-1.5 transition-all",
+                  (isGeneratingAI || !!pendingGeneratedImage) &&
+                    "opacity-60 cursor-not-allowed",
+                )}
+              >
+                <ViewGrid className="h-3.5 w-3.5" />
+                Use Template
+              </Button>
+            }
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onGenerateWithAI(customPrompt.trim() || undefined)}
+            disabled={isGeneratingAI || !!pendingGeneratedImage}
+            className={cn(
+              "h-8 px-3 rounded-md border-primary/30 text-primary hover:bg-primary/5 hover:border-primary text-xs font-semibold gap-1.5 transition-all",
+              (isGeneratingAI || !!pendingGeneratedImage) &&
+                "opacity-60 cursor-not-allowed",
+            )}
+          >
+            {isGeneratingAI && !pendingGeneratedImage ? (
+              <>
+                <SystemRestart className="h-3.5 w-3.5 animate-spin" />
+                Generating…
+              </>
+            ) : (
+              <>
+                <Sparks className="h-3.5 w-3.5" />
+                Generate with AI
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
       {isLoadingCreatives ? (

@@ -1,13 +1,17 @@
 ---
 name: tier-strategy
-description: Manages Tenzu's subscription tier model and AI credit system. Use when working on `TIER_CONFIG`, tier resolver, credit gates, feature flags, upgrade prompts, `useTierConfig` hook, Starter/Growth/Agency plan differences, or overage logic for AI credit consumption.
+description: Manages Tenzu's subscription tier model and AI credit system. Use when working on `TIER_CONFIG`, tier resolver, credit gates, feature flags, upgrade prompts, `BILLING_PLANS`, Starter/Growth/Agency plan differences, spend-based auto-upgrades, or credit consumption logic.
 ---
 
 # Tier Strategy Skill
 
 ## Overview
 
-Tenzu uses a **subscription + credit** model. SMEs pay a monthly Naira subscription (via Paystack) for platform access, and consume AI credits for image generation. Text/copy generation is free.
+Tenzu uses a **subscription + credit** model. SMEs pay a monthly Naira subscription (via Paystack) for platform access and consume AI credits for image generation. Text/copy generation is always free.
+
+**Key principle: All tiers get identical features. The only difference is monthly credit quota.**
+
+Tier selection is also driven by Meta ad spend — the system automatically enforces a minimum (floor) tier based on the SME's 30-day spend. Users can always be on a *higher* tier than their spend requires, but never below the floor.
 
 **Single source of truth for all tier config: `src/lib/constants.ts` → `TIER_CONFIG` and `PLAN_PRICES`.**
 
@@ -17,22 +21,24 @@ Always check `.agent/rules/decisions.md` before making any tier-related changes.
 
 ## The Three Tiers
 
-| Feature                   | Starter               | Growth                | Agency                    |
-| ------------------------- | --------------------- | --------------------- | ------------------------- |
-| **Monthly Price (₦)**     | ₦10,000               | ₦25,000               | ₦65,000                   |
-| **AI Credits / Month**    | 50                    | 150                   | 250                       |
-| **Monthly Chat Quota**    | 50                    | 200                   | 2,000 (cap)               |
-| **Image Model**           | FLUX 2 Pro            | FLUX 2 Pro            | FLUX 2 Pro                |
-| **Premium Image Model**   | —                     | —                     | Nano Banana Pro (Phase 3) |
-| **AI Skills**             | ❌ Inline prompt only | ✅ Full Skills loaded | ✅ Full Skills loaded     |
-| **Copy Variations**       | 2                     | 3                     | 5                         |
-| **Copy Refinements**      | 3 per campaign        | Unlimited             | Unlimited                 |
-| **Connected Ad Accounts** | 1                     | 3                     | Unlimited (999)           |
-| **Team Members**          | 1 (solo)              | 3                     | 10                        |
-| **Link Analytics Window** | 7 days                | 30 days               | Lifetime (36,500d)        |
-| **Custom Link Slugs**     | ❌                    | ✅                    | ✅                        |
+All tiers get **identical AI features**. Differentiation is purely credit quota.
 
-> **Note:** All tiers use the same `fal-ai/flux-2-pro` image model. Agency gets the optional `fal-ai/nano-banana-pro` premium model in Phase 3.
+| Feature                        | Starter                       | Growth                         | Agency                        |
+| ------------------------------ | ----------------------------- | ------------------------------ | ----------------------------- |
+| **Monthly Price (₦)**          | ₦9,900                        | ₦24,900                        | ₦59,900                       |
+| **AI Credits / Month**         | 50                            | 150                            | 250                           |
+| **Target Spend**               | Up to ₦100K/mo                | ₦100K–₦300K/mo                 | Above ₦300K/mo                |
+| **AI Skills**                  | ✅ Full Skills loaded         | ✅ Full Skills loaded          | ✅ Full Skills loaded         |
+| **Copy Variations**            | 5                             | 5                              | 5                             |
+| **Copy Refinements**           | Unlimited                     | Unlimited                      | Unlimited                     |
+| **Image Model**                | FLUX 2 Pro + Nano Banana Pro  | FLUX 2 Pro + Nano Banana Pro   | FLUX 2 Pro + Nano Banana Pro  |
+| **Monthly Chat Quota**         | 2,000                         | 2,000                          | 2,000                         |
+| **Connected Ad Accounts**      | Unlimited                     | Unlimited                      | Unlimited                     |
+| **Team Members**               | Unlimited                     | Unlimited                      | Unlimited                     |
+| **Link Analytics Window**      | Lifetime                      | Lifetime                       | Lifetime                      |
+| **Custom Link Slugs**          | ✅                            | ✅                             | ✅                            |
+
+> **Note:** Plans are differentiated by credit quota, not feature access. Never block features based on tier — only block based on credit balance or subscription status.
 
 ---
 
@@ -45,62 +51,86 @@ export const TIER_CONFIG = {
       strategyModel: "gpt-5.2",
       refinementModel: "gpt-5-mini",
       imageModel: "fal-ai/flux-2-pro",
-      premiumImageModel: null,
-      useSkills: false, // inline system prompt only
-      maxCopyVariations: 2,
-      maxRefinementsPerCampaign: 3,
-    },
-    credits: { monthly: 50, imageCost: 5, premiumImageCost: null },
-    limits: {
-      maxAdAccounts: 1,
-      maxTeamMembers: 1,
-      linkAnalyticsDays: 7,
-      customLinkSlugs: false,
-      maxMonthlyChats: 50,
-    },
-  },
-  growth: {
-    ai: {
-      strategyModel: "gpt-5.2",
-      refinementModel: "gpt-5-mini",
-      imageModel: "fal-ai/flux-2-pro",
-      premiumImageModel: null,
-      useSkills: true, // full skills from .md files
-      maxCopyVariations: 3,
-      maxRefinementsPerCampaign: Infinity,
-    },
-    credits: { monthly: 150, imageCost: 5, premiumImageCost: null },
-    limits: {
-      maxAdAccounts: 3,
-      maxTeamMembers: 3,
-      linkAnalyticsDays: 30,
-      customLinkSlugs: true,
-      maxMonthlyChats: 200,
-    },
-  },
-  agency: {
-    ai: {
-      strategyModel: "gpt-5.2",
-      refinementModel: "gpt-5-mini",
-      imageModel: "fal-ai/flux-2-pro",
-      premiumImageModel: "fal-ai/nano-banana-pro", // Phase 3
+      premiumImageModel: "fal-ai/nano-banana-pro",
       useSkills: true,
       maxCopyVariations: 5,
       maxRefinementsPerCampaign: Infinity,
     },
+    credits: { monthly: 50, imageCost: 5, premiumImageCost: 8 },
+    limits: {
+      maxOrganizations: 999,     // effectively unlimited
+      maxAdAccounts: 999,
+      maxTeamMembers: 999,
+      linkAnalyticsDays: 36500,  // lifetime
+      customLinkSlugs: true,
+      maxMonthlyChats: 2000,
+      adSpendCeilingKobo: 10_000_000,  // ₦100,000 — auto-upgrade floor
+      anomalyBufferKobo: 2_000_000,    // ₦20,000 buffer
+    },
+  },
+  growth: {
+    // identical ai config as starter
+    credits: { monthly: 150, imageCost: 5, premiumImageCost: 8 },
+    limits: {
+      // identical limits as starter except:
+      adSpendCeilingKobo: 30_000_000,  // ₦300,000 — auto-upgrade floor
+      anomalyBufferKobo: 5_000_000,    // ₦50,000 buffer
+    },
+  },
+  agency: {
+    // identical ai config
     credits: { monthly: 250, imageCost: 5, premiumImageCost: 8 },
     limits: {
-      maxAdAccounts: 999, // treated as "unlimited" in UI
-      maxTeamMembers: 10,
-      linkAnalyticsDays: 36500, // treated as "lifetime" in UI
-      customLinkSlugs: true,
-      maxMonthlyChats: 2000, // above this, chat dips into credits at 1 cr/msg
+      // identical limits except:
+      adSpendCeilingKobo: null,  // Unlimited
+      anomalyBufferKobo: null,
     },
   },
 };
-
-export type TierId = keyof typeof TIER_CONFIG; // "starter" | "growth" | "agency"
 ```
+
+---
+
+## Spend-Based Automatic Tier Upgrade
+
+**File: `src/lib/tier-resolver.ts`**
+
+The tier a user is on must be at or above the floor tier determined by their 30-day Meta ad spend. This is enforced via `syncSpendAndUpdateTier()` in `src/actions/spend-sync.ts`.
+
+| 30-day Ad Spend       | Floor Tier |
+| --------------------- | ---------- |
+| ≤ ₦100,000            | Starter    |
+| ≤ ₦300,000            | Growth     |
+| > ₦300,000            | Agency     |
+
+**Anomaly buffers** prevent one-off campaign spikes from triggering upgrades prematurely:
+- Starter → Growth: spend must exceed ₦100K + ₦20K buffer = ₦120K
+- Growth → Agency: spend must exceed ₦300K + ₦50K buffer = ₦350K
+
+**Grace window:** When spend exceeds the ceiling + buffer, a 7-day grace period starts before the tier actually changes. The user is notified in advance.
+
+```typescript
+// src/lib/tier-resolver.ts
+export function resolveSpendTier(spendKobo: number, bufferKobo?: number): TierId
+export function isTierChangeAllowed(requestedTier: TierId, currentSpendKobo: number): boolean
+export function isUpgrade(candidateTier: TierId, currentTier: TierId): boolean
+export function tierSpendRangeLabel(tier: TierId): string
+```
+
+**Rule:** Users can *upgrade* to any tier above their floor. They can *never downgrade below* their spend floor.
+
+---
+
+## Free Trial
+
+New organizations get a **7-day free trial**:
+
+- Trial features: identical to Growth tier, but 50 credits (same as Starter)
+- After trial: user selects a paid plan and subscribes via Paystack
+- `grantFreeTrialCredits()` in `src/actions/paystack.ts` — credits initial 50 credits
+- `TRIAL_DAYS = 7` in `src/lib/constants.ts`
+- Trial is only started once Meta Ad Account is connected (`subscription_status = 'incomplete'` until then)
+- Organizations created via "Add Business" in Settings skip the trial and start on Starter
 
 ---
 
@@ -110,10 +140,10 @@ export type TierId = keyof typeof TIER_CONFIG; // "starter" | "growth" | "agency
 | -------------------------------- | ------- | ----------------------------------------- |
 | Image gen — FLUX 2 Pro           | **5**   | Default for all tiers                     |
 | Image edit / refine — FLUX 2 Pro | **3**   | Cheaper than gen to encourage iteration   |
-| Image gen — Nano Banana Pro      | **8**   | Agency only, Phase 3                      |
+| Image gen — Nano Banana Pro      | **8**   | Phase 3                                   |
 | Ad copy strategy                 | **0**   | FREE — text generation is negligible cost |
 | Copy refinement                  | **0**   | FREE                                      |
-| Chat overage                     | **1**   | After monthly chat quota exhausted        |
+| Chat overage                     | **1**   | After 2,000 monthly chat quota            |
 | Video — Kling v2 5s              | **40**  | Phase 2                                   |
 | Video — Kling v2 10s             | **70**  | Phase 2                                   |
 | Video — Veo 3.1 5s               | **50**  | Phase 2                                   |
@@ -134,7 +164,7 @@ export type TierId = keyof typeof TIER_CONFIG; // "starter" | "growth" | "agency
 
 ---
 
-## Monthly Credits by Plan (from `src/lib/constants.ts` → `PLAN_CREDITS`)
+## Monthly Credits by Plan (`PLAN_CREDITS`)
 
 ```
 free_trial:  50 credits
@@ -145,23 +175,35 @@ agency:     250 credits
 
 ---
 
-## Tier Resolver (server-side — `src/lib/tier.ts`)
+## Billing Plans Display (`BILLING_PLANS`)
 
-The resolver reads `organizations.subscription_tier` from the DB via Supabase. It is **server-side only** (`"use server"`).
+`BILLING_PLANS` in `src/lib/constants.ts` is the single source of truth consumed by `billing-content.tsx`, `subscription-gate.tsx`, and the payment dialog. Plans are positioned around spend levels, not feature differences:
+
+- **Starter** tagline: "For businesses spending up to ₦100K/mo on ads"
+- **Growth** tagline: "For businesses spending ₦100K–₦300K/mo on ads" ← highlighted / recommended
+- **Agency** tagline: "For businesses spending above ₦300K/mo on ads"
+
+---
+
+## DB Field: Where Tier Lives
+
+Subscription tier is **per-user**, stored in `user_subscriptions.subscription_tier`.
+
+**Do NOT reference `organizations.subscription_tier`** — that column does not exist.
 
 ```typescript
-// src/lib/tier.ts
-export async function resolveTier(
-  supabase: SupabaseClient<Database>,
-  userId: string
-): Promise<ResolvedTier> {
-  // Reads organization_members → organizations.subscription_tier
-  // Returns { tierId, config, orgId }
-  // Defaults to "starter" if no org or no tier found
-}
-```
+// ✅ Correct — reads from user_subscriptions
+const { data: sub } = await supabase
+  .from("user_subscriptions")
+  .select("subscription_tier, subscription_status")
+  .eq("user_id", userId)
+  .single();
 
-**Do NOT create a client-side `useTierConfig` hook that re-implements this.** Use server actions + pass tier config as props, or query `organizations.subscription_tier` via TanStack Query.
+// ❌ Wrong — this column doesn't exist
+const { data: org } = await supabase
+  .from("organizations")
+  .select("subscription_tier"); // ← will fail
+```
 
 ---
 
@@ -186,7 +228,7 @@ await spendCredits(
 - `spendCredits()` — calls `deduct_credits` RPC atomically. Safe when `cost = 0`.
 - `getOrgCredits()` — lightweight read for display. Reads `credits_balance` + `plan_credits_quota`.
 
-**Text actions (`TEXT_GEN = 0`):** Still call `spendCredits` with `cost = 0` — it skips the deduction silently. This lets you log the action without charging.
+**Text actions (`TEXT_GEN = 0`):** Still call `spendCredits` with `cost = 0` — it skips the deduction silently. Lets you log the action without charging.
 
 ---
 
@@ -196,44 +238,40 @@ Before any Meta API write and before any credit check:
 
 ```typescript
 const allowedStatuses = ["active", "trialing"];
-if (!allowedStatuses.includes(org.subscription_status)) {
+if (!allowedStatuses.includes(subscription_status)) {
   throw new Error("Subscription inactive");
 }
 ```
 
-This is separate from credit checks. `requireCredits()` handles both in sequence.
+`past_due` users in the grace window also get access — check `SubscriptionGate` component (`src/components/dashboard/subscription-gate.tsx`) for the full logic.
 
 ---
 
 ## Implementation Status
 
-| Item                                                  | Status     |
-| ----------------------------------------------------- | ---------- |
-| `TIER_CONFIG` in `constants.ts`                       | ✅ Built   |
-| `resolveTier()` in `tier.ts`                          | ✅ Built   |
-| `requireCredits()` / `spendCredits()` in `credits.ts` | ✅ Built   |
-| Credit deduction in image generation                  | ✅ Built   |
-| Tier-aware model selection (`useSkills` flag)         | ✅ Built   |
-| Copy refinement limits (3 for Starter)                | ⬜ Phase 2 |
-| A/B copy variation limits                             | ⬜ Phase 2 |
-| Soft cap overage banner (80% warning)                 | ⬜ Phase 2 |
-| Ad account connection limit enforcement               | ⬜ Phase 2 |
-| Team member limit enforcement                         | ⬜ Phase 2 |
-| Link analytics time-windowing                         | ⬜ Phase 2 |
-| Custom link slugs                                     | ⬜ Phase 3 |
-| WhatsApp alerts                                       | ⬜ Phase 3 |
-| Post-launch auto-optimization                         | ⬜ Phase 3 |
-| Nano Banana Pro premium image (Agency)                | ⬜ Phase 3 |
-| FLUX Schnell free preview                             | ⬜ Phase 3 |
-
-Full deferred feature specs: `.agent/skills/tier-strategy/references/deferred-features.md`
+| Item                                                           | Status   |
+| -------------------------------------------------------------- | -------- |
+| `TIER_CONFIG` in `constants.ts` (all tiers equal)             | ✅ Built |
+| `resolveSpendTier()` in `tier-resolver.ts`                    | ✅ Built |
+| `requireCredits()` / `spendCredits()` in `credits.ts`         | ✅ Built |
+| Credit deduction in image generation                          | ✅ Built |
+| `useSkills: true` for all tiers                               | ✅ Built |
+| `BILLING_PLANS` with spend-tier taglines                      | ✅ Built |
+| `syncSpendAndUpdateTier()` in `spend-sync.ts`                 | ✅ Built |
+| 7-day trial locked to Growth features                         | ✅ Built |
+| Spend anomaly buffer + 7-day grace window                     | ✅ Built |
+| Soft cap overage banner (80% warning)                         | ⬜ Phase 2 |
+| Video generation (Kling / Veo)                                | ⬜ Phase 2 |
+| Nano Banana Pro premium image gating                          | ⬜ Phase 3 |
 
 ---
 
 ## Key Rules
 
+- **Never block features based on tier** — tier differences are credit quota only.
 - **Never** hard-block Growth/Agency at 100% credits — downgrade image model, keep generating.
-- **Starter:** Hard stop at 100% credits (no overage).
+- **Starter:** Hard stop at 100% credits (no overage for image gen).
 - **Never** skip the subscription status check. Credits are irrelevant if subscription is not active.
 - **UI language:** "Credits" not "tokens." "Upgrade plan" not "subscribe." "Running low" not "quota exceeded."
 - **1 credit = ₦50** for any user-facing price display.
+- **Spend drives tier floor** — always call `syncSpendAndUpdateTier()` after Meta insights sync.

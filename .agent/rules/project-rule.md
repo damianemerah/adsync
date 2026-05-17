@@ -26,6 +26,7 @@ sell fashion, beauty, food, and services primarily via WhatsApp.
 - **Supabase MCP Server**: Use this for database research, running SQL queries, reading table structures, and applying migrations directly to the active project.
 - **Perplexity-Ask MCP Server**: Use the Perplexity search integration to perform advanced, up-to-date research, search for current documentation, and resolve external implementation issues.
 - **Context7 MCP Server**: **CRITICAL FOR META API:** Use this to fetch current Meta Graph API documentation (especially v25+). Meta's API changes frequently. NEVER rely on training data for Meta Graph API objects; always query `/websites/developers_facebook_graph-api` or fetch the live URL.
+- **Next.js MCP Server**: Use this to discover running servers, inspect routes, and get compilation/runtime errors. Tools: `get_errors`, `get_routes`, `get_page_metadata`, `get_server_action_by_id`. Use `nextjs_index` first.
 - **Supabase Types**: Use this to get the types of the database tables. It is located at `src/types/supabase.ts`. To update it, run `npx -y supabase gen types typescript --project-id iomvjxlfxeppizkhehcl --schema public > src/types/supabase.ts`
 
 ---
@@ -146,13 +147,7 @@ When a task is complete, perform these two audits before signing off:
    - Bad: "Task done."
    - Good: "I've implemented the ROI metrics card. It's currently showing hardcoded zeros... would you like me to connect it to live data now?"
 
-### B. The Impeccable UI Loop
 
-If you just built or modified a frontend UI component, you **MUST** review your work against the Tenzu design system (`.impeccable.md`) and suggest the Impeccable design sequence to the user.
-
-1. Self-review for missing tokens, shadow spam, or AI slop.
-2. Ask the user: "I've completed the feature. Should I run the `/audit` → `/normalize` → `/polish` sequence to ensure it perfectly matches the Tenzu Crisp Modern aesthetic?"
-3. Proactively use skills like `/quieter` or `/arrange` if the UI feels chaotic or ungrounded.
 
 ---
 

@@ -153,6 +153,19 @@ export interface CampaignState {
   /** Index of the variation the user pinned as their preferred copy (default 0). */
   selectedCopyIdx: number;
 
+  /** Active ad format. Dynamic Creative is the default when 2+ images are selected. */
+  adFormatType: "single" | "carousel" | "dynamic_creative";
+
+  /**
+   * Whether Meta is allowed to auto-enhance this campaign's creative (Advantage+ Creative).
+   * When true, Meta may adjust brightness, add music to videos, tweak headlines, and crop
+   * to fit each placement. Defaults to false — user must opt in.
+   */
+  advantagePlusCreative: boolean;
+
+  /** How many copy/image variations to generate (min 2, ceiling = tier maxCopyVariations). */
+  targetCreativeCount: number;
+
   messages: Message[];
   setMessages: (messages: Message[] | ((prev: Message[]) => Message[])) => void;
 
@@ -220,6 +233,9 @@ export const useCampaignStore = create<CampaignState>()((set, get) => ({
   targetingResolutionError: false,
   adCopyVariations: [],
   selectedCopyIdx: 0,
+  adFormatType: "dynamic_creative",
+  targetCreativeCount: 2,
+  advantagePlusCreative: false,
   messages: [],
   userId: null,
 
@@ -357,6 +373,9 @@ export const useCampaignStore = create<CampaignState>()((set, get) => ({
       suggestedLeadForm: null,
       adCopyVariations: [],
       selectedCopyIdx: 0,
+      adFormatType: "dynamic_creative",
+      targetCreativeCount: 2,
+      advantagePlusCreative: false,
       isResolvingTargeting: false,
       targetingResolutionError: false,
       messages: [],

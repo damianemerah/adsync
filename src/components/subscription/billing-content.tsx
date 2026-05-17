@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useSubscription } from "@/hooks/use-subscription";
-import { BILLING_PLANS } from "@/lib/constants";
 import {
   initializePaystackTransaction,
   initializeCreditPackPurchase,
@@ -21,7 +20,8 @@ import { formatDate } from "@/lib/utils";
 import { SubscriptionOverviewCard } from "./subscription-overview-card";
 import { PaymentMethodSection } from "./payment-method-section";
 import { CreditPacksSection } from "./credit-packs-section";
-import { PlanSelector } from "./plan-selector";
+import { SpendTierDisplay } from "./spend-tier-display";
+import { BILLING_PLANS } from "@/lib/constants";
 
 export function BillingContent() {
   const { data: subscription, isLoading, refetch } = useSubscription();
@@ -63,7 +63,11 @@ export function BillingContent() {
     }
   }, [searchParams, refetch, router]);
 
-  const handleUpgrade = async (planId: string) => {
+  /**
+   * Renew / reactivate the user's current spend-assigned tier.
+   * They cannot choose a different plan — the tier is locked to their spend.
+   */
+  const handleRenew = async (planId: string) => {
     setIsProcessing(planId);
     try {
       const { email, orgId } = await getPaymentContext();
@@ -144,6 +148,7 @@ export function BillingContent() {
   const isInGracePeriod = subscription?.org?.isInGracePeriod ?? false;
   const graceEndsAt = subscription?.org?.graceEndsAt;
   const expiresAt = subscription?.org?.expiresAt;
+  const pendingPaystackPlanUpgrade = subscription?.org?.pendingPaystackPlanUpgrade ?? false;
   const daysUntilExpiry = expiresAt
     ? Math.max(0, Math.ceil((expiresAt.getTime() - new Date().getTime()) / (1000 * 3600 * 24)))
     : 0;
@@ -185,7 +190,7 @@ export function BillingContent() {
             size="sm"
             variant={isInGracePeriod ? "outline" : "destructive"}
             className="shrink-0 text-xs h-7"
-            onClick={() => handleUpgrade(currentTier)}
+            onClick={() => handleRenew(currentTier)}
             disabled={isProcessing !== null}
           >
             {isProcessing === currentTier ? (
@@ -207,10 +212,11 @@ export function BillingContent() {
         card={card}
         isProcessing={isProcessing}
         isCanceling={isCanceling}
-        onUpgrade={handleUpgrade}
+        onRenew={handleRenew}
         onAddPaymentMethod={handleAddPaymentMethod}
         onCancelSubscription={handleCancelSubscription}
         currentTier={currentTier}
+        pendingPaystackPlanUpgrade={pendingPaystackPlanUpgrade}
       />
 
       <PaymentMethodSection
@@ -225,11 +231,8 @@ export function BillingContent() {
         onBuyPack={handleBuyPack}
       />
 
-      <PlanSelector
-        currentTier={currentTier}
-        isProcessing={isProcessing}
-        onUpgrade={handleUpgrade}
-      />
+      {/* Spend-Based Plan — read-only, no manual selection */}
+      <SpendTierDisplay />
     </div>
   );
 }

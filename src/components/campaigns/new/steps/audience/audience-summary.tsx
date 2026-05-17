@@ -31,7 +31,7 @@ function TargetingSkeleton() {
   );
 }
 
-export function AudienceSummaryPanel() {
+export function AudienceSummaryPanel({ maxCreativeCount = 2 }: { maxCreativeCount?: number }) {
   const {
     setStep,
     updateDraft,
@@ -47,6 +47,7 @@ export function AudienceSummaryPanel() {
     locations,
     isResolvingTargeting,
     targetingResolutionError,
+    targetCreativeCount,
   } = useCampaignStore();
 
   const [suggestions, setSuggestions] = useState<Array<{ id: string; name: string }>>([]);
@@ -129,8 +130,51 @@ export function AudienceSummaryPanel() {
     }
   };
 
+  // Build the picker options based on the tier ceiling: always include 2, then 3 if max >= 3, then 5 if max >= 5
+  const creativeCountOptions = [2, 3, 5].filter((n) => n <= maxCreativeCount);
+
   return (
     <div className="space-y-5 flex-1 overflow-y-auto pr-1 no-scrollbar pb-4">
+
+      {/* Creative Variations — controls how many copy/image variants AI generates */}
+      {maxCreativeCount >= 2 && (
+        <div className="p-4 bg-muted/20 rounded-lg border border-border space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-subtle-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <Sparks className="h-3.5 w-3.5 text-ai" />
+              Creative Variations
+            </label>
+            <span className="text-xs text-subtle-foreground">
+              Meta auto-optimizes delivery
+            </span>
+          </div>
+          {creativeCountOptions.length > 1 ? (
+            <div className="flex gap-2">
+              {creativeCountOptions.map((n) => (
+                <button
+                  key={n}
+                  onClick={() => updateDraft({ targetCreativeCount: n })}
+                  className={cn(
+                    "flex-1 h-9 rounded-lg border text-sm font-semibold transition-all",
+                    targetCreativeCount === n
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background text-muted-foreground border-border hover:border-primary/50",
+                  )}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-subtle-foreground">2 variations (upgrade for more)</p>
+          )}
+          <p className="text-xs text-subtle-foreground">
+            AI will generate {targetCreativeCount} headline + body{" "}
+            {targetCreativeCount === 1 ? "variant" : "variants"} for your ad.
+          </p>
+        </div>
+      )}
+
       {/* Demographics */}
       <div className="p-4 bg-muted/20 rounded-lg border border-border space-y-4">
         <label className="text-xs font-bold text-subtle-foreground uppercase tracking-wider">

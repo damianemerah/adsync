@@ -94,13 +94,13 @@ serve(async (req) => {
       if (!expireUpdateErr) expiredCount = expiredUserIds.length;
     }
 
-    // 3. Past Due Grace Period Expiry (Cancelled after 7 days)
-    const gracePeriodEndIso = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    // 3. Past Due Grace Period Expiry — cancel once subscription_grace_ends_at has passed.
+    //    The webhook sets this to 3 days after payment failure; we enforce it here.
     const { error: cancelErr } = await supabaseClient
       .from("user_subscriptions")
-      .update({ subscription_status: "canceled" }) // or expired
+      .update({ subscription_status: "canceled" })
       .eq("subscription_status", "past_due")
-      .lte("updated_at", gracePeriodEndIso);
+      .lte("subscription_grace_ends_at", nowIso);
       
     if (cancelErr) throw cancelErr;
 

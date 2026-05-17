@@ -59,13 +59,13 @@ export interface UseAudienceChatReturn {
   isRefiningCopy: boolean;
   copyReady: boolean;
   chatPhase: "initial" | "refining";
-  upgradeDialogOpen: boolean;
-  setUpgradeDialogOpen: (open: boolean) => void;
   summaryOpen: boolean;
   setSummaryOpen: (open: boolean) => void;
   inputValue: string;
   setInputValue: (v: string) => void;
   currentPlaceholder: string;
+  /** Tier-based maximum number of copy/creative variations the user can generate. */
+  maxCopyVariations: number;
   // Audience snapshot for ChatInterface prop
   campaignStore: {
     targetInterests: TargetingOption[];
@@ -119,6 +119,7 @@ export function useAudienceChat({
     lastGeneratedObjective,
     messages,
     setMessages,
+    targetCreativeCount,
   } = useCampaignStore();
 
   const refinementCount = useCampaignStore((s) => s.refinementCount);
@@ -131,9 +132,7 @@ export function useAudienceChat({
   const { organization: currentOrg } = useOrganization(activeOrgId);
   const { data: subscription } = useSubscription();
   const tier = (subscription?.org?.tier ?? "starter") as keyof typeof TIER_CONFIG;
-  const maxRefinements =
-    TIER_CONFIG[tier]?.ai?.maxRefinementsPerCampaign ?? Infinity;
-  const maxCopyVariations = TIER_CONFIG[tier]?.ai?.maxCopyVariations ?? 2;
+  const maxCopyVariations = TIER_CONFIG[tier]?.ai?.maxCopyVariations ?? 5;
 
   // ── UI state ──────────────────────────────────────────────────────────────
   const [inputValue, setInputValue] = useState("");
@@ -142,7 +141,6 @@ export function useAudienceChat({
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
   const [isRefiningCopy, setIsRefiningCopy] = useState(false);
   const [isReadingUrl, setIsReadingUrl] = useState(false);
-  const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
   const [copyReady, setCopyReady] = useState(false);
   const [chatPhase, setChatPhase] = useState<"initial" | "refining">(
     "initial",
@@ -417,7 +415,6 @@ export function useAudienceChat({
         },
       );
     } else if (errBody?.limitReached) {
-      setUpgradeDialogOpen(true);
       toast.error(
         errBody.error || "Monthly AI chat limit reached. Upgrade to continue.",
         { duration: 6000 },
@@ -435,14 +432,9 @@ export function useAudienceChat({
 
     if (kind === "refine") {
       if (result.copy?.length && result.headline?.length) {
-        if (tier === "starter" && refinementCount >= maxRefinements) {
-          setIsTyping(false);
-          setUpgradeDialogOpen(true);
-          return true;
-        }
         setIsRefiningCopy(true);
         const { variations, primaryCopy, ctaData } = applyCopyResult(result, {
-          maxCopyVariations,
+          maxCopyVariations: Math.min(maxCopyVariations, targetCreativeCount),
           platform,
           objective,
           locations,
@@ -548,14 +540,6 @@ export function useAudienceChat({
   // ── handleCopyRefinement ───────────────────────────────────────────────────
 
   const handleCopyRefinement = async (instruction: string) => {
-    if (tier === "starter" && refinementCount >= maxRefinements) {
-      setUpgradeDialogOpen(true);
-      toast.error(
-        `Starter plan allows ${maxRefinements} copy refinements per campaign. Upgrade to Growth or Agency for unlimited refinements.`,
-        { duration: 5000 },
-      );
-      return;
-    }
     setIsRefiningCopy(true);
     setIsTyping(true);
 
@@ -717,7 +701,7 @@ export function useAudienceChat({
         locations,
       );
       const copyResult = applyCopyResult(result, {
-        maxCopyVariations,
+        maxCopyVariations: Math.min(maxCopyVariations, targetCreativeCount),
         platform,
         objective,
         locations: finalLocations,
@@ -927,13 +911,12 @@ export function useAudienceChat({
     isRefiningCopy,
     copyReady,
     chatPhase,
-    upgradeDialogOpen,
-    setUpgradeDialogOpen,
     summaryOpen,
     setSummaryOpen,
     inputValue,
     setInputValue,
     currentPlaceholder,
+    maxCopyVariations,
     campaignStore,
     handleSend,
     handleCopyRefinement,

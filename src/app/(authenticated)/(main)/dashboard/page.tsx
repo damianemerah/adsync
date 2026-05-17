@@ -14,7 +14,7 @@ async function DashboardDataLoader({ userId, activeOrgId }: { userId: string; ac
   const supabase = await createClient();
   const queryClient = new QueryClient();
 
-  const [{ data: connectedAccounts }, dashboardData, campaigns] =
+  const [{ data: connectedAccounts }, dashboardData, campaignsResult] =
     await Promise.all([
       supabase
         .from("ad_accounts")
@@ -26,8 +26,13 @@ async function DashboardDataLoader({ userId, activeOrgId }: { userId: string; ac
       getCampaigns(activeOrgId),
     ]);
 
+  const campaigns = campaignsResult.campaigns;
+
   // Seed the campaigns query key so useCampaignsList doesn't double-fetch on mount
-  queryClient.setQueryData(["campaigns", activeOrgId, null, null], campaigns);
+  queryClient.setQueryData(
+    ["campaigns", activeOrgId, 1, 20, "", null, false, null, null, null, null],
+    campaignsResult,
+  );
 
   const hasConnectedAccount = (connectedAccounts?.length ?? 0) > 0;
 

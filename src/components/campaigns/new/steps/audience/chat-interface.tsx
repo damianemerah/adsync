@@ -98,8 +98,8 @@ export function ChatInterface({
   return (
     <>
       {/* Messages */}
-      <ScrollArea className="flex-1 p-4 sm:p-6 bg-muted/10 overflow-auto no-scrollbar">
-        <div className="space-y-6 pb-4 flex flex-col items-start w-full">
+      <ScrollArea className="flex-1 py-6 px-4 sm:px-6 bg-muted/10 overflow-auto no-scrollbar">
+        <div className="space-y-6 pb-4 flex flex-col items-start w-full max-w-3xl mx-auto">
           {messages.map((msg, idx) => {
             const isConsecutive =
               idx > 0 && messages[idx - 1].role === "ai" && msg.role === "ai";
@@ -155,8 +155,9 @@ export function ChatInterface({
       </ScrollArea>
 
       {/* Input */}
-      <div className="p-4 bg-background border-t border-border shrink-0 z-10">
-        <div className="relative flex items-center">
+      <div className="p-4 sm:p-6 bg-background border-t border-border shrink-0 z-20 sticky bottom-0 w-full">
+        <div className="flex flex-col w-full max-w-4xl mx-auto">
+          <div className="relative flex items-center">
           <Input
             ref={inputRef}
             value={inputValue}
@@ -175,10 +176,11 @@ export function ChatInterface({
           </Button>
         </div>
         {isReadingUrl && !isTyping && (
-          <p className="mt-1.5 text-xs text-subtle-foreground pl-1">
+          <p className="mt-2 text-xs text-subtle-foreground pl-1">
             I'll read this page and use it to build your ad
           </p>
         )}
+        </div>
       </div>
     </>
   );

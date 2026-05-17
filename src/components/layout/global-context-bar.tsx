@@ -105,7 +105,8 @@ export function GlobalContextBar() {
     setHealthDialogOpen(true);
   }, []);
   const { data: accounts } = useAdAccountsList();
-  const { data: campaigns } = useCampaignsList();
+  const { data: campaignsData } = useCampaignsList();
+  const campaigns = campaignsData?.campaigns;
 
   // Store
   const {
@@ -251,7 +252,7 @@ export function GlobalContextBar() {
   }, [selectedCampaignIds, setSelectedCampaignIds]);
 
   return (
-    <div className="sticky top-0 z-40 backdrop-blur-md border-b border-border">
+    <div className="sticky top-0 z-10 backdrop-blur-md border-b border-border">
       <div className="mx-auto px-4 lg:px-8 py-2.5 flex flex-col lg:flex-row gap-3 items-center justify-between w-full">
         {/* Left Side: Filters */}
         <div className="flex items-center flex-row gap-2 flex-1 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0 no-scrollbar snap-x">

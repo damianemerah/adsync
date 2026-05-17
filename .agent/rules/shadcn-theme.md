@@ -1,14 +1,12 @@
 ---
 name: shadcn-design-system
-description: Enforce Tenzu's design system — flat UI, semantic tokens, iconoir-react icons, Montserrat fonts. Rules now live in .impeccable.md and are auto-enforced by all Impeccable design skills.
+description: Enforce Tenzu's design system — flat UI, semantic tokens, iconoir-react icons, Montserrat fonts.
 globs: "**/*.{ts,tsx}"
 ---
 
 # Tenzu Design System — Active Rules
 
-> **Design system rules have been consolidated into `.impeccable.md` at the project root.**
-> All Impeccable skills (`/audit`, `/polish`, `/normalize`, etc.) read this file automatically.
-> The rules below are a fast-reference summary. Full detail is in `.impeccable.md`.
+
 
 ## Non-Negotiable Rules (Always Active)
 
@@ -31,12 +29,4 @@ globs: "**/*.{ts,tsx}"
 | `text-purple-500` for AI           | `text-ai`                           |
 | `bg-[#12E193]`                     | `bg-primary`                        |
 
-## Full Rules
 
-See `.impeccable.md` at the project root for:
-
-- Complete token reference table
-- Text color decision tree
-- Component patterns (card, form, AI block, sidebar item)
-- UI language / copy rules
-- Accessibility checklist

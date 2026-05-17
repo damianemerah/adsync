@@ -73,6 +73,7 @@ function mapStateToDb(state: Partial<CampaignState>) {
     objective,
     platform,
     status: "draft",
+    source: "tenzu" as const,
   };
 }
 

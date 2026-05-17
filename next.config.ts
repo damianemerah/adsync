@@ -51,7 +51,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob: https:",
               "font-src 'self' data:",
-              "media-src 'self' blob:",
+              "media-src 'self' blob: https://iomvjxlfxeppizkhehcl.supabase.co",
               "connect-src 'self' https://*.supabase.co https://graph.facebook.com https://api.paystack.co wss://*.supabase.co",
               "frame-src 'self' https://checkout.paystack.com",
               "object-src 'none'",
